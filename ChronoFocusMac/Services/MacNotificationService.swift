@@ -1,31 +1,34 @@
-import AudioToolbox
+import AppKit
 import AVFoundation
-import Combine
 import Foundation
-import UIKit
 import UserNotifications
 
 @MainActor
-final class NotificationService: NSObject, ObservableObject, UNUserNotificationCenterDelegate, TimerNotificationServicing {
+final class MacNotificationService: NSObject, ObservableObject, UNUserNotificationCenterDelegate, TimerNotificationServicing {
     @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
-    private let center = UNUserNotificationCenter.current()
-    private let taskReminderPrefix = "task-due-"
+    private let center: UNUserNotificationCenter?
+    private let taskReminderPrefix = "mac-task-due-"
     private var alertPlayer: AVAudioPlayer?
 
-    override init() {
+    init(disabledForSnapshots: Bool = false) {
+        center = disabledForSnapshots ? nil : UNUserNotificationCenter.current()
         super.init()
-        center.delegate = self
-        Task { await refreshAuthorizationStatus() }
+        center?.delegate = self
+        if !disabledForSnapshots {
+            Task { await refreshAuthorizationStatus() }
+        }
     }
 
     func refreshAuthorizationStatus() async {
+        guard let center else { return }
         let settings = await center.notificationSettings()
         authorizationStatus = settings.authorizationStatus
     }
 
     @discardableResult
     func requestAuthorization() async -> Bool {
+        guard let center else { return false }
         do {
             let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
             await refreshAuthorizationStatus()
@@ -37,12 +40,8 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
     }
 
     func openSystemSettings() {
-        guard
-            let url = URL(string: UIApplication.openSettingsURLString),
-            UIApplication.shared.canOpenURL(url)
-        else { return }
-
-        UIApplication.shared.open(url)
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") else { return }
+        NSWorkspace.shared.open(url)
     }
 
     func scheduleCompletion(
@@ -53,8 +52,8 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
         endDate: Date,
         soundEnabled: Bool
     ) async {
+        guard let center else { return }
         guard await canScheduleUserNotifications() else { return }
-
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
 
         let content = UNMutableNotificationContent()
@@ -63,10 +62,8 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
             ? "\(taskTitle) 已完成一轮。下一步：\(nextMode.title)。"
             : "\(mode.title)结束。下一步：\(nextMode.title)。"
         content.sound = soundEnabled ? .default : nil
-        content.interruptionLevel = .timeSensitive
 
-        let interval = max(1, endDate.timeIntervalSinceNow)
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, endDate.timeIntervalSinceNow), repeats: false)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
 
         do {
@@ -78,6 +75,7 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
     }
 
     func scheduleTaskReminder(for task: FocusTask, soundEnabled: Bool) async {
+        guard let center else { return }
         let identifier = taskReminderIdentifier(for: task.id)
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
 
@@ -88,11 +86,6 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
         content.title = "日程到期"
         content.body = "\(task.title) 即将到期。预计 \(task.estimatedRounds) 轮 · \(task.category)"
         content.sound = soundEnabled ? .default : nil
-        content.interruptionLevel = .timeSensitive
-        content.userInfo = [
-            "type": "taskDue",
-            "taskID": task.id.uuidString
-        ]
 
         let components = Calendar.current.dateComponents(
             [.year, .month, .day, .hour, .minute, .second],
@@ -110,11 +103,13 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
     }
 
     func cancel(identifier: String?) {
+        guard let center else { return }
         guard let identifier else { return }
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
     }
 
     func cancelTaskReminder(taskID: UUID) {
+        guard let center else { return }
         center.removePendingNotificationRequests(withIdentifiers: [taskReminderIdentifier(for: taskID)])
     }
 
@@ -138,8 +133,16 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
             playGeneratedTone(volume: Float(min(1, max(0, soundVolume))))
         }
         if vibrationEnabled {
-            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+            NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .default)
         }
+    }
+
+    var shouldShowAuthorizationAction: Bool {
+        authorizationStatus == .notDetermined || authorizationStatus == .denied
+    }
+
+    var authorizationActionTitle: String {
+        authorizationStatus == .denied ? "去设置" : "授权"
     }
 
     private func playGeneratedTone(volume: Float) {
@@ -151,7 +154,7 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
             player.play()
             alertPlayer = player
         } catch {
-            AudioServicesPlayAlertSound(SystemSoundID(1005))
+            NSSound.beep()
         }
     }
 
@@ -201,15 +204,8 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
         return data
     }
 
-    var shouldShowAuthorizationAction: Bool {
-        authorizationStatus == .notDetermined || authorizationStatus == .denied
-    }
-
-    var authorizationActionTitle: String {
-        authorizationStatus == .denied ? "去设置" : "授权"
-    }
-
     private func canScheduleUserNotifications() async -> Bool {
+        guard let center else { return false }
         let settings = await center.notificationSettings()
         switch settings.authorizationStatus {
         case .authorized, .provisional, .ephemeral:
@@ -231,6 +227,7 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
     }
 
     private func cancelAllTaskReminders() async {
+        guard let center else { return }
         let requests = await center.pendingNotificationRequests()
         let identifiers = requests
             .map(\.identifier)

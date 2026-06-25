@@ -2,7 +2,7 @@ import ActivityKit
 import Foundation
 
 @MainActor
-final class LiveActivityService {
+final class LiveActivityService: TimerLiveActivityServicing {
     private var activity: Activity<PomodoroActivityAttributes>?
 
     init() {

@@ -1,6 +1,8 @@
 import Combine
 import Foundation
+#if os(iOS)
 import UIKit
+#endif
 
 @MainActor
 final class TimerEngine: ObservableObject {
@@ -14,12 +16,12 @@ final class TimerEngine: ObservableObject {
     @Published private(set) var currentTaskTitle = "自由专注"
 
     private let store: FocusStore
-    private let notifications: NotificationService
-    private let liveActivities: LiveActivityService
+    private let notifications: TimerNotificationServicing
+    private let liveActivities: TimerLiveActivityServicing
     private var ticker: Timer?
     private var lastLiveActivityUpdate = Date.distantPast
 
-    init(store: FocusStore, notifications: NotificationService, liveActivities: LiveActivityService) {
+    init(store: FocusStore, notifications: TimerNotificationServicing, liveActivities: TimerLiveActivityServicing) {
         self.store = store
         self.notifications = notifications
         self.liveActivities = liveActivities
@@ -376,7 +378,9 @@ final class TimerEngine: ObservableObject {
     }
 
     private func updateIdleTimerPolicy() {
+#if os(iOS)
         UIApplication.shared.isIdleTimerDisabled = store.settings.keepScreenAwake && isRunning && !isPaused
+#endif
     }
 
     private func nextMode(after completedMode: TimerMode) -> TimerMode {

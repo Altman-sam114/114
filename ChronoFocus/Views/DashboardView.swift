@@ -164,26 +164,3 @@ struct MetricTile: View {
         }
     }
 }
-
-extension Date {
-    var scheduleTimeText: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "M月d日 HH:mm"
-        return formatter.string(from: self)
-    }
-
-    var shortTimeText: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: self)
-    }
-
-    var shortWeekdayText: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "E"
-        return formatter.string(from: self)
-    }
-}

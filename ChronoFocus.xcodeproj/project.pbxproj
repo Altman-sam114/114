@@ -20,6 +20,7 @@
 		10000000000000000000000B /* TimerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000010B /* TimerEngine.swift */; };
 		100000000000000000000014 /* PremiumAccessService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000115 /* PremiumAccessService.swift */; };
 		100000000000000000000015 /* CalendarSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000116 /* CalendarSyncService.swift */; };
+		100000000000000000000016 /* TimerPlatformServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000117 /* TimerPlatformServices.swift */; };
 		10000000000000000000000C /* PomodoroActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000010C /* PomodoroActivityAttributes.swift */; };
 		10000000000000000000000D /* SharedExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000010D /* SharedExtensions.swift */; };
 		10000000000000000000000E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000010E /* Assets.xcassets */; };
@@ -28,6 +29,27 @@
 		100000000000000000000011 /* PomodoroActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000010C /* PomodoroActivityAttributes.swift */; };
 		100000000000000000000012 /* SharedExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000010D /* SharedExtensions.swift */; };
 		100000000000000000000013 /* ChronoFocusLiveActivity.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 100000000000000000000202 /* ChronoFocusLiveActivity.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		200000000000000000000001 /* ChronoFocusMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000101 /* ChronoFocusMacApp.swift */; };
+		200000000000000000000002 /* MacStatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000102 /* MacStatusBarController.swift */; };
+		200000000000000000000003 /* MacNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000103 /* MacNotificationService.swift */; };
+		200000000000000000000004 /* MacLiveActivityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000104 /* MacLiveActivityService.swift */; };
+		200000000000000000000013 /* MacPremiumAccessService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000010D /* MacPremiumAccessService.swift */; };
+		200000000000000000000014 /* MacCalendarSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000010E /* MacCalendarSyncService.swift */; };
+		200000000000000000000005 /* MacTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000105 /* MacTheme.swift */; };
+		200000000000000000000006 /* MacGlassPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000106 /* MacGlassPanel.swift */; };
+		200000000000000000000015 /* MacLinearProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000010F /* MacLinearProgressView.swift */; };
+		200000000000000000000007 /* MacMiniTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000107 /* MacMiniTimerView.swift */; };
+		200000000000000000000008 /* MacDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000108 /* MacDetailView.swift */; };
+		200000000000000000000009 /* MacTimerDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000109 /* MacTimerDetailView.swift */; };
+		20000000000000000000000A /* MacScheduleDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000010A /* MacScheduleDetailView.swift */; };
+		20000000000000000000000B /* MacAnalyticsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000010B /* MacAnalyticsDetailView.swift */; };
+		20000000000000000000000C /* MacSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000010C /* MacSettingsDetailView.swift */; };
+		20000000000000000000000D /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000107 /* AppModels.swift */; };
+		20000000000000000000000E /* FocusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000108 /* FocusStore.swift */; };
+		20000000000000000000000F /* TimerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000010B /* TimerEngine.swift */; };
+		200000000000000000000010 /* TimerPlatformServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000117 /* TimerPlatformServices.swift */; };
+		200000000000000000000011 /* SharedExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000010D /* SharedExtensions.swift */; };
+		200000000000000000000012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000010E /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +90,7 @@
 		10000000000000000000010B /* TimerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerEngine.swift; sourceTree = "<group>"; };
 		100000000000000000000115 /* PremiumAccessService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumAccessService.swift; sourceTree = "<group>"; };
 		100000000000000000000116 /* CalendarSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncService.swift; sourceTree = "<group>"; };
+		100000000000000000000117 /* TimerPlatformServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerPlatformServices.swift; sourceTree = "<group>"; };
 		10000000000000000000010C /* PomodoroActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PomodoroActivityAttributes.swift; sourceTree = "<group>"; };
 		10000000000000000000010D /* SharedExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedExtensions.swift; sourceTree = "<group>"; };
 		10000000000000000000010E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -79,6 +102,22 @@
 		100000000000000000000114 /* ChronoFocusLiveActivity.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChronoFocusLiveActivity.entitlements; sourceTree = "<group>"; };
 		100000000000000000000201 /* ChronoFocus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChronoFocus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		100000000000000000000202 /* ChronoFocusLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChronoFocusLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000101 /* ChronoFocusMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronoFocusMacApp.swift; sourceTree = "<group>"; };
+		200000000000000000000102 /* MacStatusBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacStatusBarController.swift; sourceTree = "<group>"; };
+		200000000000000000000103 /* MacNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacNotificationService.swift; sourceTree = "<group>"; };
+		200000000000000000000104 /* MacLiveActivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLiveActivityService.swift; sourceTree = "<group>"; };
+		20000000000000000000010D /* MacPremiumAccessService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacPremiumAccessService.swift; sourceTree = "<group>"; };
+		20000000000000000000010E /* MacCalendarSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacCalendarSyncService.swift; sourceTree = "<group>"; };
+		200000000000000000000105 /* MacTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacTheme.swift; sourceTree = "<group>"; };
+		200000000000000000000106 /* MacGlassPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacGlassPanel.swift; sourceTree = "<group>"; };
+		20000000000000000000010F /* MacLinearProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLinearProgressView.swift; sourceTree = "<group>"; };
+		200000000000000000000107 /* MacMiniTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMiniTimerView.swift; sourceTree = "<group>"; };
+		200000000000000000000108 /* MacDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacDetailView.swift; sourceTree = "<group>"; };
+		200000000000000000000109 /* MacTimerDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacTimerDetailView.swift; sourceTree = "<group>"; };
+		20000000000000000000010A /* MacScheduleDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacScheduleDetailView.swift; sourceTree = "<group>"; };
+		20000000000000000000010B /* MacAnalyticsDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacAnalyticsDetailView.swift; sourceTree = "<group>"; };
+		20000000000000000000010C /* MacSettingsDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSettingsDetailView.swift; sourceTree = "<group>"; };
+		200000000000000000000201 /* ChronoFocusMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChronoFocusMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +135,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		200000000000000000000701 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -104,6 +150,7 @@
 			children = (
 				100000000000000000000802 /* ChronoFocus */,
 				100000000000000000000806 /* Shared */,
+				200000000000000000000801 /* ChronoFocusMac */,
 				100000000000000000000807 /* ChronoFocusLiveActivity */,
 				100000000000000000000808 /* Products */,
 			);
@@ -144,6 +191,7 @@
 				100000000000000000000116 /* CalendarSyncService.swift */,
 				10000000000000000000010A /* LiveActivityService.swift */,
 				10000000000000000000010B /* TimerEngine.swift */,
+				100000000000000000000117 /* TimerPlatformServices.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -181,8 +229,55 @@
 			children = (
 				100000000000000000000201 /* ChronoFocus.app */,
 				100000000000000000000202 /* ChronoFocusLiveActivity.appex */,
+				200000000000000000000201 /* ChronoFocusMac.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		200000000000000000000801 /* ChronoFocusMac */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000802 /* App */,
+				200000000000000000000803 /* Views */,
+				200000000000000000000804 /* Services */,
+			);
+			path = ChronoFocusMac;
+			sourceTree = "<group>";
+		};
+		200000000000000000000802 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000101 /* ChronoFocusMacApp.swift */,
+				200000000000000000000102 /* MacStatusBarController.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		200000000000000000000803 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000105 /* MacTheme.swift */,
+				200000000000000000000106 /* MacGlassPanel.swift */,
+				20000000000000000000010F /* MacLinearProgressView.swift */,
+				200000000000000000000107 /* MacMiniTimerView.swift */,
+				200000000000000000000108 /* MacDetailView.swift */,
+				200000000000000000000109 /* MacTimerDetailView.swift */,
+				20000000000000000000010A /* MacScheduleDetailView.swift */,
+				20000000000000000000010B /* MacAnalyticsDetailView.swift */,
+				20000000000000000000010C /* MacSettingsDetailView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		200000000000000000000804 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000103 /* MacNotificationService.swift */,
+				200000000000000000000104 /* MacLiveActivityService.swift */,
+				20000000000000000000010D /* MacPremiumAccessService.swift */,
+				20000000000000000000010E /* MacCalendarSyncService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -224,6 +319,23 @@
 			productReference = 100000000000000000000202 /* ChronoFocusLiveActivity.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		200000000000000000000501 /* ChronoFocusMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 200000000000000000000B01 /* Build configuration list for PBXNativeTarget "ChronoFocusMac" */;
+			buildPhases = (
+				200000000000000000000901 /* Sources */,
+				200000000000000000000701 /* Frameworks */,
+				200000000000000000000A01 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ChronoFocusMac;
+			productName = ChronoFocusMac;
+			productReference = 200000000000000000000201 /* ChronoFocusMac.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -238,6 +350,9 @@
 						CreatedOnToolsVersion = 16.0;
 					};
 					100000000000000000000502 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					200000000000000000000501 = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
@@ -258,6 +373,7 @@
 			targets = (
 				100000000000000000000501 /* ChronoFocus */,
 				100000000000000000000502 /* ChronoFocusLiveActivity */,
+				200000000000000000000501 /* ChronoFocusMac */,
 			);
 		};
 /* End PBXProject section */
@@ -275,6 +391,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		200000000000000000000A01 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				200000000000000000000012 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -298,6 +422,7 @@
 				100000000000000000000015 /* CalendarSyncService.swift in Sources */,
 				10000000000000000000000A /* LiveActivityService.swift in Sources */,
 				10000000000000000000000B /* TimerEngine.swift in Sources */,
+				100000000000000000000016 /* TimerPlatformServices.swift in Sources */,
 				10000000000000000000000C /* PomodoroActivityAttributes.swift in Sources */,
 				10000000000000000000000D /* SharedExtensions.swift in Sources */,
 			);
@@ -311,6 +436,33 @@
 				100000000000000000000010 /* ChronoFocusLiveActivity.swift in Sources */,
 				100000000000000000000011 /* PomodoroActivityAttributes.swift in Sources */,
 				100000000000000000000012 /* SharedExtensions.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		200000000000000000000901 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				200000000000000000000001 /* ChronoFocusMacApp.swift in Sources */,
+				200000000000000000000002 /* MacStatusBarController.swift in Sources */,
+				200000000000000000000003 /* MacNotificationService.swift in Sources */,
+				200000000000000000000004 /* MacLiveActivityService.swift in Sources */,
+				200000000000000000000013 /* MacPremiumAccessService.swift in Sources */,
+				200000000000000000000014 /* MacCalendarSyncService.swift in Sources */,
+				200000000000000000000005 /* MacTheme.swift in Sources */,
+				200000000000000000000006 /* MacGlassPanel.swift in Sources */,
+				200000000000000000000015 /* MacLinearProgressView.swift in Sources */,
+				200000000000000000000007 /* MacMiniTimerView.swift in Sources */,
+				200000000000000000000008 /* MacDetailView.swift in Sources */,
+				200000000000000000000009 /* MacTimerDetailView.swift in Sources */,
+				20000000000000000000000A /* MacScheduleDetailView.swift in Sources */,
+				20000000000000000000000B /* MacAnalyticsDetailView.swift in Sources */,
+				20000000000000000000000C /* MacSettingsDetailView.swift in Sources */,
+				20000000000000000000000D /* AppModels.swift in Sources */,
+				20000000000000000000000E /* FocusStore.swift in Sources */,
+				20000000000000000000000F /* TimerEngine.swift in Sources */,
+				200000000000000000000010 /* TimerPlatformServices.swift in Sources */,
+				200000000000000000000011 /* SharedExtensions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -548,6 +700,68 @@
 			};
 			name = Release;
 		};
+		200000000000000000000C01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "ChronoFocus 需要读取 Mac 日历以同步日程并生成番茄钟计划。";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "ChronoFocus 需要读取 Mac 日历以同步日程并生成番茄钟计划。";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSUserNotificationUsageDescription = "ChronoFocus 使用通知提醒番茄钟和日程到期。";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.ChronoFocusMac;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		200000000000000000000C02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "ChronoFocus 需要读取 Mac 日历以同步日程并生成番茄钟计划。";
+				INFOPLIST_KEY_NSCalendarsUsageDescription = "ChronoFocus 需要读取 Mac 日历以同步日程并生成番茄钟计划。";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSUserNotificationUsageDescription = "ChronoFocus 使用通知提醒番茄钟和日程到期。";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.ChronoFocusMac;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -574,6 +788,15 @@
 			buildConfigurations = (
 				100000000000000000000C05 /* Debug */,
 				100000000000000000000C06 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		200000000000000000000B01 /* Build configuration list for PBXNativeTarget "ChronoFocusMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				200000000000000000000C01 /* Debug */,
+				200000000000000000000C02 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
+
 project="ChronoFocus.xcodeproj/project.pbxproj"
 
 echo "Checking project and property lists..."
@@ -24,6 +28,7 @@ required_files=(
   "ChronoFocus/Services/TimerEngine.swift"
   "ChronoFocus/Services/NotificationService.swift"
   "ChronoFocus/Services/LiveActivityService.swift"
+  "ChronoFocus/Services/TimerPlatformServices.swift"
   "ChronoFocus/Services/PremiumAccessService.swift"
   "ChronoFocus/Services/CalendarSyncService.swift"
   "ChronoFocus/Views/DashboardView.swift"
@@ -33,10 +38,28 @@ required_files=(
   "ChronoFocus/Views/SettingsView.swift"
   "Shared/PomodoroActivityAttributes.swift"
   "Shared/SharedExtensions.swift"
+  "ChronoFocusMac/App/ChronoFocusMacApp.swift"
+  "ChronoFocusMac/App/MacStatusBarController.swift"
+  "ChronoFocusMac/Services/MacNotificationService.swift"
+  "ChronoFocusMac/Services/MacLiveActivityService.swift"
+  "ChronoFocusMac/Services/MacPremiumAccessService.swift"
+  "ChronoFocusMac/Services/MacCalendarSyncService.swift"
+  "ChronoFocusMac/Views/MacTheme.swift"
+  "ChronoFocusMac/Views/MacGlassPanel.swift"
+  "ChronoFocusMac/Views/MacLinearProgressView.swift"
+  "ChronoFocusMac/Views/MacMiniTimerView.swift"
+  "ChronoFocusMac/Views/MacDetailView.swift"
+  "ChronoFocusMac/Views/MacTimerDetailView.swift"
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift"
+  "ChronoFocusMac/Views/MacAnalyticsDetailView.swift"
+  "ChronoFocusMac/Views/MacSettingsDetailView.swift"
   "ChronoFocusLiveActivity/ChronoFocusLiveActivityBundle.swift"
   "ChronoFocusLiveActivity/ChronoFocusLiveActivity.swift"
   "ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocus.xcscheme"
   "ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusLiveActivity.xcscheme"
+  "ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusMac.xcscheme"
+  "scripts/test_mac_core.swift"
+  "scripts/render_mac_snapshots.swift"
 )
 
 echo "Checking required files..."
@@ -48,6 +71,10 @@ echo "Checking project references..."
 for basename in \
   ChronoFocusApp.swift AppModels.swift FocusStore.swift TimerEngine.swift \
   NotificationService.swift LiveActivityService.swift PremiumAccessService.swift CalendarSyncService.swift DashboardView.swift \
+  TimerPlatformServices.swift ChronoFocusMacApp.swift MacStatusBarController.swift MacNotificationService.swift \
+  MacLiveActivityService.swift MacPremiumAccessService.swift MacCalendarSyncService.swift \
+  MacLinearProgressView.swift MacMiniTimerView.swift MacDetailView.swift MacTimerDetailView.swift \
+  MacScheduleDetailView.swift MacAnalyticsDetailView.swift MacSettingsDetailView.swift \
   TimerView.swift ScheduleView.swift AnalyticsView.swift SettingsView.swift \
   PomodoroActivityAttributes.swift SharedExtensions.swift \
   ChronoFocusLiveActivityBundle.swift ChronoFocusLiveActivity.swift Assets.xcassets; do
@@ -72,6 +99,8 @@ grep -q "BlueprintIdentifier = \"100000000000000000000501\"" ChronoFocus.xcodepr
 grep -q "BuildableName = \"ChronoFocus.app\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocus.xcscheme
 grep -q "BlueprintIdentifier = \"100000000000000000000502\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusLiveActivity.xcscheme
 grep -q "BuildableName = \"ChronoFocusLiveActivity.appex\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusLiveActivity.xcscheme
+grep -q "BlueprintIdentifier = \"200000000000000000000501\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusMac.xcscheme
+grep -q "BuildableName = \"ChronoFocusMac.app\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusMac.xcscheme
 
 echo "Checking visual assets..."
 test -f ChronoFocus/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
@@ -148,5 +177,66 @@ grep -q "TaskEditorView" ChronoFocus/Views/ScheduleView.swift
 grep -q "updateTask" ChronoFocus/Services/FocusStore.swift
 grep -q "editingTask" ChronoFocus/Views/ScheduleView.swift
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
+grep -q "LSUIElement = YES" "$project"
+grep -q "MACOSX_DEPLOYMENT_TARGET = 14.0" "$project"
+grep -q "NSCalendarsFullAccessUsageDescription" "$project"
+grep -q "NSStatusBar.system.statusItem" ChronoFocusMac/App/MacStatusBarController.swift
+grep -q "NSPopover" ChronoFocusMac/App/MacStatusBarController.swift
+grep -q "CHRONOFOCUS_MAC_OPEN_DETAILS" ChronoFocusMac/App/ChronoFocusMacApp.swift
+grep -q "CHRONOFOCUS_MAC_OPEN_POPOVER" ChronoFocusMac/App/ChronoFocusMacApp.swift
+grep -q "NavigationSplitView" ChronoFocusMac/Views/MacDetailView.swift
+grep -q "MacMiniTimerView" ChronoFocusMac/Views/MacMiniTimerView.swift
+grep -q "MacAnalyticsDetailView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
+grep -q "import StoreKit" ChronoFocusMac/Services/MacPremiumAccessService.swift
+grep -q "purchasePro" ChronoFocusMac/Services/MacPremiumAccessService.swift
+grep -q "restorePurchases" ChronoFocusMac/Services/MacPremiumAccessService.swift
+grep -q "import EventKit" ChronoFocusMac/Services/MacCalendarSyncService.swift
+grep -q "requestFullAccessToEvents" ChronoFocusMac/Services/MacCalendarSyncService.swift
+grep -q "syncUpcomingEvents" ChronoFocusMac/Services/MacCalendarSyncService.swift
+grep -q "Mac 日历同步" ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "MacProPreviewPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
+grep -q "MacReportPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
+grep -q "MacCategoryChartPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
+grep -q "MacRecentSessionsPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
+
+echo "Running Mac core tests..."
+xcrun --sdk macosx swiftc \
+  -module-cache-path /tmp/chrono_focus_mac_core_module_cache \
+  ChronoFocus/Models/AppModels.swift \
+  ChronoFocus/Services/FocusStore.swift \
+  Shared/SharedExtensions.swift \
+  scripts/test_mac_core.swift \
+  -o /tmp/chrono_focus_mac_core_tests
+/tmp/chrono_focus_mac_core_tests
+
+echo "Rendering Mac UI snapshots..."
+xcrun --sdk macosx swiftc \
+  -module-cache-path /tmp/chrono_focus_mac_snapshot_module_cache \
+  ChronoFocus/Models/AppModels.swift \
+  ChronoFocus/Services/FocusStore.swift \
+  ChronoFocus/Services/TimerEngine.swift \
+  ChronoFocus/Services/TimerPlatformServices.swift \
+  Shared/SharedExtensions.swift \
+  ChronoFocusMac/Services/MacNotificationService.swift \
+  ChronoFocusMac/Services/MacLiveActivityService.swift \
+  ChronoFocusMac/Services/MacPremiumAccessService.swift \
+  ChronoFocusMac/Services/MacCalendarSyncService.swift \
+  ChronoFocusMac/Views/MacTheme.swift \
+  ChronoFocusMac/Views/MacGlassPanel.swift \
+  ChronoFocusMac/Views/MacLinearProgressView.swift \
+  ChronoFocusMac/Views/MacMiniTimerView.swift \
+  ChronoFocusMac/Views/MacDetailView.swift \
+  ChronoFocusMac/Views/MacTimerDetailView.swift \
+  ChronoFocusMac/Views/MacScheduleDetailView.swift \
+  ChronoFocusMac/Views/MacAnalyticsDetailView.swift \
+  ChronoFocusMac/Views/MacSettingsDetailView.swift \
+  scripts/render_mac_snapshots.swift \
+  -o /tmp/chrono_focus_render_mac_snapshots
+/tmp/chrono_focus_render_mac_snapshots
+test -s /tmp/chronofocus-mac-snapshots/mini-timer.png
+test -s /tmp/chronofocus-mac-snapshots/detail-timer.png
+test -s /tmp/chronofocus-mac-snapshots/detail-schedule.png
+test -s /tmp/chronofocus-mac-snapshots/detail-analytics.png
+test -s /tmp/chronofocus-mac-snapshots/detail-settings.png
 
 echo "Project structure verified."
