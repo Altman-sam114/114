@@ -1,0 +1,9 @@
+.DS_Store
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+ChronoFocus/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png

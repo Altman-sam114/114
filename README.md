@@ -1,0 +1,43 @@
+# ChronoFocus
+
+一个 SwiftUI iOS 番茄钟 App 原型，包含可自定义轮次时间、日历式日程记录、Pro 统计分析、自动番茄钟计划、后台本地通知、可调铃声/振动和 Live Activity 通知栏显示。
+
+## 功能
+
+- 自定义专注、短休、长休时间和长休间隔。
+- 创建日程任务，绑定番茄钟轮次并自动累计进度，可为截止时间调度本地提醒。
+- 计时主界面可调铃声音量，音量为 0 时静音；可开启到点振动；可选择运行时屏幕是否常亮。
+- 支持暗色/亮色两套 UI，可在计时页右上角快速切换。
+- 自动化默认开启，专注、短休、长休会按设置连续流转。
+- 日程页改为日历/待办样式，可按日、周、月查看；待办可启用/停用、循环、到时间自动开启番茄钟。
+- 待办支持“按轮次”和“只设开始”两种模式；只设开始的任务由用户手动完成，实际用时会计入统计。
+- 根据日程任务按截止时间自动生成可执行的番茄钟计划，可从计划项直接开始专注。
+- 统计页作为 Pro 内购功能：普通用户可体验今日概览和 Pro 预览，Pro 用户解锁近 7 日、分类投入、最近记录、工作压力、任务安排分析，以及日/周/月工作复盘报表。
+- Pro 可同步 iPhone 日历，Siri 语音创建的系统日程可在同步后自动转为 ChronoFocus 待办。
+- 使用 StoreKit 2 购买/恢复 Pro 权益，内购商品 ID 为 `com.example.ChronoFocus.pro.analytics`。
+- 使用本地通知在番茄钟结束和日程到期时提醒，并按设置播放系统铃声。
+- 使用 ActivityKit Live Activity 在锁屏、通知栏和灵动岛显示后台倒计时。
+- 通知权限未授权时可在 App 内请求；用户拒绝后会引导到系统设置。
+- 所有核心数据使用 `UserDefaults` JSON 持久化，重启后可恢复。
+
+## 后台机制
+
+iOS 不允许普通计时器 App 长时间常驻后台执行。ChronoFocus 使用可恢复的结束时间、系统本地通知和 Live Activity 实现后台体验：开始专注后保存结束时间，切到后台时由系统通知负责到点提醒和铃声，锁屏/通知栏由 Live Activity 展示倒计时，回到 App 后按真实系统时间恢复状态。
+
+## 打开方式
+
+使用 Xcode 打开 `ChronoFocus.xcodeproj`，选择 `ChronoFocus` scheme 后运行到 iOS 17+ 模拟器或真机。Live Activity 需要支持 ActivityKit 的设备和系统设置。
+
+当前机器默认 `xcode-select` 指向 Command Line Tools；可用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 临时指定 Xcode 运行构建。
+
+## 本地验证
+
+当前工作区已通过静态结构验证：
+
+```bash
+bash scripts/verify_project.sh
+```
+
+验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、Live Activity 配置、本地通知/铃声/振动、Pro 内购、EventKit 日历同步、统计分析报表、自动番茄钟计划、日历式日程核心实现标记，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
+
+项目包含共享的 `ChronoFocus` 和 `ChronoFocusLiveActivity` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
