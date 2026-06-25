@@ -22,10 +22,19 @@ private struct MacSnapshotRenderingKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct MacSnapshotShowsQuickPanelKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 extension EnvironmentValues {
     var macSnapshotRendering: Bool {
         get { self[MacSnapshotRenderingKey.self] }
         set { self[MacSnapshotRenderingKey.self] = newValue }
+    }
+
+    var macSnapshotShowsQuickPanel: Bool {
+        get { self[MacSnapshotShowsQuickPanelKey.self] }
+        set { self[MacSnapshotShowsQuickPanelKey.self] = newValue }
     }
 }
 

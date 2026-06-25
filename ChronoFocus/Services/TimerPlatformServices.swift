@@ -13,7 +13,7 @@ protocol TimerNotificationServicing: AnyObject {
 
     func cancel(identifier: String?)
     func cancelTaskReminder(taskID: UUID)
-    func playCompletionAlert(soundVolume: Double, vibrationEnabled: Bool)
+    func playCompletionAlert(soundVolume: Double, vibrationEnabled: Bool, completionSound: CompletionSound)
 }
 
 @MainActor

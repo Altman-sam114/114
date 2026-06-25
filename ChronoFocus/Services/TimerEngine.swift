@@ -349,7 +349,8 @@ final class TimerEngine: ObservableObject {
         if playSound {
             notifications.playCompletionAlert(
                 soundVolume: store.settings.soundEnabled ? store.settings.soundVolume : 0,
-                vibrationEnabled: store.settings.vibrationEnabled
+                vibrationEnabled: store.settings.vibrationEnabled,
+                completionSound: store.settings.completionSound
             )
         }
         notifications.cancel(identifier: snapshot.sessionID.uuidString)

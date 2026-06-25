@@ -116,6 +116,8 @@ final class MacStatusBarController: NSObject, ObservableObject {
             })
             .environmentObject(store)
             .environmentObject(engine)
+            .environmentObject(notifications)
+            .environmentObject(premium)
         )
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         self.popover = popover

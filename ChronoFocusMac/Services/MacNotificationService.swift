@@ -128,9 +128,12 @@ final class MacNotificationService: NSObject, ObservableObject, UNUserNotificati
         }
     }
 
-    func playCompletionAlert(soundVolume: Double, vibrationEnabled: Bool) {
+    func playCompletionAlert(soundVolume: Double, vibrationEnabled: Bool, completionSound: CompletionSound) {
         if soundVolume > 0 {
-            playGeneratedTone(volume: Float(min(1, max(0, soundVolume))))
+            playGeneratedTone(
+                volume: Float(min(1, max(0, soundVolume))),
+                completionSound: completionSound
+            )
         }
         if vibrationEnabled {
             NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .default)
@@ -145,9 +148,9 @@ final class MacNotificationService: NSObject, ObservableObject, UNUserNotificati
         authorizationStatus == .denied ? "去设置" : "授权"
     }
 
-    private func playGeneratedTone(volume: Float) {
+    private func playGeneratedTone(volume: Float, completionSound: CompletionSound) {
         do {
-            let data = makeToneWavData()
+            let data = makeToneWavData(for: completionSound)
             let player = try AVAudioPlayer(data: data)
             player.volume = volume
             player.prepareToPlay()
@@ -158,9 +161,9 @@ final class MacNotificationService: NSObject, ObservableObject, UNUserNotificati
         }
     }
 
-    private func makeToneWavData() -> Data {
+    private func makeToneWavData(for completionSound: CompletionSound) -> Data {
         let sampleRate = 44_100
-        let duration = 0.55
+        let duration = completionSound.duration
         let sampleCount = Int(Double(sampleRate) * duration)
         let dataByteCount = sampleCount * MemoryLayout<Int16>.size
         var data = Data()
@@ -194,10 +197,14 @@ final class MacNotificationService: NSObject, ObservableObject, UNUserNotificati
         appendUInt32(UInt32(dataByteCount))
 
         for sampleIndex in 0..<sampleCount {
+            let time = Double(sampleIndex) / Double(sampleRate)
             let progress = Double(sampleIndex) / Double(sampleCount)
-            let envelope = min(1, min(progress * 12, (1 - progress) * 8))
-            let wave = sin(2 * Double.pi * 880 * Double(sampleIndex) / Double(sampleRate))
-            var sample = Int16(wave * envelope * 22_000).littleEndian
+            let envelope = min(1, min(progress * completionSound.attack, (1 - progress) * completionSound.release))
+            let wave = completionSound.frequencies.enumerated().reduce(0.0) { partial, item in
+                let weight = 1.0 / Double(item.offset + 1)
+                return partial + sin(2 * Double.pi * item.element * time) * weight
+            } / Double(completionSound.frequencies.count)
+            var sample = Int16(wave * envelope * 24_000).littleEndian
             data.append(Data(bytes: &sample, count: MemoryLayout<Int16>.size))
         }
 
@@ -240,5 +247,44 @@ final class MacNotificationService: NSObject, ObservableObject, UNUserNotificati
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         [.banner, .list, .sound]
+    }
+}
+
+private extension CompletionSound {
+    var frequencies: [Double] {
+        switch self {
+        case .chime:
+            return [880, 1320]
+        case .bell:
+            return [660, 990, 1320]
+        case .ripple:
+            return [523.25, 659.25, 783.99]
+        case .softPulse:
+            return [440, 554.37]
+        }
+    }
+
+    var duration: Double {
+        switch self {
+        case .chime: return 0.55
+        case .bell: return 0.75
+        case .ripple: return 0.90
+        case .softPulse: return 0.70
+        }
+    }
+
+    var attack: Double {
+        switch self {
+        case .softPulse: return 6
+        default: return 10
+        }
+    }
+
+    var release: Double {
+        switch self {
+        case .ripple: return 4
+        case .softPulse: return 5
+        default: return 7
+        }
     }
 }

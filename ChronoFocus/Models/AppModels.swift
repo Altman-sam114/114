@@ -126,6 +126,28 @@ enum TaskRecurrence: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+enum CompletionSound: String, CaseIterable, Codable, Identifiable {
+    case chime
+    case bell
+    case ripple
+    case softPulse
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .chime: return "清亮"
+        case .bell: return "铃音"
+        case .ripple: return "水波"
+        case .softPulse: return "柔和"
+        }
+    }
+
+    var isPro: Bool {
+        self != .chime
+    }
+}
+
 struct TimerSettings: Codable, Equatable {
     var focusMinutes: Int = 25
     var shortBreakMinutes: Int = 5
@@ -136,6 +158,7 @@ struct TimerSettings: Codable, Equatable {
     var liveActivityEnabled: Bool = true
     var soundEnabled: Bool = true
     var soundVolume: Double = 0.8
+    var completionSound: CompletionSound = .chime
     var vibrationEnabled: Bool = true
     var keepScreenAwake: Bool = false
     var taskDueRemindersEnabled: Bool = true
@@ -154,6 +177,7 @@ struct TimerSettings: Codable, Equatable {
         case liveActivityEnabled
         case soundEnabled
         case soundVolume
+        case completionSound
         case vibrationEnabled
         case keepScreenAwake
         case taskDueRemindersEnabled
@@ -176,6 +200,7 @@ struct TimerSettings: Codable, Equatable {
         liveActivityEnabled = try container.decodeIfPresent(Bool.self, forKey: .liveActivityEnabled) ?? true
         soundEnabled = try container.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? true
         soundVolume = min(1, max(0, try container.decodeIfPresent(Double.self, forKey: .soundVolume) ?? 0.8))
+        completionSound = try container.decodeIfPresent(CompletionSound.self, forKey: .completionSound) ?? .chime
         vibrationEnabled = try container.decodeIfPresent(Bool.self, forKey: .vibrationEnabled) ?? true
         keepScreenAwake = try container.decodeIfPresent(Bool.self, forKey: .keepScreenAwake) ?? false
         taskDueRemindersEnabled = try container.decodeIfPresent(Bool.self, forKey: .taskDueRemindersEnabled) ?? true

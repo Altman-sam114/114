@@ -27,6 +27,8 @@ struct MacCoreTests {
         store.settings.shortBreakMinutes = 5
         store.settings.longBreakMinutes = 15
         store.settings.roundsBeforeLongBreak = 4
+        store.settings.completionSound = .ripple
+        assert(store.settings.completionSound.title == "水波", "Expected Pro completion sound metadata")
 
         let dueDate = Date().addingTimeInterval(3600)
         guard let task = store.addTask(

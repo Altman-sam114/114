@@ -133,7 +133,7 @@ final class NotificationService: NSObject, ObservableObject, UNUserNotificationC
         }
     }
 
-    func playCompletionAlert(soundVolume: Double, vibrationEnabled: Bool) {
+    func playCompletionAlert(soundVolume: Double, vibrationEnabled: Bool, completionSound: CompletionSound) {
         if soundVolume > 0 {
             playGeneratedTone(volume: Float(min(1, max(0, soundVolume))))
         }

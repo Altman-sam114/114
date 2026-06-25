@@ -79,6 +79,9 @@ struct MacSettingsDetailView: View {
                                 Image(systemName: "speaker.wave.3.fill")
                             }
                         }
+
+                        Divider().opacity(0.35)
+                        MacCompletionSoundPickerView()
                     }
                     .toggleStyle(.switch)
                 }
@@ -122,6 +125,9 @@ struct MacSettingsDetailView: View {
         .task {
             await notifications.refreshAuthorizationStatus()
             await premium.refreshEntitlements()
+            if !premium.isProUnlocked && store.settings.completionSound.isPro {
+                store.settings.completionSound = .chime
+            }
         }
         .onChange(of: store.settings) { oldSettings, newSettings in
             syncTaskDueRemindersIfNeeded(oldSettings: oldSettings, newSettings: newSettings)
@@ -189,6 +195,72 @@ struct MacSettingsDetailView: View {
                 soundEnabled: newSettings.soundEnabled
             )
         }
+    }
+}
+
+private struct MacCompletionSoundPickerView: View {
+    @EnvironmentObject private var store: FocusStore
+    @EnvironmentObject private var premium: MacPremiumAccessService
+    @EnvironmentObject private var notifications: MacNotificationService
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Pro 铃声", systemImage: "music.note")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(MacTheme.primaryText)
+                Spacer()
+                Text(premium.isProUnlocked ? "已解锁" : "Pro")
+                    .font(.caption.bold())
+                    .foregroundStyle(premium.isProUnlocked ? .mint : .cyan)
+            }
+
+            if isSnapshotRendering {
+                MacStaticSegmentedView(
+                    title: "音色",
+                    selectedTitle: store.settings.completionSound.title,
+                    options: CompletionSound.allCases.map(\.title)
+                )
+            } else {
+                Picker("音色", selection: $store.settings.completionSound) {
+                    ForEach(CompletionSound.allCases) { sound in
+                        Text(sound.title).tag(sound)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(!premium.isProUnlocked)
+            }
+
+            HStack {
+                Button("试听", systemImage: "speaker.wave.2.fill", action: previewSound)
+                    .buttonStyle(.bordered)
+                    .disabled(!premium.isProUnlocked && store.settings.completionSound.isPro)
+
+                if !premium.isProUnlocked {
+                    Button("解锁 Pro", systemImage: "sparkles") {
+                        Task { await premium.purchasePro() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.cyan)
+                    .disabled(premium.isLoading)
+                }
+            }
+        }
+        .onChange(of: premium.isProUnlocked) { _, isUnlocked in
+            if !isUnlocked && store.settings.completionSound.isPro {
+                store.settings.completionSound = .chime
+            }
+        }
+    }
+
+    private func previewSound() {
+        guard premium.isProUnlocked || !store.settings.completionSound.isPro else { return }
+        notifications.playCompletionAlert(
+            soundVolume: store.settings.soundVolume,
+            vibrationEnabled: false,
+            completionSound: store.settings.completionSound
+        )
     }
 }
 

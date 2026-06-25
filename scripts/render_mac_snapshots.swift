@@ -35,8 +35,11 @@ struct MacSnapshotRenderer {
         let miniView = MacMiniTimerView(openDetails: {})
             .environmentObject(store)
             .environmentObject(engine)
+            .environmentObject(notifications)
+            .environmentObject(premium)
             .environment(\.macSnapshotRendering, true)
-            .frame(width: 430, height: 500)
+            .environment(\.macSnapshotShowsQuickPanel, true)
+            .frame(width: 560, height: 500)
 
         let miniURL = outputDirectory.appendingPathComponent("mini-timer.png")
         try render(miniView, to: miniURL)
