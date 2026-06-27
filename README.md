@@ -52,3 +52,7 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
 验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/振动、Pro 内购、EventKit 日历同步、统计分析报表、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 日历权限说明，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
+
+## Agent 规范
+
+后续 Codex/Agent 继续开发前必须先阅读 `AGENT.md`。该文件记录当前 iOS/macOS 架构、已完成工作、编码规范、测试门禁、快照要求，以及每次开发后更新 README 和测试脚本的要求。
