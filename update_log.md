@@ -1,0 +1,157 @@
+# 项目版本更新记录
+
+本文记录 ChronoFocus 的正式版本、重要维护事项、关键决策和遗留问题。它不是流水账；只有影响项目行为、架构、测试、文档体系或后续协作方式的事项才写入。
+
+## 维护规则
+
+- 每完成一个正式版本或重要任务后追加记录。
+- 记录必须包含：版本/任务名、日期、核心变更、关键文件、验证结果、遗留事项。
+- 文档整理、目录迁移、回滚、打捞等不伪装成新产品版本，可写入“历史维护记录”。
+- 若核心逻辑、测试规范或项目行为变化，必须同步更新本日志。
+- 日期使用本地日期，格式为 `YYYY-MM-DD`。
+
+## 当前状态
+
+- iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/振动、亮暗主题。
+- macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
+- 当前主验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、Mac 核心测试和 Mac UI 快照。
+- 当前协作体系要求后续按 Agent A/B/C 循环：先产出版本化实现提示词，再实现测试，再验收并更新核心逻辑文档。
+
+## 关键决策
+
+- Mac 版不重写业务代码，只新增 macOS target、平台服务和 Mac 专用 UI。
+- `TimerEngine` 是唯一计时状态机；View 不维护第二套开始/暂停/完成逻辑。
+- `FocusStore` 是核心数据仓库；任务、设置、会话、计划和活跃计时快照使用 `UserDefaults` JSON 持久化。
+- 平台能力通过协议和服务隔离：iOS 使用本地通知、ActivityKit、StoreKit、EventKit；macOS 使用 AppKit 状态栏、桌面通知、StoreKit、EventKit 和 Live Activity 空实现。
+- Mac 快照渲染中，原生 `Picker`、`Toggle`、`Slider`、`DatePicker`、`Stepper` 可能显示黄色缺失占位；快照路径使用 `macSnapshotRendering` 环境值切换快照安全控件。
+
+## 遗留问题
+
+- iOS scheme 的完整构建验证仍需要根据当前机器模拟器/Xcode 状态补强。
+- StoreKit 和 EventKit 仍缺少更明确的本地 mock 或配置说明。
+- Mac 小窗快捷入口可以继续优化为打开详细窗口并定位到指定 tab。
+- iOS 端尚未明确是否需要同步提供 `CompletionSound` 多铃声选择 UI。
+- 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
+
+## 历史记录
+
+### v0.1 / 建立 Agent 协作和项目记忆体系
+
+日期：2026-06-28
+
+核心变更：
+
+- 将 `AGENT.md` 改为项目入口记忆、架构边界和 Agent A/B/C 工作流文档。
+- 新增 `update_log.md`、`md/prompt/README.md`、`md/test/test.md`、`md/flow/flow.md`、`md/flow/flowchart.md`。
+- 明确后续每轮开发必须同步维护测试规范、核心流程文档和版本记录。
+
+关键文件：
+
+- `AGENT.md`
+- `update_log.md`
+- `md/prompt/README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `README.md`
+
+验证结果：
+
+- 已运行 `git diff --check`，通过。
+- 已运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`。
+- 文档-only 任务未单独运行完整 Xcode App 构建。
+
+遗留事项：
+
+- 下一轮正式功能开发应由 Agent A 先在 `md/prompt/` 下创建版本化实现提示词。
+
+### v0.0 / Agent 入口规范初版
+
+日期：2026-06-27
+
+核心变更：
+
+- 新增初版 `AGENT.md`，记录 iOS/macOS 架构、编码规范、测试门禁、快照要求，以及后续开发后更新 README 和测试脚本的要求。
+- 在 `README.md` 中新增 Agent 规范入口。
+
+关键文件：
+
+- `AGENT.md`
+- `README.md`
+
+验证结果：
+
+- 已运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`。
+
+遗留事项：
+
+- 初版 `AGENT.md` 内容偏项目规则和历史总结，尚未拆分成完整 Agent A/B/C 协作体系。
+
+### v0.0 / Mac 小窗、进度条和 Pro 铃声优化
+
+日期：2026-06-26
+
+核心变更：
+
+- Mac 小窗三点按钮改为竖向快捷面板。
+- 快捷面板包含模式切换、常用专注时长、铃声选择与试听、日程/统计/设置入口。
+- 时间下方进度条改为连续动态进度条。
+- 新增 Pro 铃声选择，Mac 端支持多种提示音。
+
+关键文件：
+
+- `ChronoFocus/Models/AppModels.swift`
+- `ChronoFocusMac/Views/MacMiniTimerView.swift`
+- `ChronoFocusMac/Views/MacLinearProgressView.swift`
+- `ChronoFocusMac/Services/MacNotificationService.swift`
+- `scripts/render_mac_snapshots.swift`
+- `scripts/verify_project.sh`
+
+验证结果：
+
+- 以当轮最终记录为准：项目结构验证通过。
+
+遗留事项：
+
+- 快捷入口后续可继续优化为打开详细窗口并定位到指定页面。
+
+### v0.0 / macOS 状态栏版本基础完成
+
+日期：2026-06-25
+
+核心变更：
+
+- 新增 `ChronoFocusMac` target 和共享 scheme。
+- 新增状态栏 App：无 Dock 图标，菜单栏显示剩余时间。
+- 左键打开极简番茄钟 popover，右键打开菜单。
+- 新增详细窗口，包含计时、日程、统计、设置页面。
+- 复用 `FocusStore`、`TimerEngine`、模型、统计和计划生成核心代码。
+- 新增 Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac Live Activity 占位服务。
+- 新增 Mac 快照测试，覆盖小窗和四个详情页。
+
+关键文件：
+
+- `ChronoFocusMac/App/ChronoFocusMacApp.swift`
+- `ChronoFocusMac/App/MacStatusBarController.swift`
+- `ChronoFocusMac/Services/*`
+- `ChronoFocusMac/Views/*`
+- `ChronoFocus.xcodeproj/project.pbxproj`
+- `scripts/render_mac_snapshots.swift`
+- `scripts/test_mac_core.swift`
+- `scripts/verify_project.sh`
+- `README.md`
+
+验证结果：
+
+- 已运行 `bash scripts/verify_project.sh`。
+- 已运行 Mac 构建命令并出现 `BUILD SUCCEEDED`：
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration Debug \
+  -derivedDataPath /tmp/ChronoFocusMacDerivedData build
+```
+
+遗留事项：
+
+- iOS 和 Mac 的完整回归验证仍可继续补强。

@@ -1,35 +1,37 @@
-# ChronoFocus 后续 Codex Agent 系统提示词
+# AGENT.md
 
-你是 ChronoFocus 项目的后续编程 Agent。请把本文当作项目级系统提示词、项目总结和规范化管理文档使用。每次开始工作前先阅读本文件、`README.md`、当前 git 状态和相关代码；每次完成工作后，必须同步更新测试规范和 `README.md` 的完成记录或验证说明。
+本文是 ChronoFocus 项目的入口记忆、总览、基本规则和多 Agent 迭代工作流。后续 Codex/Agent 开始任务前必须先读本文件，再按任务范围读取相关文档和源码。
 
-## 项目目标
+## 1. 项目一句话总览
 
-ChronoFocus 是一个 SwiftUI 番茄钟 App 原型，包含 iOS 与 macOS 两个版本。
+ChronoFocus 是一个 SwiftUI 番茄钟 App 原型，包含 iOS 主 App、iOS Live Activity 扩展和 macOS 状态栏 App；核心模型、计时状态机、计划生成、统计和持久化逻辑共享，平台能力通过 iOS/macOS 专用服务隔离。
 
-- iOS 版：番茄钟、日程待办、Pro 统计、日历同步、本地通知、Live Activity、铃声/振动、暗色/亮色主题。
-- macOS 版：状态栏应用，无 Dock 图标；菜单栏显示剩余时间；左键打开极简番茄钟；三点按钮打开竖向快捷面板；可展开详细窗口，管理计时、日程、统计、设置和 Pro 功能。
-- 核心原则：共享业务逻辑，平台层分离。不要为 Mac 版重写一套核心数据或计时逻辑。
+## 2. 必读文件
 
-## 当前项目状态
+按顺序阅读：
 
-最近 git 记录显示：
+1. `AGENT.md`：入口规则、协作流程、禁止项。
+2. `update_log.md`：版本记录、历史决策、遗留问题。
+3. `md/flow/flow.md`：当前真实架构、核心数据流、执行流。
+4. `md/flow/flowchart.md`：核心逻辑和 Agent 迭代流程图。
+5. `md/test/test.md`：测试分层、命令、触发条件、当前基线。
+6. `README.md`：用户视角功能、打开方式、本地验证。
+7. 任务相关源码、脚本、最近 git 记录。
 
-- `0867b40`：完成 macOS 版基础架构。新增 `ChronoFocusMac` target、状态栏入口、popover 小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务、快照测试和 README 说明。
-- `94d0e59`：优化 Mac 小窗。三点按钮改为竖向快捷面板；进度条改为连续动态进度条；新增 Pro 铃声选择和 Mac 多音色提示音。
+## 3. 项目基本规则
 
-当前关键能力：
+- 使用 SwiftUI 和 Swift 并发/平台原生 API；不要引入第三方依赖，除非用户明确要求。
+- 共享业务逻辑，平台层分离。不要为 Mac 版或 iOS 版复制一套核心模型、计时状态机、统计逻辑或计划生成逻辑。
+- `TimerEngine` 是唯一计时状态机；开始、暂停、恢复、跳过、完成、自动流转必须从这里进入。
+- `FocusStore` 是核心数据仓库；任务、设置、会话、计划和活跃计时快照都通过它持久化到 `UserDefaults` JSON。
+- 平台服务必须通过抽象边界接入：通知使用 `TimerNotificationServicing`，Live Activity/占位服务使用 `TimerLiveActivityServicing`。
+- 新增共享模型字段必须使用向后兼容解码，例如 `decodeIfPresent` 加默认值。
+- 不做无关重构，不回滚用户或其他 Agent 的改动，不伪造测试结果。
+- 手写文件修改使用 `apply_patch`；大规模格式化或构建产物生成可以使用项目脚本。
 
-- `ChronoFocus`：iOS 主 App。
-- `ChronoFocusLiveActivity`：iOS Live Activity 扩展。
-- `ChronoFocusMac`：macOS 状态栏 App。
-- `Shared`：跨 target 共享类型和扩展。
-- `scripts/verify_project.sh`：项目结构、核心测试、Mac 快照渲染的主验证入口。
+## 4. 核心架构边界
 
-## 架构规范
-
-### 共享层
-
-优先复用以下核心代码：
+共享层：
 
 - `ChronoFocus/Models/AppModels.swift`
 - `ChronoFocus/Services/FocusStore.swift`
@@ -38,149 +40,107 @@ ChronoFocus 是一个 SwiftUI 番茄钟 App 原型，包含 iOS 与 macOS 两个
 - `Shared/SharedExtensions.swift`
 - `Shared/PomodoroActivityAttributes.swift`
 
-不要在 Mac 目标里复制核心模型、统计逻辑、计划生成逻辑或计时状态机。需要新增业务字段时，优先加到共享模型，并验证 iOS 与 macOS 两端兼容。
+iOS 平台层：
 
-### 平台层
+- `ChronoFocus/ChronoFocusApp.swift`
+- `ChronoFocus/Views/*`
+- `ChronoFocus/Services/NotificationService.swift`
+- `ChronoFocus/Services/LiveActivityService.swift`
+- `ChronoFocus/Services/CalendarSyncService.swift`
+- `ChronoFocus/Services/PremiumAccessService.swift`
+- `ChronoFocusLiveActivity/*`
 
-iOS 专属能力留在 `ChronoFocus/Services` 和 iOS Views：
+macOS 平台层：
 
-- `NotificationService`
-- `LiveActivityService`
-- `CalendarSyncService`
-- `PremiumAccessService`
-
-macOS 专属能力留在 `ChronoFocusMac`：
-
-- `ChronoFocusMac/App/ChronoFocusMacApp.swift`
-- `ChronoFocusMac/App/MacStatusBarController.swift`
+- `ChronoFocusMac/App/*`
 - `ChronoFocusMac/Services/*`
 - `ChronoFocusMac/Views/*`
 
-平台 API 必须隔离。不要让 macOS target 直接依赖 UIKit、ActivityKit UI 行为；不要让 iOS target 直接依赖 AppKit。
+禁止跨边界直接依赖：macOS target 不直接依赖 UIKit 或真实 ActivityKit UI 行为；iOS target 不直接依赖 AppKit。
 
-## UI 设计规范
+## 5. 标准迭代工作流
 
-使用 SwiftUI。不要引入第三方 UI 框架。
+项目采用“人工目标 -> Agent A 设计提示词 -> Agent B 实现测试 -> Agent C 验收并更新核心逻辑文档 -> 人工复核 -> 下一轮”的循环。
 
-- Mac 小窗保持极简、紧凑、状态栏友好。
-- 三点快捷面板只放常用操作：模式、常用时长、铃声、试听、日程、统计、设置。更复杂的操作放详细窗口。
-- 详细窗口使用左侧导航和右侧功能页面，不要做营销式落地页。
-- 控件要稳定、克制、信息密度适合生产力工具。
-- 图标优先使用 SF Symbols / SwiftUI `Label`，按钮必须有可访问文本标签。
-- 避免大面积单一色调；当前主色以青绿色为核心，但要配合蓝、紫、橙等状态色。
-- 不要添加无意义装饰图形、渐变球、过度卡片嵌套。
+### Agent A：目标分析与提示词
 
-Mac 快照渲染有特殊限制：原生 `Picker`、`Toggle`、`Slider`、`DatePicker`、`Stepper` 在 `ImageRenderer` 中可能渲染成黄色缺失占位。真实 App 可以继续用原生控件；快照路径使用 `macSnapshotRendering` 环境值切换到自绘静态控件。
+Agent A 默认不直接写代码，负责把人工目标转成可执行实现提示词。
 
-## 功能规范
+必须完成：
 
-### 计时
+- 阅读 `AGENT.md`、`update_log.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md` 和任务相关源码。
+- 明确本轮目标、非目标、边界、依赖、风险和验收标准。
+- 设计实现步骤、涉及模块、数据流/状态流变化、测试要求和文档更新要求。
+- 确定版本号：人工指定则按人工指定；未指定则从现有 `md/prompt/` 和 `update_log.md` 自动递增。
+- 将提示词写入 `md/prompt/v0（简要标题）/v0.1（简要说明）.md` 这类版本目录。
 
-`TimerEngine` 是唯一计时状态机。新增开始、暂停、恢复、跳过、自动开始逻辑时，必须修改并验证 `TimerEngine`，不要把计时状态分散到 View。
+提示词必须包含：版本号、版本分配依据、背景、目标、非目标、当前架构依据、实现步骤、关键文件、测试要求、文档更新要求、验收标准、风险和禁止项。
 
-### 通知与铃声
+### Agent B：实现与测试
 
-通知抽象通过 `TimerNotificationServicing`。新增通知相关行为时，必须同时考虑：
+Agent B 按 Agent A 提示词小步实现。
 
-- iOS `NotificationService`
-- macOS `MacNotificationService`
-- `TimerEngine` 调用点
-- `scripts/test_mac_core.swift`
-- `scripts/verify_project.sh`
+必须完成：
 
-Pro 铃声目前通过 `CompletionSound` 存在共享模型中，Mac 端可选择多音色并生成提示音；iOS 端保持兼容默认提示逻辑，除非明确要求扩展 iOS 铃声选择。
+- 阅读 Agent A 提示词和入口文档。
+- 阅读相关源码、脚本和测试。
+- 按现有架构实现，不扩大范围。
+- 根据 `md/test/test.md` 选择测试层级，运行测试并记录具体命令和结果。
+- 更新 `README.md`、`update_log.md`、`md/test/test.md`、`md/flow/*` 或脚本中受影响的部分。
+- 输出改动说明、关键文件、测试命令和结果、未跑测试原因、已知风险、后续建议。
 
-### Pro 功能
+### Agent C：验收与核心逻辑更新
 
-StoreKit 商品 ID：`com.example.ChronoFocus.pro.analytics`。
+Agent C 负责验收 Agent B 结果，并维护核心逻辑文档。
 
-Pro 相关功能要有普通用户预览态、购买入口、恢复购买入口，以及已解锁态。Mac 与 iOS 的购买服务可以分平台实现，但商品 ID 和行为语义要一致。
+必须完成：
 
-### 日历同步
+- 阅读 Agent B 输出、实际 diff、测试结果和入口文档。
+- 核对实现是否满足 Agent A 提示词和人工目标。
+- 检查架构边界、测试覆盖、文档同步和未说明风险。
+- 基于当前真实实现更新 `md/flow/flow.md` 与 `md/flow/flowchart.md`。
+- 形成正式版本或重要历史事项时，更新 `update_log.md`。
+- 输出通过/不通过、问题清单、已更新文档、建议下一步。
 
-iOS 使用 iPhone 日历同步语义；macOS 使用 Mac 日历同步语义。同步后应进入 `FocusStore` 的待办系统，参与计划生成、统计和提醒。
+## 6. 测试规则
 
-## 编码规范
+- 每次实现前先读 `md/test/test.md`。
+- 默认从最小可证明测试开始，根据改动范围扩大到 Smoke、Stage Regression 或 Full。
+- 每次改动后至少运行文档或代码对应的最低验证命令。
+- 代码变更不得只说“已验证”，必须写出实际命令和结果。
+- 文档-only 修改可只跑 `git diff --check` 和必要静态结构检查，但必须说明未跑完整业务测试的原因。
+- 涉及 macOS UI、状态栏、小窗、详细窗口、共享模型、通知、StoreKit、EventKit 时，优先运行 `bash scripts/verify_project.sh`，必要时再运行 Mac Xcode 构建。
 
-- 使用 SwiftUI，优先遵循现有文件风格。
-- 不引入第三方依赖，除非用户明确要求。
-- 不做无关重构。
-- 不回滚用户或其他 Agent 的改动。
-- 手写文件修改使用 `apply_patch`。
-- 每个新增功能应有明确验证路径。
-- 视图可以先保持现有私有子 View 风格；大规模新增时再拆文件，避免单文件过长失控。
-- 新增共享模型字段时，要提供向后兼容的 `decodeIfPresent` 默认值。
-- 不要把测试专用逻辑暴露为真实产品行为；测试/快照开关应通过环境值或初始化参数明确隔离。
+## 7. 文档规则
 
-## 测试规范
+- `AGENT.md` 只放入口规则、架构边界和工作流，不写流水账。
+- `update_log.md` 记录版本更新、关键决策、完成事项和遗留问题。
+- `md/flow/flow.md` 只描述当前真实核心逻辑，不写历史废话。
+- `md/flow/flowchart.md` 用 Mermaid 图展示当前核心数据流、执行流和 Agent 迭代流，每张图前必须有中文读图说明。
+- `md/test/test.md` 记录测试分层、触发条件、命令和当前基线。
+- `md/prompt/` 保存每轮 Agent A 给 Agent B 的详细实现提示词，按版本号管理。
+- 改变架构、测试命令、核心流程、重要文件或完成状态时，必须同步更新相关文档。
 
-每次改动后至少运行：
+## 8. 交付格式
 
-```bash
-bash scripts/verify_project.sh
-```
+最终回复必须包含：
 
-如果涉及 macOS App、Mac UI、状态栏、小窗、详细窗口、通知、StoreKit、EventKit 或共享模型，还要运行：
+- 改了什么。
+- 关键文件。
+- 测试命令和结果。
+- 未跑测试及原因。
+- 已知风险或遗留事项。
 
-```bash
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration Debug \
-  -derivedDataPath /tmp/ChronoFocusMacDerivedData build
-```
+如果只是 Agent A 输出提示词，也要说明提示词版本、文件路径、覆盖范围和建议交给 Agent B 的下一步。
 
-如果涉及 iOS 主 App 或 Live Activity，还要尽量运行对应 iOS scheme 的 Xcode 构建；若当前环境无法运行模拟器，要在最终回复中明确说明原因。
+## 9. 禁止项
 
-### 快照测试要求
-
-`scripts/render_mac_snapshots.swift` 当前会生成：
-
-- `/tmp/chronofocus-mac-snapshots/mini-timer.png`
-- `/tmp/chronofocus-mac-snapshots/detail-timer.png`
-- `/tmp/chronofocus-mac-snapshots/detail-schedule.png`
-- `/tmp/chronofocus-mac-snapshots/detail-analytics.png`
-- `/tmp/chronofocus-mac-snapshots/detail-settings.png`
-
-快照测试必须继续检查：
-
-- 图片非空。
-- 详情页右侧内容区有前景内容。
-- 不出现黄色缺失控件占位。
-
-新增 Mac 页面或重要状态时，应扩展快照脚本和 `verify_project.sh`，不能只靠人工观察。
-
-## README 与文档更新要求
-
-每次完成开发后必须检查是否需要更新：
-
-- `README.md`：功能清单、打开方式、本地验证、已完成能力。
-- `AGENT.md`：如果改变架构、测试命令、重要文件、项目规范或后续工作方式，必须更新本文。
-- `scripts/verify_project.sh`：如果新增功能有可静态检查的标记、文件或快照，应加入验证。
-- `scripts/test_mac_core.swift`：如果新增共享模型字段、核心计划/统计/持久化逻辑，应加入核心测试。
-- `scripts/render_mac_snapshots.swift`：如果新增或明显改变 Mac UI，应覆盖快照。
-
-不要只在最终回复里说“已完成”，而不更新 README 或测试规范。项目文档必须能让下一位 Agent 接上工作。
-
-## 工作流程
-
-1. 读取 `AGENT.md`、`README.md`、`git status --short`、相关 git log。
-2. 用 `rg` 查找相关代码，不盲改。
-3. 明确影响范围：iOS、macOS、共享模型、脚本、README。
-4. 小步修改，优先保持现有架构。
-5. 更新测试脚本或快照脚本。
-6. 运行验证命令。
-7. 检查关键快照或构建产物。
-8. 更新 README 和 `AGENT.md` 中需要变更的部分。
-9. 最终回复只汇报关键改动、验证结果和未完成风险。
-
-## 常见验证噪声
-
-当前环境运行 `xcodebuild` 时可能出现 CoreSimulator、FSEvents、缓存目录权限相关警告。这些通常是桌面沙盒或模拟器服务噪声。只要最终出现 `BUILD SUCCEEDED`，macOS target 构建可视为通过。若出现 Swift 编译错误、链接错误、签名错误或脚本失败，不得忽略。
-
-## 后续优先级建议
-
-1. 完善 Mac 小窗快捷面板的真实交互细节，例如快捷入口跳到详细窗口指定 tab。
-2. 为 iOS 端同步支持 `CompletionSound` 的可选 UI，前提是用户明确需要。
-3. 增强 iOS scheme 构建验证，避免只验证 Mac。
-4. 为 StoreKit 和 EventKit 增加更明确的本地 mock 或配置说明。
-5. 梳理长文件，把过长 Mac View 拆成更小的文件，但不要在功能开发中顺手大重构。
-
+- 不读入口文档就改代码。
+- 不读相关源码就按猜测改实现。
+- 绕过 `TimerEngine` 直接在 View 中制造第二套计时状态。
+- 绕过 `FocusStore` 直接写散落持久化。
+- 让 iOS/macOS target 互相污染平台 API。
+- 删除旧实现、回滚他人改动或扩大任务范围，除非用户明确要求。
+- 用空泛模板替代项目真实文档。
+- 用“应该能过”“已验证”替代具体命令输出。
+- 忽略失败测试、编译错误、快照占位或 Xcode 构建错误。
