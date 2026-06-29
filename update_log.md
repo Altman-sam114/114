@@ -15,7 +15,7 @@
 - iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/振动、亮暗主题。
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
 - 当前主验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、Mac 核心测试和 Mac UI 快照。
-- 当前协作体系要求后续按 Agent A/B/C 循环：先产出版本化实现提示词，再实现测试，再验收并更新核心逻辑文档。
+- 当前协作体系要求后续按 Agent A/B/C 循环：先产出版本化实现提示词，再实现测试，再验收并更新核心逻辑文档；Agent C 验收通过后按版本号自动 git commit，不通过则退回 Agent B 修复。
 
 ## 关键决策
 
@@ -64,6 +64,33 @@
 遗留事项：
 
 - 下一轮正式功能开发应由 Agent A 先在 `md/prompt/` 下创建版本化实现提示词。
+
+### v0.2 / 调整 Agent C 验收提交流程
+
+日期：2026-06-29
+
+核心变更：
+
+- 明确 Agent C 验收不通过时退回 Agent B，并给出问题、证据和修复方向。
+- 明确 Agent C 验收最终通过后必须按本轮版本号自动创建 git commit。
+- 规定提交信息格式为 `vX.Y: 简要说明本版本做了什么`，最终汇报包含 commit hash、版本号、提交说明、核心改动和测试结果。
+- 将当前入口文件引用统一为 `AGENTS.md`。
+
+关键文件：
+
+- `AGENTS.md`
+- `README.md`
+- `update_log.md`
+- `md/prompt/README.md`
+- `md/flow/flowchart.md`
+
+验证结果：
+
+- 已运行 `git diff --check`，通过。
+
+遗留事项：
+
+- 本轮为工作流文档更新，未改变 Swift 代码和业务逻辑。
 
 ### v0.0 / Agent 入口规范初版
 

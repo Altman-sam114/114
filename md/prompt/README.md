@@ -36,7 +36,7 @@
 
 ## Agent A 最低工作要求
 
-1. 阅读 `AGENT.md`、`update_log.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`。
+1. 阅读 `AGENTS.md`、`update_log.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`。
 2. 阅读任务相关源码、脚本、测试和最近 git 记录。
 3. 明确本轮范围，不把未要求的重构塞进提示词。
 4. 写出能让 Agent B 直接执行的步骤和验收标准。

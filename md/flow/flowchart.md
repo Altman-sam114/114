@@ -92,7 +92,7 @@ flowchart LR
 
 ## Agent 迭代流程
 
-读图说明：这张图描述后续协作方式。人工提出目标后，Agent A 先写实现提示词，Agent B 再实现测试，Agent C 验收并更新核心逻辑文档，最后回到人工复核。
+读图说明：这张图描述后续协作方式。人工提出目标后，Agent A 先写实现提示词，Agent B 再实现测试，Agent C 验收；不通过就退回 Agent B，通过后更新核心文档并按版本号 git 提交，最后回到人工复核。
 
 ```mermaid
 flowchart TD
@@ -101,8 +101,12 @@ flowchart TD
   P --> B["Agent B<br/>按提示词实现<br/>新增/修改测试<br/>运行验证"]
   B --> R["实现结果<br/>改动、关键文件、测试命令、风险"]
   R --> C["Agent C<br/>查看 diff 和测试结果<br/>验收是否满足目标"]
-  C --> F["更新核心文档<br/>md/flow/flow.md<br/>md/flow/flowchart.md<br/>update_log.md"]
-  F --> J{"人工复核"}
+  C --> PASS{"验收通过?"}
+  PASS -->|不通过| BACK["退回 Agent B<br/>指出问题、证据和修复方向"]
+  BACK --> B
+  PASS -->|通过| F["更新核心文档<br/>md/flow/flow.md<br/>md/flow/flowchart.md<br/>update_log.md"]
+  F --> G["git commit<br/>按版本号提交<br/>vX.Y: 简要说明工作内容"]
+  G --> J{"人工复核"}
   J -->|继续下一轮| H
   J -->|发现问题| A
 ```

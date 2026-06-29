@@ -55,13 +55,13 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
 
 ## Agent 规范
 
-后续 Codex/Agent 继续开发前必须先阅读 `AGENT.md`。项目已建立长期迭代文档体系：
+后续 Codex/Agent 继续开发前必须先阅读 `AGENTS.md`。项目已建立长期迭代文档体系：
 
-- `AGENT.md`：入口记忆、基本规则、架构边界、Agent A/B/C 工作流。
+- `AGENTS.md`：入口记忆、基本规则、架构边界、Agent A/B/C 工作流。
 - `update_log.md`：版本更新记录、历史决策、完成事项、遗留问题。
 - `md/prompt/`：Agent A 每轮写给 Agent B 的版本化实现提示词。
 - `md/test/test.md`：测试分层、触发条件、命令、当前基线。
 - `md/flow/flow.md`：当前真实核心逻辑、数据流、执行流、架构边界。
 - `md/flow/flowchart.md`：核心逻辑和 Agent 迭代流程的 Mermaid 图。
 
-每次完成开发后必须同步检查并更新 README、测试规范、核心流程文档和更新记录。
+每次完成开发后必须同步检查并更新 README、测试规范、核心流程文档和更新记录。Agent C 最终验收通过后，必须按本轮版本号自动创建 git commit；验收不通过则退回 Agent B 修复，不得提交。
