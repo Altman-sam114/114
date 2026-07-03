@@ -54,7 +54,7 @@ struct ScheduleView: View {
                 }
             }
             .sheet(isPresented: $showingEditor) {
-                TaskEditorView(initialDueDate: defaultNewTaskDate)
+                TaskEditorView(initialDueDate: defaultNewTaskDate, initialCategory: selectedCategory)
                     .environmentObject(store)
                     .environmentObject(notifications)
                     .presentationDetents([.medium, .large])
@@ -437,6 +437,12 @@ private struct TaskCategoryFilterBar: View {
     @Binding var selectedCategory: String?
     let countProvider: (String?) -> Int
 
+    private var categoryOptions: [TaskCategoryFilterOption] {
+        TaskCategoryPreset.prioritizedFilterOptions(categories: categories) { category in
+            countProvider(category)
+        }
+    }
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -450,16 +456,15 @@ private struct TaskCategoryFilterBar: View {
                     selectedCategory = nil
                 }
 
-                ForEach(categories, id: \.self) { category in
-                    let preset = TaskCategoryPreset.matching(category)
+                ForEach(categoryOptions) { option in
                     TaskCategoryFilterChip(
-                        title: category,
-                        symbolName: preset?.symbolName ?? "tag.fill",
-                        count: countProvider(category),
-                        isSelected: selectedCategory == category,
-                        tintHex: preset?.accentHex ?? "#3DE8C5"
+                        title: option.category,
+                        symbolName: option.symbolName,
+                        count: option.count,
+                        isSelected: selectedCategory == option.category,
+                        tintHex: option.accentHex
                     ) {
-                        selectedCategory = category
+                        selectedCategory = option.category
                     }
                 }
             }
@@ -494,7 +499,7 @@ private struct TaskCategoryFilterChip: View {
             }
             .font(.caption.weight(.semibold))
             .foregroundStyle(isSelected ? Color.black.opacity(0.82) : AppTheme.primaryText)
-            .frame(minHeight: 36)
+            .frame(minHeight: 44)
             .padding(.horizontal, 10)
             .background(isSelected ? tint : AppTheme.panel, in: Capsule())
             .overlay {
@@ -598,14 +603,15 @@ private struct TaskEditorView: View {
     private let task: FocusTask?
     private let colors = ["#3DE8C5", "#A78BFA", "#FFB84D", "#FF6B6B", "#54A0FF"]
 
-    init(task: FocusTask? = nil, initialDueDate: Date) {
+    init(task: FocusTask? = nil, initialDueDate: Date, initialCategory: String? = nil) {
         self.task = task
+        let startingCategory = task?.category ?? initialCategory ?? "工作"
         _title = State(initialValue: task?.title ?? "")
-        _category = State(initialValue: task?.category ?? "工作")
+        _category = State(initialValue: startingCategory)
         _dueDate = State(initialValue: task?.dueDate ?? initialDueDate)
         _usesDueDate = State(initialValue: task?.dueDate != nil || task == nil)
         _estimatedRounds = State(initialValue: task?.estimatedRounds ?? 2)
-        _accentHex = State(initialValue: task?.accentHex ?? "#3DE8C5")
+        _accentHex = State(initialValue: task?.accentHex ?? TaskCategoryPreset.matching(startingCategory)?.accentHex ?? "#3DE8C5")
         _isEnabled = State(initialValue: task?.isEnabled ?? true)
         _autoStartPomodoro = State(initialValue: task?.autoStartPomodoro ?? false)
         _startMode = State(initialValue: task?.startMode ?? .plannedRounds)
@@ -734,7 +740,7 @@ private struct TaskCategoryPresetPicker: View {
                         Label(preset.title, systemImage: preset.symbolName)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(isSelected(preset) ? Color.black.opacity(0.82) : AppTheme.primaryText)
-                            .frame(minHeight: 34)
+                            .frame(minHeight: 44)
                             .padding(.horizontal, 10)
                             .background(isSelected(preset) ? Color(hex: preset.accentHex) : AppTheme.panel, in: Capsule())
                             .overlay {

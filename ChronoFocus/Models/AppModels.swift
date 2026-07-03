@@ -166,6 +166,51 @@ struct TaskCategoryPreset: Identifiable, Hashable {
     static func matching(_ category: String) -> TaskCategoryPreset? {
         defaults.first { $0.title == category }
     }
+
+    static func prioritizedFilterOptions(
+        categories: [String],
+        countProvider: (String) -> Int
+    ) -> [TaskCategoryFilterOption] {
+        categories.enumerated()
+            .map { index, category in
+                (
+                    index: index,
+                    option: TaskCategoryFilterOption(
+                        category: category,
+                        count: countProvider(category),
+                        preset: matching(category)
+                    )
+                )
+            }
+            .sorted { left, right in
+                let leftHasTasks = left.option.count > 0
+                let rightHasTasks = right.option.count > 0
+                if leftHasTasks != rightHasTasks {
+                    return leftHasTasks && !rightHasTasks
+                }
+                if left.option.count != right.option.count {
+                    return left.option.count > right.option.count
+                }
+                return left.index < right.index
+            }
+            .map(\.option)
+    }
+}
+
+struct TaskCategoryFilterOption: Identifiable, Hashable {
+    var id: String { category }
+
+    let category: String
+    let count: Int
+    let preset: TaskCategoryPreset?
+
+    var symbolName: String {
+        preset?.symbolName ?? "tag.fill"
+    }
+
+    var accentHex: String {
+        preset?.accentHex ?? "#3DE8C5"
+    }
 }
 
 struct TimerSettings: Codable, Equatable {

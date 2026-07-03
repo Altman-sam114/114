@@ -178,9 +178,13 @@ grep -q "TaskEditorView" ChronoFocus/Views/ScheduleView.swift
 grep -q "updateTask" ChronoFocus/Services/FocusStore.swift
 grep -q "editingTask" ChronoFocus/Views/ScheduleView.swift
 grep -q "TaskCategoryPreset" ChronoFocus/Models/AppModels.swift
+grep -q "TaskCategoryFilterOption" ChronoFocus/Models/AppModels.swift
+grep -q "prioritizedFilterOptions" ChronoFocus/Models/AppModels.swift
 grep -q "taskCategories" ChronoFocus/Services/FocusStore.swift
 grep -q "TaskCategoryFilterBar" ChronoFocus/Views/ScheduleView.swift
 grep -q "TaskCategoryPresetPicker" ChronoFocus/Views/ScheduleView.swift
+grep -q "initialCategory: selectedCategory" ChronoFocus/Views/ScheduleView.swift
+grep -q "frame(minHeight: 44)" ChronoFocus/Views/ScheduleView.swift
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
 grep -q "LSUIElement = YES" "$project"
 grep -q "MACOSX_DEPLOYMENT_TARGET = 14.0" "$project"
@@ -201,6 +205,8 @@ grep -q "syncUpcomingEvents" ChronoFocusMac/Services/MacCalendarSyncService.swif
 grep -q "Mac 日历同步" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "MacCategoryFilterBar" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "MacCategoryPresetPicker" ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q 'MacTaskListPanelView(selectedCategory: $selectedCategory)' ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "onChange(of: selectedCategory)" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "MacProPreviewPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 grep -q "MacReportPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 grep -q "MacCategoryChartPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  CI_PROCESS_VERSION: v0.4
+  CI_PROCESS_VERSION: v0.6
   PROJECT_NAME: ChronoFocus
   XCODE_PROJECT: ChronoFocus.xcodeproj
   MAC_SCHEME: ChronoFocusMac

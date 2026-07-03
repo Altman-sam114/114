@@ -14,7 +14,7 @@
 
 - iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/振动、亮暗主题。
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
-- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、分类筛选标记、Mac 核心测试和 Mac UI 快照。
+- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、分类筛选/预填/排序标记、Mac 核心测试和 Mac UI 快照。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build 和 `ChronoFocus` iOS generic build。
 
@@ -35,6 +35,49 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.6 / 优化分类新建预填和筛选排序
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增非持久化 `TaskCategoryFilterOption` 和 `TaskCategoryPreset.prioritizedFilterOptions`，让分类筛选按当前范围内任务数量优先展示有任务分类。
+- iOS 日程页选中分类后新增待办会自动预填该分类和匹配预设色；编辑已有待办不受当前筛选影响。
+- macOS 日程详情把待办分类筛选状态上提，选中分类时同步快速新增区域的分类和预设色。
+- iOS 分类筛选 chip 和常用分类快选按钮提升到 44pt 最小高度。
+- `scripts/test_mac_core.swift` 增加空白分类归一、默认分类顺序、预设元数据、筛选排序和 fallback 元数据断言。
+- `scripts/verify_project.sh` 增加分类排序 helper、新建预填、44pt 点击高度和 macOS binding/onChange 标记检查。
+- `.github/workflows/ci-results.yml` 的 `CI_PROCESS_VERSION` 更新为 v0.6。
+
+关键文件：
+
+- `ChronoFocus/Models/AppModels.swift`
+- `ChronoFocus/Views/ScheduleView.swift`
+- `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `scripts/test_mac_core.swift`
+- `scripts/verify_project.sh`
+- `.github/workflows/ci-results.yml`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v0（持续优化）/v0.6（分类新建预填与筛选优先级）.md`
+- `update_log.md`
+
+验证结果：
+
+- 已运行 `git diff --check`，通过。
+- 已运行 `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 已运行 `plutil -lint ChronoFocus.xcodeproj/project.pbxproj`，输出 `ChronoFocus.xcodeproj/project.pbxproj: OK`。
+- 首次运行 `bash scripts/verify_project.sh` 发现新增 grep 标记在 `set -u` 下误展开 `$selectedCategory`，已改为单引号字面量。
+- 修复后重新运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照。
+- 已查看 `/tmp/chronofocus-mac-snapshots/detail-schedule.png`，分类快选和快速新增区域显示正常，未见黄色缺失控件占位。
+- 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
+
+遗留事项：
+
+- 总目标仍未完成；v0.6 通过后继续寻找下一轮 UI 和 CI 优化点。
 
 ### v0.5 / 启动 Agent X 循环并修复 iOS 分类构建
 

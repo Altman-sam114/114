@@ -81,8 +81,30 @@ struct MacCoreTests {
             fail("Categorized task creation failed")
         }
         assert(categorizedTask.category == "工作", "Expected task category to be trimmed")
+        guard let uncategorizedTask = store.addTask(
+            title: "空白分类任务",
+            category: "   ",
+            dueDate: nil,
+            estimatedRounds: 1,
+            accentHex: "#3DE8C5"
+        ) else {
+            fail("Uncategorized task creation failed")
+        }
+        assert(uncategorizedTask.category == "未分类", "Expected blank category to normalize to fallback")
+        let defaultCategoryTitles = TaskCategoryPreset.defaults.map(\.title)
+        assert(Array(store.taskCategories.prefix(defaultCategoryTitles.count)) == defaultCategoryTitles, "Expected default category order to stay stable")
         assert(store.taskCategories.contains("工作"), "Expected default category in category list")
         assert(store.taskCategories.contains("测试"), "Expected used category in category list")
+        assert(store.taskCategories.contains("未分类"), "Expected normalized fallback category in category list")
+        assert(TaskCategoryPreset.matching("工程")?.symbolName == "hammer.fill", "Expected category preset metadata lookup")
+        let orderedCategories = TaskCategoryPreset.prioritizedFilterOptions(
+            categories: ["工作", "成长", "测试", "复盘"]
+        ) { category in
+            ["测试": 3, "成长": 1][category] ?? 0
+        }
+        assert(orderedCategories.map(\.category) == ["测试", "成长", "工作", "复盘"], "Expected active categories to be prioritized by count")
+        assert(orderedCategories.first?.symbolName == "tag.fill", "Expected custom category fallback symbol")
+        assert(orderedCategories.first?.accentHex == "#3DE8C5", "Expected custom category fallback accent")
 
         print("Mac core tests passed.")
     }

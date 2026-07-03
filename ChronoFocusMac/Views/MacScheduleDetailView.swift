@@ -11,6 +11,7 @@ struct MacScheduleDetailView: View {
     @State private var dueDate = Date().addingTimeInterval(3600)
     @State private var estimatedRounds = 2
     @State private var accentHex = "#3DE8C5"
+    @State private var selectedCategory: String?
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     var body: some View {
@@ -56,11 +57,16 @@ struct MacScheduleDetailView: View {
                     MacCalendarPanelView()
                     MacCalendarSyncPanelView()
                     MacPlanPanelView()
-                    MacTaskListPanelView()
+                    MacTaskListPanelView(selectedCategory: $selectedCategory)
                 }
             }
         }
         .padding(24)
+        .onChange(of: selectedCategory) { _, newCategory in
+            guard let newCategory else { return }
+            category = newCategory
+            accentHex = TaskCategoryPreset.matching(newCategory)?.accentHex ?? "#3DE8C5"
+        }
     }
 
     private func addTask() {
@@ -76,7 +82,7 @@ struct MacScheduleDetailView: View {
         }
         taskTitle = ""
         estimatedRounds = 2
-        category = "工作"
+        category = selectedCategory ?? "工作"
         accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? "#3DE8C5"
     }
 }
@@ -430,7 +436,7 @@ private struct MacPlanPanelView: View {
 private struct MacTaskListPanelView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var notifications: MacNotificationService
-    @State private var selectedCategory: String?
+    @Binding var selectedCategory: String?
 
     private var visibleTasks: [FocusTask] {
         let tasks = store.upcomingTasks()
@@ -552,6 +558,12 @@ private struct MacCategoryFilterBar: View {
     @Binding var selectedCategory: String?
     let countProvider: (String?) -> Int
 
+    private var categoryOptions: [TaskCategoryFilterOption] {
+        TaskCategoryPreset.prioritizedFilterOptions(categories: categories) { category in
+            countProvider(category)
+        }
+    }
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -565,16 +577,15 @@ private struct MacCategoryFilterBar: View {
                     selectedCategory = nil
                 }
 
-                ForEach(categories, id: \.self) { category in
-                    let preset = TaskCategoryPreset.matching(category)
+                ForEach(categoryOptions) { option in
                     MacCategoryFilterChip(
-                        title: category,
-                        symbolName: preset?.symbolName ?? "tag.fill",
-                        count: countProvider(category),
-                        isSelected: selectedCategory == category,
-                        tintHex: preset?.accentHex ?? "#3DE8C5"
+                        title: option.category,
+                        symbolName: option.symbolName,
+                        count: option.count,
+                        isSelected: selectedCategory == option.category,
+                        tintHex: option.accentHex
                     ) {
-                        selectedCategory = category
+                        selectedCategory = option.category
                     }
                 }
             }
