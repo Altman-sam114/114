@@ -122,3 +122,25 @@ flowchart TD
   J -->|继续下一轮| H
   J -->|发现新目标| A
 ```
+
+## Agent X 主控循环
+
+读图说明：这张图描述人工用 `agentx:` 给出总目标后，Agent X 如何拆分轮次并调度 Agent A、Agent B、GitHub Actions 和 Agent C。Agent X 只做主控判断，不能跳过 Agent C 对最新 artifact 的验收；失败或阻塞时必须退回、暂停或停止，不能伪装成功继续下一轮。
+
+```mermaid
+flowchart TD
+  H["人工输入 agentx 总目标 X<br/>范围、约束、验收标准"] --> X0["Agent X<br/>理解总目标和当前状态"]
+  X0 --> X1["拆分本轮小目标<br/>版本、边界、非目标、风险"]
+  X1 --> A["Agent A<br/>写 md/prompt 版本化提示词<br/>包含验证、CI、artifact、Agent C 要求"]
+  A --> B["Agent B<br/>按提示词实现<br/>本地轻量检查、commit、push origin/main"]
+  B --> CI["GitHub Actions<br/>ci-results.yml<br/>运行静态检查、verify_project、Mac/iOS build"]
+  CI --> ART["最新未加密 artifact<br/>manifest、JUnit、failure summary、日志、xcresult、项目产物"]
+  ART --> C["Agent C<br/>下载最新 run artifact<br/>核对 branch、commitSha、run id、run attempt"]
+  C --> X2["Agent X 读取 Agent C 结论<br/>只基于最新 origin/main artifact 判断"]
+  X2 --> D{"下一步判断"}
+  D -->|通过且总目标未完成| X1
+  D -->|不通过但可修复| B
+  D -->|需要人工决策<br/>权限/密钥/方向/冲突| P["暂停等待人工确认"]
+  D -->|达到停止条件| S["停止循环<br/>说明阻塞、证据和建议"]
+  D -->|总目标完成| DONE["宣布完成<br/>最后一轮 Agent C 已确认云端通过"]
+```

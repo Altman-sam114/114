@@ -10,6 +10,18 @@
 - 云端失败时，Agent B 根据结果包里的 failure summary、JUnit、日志和 manifest 修复，并在 `main` 上追加修复 commit 后重新 push。
 - 云端环境缺依赖时，最终回复必须说明没跑哪个测试、缺什么依赖、是否影响验收、需要人工提供什么。
 
+## Agent X 循环验证规则
+
+Agent X 只负责主控调度，不改变每轮验证责任。每一个由 Agent X 拆出的轮次仍按 Agent A -> Agent B -> Agent C 闭环执行：
+
+- Agent A 提示词必须写清本轮本地验证、GitHub Actions、artifact 和 Agent C 复判要求。
+- Agent B 必须按本文件选择本地轻量检查；实现轮次默认至少有本地轻量检查结果、commit 和 `origin/main` push。
+- GitHub Actions 必须为最新 `origin/main` commit 生成未加密 artifact。
+- Agent C 必须下载并核对最新 run 对应 artifact，检查 manifest、JUnit 或测试摘要、failure summary、主日志、`.xcresult` 和项目专属产物。
+- Agent X 不得跳过 Agent C artifact 验收，不得用本地输出、旧 run 或旧 artifact 代替最新云端结论。
+- 如果 Agent C 验收失败，Agent X 只能选择退回 Agent B 修复、暂停等待人工确认或停止；不得继续下一轮并伪装成功。
+- Agent X 宣布总目标完成前，最后一轮必须已有 Agent C 对最新 `origin/main` artifact 的通过结论。
+
 ## 固定前缀 / 环境要求
 
 当前项目是 Xcode SwiftUI 工程，默认机器可能将 `xcode-select` 指向 Command Line Tools。运行 Xcode 构建时优先使用：
@@ -66,6 +78,26 @@ Agent C 结果包缓存默认目录：
 ```bash
 /private/tmp/chronofocus-c-review-<run_id>/
 ```
+
+## 测试数据与下载容量限制
+
+本项目默认采用小数据量验证策略，避免下载过大 artifact、模型、数据集、缓存或结果包，把本机、CI runner 或临时目录容量撑爆。
+
+规则：
+
+- 测试数据必须尽量小，只覆盖必要边界。
+- CI artifact 只上传必要文件：manifest、JUnit 或测试摘要、关键日志、失败摘要、必要结果包。
+- 不上传大体积 DerivedData、完整 build cache、无关截图、视频、模型文件、历史 artifact 或重复压缩包。
+- Agent C 下载 artifact 前优先确认只下载最新 run 对应的必要结果包。
+- 下载缓存默认放在 `/private/tmp/chronofocus-c-review-<run_id>/`。
+- 下载后应检查目录大小：
+
+```bash
+du -sh /private/tmp/chronofocus-c-review-<run_id>/
+```
+
+- 禁止默认下载大体积测试数据、模型、历史 artifact 或无关产物，导致本机或 CI 容量被撑爆。
+- 禁止使用非 `Altman-sam114` 的 GitHub 账号伪装完成 push、CI 或 artifact 验收。
 
 ## 测试分层
 

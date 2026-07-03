@@ -15,7 +15,7 @@
 - iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/振动、亮暗主题。
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
 - 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、分类筛选标记、Mac 核心测试和 Mac UI 快照。
-- 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。
+- 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build 和 `ChronoFocus` iOS generic build。
 
 ## 关键决策
@@ -35,6 +35,43 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.5 / 启动 Agent X 循环并修复 iOS 分类构建
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 Agent X 召唤、职责、循环判断和停止条件。
+- 将现有 Agent A/B/C 云端验证流程扩展为可被 Agent X 多轮调度。
+- 新增 v0.5 Agent A 提示词，明确当前总目标、v0.4 云端失败修复和下一轮 UI/CI 优化边界。
+- 修复 iOS `ScheduleView.taskCount(in:)` 分类计数分支缺少 `return` 导致的云端 `ChronoFocus` generic build 失败。
+- 更新 flow、flowchart、test、prompt README 和 README 中的协作说明。
+
+关键文件：
+
+- `AGENTS.md`
+- `ChronoFocus/Views/ScheduleView.swift`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v0（持续优化）/v0.5（AgentX循环与iOS构建修复）.md`
+- `update_log.md`
+
+验证结果：
+
+- 已运行 `git diff --check`，通过。
+- 已运行 `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 已运行 `plutil -lint ChronoFocus.xcodeproj/project.pbxproj`，输出 `ChronoFocus.xcodeproj/project.pbxproj: OK`。
+- 已运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照。
+- 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
+
+遗留事项：
+
+- v0.4 首个云端 run 的 iOS build 已确认失败，本轮修复后必须重新 push 并由 Agent C 核对最新 artifact。
+- 总目标仍未完成；v0.5 通过后继续拆下一轮 UI 分类体验和 CI 覆盖优化。
 
 ### v0.4 / 分类与 CI 首轮优化
 

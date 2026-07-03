@@ -4,7 +4,7 @@
 
 ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作番茄钟/日程 -> `FocusStore` 保存设置、任务、计划、会话和活跃计时快照 -> `TimerEngine` 按真实系统时间驱动计时状态 -> 平台服务负责通知、Live Activity/占位、日历同步和 Pro 权益 -> SwiftUI 视图渲染当前状态。
 
-协作验证主链路是：Agent A 写版本化提示词 -> Agent B 在最新 `origin/main` 上实现、轻量检查、commit 并 push 到 `origin/main` -> GitHub Actions 运行 `ci-results.yml` -> 上传未加密 CI 结果包 -> Agent C 下载并核对 manifest、日志和产物 -> 失败时退回 Agent B 在 `main` 追加修复 commit。
+协作验证主链路是：Agent A 写版本化提示词 -> Agent B 在最新 `origin/main` 上实现、轻量检查、commit 并 push 到 `origin/main` -> GitHub Actions 运行 `ci-results.yml` -> 上传未加密 CI 结果包 -> Agent C 下载并核对 manifest、日志和产物 -> 失败时退回 Agent B 在 `main` 追加修复 commit。Agent X 可围绕人工总目标主控多轮 A/B/C 闭环，但每轮仍必须经过 Agent A 提示词、Agent B push 和 Agent C artifact 验收。
 
 ## 1. 当前核心数据流
 
@@ -188,7 +188,8 @@ macOS：
 - `agenta`、`a:` 或 `A:` 召唤 Agent A，负责目标分析和写 `md/prompt/` 版本化提示词。
 - `agentb`、`b:` 或 `B:` 召唤 Agent B，负责在 `main` 上实现、轻量检查、提交并 push。
 - `agentc`、`c:` 或 `C:` 召唤 Agent C，负责下载云端结果包并验收最新 `origin/main`。
-- 没有角色前缀时，按普通 Codex 任务处理；若任务天然需要 A/B/C 边界，需要先说明本轮采用的身份。
+- `agentx`、`x:` 或 `X:` 召唤 Agent X，负责接收总目标、拆分轮次并调度 A/B/C 多轮闭环。
+- 没有角色前缀时，按普通 Codex 任务处理；若任务天然需要 A/B/C/X 边界，需要先说明本轮采用的身份。
 
 ### 7.2 main 直推闭环
 
@@ -204,6 +205,31 @@ macOS：
 10. 如果 Agent C 需要补齐核心文档，也必须用 `main` 追加 commit/push，并验收新的最新 run。
 
 本轮不把现存 `smalldata_test` 分支、PR 合并流、AITRANS 的漫画探针、GGUF、模型 Release、`test/1.png` 等项目特例写入 ChronoFocus 默认流程。
+
+### 7.3 Agent X 主控循环
+
+Agent X 是可选的调度层，不直接替代 Agent A、Agent B 或 Agent C。人工用 `agentx:`、`x:` 或 `X:` 给出总目标后，Agent X 负责把总目标拆成一组小轮次，并在每轮结束后根据 Agent C 的验收结论判断下一步。
+
+每轮真实流程：
+
+1. Agent X 明确本轮小目标、非目标、验收边界和预期版本。
+2. Agent X 调用 Agent A 产出版本化提示词，提示词必须写入 `md/prompt/` 并包含本轮目标、验证、CI、artifact 和 Agent C 复判要求。
+3. Agent B 基于 Agent A 提示词在 `main` 上实现、运行本地轻量检查、提交并 push 到 `origin/main`。
+4. GitHub Actions 运行 `.github/workflows/ci-results.yml` 并上传最新未加密 CI 结果包。
+5. Agent C 下载最新 run 对应 artifact，核对 manifest、JUnit、failure summary、主日志、`.xcresult` 和项目专属产物。
+6. Agent X 只基于 Agent C 对最新 `origin/main` artifact 的结论判断：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
+
+Agent X 停止条件：
+
+- 总目标已完成，且最后一轮 Agent C 已确认最新云端结果包通过。
+- 连续 3 轮遇到同一阻塞。
+- 连续 2 轮没有产生有效 diff。
+- CI 连续失败且原因相同。
+- 需要账号、权限、密钥、付费服务或人工决策。
+- 当前工作区存在无法判断归属的冲突。
+- 用户要求停止或改变方向。
+
+Agent X 禁止跳过 Agent C artifact 验收，禁止把旧 run、旧 artifact 或本地输出冒充最新云端结果，禁止为了推进循环扩大无关改动范围。
 
 ## 8. 已确认的铁律
 

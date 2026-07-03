@@ -64,17 +64,19 @@ macOS 平台层：
 
 ## 5. 标准迭代工作流
 
-项目采用“人工目标 -> Agent A 设计提示词 -> Agent B 基于最新 `origin/main` 实现、轻量检查、commit 并 push 到 `origin/main` -> GitHub Actions 上传未加密 CI 结果包 -> Agent C 下载结果包验收 -> 有问题退回 Agent B 在 `main` 追加修复 commit -> 通过后人工复核 -> 下一轮”的循环。
+项目默认采用“人工目标 -> Agent A 设计提示词 -> Agent B 基于最新 `origin/main` 实现、轻量检查、commit 并 push 到 `origin/main` -> GitHub Actions 上传未加密 CI 结果包 -> Agent C 下载结果包验收 -> 有问题退回 Agent B 在 `main` 追加修复 commit -> 通过后人工复核 -> 下一轮”的循环。用户可用 Agent X 围绕一个总目标主控多轮 A/B/C 闭环，但 Agent X 不直接替代 A、B、C 的职责。
 
 ### 角色召唤和身份标识
 
 - 用户消息以 `agenta`、`a:` 或 `A:` 开头，表示召唤 Agent A。
 - 用户消息以 `agentb`、`b:` 或 `B:` 开头，表示召唤 Agent B。
 - 用户消息以 `agentc`、`c:` 或 `C:` 开头，表示召唤 Agent C。
-- 没有这些前缀时，按普通 Codex 任务处理；若任务需要 A/B/C 边界，提醒用户指定角色或说明本轮按普通任务执行。
+- 用户消息以 `agentx`、`x:` 或 `X:` 开头，表示召唤 Agent X。
+- 没有这些前缀时，按普通 Codex 任务处理；若任务需要 A/B/C/X 边界，提醒用户指定角色或说明本轮按普通任务执行。
 - Agent A 最终回复第一行必须写：`我是 Agent A。`
 - Agent B 最终回复第一行必须写：`我是 Agent B。`
 - Agent C 最终回复第一行必须写：`我是 Agent C。`
+- Agent X 最终回复第一行必须写：`我是 Agent X。`
 
 ### main 直推和云端验收
 
@@ -85,6 +87,8 @@ macOS 平台层：
 - GitHub Actions 必须上传未加密 CI 结果包，至少包含 manifest、failure summary、JUnit 或等价摘要、主日志和项目专属验证产物。
 - Agent C 必须先 `gh auth login`，再下载 `origin/main` 最新 commit 对应 run 的 artifact；默认缓存目录为 `/private/tmp/chronofocus-c-review-<run_id>/`。
 - Agent C 只验收 manifest 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新 commit 完全一致的结果包。
+- Agent C 下载 artifact 前只选择最新 run 对应的必要结果包，缓存默认放在 `/private/tmp/chronofocus-c-review-<run_id>/`，不得下载历史 artifact、大体积测试数据、模型、DerivedData 或无关缓存。
+- push、CI 和 artifact 验收必须基于项目授权的 GitHub 账号 `Altman-sam114`，不得使用其他账号伪装完成。
 - 云端失败时不回滚；Agent C 写退回清单，Agent B 在 `main` 追加修复 commit 后继续 push。
 - Agent C 若必须补齐验收文档，也必须按 `main` 追加 commit/push/云端验收处理，不能只留本地改动。
 
@@ -135,6 +139,43 @@ Agent C 负责验收 Agent B 结果，并维护核心逻辑文档。
 - 如果验收不通过：不得提交；必须列出问题、原因、证据和建议修复路径，并退回 Agent B 继续实现。
 - 如果验收最终通过：确认 `main` 最新 run 通过且结果包核对无误。
 - 输出通过/不通过、问题清单、已更新文档、提交结果、建议下一步。
+
+### Agent X：主控调度与循环判断
+
+Agent X 是可选的主控调度角色，不直接替代 Agent A、Agent B 或 Agent C。
+
+必须完成：
+
+- 接收人工给出的总目标 X，拆成多个可验收的小轮次目标。
+- 每轮按 Agent A -> Agent B -> Agent C 的顺序推进：Agent A 写版本化提示词，Agent B 实现、轻量检查、commit 并 push 到 `origin/main`，Agent C 下载最新云端 artifact 并复判。
+- 基于 Agent C 的结论判断下一步：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
+- 每轮都记录当前轮次目标、版本号、Agent A 提示词路径、Agent B commit/push 状态、GitHub Actions run/artifact 信息、Agent C 验收结论和未解决风险。
+- 在总目标未完成、Agent C 未完成最新 artifact 验收、或失败原因未解释清楚时，不得宣布完成。
+
+停止条件：
+
+- 总目标已完成，并且最后一轮 Agent C 已确认最新 `origin/main` 云端结果包通过。
+- 连续 3 轮遇到同一阻塞，且无法在当前权限和信息内继续推进。
+- 连续 2 轮没有产生有效 diff，说明拆分目标或实现路径需要人工重定向。
+- CI 连续失败且原因相同，需要人工决策或环境修复。
+- 需要账号、权限、密钥、付费服务或其他人工决策。
+- 当前工作区存在无法判断归属的冲突或无关 diff。
+- 用户要求停止或改变方向。
+
+禁止项：
+
+- 禁止无条件无限循环。
+- 禁止跳过 Agent C 云端 artifact 验收。
+- 禁止把旧 run、旧 artifact、本地输出或文字汇报冒充最新云端结果。
+- 禁止在总目标未完成时宣布完成。
+- 禁止为了循环推进扩大无关改动范围。
+
+最终回复格式：
+
+- 第一行必须写：`我是 Agent X。`
+- 必须说明总目标状态：继续、退回、暂停、停止或完成。
+- 必须列出已完成轮次、当前轮次版本、对应 Agent A 提示词、Agent B commit/push 状态、GitHub Actions run/artifact 信息和 Agent C 验收结论。
+- 若未完成，必须说明下一步、阻塞条件、需要人工决策的事项或停止原因。
 
 ### main 提交和推送规则
 

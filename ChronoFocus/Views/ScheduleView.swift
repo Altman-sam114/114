@@ -343,7 +343,7 @@ struct ScheduleView: View {
         guard let category else {
             return store.tasks.filter(isTaskInSelectedRange).count
         }
-        store.tasks.filter { task in
+        return store.tasks.filter { task in
             isTaskInSelectedRange(task) && task.category == category
         }.count
     }
