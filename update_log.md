@@ -14,8 +14,8 @@
 
 - iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/振动、亮暗主题。
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
-- 当前主验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、Mac 核心测试和 Mac UI 快照。
-- 当前协作体系要求后续按 Agent A/B/C 循环：先产出版本化实现提示词，再实现测试，再验收并更新核心逻辑文档；Agent C 验收通过后按版本号自动 git commit，不通过则退回 Agent B 修复。
+- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、Mac 核心测试和 Mac UI 快照。
+- 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。
 
 ## 关键决策
 
@@ -34,6 +34,41 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.3 / 升级 main 直推云端验证流程
+
+日期：2026-07-03
+
+核心变更：
+
+- 将协作制度从“本地验证 + Agent C 本地提交”升级为“Agent B main 直推 + GitHub Actions 云端重验证 + Agent C 下载未加密结果包验收”。
+- 明确 `agenta` / `a:`、`agentb` / `b:`、`agentc` / `c:` 角色召唤和最终回复身份标识。
+- 明确 `main` 是唯一默认上传、提交、推送和云端验证分支；现存 `smalldata_test` 只记录为历史现状，不纳入默认流程。
+- 新增 `.github/workflows/ci-results.yml`，在 `main` push 和手动触发时运行静态检查、`scripts/verify_project.sh` 和 `ChronoFocusMac` build，并上传 Agent C 可下载的未加密结果包。
+- 更新测试规范、核心流程、流程图、prompt 目录说明和 README，写清本地轻量检查、云端结果包、`gh auth login`、下载缓存和失败后追加修复 commit 规则。
+
+关键文件：
+
+- `AGENTS.md`
+- `README.md`
+- `update_log.md`
+- `md/prompt/README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `.github/workflows/ci-results.yml`
+
+验证结果：
+
+- 本轮为协作流程和 CI 改造，不改变 Swift 业务逻辑、UI、模型或持久化语义。
+- 已运行 `git diff --check`，通过。
+- 已运行 `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 已运行 `plutil -lint ChronoFocus.xcodeproj/project.pbxproj`，输出 `ChronoFocus.xcodeproj/project.pbxproj: OK`。
+- 云端重验证由 `main` push 触发 `.github/workflows/ci-results.yml` 后，以 Agent C 下载的结果包为准。
+
+遗留事项：
+
+- iOS scheme 的完整云端构建仍未作为默认 CI 阶段启用；当前云端重验证先覆盖现有稳定的 Mac project verification、Mac core tests、Mac UI snapshots 和 `ChronoFocusMac` build。
 
 ### v0.1 / 建立 Agent 协作和项目记忆体系
 

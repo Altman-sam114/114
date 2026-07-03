@@ -1,0 +1,239 @@
+name: ChronoFocus CI Results
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  CI_PROCESS_VERSION: v0.3
+  PROJECT_NAME: ChronoFocus
+  XCODE_PROJECT: ChronoFocus.xcodeproj
+  MAC_SCHEME: ChronoFocusMac
+  MAC_DESTINATION: generic/platform=macOS
+
+jobs:
+  ci-results:
+    name: Build, verify, and package results
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Prepare result metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ci-results/project-reports/mac-snapshots
+          branch_slug="${GITHUB_REF_NAME//\//-}"
+          short_sha="${GITHUB_SHA::7}"
+          artifact_name="chronofocus-ci-${CI_PROCESS_VERSION}-${branch_slug}-${short_sha}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
+          echo "BRANCH_SLUG=${branch_slug}" >> "$GITHUB_ENV"
+          echo "SHORT_SHA=${short_sha}" >> "$GITHUB_ENV"
+          echo "ARTIFACT_NAME=${artifact_name}" >> "$GITHUB_ENV"
+          {
+            echo "artifactName=${artifact_name}"
+            echo "branch=${GITHUB_REF_NAME}"
+            echo "commitSha=${GITHUB_SHA}"
+            echo "runId=${GITHUB_RUN_ID}"
+            echo "runAttempt=${GITHUB_RUN_ATTEMPT}"
+          } > ci-results/ci-run-context.txt
+
+      - name: Select Xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d /Applications/Xcode.app/Contents/Developer ]]; then
+            sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          fi
+          xcodebuild -version | tee ci-results/xcode-version.log
+
+      - name: Static checks
+        id: static_checks
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            echo "Running committed diff whitespace check..."
+            if git rev-parse "${GITHUB_SHA}^" >/dev/null 2>&1; then
+              git diff --check "${GITHUB_SHA}^" "${GITHUB_SHA}"
+            else
+              git diff --check
+            fi
+
+            echo "Running project plist lint..."
+            plutil -lint ChronoFocus.xcodeproj/project.pbxproj
+
+            echo "Running workflow YAML parse check..."
+            ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
+          } 2>&1 | tee ci-results/static-checks.log
+
+      - name: Project verification
+        id: project_verification
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/verify_project.sh 2>&1 | tee ci-results/verify_project.log
+          if [[ -d /tmp/chronofocus-mac-snapshots ]]; then
+            cp -R /tmp/chronofocus-mac-snapshots/. ci-results/project-reports/mac-snapshots/
+          fi
+
+      - name: Build ChronoFocusMac
+        id: mac_build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          rm -rf ci-results/ChronoFocusMac.xcresult
+          xcodebuild \
+            -project "$XCODE_PROJECT" \
+            -scheme "$MAC_SCHEME" \
+            -configuration Debug \
+            -destination "$MAC_DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/ChronoFocusMacDerivedData" \
+            -resultBundlePath "$PWD/ci-results/ChronoFocusMac.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee ci-results/xcodebuild.log
+
+      - name: Create CI manifest and summaries
+        if: always()
+        shell: bash
+        env:
+          STATIC_OUTCOME: ${{ steps.static_checks.outcome }}
+          PROJECT_VERIFY_OUTCOME: ${{ steps.project_verification.outcome }}
+          BUILD_OUTCOME: ${{ steps.mac_build.outcome }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          result_dir = Path("ci-results")
+          result_dir.mkdir(exist_ok=True)
+
+          static_outcome = os.environ.get("STATIC_OUTCOME", "unknown")
+          verify_outcome = os.environ.get("PROJECT_VERIFY_OUTCOME", "unknown")
+          build_outcome = os.environ.get("BUILD_OUTCOME", "unknown")
+          tests = [
+              ("staticChecks", static_outcome, "ci-results/static-checks.log"),
+              ("projectVerification", verify_outcome, "ci-results/verify_project.log"),
+              ("macBuild", build_outcome, "ci-results/xcodebuild.log"),
+          ]
+
+          manifest = {
+              "version": os.environ["CI_PROCESS_VERSION"],
+              "branch": os.environ["GITHUB_REF_NAME"],
+              "commitSha": os.environ["GITHUB_SHA"],
+              "shortSha": os.environ["SHORT_SHA"],
+              "runId": os.environ["GITHUB_RUN_ID"],
+              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "workflowName": os.environ["GITHUB_WORKFLOW"],
+              "createdAt": datetime.now(timezone.utc).isoformat(),
+              "projectName": os.environ["PROJECT_NAME"],
+              "scheme": os.environ["MAC_SCHEME"],
+              "destination": os.environ["MAC_DESTINATION"],
+              "resultBundlePath": "ci-results/ChronoFocusMac.xcresult",
+              "junitPath": "ci-results/junit.xml",
+              "buildLogPath": "ci-results/xcodebuild.log",
+              "failureSummaryPath": "ci-results/ci-failure-summary.md",
+              "staticChecksOutcome": static_outcome,
+              "projectVerificationOutcome": verify_outcome,
+              "buildOutcome": build_outcome,
+              "testOutcome": verify_outcome,
+              "projectSpecificReports": [
+                  {
+                      "name": "verify_project_log",
+                      "path": "ci-results/verify_project.log",
+                      "description": "Project structure, Mac core tests, and Mac UI snapshot verification log."
+                  },
+                  {
+                      "name": "mac_snapshots",
+                      "path": "ci-results/project-reports/mac-snapshots",
+                      "description": "Mac mini timer and detail view snapshots generated by scripts/render_mac_snapshots.swift."
+                  },
+                  {
+                      "name": "xcode_version",
+                      "path": "ci-results/xcode-version.log",
+                      "description": "Xcode version selected by the runner."
+                  }
+              ],
+          }
+          (result_dir / "ci-artifact-manifest.json").write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          suite = ET.Element(
+              "testsuite",
+              name="ChronoFocus CI Results",
+              tests=str(len(tests)),
+              failures=str(sum(1 for _, outcome, _ in tests if outcome != "success")),
+          )
+          for name, outcome, log_path in tests:
+              case = ET.SubElement(suite, "testcase", name=name, classname="ChronoFocusCI")
+              ET.SubElement(case, "system-out").text = f"outcome={outcome}; log={log_path}"
+              if outcome != "success":
+                  failure = ET.SubElement(case, "failure", message=f"{name} {outcome}")
+                  failure.text = f"See {log_path}"
+          ET.ElementTree(suite).write(result_dir / "junit.xml", encoding="utf-8", xml_declaration=True)
+
+          lines = [
+              "# ChronoFocus CI Failure Summary",
+              "",
+              f"- Version: `{manifest['version']}`",
+              f"- Branch: `{manifest['branch']}`",
+              f"- Commit: `{manifest['commitSha']}`",
+              f"- Run: `{manifest['runId']}` attempt `{manifest['runAttempt']}`",
+              f"- Static checks: `{static_outcome}`",
+              f"- Project verification: `{verify_outcome}`",
+              f"- Mac build: `{build_outcome}`",
+              "",
+              "## Logs",
+              "",
+              "- Static checks: `ci-results/static-checks.log`",
+              "- Project verification: `ci-results/verify_project.log`",
+              "- Mac build: `ci-results/xcodebuild.log`",
+              "- Xcode result bundle: `ci-results/ChronoFocusMac.xcresult`",
+              "- Mac snapshots: `ci-results/project-reports/mac-snapshots/`",
+          ]
+          failed = [name for name, outcome, _ in tests if outcome != "success"]
+          if failed:
+              lines.extend(["", "## Failed Stages", ""])
+              lines.extend(f"- `{name}`" for name in failed)
+          else:
+              lines.extend(["", "All CI stages passed."])
+          (result_dir / "ci-failure-summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload Agent C result package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ci-results
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Final CI status
+        if: always()
+        shell: bash
+        env:
+          STATIC_OUTCOME: ${{ steps.static_checks.outcome }}
+          PROJECT_VERIFY_OUTCOME: ${{ steps.project_verification.outcome }}
+          BUILD_OUTCOME: ${{ steps.mac_build.outcome }}
+        run: |
+          set -euo pipefail
+          cat ci-results/ci-failure-summary.md >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$STATIC_OUTCOME" != "success" || "$PROJECT_VERIFY_OUTCOME" != "success" || "$BUILD_OUTCOME" != "success" ]]; then
+            exit 1
+          fi

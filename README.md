@@ -53,6 +53,12 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
+## 协作与云端验证
+
+项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 完成本地轻量检查后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、JUnit、日志、`.xcresult` 和 Mac 快照，再确认最新 `origin/main` 是否通过。
+
+本轮流程不使用 `smalldata_test`、`develop`、`codeb/...` 或 PR 合并流；现存非 main 分支只作为历史现状保留。
+
 ## Agent 规范
 
 后续 Codex/Agent 继续开发前必须先阅读 `AGENTS.md`。项目已建立长期迭代文档体系：
@@ -64,4 +70,4 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
 - `md/flow/flow.md`：当前真实核心逻辑、数据流、执行流、架构边界。
 - `md/flow/flowchart.md`：核心逻辑和 Agent 迭代流程的 Mermaid 图。
 
-每次完成开发后必须同步检查并更新 README、测试规范、核心流程文档和更新记录。Agent C 最终验收通过后，必须按本轮版本号自动创建 git commit；验收不通过则退回 Agent B 修复，不得提交。
+每次完成开发后必须同步检查并更新 README、测试规范、核心流程文档和更新记录。默认由 `main` push 触发云端重验证；Agent C 验收不通过时退回 Agent B 在 `main` 追加修复 commit，不得把旧结果包或文字汇报冒充验收结论。

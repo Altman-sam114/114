@@ -1,6 +1,14 @@
 # 测试规范
 
-本文指导 Agent B 和 Agent C 为 ChronoFocus 选择测试层级。每次实现前先读本文件，默认从最小可证明测试开始，并按改动范围扩大。
+本文指导 Agent B 和 Agent C 为 ChronoFocus 选择测试层级。每次实现前先读本文件，默认从本地轻量检查开始，并通过 `origin/main` 上的 GitHub Actions 做重验证。
+
+## 默认验证策略
+
+- 默认路径：本地轻量检查 -> commit 到 `main` -> `git push origin main` -> GitHub Actions 上传未加密 CI 结果包 -> Agent C 下载并复判。
+- 只有人工明确要求“本机测试”“本地 build”“本地 xcodebuild”“本地跑探针”等，才把完整本机 Xcode build 作为默认路径。
+- 文档-only 修改可本地跑 `git diff --check` 和必要的 YAML/plist 解析；业务代码、工程文件、脚本或平台能力改动完成后，默认依赖云端重验证给出最终结论。
+- 云端失败时，Agent B 根据结果包里的 failure summary、JUnit、日志和 manifest 修复，并在 `main` 上追加修复 commit 后重新 push。
+- 云端环境缺依赖时，最终回复必须说明没跑哪个测试、缺什么依赖、是否影响验收、需要人工提供什么。
 
 ## 固定前缀 / 环境要求
 
@@ -30,15 +38,34 @@ bash scripts/verify_project.sh
 git diff --check
 ```
 
+GitHub Actions workflow 语法轻量检查：
+
+```bash
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
+```
+
+Agent C 下载结果包前必须完成 GitHub CLI 登录：
+
+```bash
+gh auth login
+```
+
+Agent C 结果包缓存默认目录：
+
+```bash
+/private/tmp/chronofocus-c-review-<run_id>/
+```
+
 ## 测试分层
 
 ### 1. Probe / Fast
 
-最快发现文档、补丁、核心脚本或局部 Swift 逻辑断点。
+最快发现文档、补丁、workflow、核心脚本或局部 Swift 逻辑断点。
 
 触发条件：
 
 - 文档-only 修改。
+- GitHub Actions workflow 修改。
 - 小范围脚本修改。
 - 修改共享模型、`FocusStore` 或计划/统计逻辑，需要先跑核心 Swift 脚本。
 
@@ -46,6 +73,12 @@ git diff --check
 
 ```bash
 git diff --check
+```
+
+修改 `.github/workflows/ci-results.yml` 时再运行：
+
+```bash
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
 ```
 
 共享模型或核心数据逻辑改动时再运行：
@@ -65,10 +98,11 @@ xcrun --sdk macosx swiftc \
 
 - `scripts/test_mac_core.swift` 应输出 `Mac core tests passed.`。
 - `git diff --check` 不应输出错误。
+- workflow YAML 解析应输出 `yaml ok`。
 
 ### 2. Smoke
 
-验证主要集成路径，适合大多数 Swift、脚本和 Mac UI 改动。
+验证主要集成路径，适合大多数 Swift、脚本和 Mac UI 改动。默认由云端 `ci-results.yml` 执行；本机只在人工要求或定位问题时运行。
 
 触发条件：
 
@@ -94,7 +128,7 @@ bash scripts/verify_project.sh
 
 ### 3. Stage Regression
 
-覆盖当前阶段核心模块，适合 macOS 目标、跨平台共享逻辑或平台服务改动。
+覆盖当前阶段核心模块，适合 macOS 目标、跨平台共享逻辑或平台服务改动。默认由云端 `ci-results.yml` 执行 Mac build 并上传 `.xcresult`；本机只在人工要求或定位问题时运行。
 
 触发条件：
 
@@ -115,6 +149,46 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
 
 - 目标结果是 `BUILD SUCCEEDED`。
 - 当前环境可能出现 CoreSimulator、FSEvents、缓存权限相关警告；只要没有 Swift 编译、链接、签名或脚本错误，且最终 `BUILD SUCCEEDED`，Mac target 视为通过。
+
+## 云端重验证
+
+默认 workflow：
+
+```bash
+.github/workflows/ci-results.yml
+```
+
+触发条件：
+
+- push 到 `main`。
+- 手动 `workflow_dispatch`。
+
+云端固定执行：
+
+- `git diff --check` 对当前提交 diff 做空白检查。
+- `plutil -lint ChronoFocus.xcodeproj/project.pbxproj`。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`。
+- `bash scripts/verify_project.sh`，生成 Mac core tests 与 Mac UI snapshots。
+- `xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration Debug -destination 'generic/platform=macOS' ... build`，生成 `xcodebuild.log` 和 `.xcresult`。
+
+结果包最低内容：
+
+- `ci-artifact-manifest.json`：记录版本、branch、commitSha、run id、run attempt、workflow、scheme、destination、日志路径、结果路径和各阶段 outcome。
+- `ci-failure-summary.md`：记录通过/失败摘要和日志入口。
+- `junit.xml`：Agent C 可读的阶段摘要。
+- `xcodebuild.log`：Mac build 主日志。
+- `verify_project.log`：项目专属验证日志。
+- `ChronoFocusMac.xcresult`：Mac build 原生结果包。
+- `project-reports/mac-snapshots/`：Mac 快照脚本产物副本。
+
+Agent C 验收时必须核对：
+
+- artifact 来自 `origin/main` 最新 commit。
+- manifest 中 `branch` 为 `main`。
+- manifest 中 `commitSha` 与 `origin/main` 最新 SHA 完全一致。
+- manifest 中 `runId` 和 `runAttempt` 与下载的 GitHub Actions run 一致。
+- `staticChecksOutcome`、`projectVerificationOutcome`、`buildOutcome` 均为 `success`。
+- failure summary、JUnit、主日志和项目专属产物存在且不是旧 checkout 里的遗留文件。
 
 ### 4. Full
 
@@ -195,8 +269,9 @@ plist / JSON / scheme 检查已包含在 `scripts/verify_project.sh` 中：
 ## 规则
 
 - 每次实现前先读本文件。
-- 默认从最小测试开始，根据改动范围扩大测试。
+- 默认从最小本地轻量检查开始，根据改动范围交给云端重验证扩大覆盖。
 - 不得伪造测试结果，不得把“已验证”当作命令结果。
 - 文档-only 修改可只跑 `git diff --check`，但必须说明未跑完整业务测试的原因。
 - 修改共享模型、计时状态机、计划生成、统计、通知、Pro 或日历同步时，不得只跑文档检查。
 - 测试脚本失败时，先判断是项目问题还是环境问题；Swift 编译、链接、签名、脚本断言失败不得忽略。
+- 不得把旧 artifact、旧 output 或 checkout 自带报告冒充本轮云端结果。

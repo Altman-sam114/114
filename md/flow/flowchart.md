@@ -90,23 +90,31 @@ flowchart LR
   MAC -.禁止直接依赖.-> IOS
 ```
 
-## Agent 迭代流程
+## Agent 迭代与云端验收流程
 
-读图说明：这张图描述后续协作方式。人工提出目标后，Agent A 先写实现提示词，Agent B 再实现测试，Agent C 验收；不通过就退回 Agent B，通过后更新核心文档并按版本号 git 提交，最后回到人工复核。
+读图说明：这张图描述当前默认协作方式。人工提出目标后，Agent A 写提示词；Agent B 必须基于最新 `origin/main` 实现、轻量检查、提交并直推 `main`；GitHub Actions 生成未加密 CI 结果包；Agent C 下载并核对最新 run。失败时不回滚，退回 Agent B 在 `main` 追加修复 commit 后重新触发云端验证。
 
 ```mermaid
 flowchart TD
   H["人工提出目标<br/>功能、算法、禁止项、验收、性能、UI、测试"] --> A["Agent A<br/>阅读入口文档和源码<br/>分析目标并设计实现方案"]
-  A --> P["md/prompt/版本目录<br/>写给 Agent B 的详细实现提示词"]
-  P --> B["Agent B<br/>按提示词实现<br/>新增/修改测试<br/>运行验证"]
-  B --> R["实现结果<br/>改动、关键文件、测试命令、风险"]
-  R --> C["Agent C<br/>查看 diff 和测试结果<br/>验收是否满足目标"]
-  C --> PASS{"验收通过?"}
-  PASS -->|不通过| BACK["退回 Agent B<br/>指出问题、证据和修复方向"]
-  BACK --> B
-  PASS -->|通过| F["更新核心文档<br/>md/flow/flow.md<br/>md/flow/flowchart.md<br/>update_log.md"]
-  F --> G["git commit<br/>按版本号提交<br/>vX.Y: 简要说明工作内容"]
-  G --> J{"人工复核"}
+  A --> P["md/prompt/版本目录<br/>写给 Agent B 的详细实现提示词<br/>包含 main push、CI、artifact 要求"]
+  P --> B0["Agent B<br/>git fetch origin<br/>git switch main<br/>git pull --ff-only origin main"]
+  B0 --> B1["Agent B 实现<br/>按现有架构小步修改<br/>同步必要文档"]
+  B1 --> L["本地轻量检查<br/>git diff --check<br/>YAML/plist/脚本语法检查"]
+  L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
+  G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
+  PUSH --> CI["GitHub Actions<br/>ci-results.yml<br/>静态检查、verify_project、Mac build"]
+  CI --> ART["未加密 CI 结果包<br/>manifest、failure summary、JUnit、日志、xcresult、快照"]
+  ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id"]
+  C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>日志和项目专属产物"]
+  V --> PASS{"验收通过?"}
+  PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]
+  BACK --> FIX["main 追加修复 commit<br/>不回滚旧提交"]
+  FIX --> PUSH
+  PASS -->|通过| DOC{"核心文档已同步?"}
+  DOC -->|否| D["补齐 md/flow、md/test、update_log<br/>作为 main 追加文档 commit"]
+  D --> PUSH
+  DOC -->|是| J["人工复核<br/>进入下一轮"]
   J -->|继续下一轮| H
-  J -->|发现问题| A
+  J -->|发现新目标| A
 ```
