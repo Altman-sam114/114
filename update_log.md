@@ -14,8 +14,9 @@
 
 - iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/振动、亮暗主题。
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
-- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、Mac 核心测试和 Mac UI 快照。
+- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、分类筛选标记、Mac 核心测试和 Mac UI 快照。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。
+- 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build 和 `ChronoFocus` iOS generic build。
 
 ## 关键决策
 
@@ -27,13 +28,55 @@
 
 ## 遗留问题
 
-- iOS scheme 的完整构建验证仍需要根据当前机器模拟器/Xcode 状态补强。
+- iOS scheme 已纳入云端 generic build；本机模拟器构建命令和本机 destination 基线仍可继续补强。
 - StoreKit 和 EventKit 仍缺少更明确的本地 mock 或配置说明。
 - Mac 小窗快捷入口可以继续优化为打开详细窗口并定位到指定 tab。
 - iOS 端尚未明确是否需要同步提供 `CompletionSound` 多铃声选择 UI。
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.4 / 分类与 CI 首轮优化
+
+日期：2026-07-03
+
+核心变更：
+
+- 新增非持久化 `TaskCategoryPreset` 常用分类预设，继续复用 `FocusTask.category`，不改变 Codable 持久化字段。
+- `FocusStore` 新增 `taskCategories` 分类列表，并统一清洗空白分类为 `未分类`。
+- iOS 日程页新增分类筛选栏和新增/编辑待办常用分类快选，保留手写分类。
+- macOS 日程详情新增快速分类选择和未完成待办分类筛选，并保持 Mac 快照安全控件路径。
+- `.github/workflows/ci-results.yml` 升级为 v0.4，新增 `ChronoFocus` iOS generic build，上传 `ios-xcodebuild.log` 和 `ChronoFocus-iOS.xcresult`，并把 iOS build outcome 纳入 manifest、JUnit、failure summary 和最终 CI 状态。
+- `scripts/verify_project.sh` 补充 Mac scheme 语法解析、分类功能标记和 CI iOS 结果包标记检查。
+
+关键文件：
+
+- `ChronoFocus/Models/AppModels.swift`
+- `ChronoFocus/Services/FocusStore.swift`
+- `ChronoFocus/Views/ScheduleView.swift`
+- `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `.github/workflows/ci-results.yml`
+- `scripts/test_mac_core.swift`
+- `scripts/verify_project.sh`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（持续优化）/v0.4（分类与CI首轮优化）.md`
+
+验证结果：
+
+- 已运行 `git diff --check`，通过。
+- 已运行 `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 已运行 `plutil -lint ChronoFocus.xcodeproj/project.pbxproj`，输出 `ChronoFocus.xcodeproj/project.pbxproj: OK`。
+- 首次未指定 `DEVELOPER_DIR` 的 Mac core 编译命中了本机 Command Line Tools Swift/SDK 不匹配；按项目规范改用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 后，Mac core 编译通过。
+- 已运行 `/tmp/chrono_focus_mac_core_tests`，输出 `Mac core tests passed.`。
+- 已运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照。
+
+遗留事项：
+
+- 新增 iOS generic build 的真实稳定性需要 `origin/main` GitHub Actions run 和 Agent C artifact 核对确认。
+- 本机 iOS 模拟器构建 destination 基线仍可后续补强。
 
 ### v0.3 / 升级 main 直推云端验证流程
 

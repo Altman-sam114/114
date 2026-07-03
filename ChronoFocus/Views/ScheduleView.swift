@@ -8,6 +8,7 @@ struct ScheduleView: View {
     @EnvironmentObject private var calendarSync: CalendarSyncService
     @State private var selectedDate = Date()
     @State private var calendarMode: CalendarDisplayMode = .week
+    @State private var selectedCategory: String?
     @State private var showingEditor = false
     @State private var editingTask: FocusTask?
 
@@ -16,15 +17,7 @@ struct ScheduleView: View {
     private var visibleTasks: [FocusTask] {
         store.tasks
             .filter { task in
-                guard let date = task.dueDate else { return calendarMode == .day && calendar.isDate(task.createdAt, inSameDayAs: selectedDate) }
-                switch calendarMode {
-                case .day:
-                    return calendar.isDate(date, inSameDayAs: selectedDate)
-                case .week:
-                    return calendar.isDate(date, equalTo: selectedDate, toGranularity: .weekOfYear)
-                case .month:
-                    return calendar.isDate(date, equalTo: selectedDate, toGranularity: .month)
-                }
+                isTaskInSelectedRange(task) && matchesSelectedCategory(task)
             }
             .sorted {
                 switch ($0.dueDate, $1.dueDate) {
@@ -105,6 +98,7 @@ struct ScheduleView: View {
                         Image(systemName: "chevron.left")
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityLabel("上一段")
 
                     Spacer()
 
@@ -122,6 +116,7 @@ struct ScheduleView: View {
                         Image(systemName: "chevron.right")
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityLabel("下一段")
                 }
 
                 if calendarMode == .month {
@@ -239,8 +234,14 @@ struct ScheduleView: View {
                         .foregroundStyle(AppTheme.secondaryText)
                 }
 
+                TaskCategoryFilterBar(
+                    categories: store.taskCategories,
+                    selectedCategory: $selectedCategory,
+                    countProvider: taskCount(in:)
+                )
+
                 if visibleTasks.isEmpty {
-                    Text("这个时间范围还没有待办。点击右上角添加，或用 Pro 同步 iPhone 日历。")
+                    Text(emptyTaskListText)
                         .foregroundStyle(AppTheme.secondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
@@ -338,6 +339,41 @@ struct ScheduleView: View {
         }.count
     }
 
+    private func taskCount(in category: String?) -> Int {
+        guard let category else {
+            return store.tasks.filter(isTaskInSelectedRange).count
+        }
+        store.tasks.filter { task in
+            isTaskInSelectedRange(task) && task.category == category
+        }.count
+    }
+
+    private func isTaskInSelectedRange(_ task: FocusTask) -> Bool {
+        guard let date = task.dueDate else {
+            return calendarMode == .day && calendar.isDate(task.createdAt, inSameDayAs: selectedDate)
+        }
+        switch calendarMode {
+        case .day:
+            return calendar.isDate(date, inSameDayAs: selectedDate)
+        case .week:
+            return calendar.isDate(date, equalTo: selectedDate, toGranularity: .weekOfYear)
+        case .month:
+            return calendar.isDate(date, equalTo: selectedDate, toGranularity: .month)
+        }
+    }
+
+    private func matchesSelectedCategory(_ task: FocusTask) -> Bool {
+        guard let selectedCategory else { return true }
+        return task.category == selectedCategory
+    }
+
+    private var emptyTaskListText: String {
+        if let selectedCategory {
+            return "当前时间范围没有「\(selectedCategory)」分类待办。"
+        }
+        return "这个时间范围还没有待办。点击右上角添加，或用 Pro 同步 iPhone 日历。"
+    }
+
     private func moveSelection(by value: Int) {
         let component: Calendar.Component
         switch calendarMode {
@@ -392,6 +428,82 @@ private struct CalendarDayButton: View {
             .opacity(isMuted ? 0.55 : 1)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(date.scheduleTimeText)，\(taskCount)项待办")
+    }
+}
+
+private struct TaskCategoryFilterBar: View {
+    let categories: [String]
+    @Binding var selectedCategory: String?
+    let countProvider: (String?) -> Int
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                TaskCategoryFilterChip(
+                    title: "全部",
+                    symbolName: "tray.full.fill",
+                    count: countProvider(nil),
+                    isSelected: selectedCategory == nil,
+                    tintHex: "#3DE8C5"
+                ) {
+                    selectedCategory = nil
+                }
+
+                ForEach(categories, id: \.self) { category in
+                    let preset = TaskCategoryPreset.matching(category)
+                    TaskCategoryFilterChip(
+                        title: category,
+                        symbolName: preset?.symbolName ?? "tag.fill",
+                        count: countProvider(category),
+                        isSelected: selectedCategory == category,
+                        tintHex: preset?.accentHex ?? "#3DE8C5"
+                    ) {
+                        selectedCategory = category
+                    }
+                }
+            }
+            .padding(.vertical, 1)
+        }
+    }
+}
+
+private struct TaskCategoryFilterChip: View {
+    let title: String
+    let symbolName: String
+    let count: Int
+    let isSelected: Bool
+    let tintHex: String
+    let action: () -> Void
+
+    private var tint: Color {
+        Color(hex: tintHex)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: symbolName)
+                Text(title)
+                Text("\(count)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(isSelected ? Color.black.opacity(0.72) : tint)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(isSelected ? Color.black.opacity(0.08) : tint.opacity(0.16), in: Capsule())
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(isSelected ? Color.black.opacity(0.82) : AppTheme.primaryText)
+            .frame(minHeight: 36)
+            .padding(.horizontal, 10)
+            .background(isSelected ? tint : AppTheme.panel, in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(isSelected ? tint.opacity(0.9) : AppTheme.border, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title)分类，\(count)项")
     }
 }
 
@@ -410,6 +522,7 @@ private struct ScheduleTaskCell: View {
                     .frame(width: 36, height: 36)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(task.isDone ? "标记待办未完成" : "完成待办")
 
             VStack(alignment: .leading, spacing: 7) {
                 HStack {
@@ -419,7 +532,7 @@ private struct ScheduleTaskCell: View {
                         .lineLimit(1)
                     Spacer()
                     Text(task.startMode.title)
-                        .font(.caption2.weight(.bold))
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(Color(hex: task.accentHex))
                 }
 
@@ -505,6 +618,7 @@ private struct TaskEditorView: View {
                 Section("待办") {
                     TextField("标题", text: $title)
                     TextField("分类", text: $category)
+                    TaskCategoryPresetPicker(category: $category, accentHex: $accentHex)
                     Toggle("启用", isOn: $isEnabled)
                     Toggle("设置开始时间", isOn: $usesDueDate)
                     if usesDueDate {
@@ -602,6 +716,42 @@ private struct TaskEditorView: View {
         if let savedTask {
             syncTaskReminder(for: savedTask, store: store, notifications: notifications)
         }
+    }
+}
+
+private struct TaskCategoryPresetPicker: View {
+    @Binding var category: String
+    @Binding var accentHex: String
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(TaskCategoryPreset.defaults) { preset in
+                    Button {
+                        category = preset.title
+                        accentHex = preset.accentHex
+                    } label: {
+                        Label(preset.title, systemImage: preset.symbolName)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(isSelected(preset) ? Color.black.opacity(0.82) : AppTheme.primaryText)
+                            .frame(minHeight: 34)
+                            .padding(.horizontal, 10)
+                            .background(isSelected(preset) ? Color(hex: preset.accentHex) : AppTheme.panel, in: Capsule())
+                            .overlay {
+                                Capsule()
+                                    .stroke(Color(hex: preset.accentHex).opacity(isSelected(preset) ? 0.9 : 0.42), lineWidth: 1)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .accessibilityLabel("常用分类")
+    }
+
+    private func isSelected(_ preset: TaskCategoryPreset) -> Bool {
+        category.trimmingCharacters(in: .whitespacesAndNewlines) == preset.title
     }
 }
 

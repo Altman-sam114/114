@@ -19,7 +19,8 @@ python3 -m json.tool ChronoFocus/Assets.xcassets/AccentColor.colorset/Contents.j
 python3 -m json.tool ChronoFocus/Assets.xcassets/Contents.json >/dev/null
 python3 -c 'import sys, xml.etree.ElementTree as ET; [ET.parse(path) for path in sys.argv[1:]]' \
   ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocus.xcscheme \
-  ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusLiveActivity.xcscheme
+  ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusLiveActivity.xcscheme \
+  ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusMac.xcscheme
 
 required_files=(
   "ChronoFocus/ChronoFocusApp.swift"
@@ -176,6 +177,10 @@ grep -q "dailyGoalPanel" ChronoFocus/Views/AnalyticsView.swift
 grep -q "TaskEditorView" ChronoFocus/Views/ScheduleView.swift
 grep -q "updateTask" ChronoFocus/Services/FocusStore.swift
 grep -q "editingTask" ChronoFocus/Views/ScheduleView.swift
+grep -q "TaskCategoryPreset" ChronoFocus/Models/AppModels.swift
+grep -q "taskCategories" ChronoFocus/Services/FocusStore.swift
+grep -q "TaskCategoryFilterBar" ChronoFocus/Views/ScheduleView.swift
+grep -q "TaskCategoryPresetPicker" ChronoFocus/Views/ScheduleView.swift
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
 grep -q "LSUIElement = YES" "$project"
 grep -q "MACOSX_DEPLOYMENT_TARGET = 14.0" "$project"
@@ -194,10 +199,19 @@ grep -q "import EventKit" ChronoFocusMac/Services/MacCalendarSyncService.swift
 grep -q "requestFullAccessToEvents" ChronoFocusMac/Services/MacCalendarSyncService.swift
 grep -q "syncUpcomingEvents" ChronoFocusMac/Services/MacCalendarSyncService.swift
 grep -q "Mac 日历同步" ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "MacCategoryFilterBar" ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "MacCategoryPresetPicker" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "MacProPreviewPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 grep -q "MacReportPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 grep -q "MacCategoryChartPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 grep -q "MacRecentSessionsPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
+
+echo "Checking CI result package markers..."
+grep -q "IOS_SCHEME: ChronoFocus" .github/workflows/ci-results.yml
+grep -q "generic/platform=iOS" .github/workflows/ci-results.yml
+grep -q "iosBuildOutcome" .github/workflows/ci-results.yml
+grep -q "ChronoFocus-iOS.xcresult" .github/workflows/ci-results.yml
+grep -q "ios-xcodebuild.log" .github/workflows/ci-results.yml
 
 echo "Running Mac core tests..."
 xcrun --sdk macosx swiftc \

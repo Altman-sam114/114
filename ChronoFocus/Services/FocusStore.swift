@@ -61,6 +61,12 @@ final class FocusStore: ObservableObject {
         return tasks.first { $0.id == id }
     }
 
+    var taskCategories: [String] {
+        let presetCategories = TaskCategoryPreset.defaults.map(\.title)
+        let usedCategories = tasks.map(\.category) + sessions.map(\.category)
+        return Self.uniqueCategories(from: presetCategories + usedCategories)
+    }
+
     @discardableResult
     func addTask(
         title: String,
@@ -76,10 +82,9 @@ final class FocusStore: ObservableObject {
     ) -> FocusTask? {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { return nil }
-        let cleanCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
         let task = FocusTask(
             title: trimmedTitle,
-            category: cleanCategory.isEmpty ? "未分类" : cleanCategory,
+            category: Self.normalizedCategory(category),
             dueDate: dueDate,
             estimatedRounds: max(1, estimatedRounds),
             isEnabled: isEnabled,
@@ -109,9 +114,8 @@ final class FocusStore: ObservableObject {
     ) -> FocusTask? {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty, let index = tasks.firstIndex(where: { $0.id == task.id }) else { return nil }
-        let cleanCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
         tasks[index].title = trimmedTitle
-        tasks[index].category = cleanCategory.isEmpty ? "未分类" : cleanCategory
+        tasks[index].category = Self.normalizedCategory(category)
         tasks[index].dueDate = dueDate
         tasks[index].estimatedRounds = max(1, estimatedRounds)
         tasks[index].accentHex = accentHex
@@ -456,6 +460,21 @@ final class FocusStore: ObservableObject {
     private func regeneratePlanIfNeeded() {
         guard settings.autoGeneratePomodoroPlan else { return }
         generatePomodoroPlanFromSchedule()
+    }
+
+    private static func normalizedCategory(_ category: String) -> String {
+        let cleanCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleanCategory.isEmpty ? "未分类" : cleanCategory
+    }
+
+    private static func uniqueCategories(from categories: [String]) -> [String] {
+        var seen: Set<String> = []
+        return categories.compactMap { category in
+            let cleanCategory = normalizedCategory(category)
+            guard !seen.contains(cleanCategory) else { return nil }
+            seen.insert(cleanCategory)
+            return cleanCategory
+        }
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

@@ -9,7 +9,8 @@
 - 计时主界面可调铃声音量，音量为 0 时静音；可开启到点振动；可选择运行时屏幕是否常亮。
 - 支持暗色/亮色两套 UI，可在计时页右上角快速切换。
 - 自动化默认开启，专注、短休、长休会按设置连续流转。
-- 日程页改为日历/待办样式，可按日、周、月查看；待办可启用/停用、循环、到时间自动开启番茄钟。
+- 日程页改为日历/待办样式，可按日、周、月和分类查看；待办可启用/停用、循环、到时间自动开启番茄钟。
+- 新增/编辑待办时可一键选择常用分类，分类会同步用于计划、统计和筛选。
 - 待办支持“按轮次”和“只设开始”两种模式；只设开始的任务由用户手动完成，实际用时会计入统计。
 - 根据日程任务按截止时间自动生成可执行的番茄钟计划，可从计划项直接开始专注。
 - 统计页作为 Pro 内购功能：普通用户可体验今日概览和 Pro 预览，Pro 用户解锁近 7 日、分类投入、最近记录、工作压力、任务安排分析，以及日/周/月工作复盘报表。
@@ -49,13 +50,13 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
   -derivedDataPath /tmp/ChronoFocusMacDerivedData build
 ```
 
-验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/振动、Pro 内购、EventKit 日历同步、统计分析报表、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 日历权限说明，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
+验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 日历权限说明，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
 ## 协作与云端验证
 
-项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 完成本地轻量检查后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、JUnit、日志、`.xcresult` 和 Mac 快照，再确认最新 `origin/main` 是否通过。
+项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 完成本地轻量检查后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、JUnit、日志、Mac/iOS `.xcresult`、Mac 快照和各阶段 outcome，再确认最新 `origin/main` 是否通过。
 
 本轮流程不使用 `smalldata_test`、`develop`、`codeb/...` 或 PR 合并流；现存非 main 分支只作为历史现状保留。
 

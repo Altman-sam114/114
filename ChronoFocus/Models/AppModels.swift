@@ -148,6 +148,26 @@ enum CompletionSound: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+struct TaskCategoryPreset: Identifiable, Hashable {
+    var id: String { title }
+
+    let title: String
+    let accentHex: String
+    let symbolName: String
+
+    static let defaults: [TaskCategoryPreset] = [
+        TaskCategoryPreset(title: "工作", accentHex: "#3DE8C5", symbolName: "briefcase.fill"),
+        TaskCategoryPreset(title: "成长", accentHex: "#A78BFA", symbolName: "book.fill"),
+        TaskCategoryPreset(title: "生活", accentHex: "#FF6B6B", symbolName: "house.fill"),
+        TaskCategoryPreset(title: "工程", accentHex: "#54A0FF", symbolName: "hammer.fill"),
+        TaskCategoryPreset(title: "复盘", accentHex: "#FFB84D", symbolName: "checklist.checked")
+    ]
+
+    static func matching(_ category: String) -> TaskCategoryPreset? {
+        defaults.first { $0.title == category }
+    }
+}
+
 struct TimerSettings: Codable, Equatable {
     var focusMinutes: Int = 25
     var shortBreakMinutes: Int = 5

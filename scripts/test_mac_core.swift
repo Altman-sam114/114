@@ -71,6 +71,19 @@ struct MacCoreTests {
         _ = store.finishTask(task.id)
         assert(store.task(for: task.id)?.isDone == true, "Expected task to be marked done")
 
+        guard let categorizedTask = store.addTask(
+            title: "分类清洗任务",
+            category: "  工作  ",
+            dueDate: nil,
+            estimatedRounds: 1,
+            accentHex: "#54A0FF"
+        ) else {
+            fail("Categorized task creation failed")
+        }
+        assert(categorizedTask.category == "工作", "Expected task category to be trimmed")
+        assert(store.taskCategories.contains("工作"), "Expected default category in category list")
+        assert(store.taskCategories.contains("测试"), "Expected used category in category list")
+
         print("Mac core tests passed.")
     }
 

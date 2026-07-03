@@ -10,6 +10,7 @@ struct MacScheduleDetailView: View {
     @State private var category = "工作"
     @State private var dueDate = Date().addingTimeInterval(3600)
     @State private var estimatedRounds = 2
+    @State private var accentHex = "#3DE8C5"
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     var body: some View {
@@ -30,6 +31,7 @@ struct MacScheduleDetailView: View {
                         if isSnapshotRendering {
                             MacStaticInputRowView(title: "任务名称", value: "新的专注任务")
                             MacStaticInputRowView(title: "分类", value: category)
+                            MacStaticCategoryPresetStrip(selectedCategory: category)
                             MacStaticInputRowView(title: "截止时间", value: dueDate.scheduleTimeText)
                             MacStaticInputRowView(title: "预计轮次", value: "\(estimatedRounds) 轮")
                         } else {
@@ -37,6 +39,7 @@ struct MacScheduleDetailView: View {
                                 .textFieldStyle(.roundedBorder)
                             TextField("分类", text: $category)
                                 .textFieldStyle(.roundedBorder)
+                            MacCategoryPresetPicker(category: $category, accentHex: $accentHex)
                             DatePicker("截止时间", selection: $dueDate)
                             Stepper("预计 \(estimatedRounds) 轮", value: $estimatedRounds, in: 1...12)
                         }
@@ -66,13 +69,47 @@ struct MacScheduleDetailView: View {
             category: category,
             dueDate: dueDate,
             estimatedRounds: estimatedRounds,
-            accentHex: "#3DE8C5"
+            accentHex: accentHex
         )
         if let task {
             syncMacTaskReminder(for: task, store: store, notifications: notifications)
         }
         taskTitle = ""
         estimatedRounds = 2
+        category = "工作"
+        accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? "#3DE8C5"
+    }
+}
+
+private struct MacStaticCategoryPresetStrip: View {
+    let selectedCategory: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(Array(TaskCategoryPreset.defaults.prefix(3))) { preset in
+                Label(preset.title, systemImage: preset.symbolName)
+                    .font(.caption.bold())
+                    .foregroundStyle(preset.title == selectedCategory ? Color.black.opacity(0.82) : MacTheme.primaryText)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(
+                        preset.title == selectedCategory ? Color(hex: preset.accentHex) : Color.white.opacity(0.06),
+                        in: Capsule()
+                    )
+                    .overlay {
+                        Capsule()
+                            .stroke(Color(hex: preset.accentHex).opacity(preset.title == selectedCategory ? 0.9 : 0.42), lineWidth: 1)
+                    }
+            }
+
+            Text("更多")
+                .font(.caption.bold())
+                .foregroundStyle(MacTheme.secondaryText)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(Color.white.opacity(0.06), in: Capsule())
+        }
+        .padding(.vertical, 1)
     }
 }
 
@@ -393,6 +430,13 @@ private struct MacPlanPanelView: View {
 private struct MacTaskListPanelView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var notifications: MacNotificationService
+    @State private var selectedCategory: String?
+
+    private var visibleTasks: [FocusTask] {
+        let tasks = store.upcomingTasks()
+        guard let selectedCategory else { return tasks }
+        return tasks.filter { $0.category == selectedCategory }
+    }
 
     var body: some View {
         MacGlassPanel {
@@ -406,7 +450,19 @@ private struct MacTaskListPanelView: View {
                         .foregroundStyle(MacTheme.secondaryText)
                 }
 
-                ForEach(store.upcomingTasks()) { task in
+                MacCategoryFilterBar(
+                    categories: store.taskCategories,
+                    selectedCategory: $selectedCategory,
+                    countProvider: taskCount(in:)
+                )
+
+                if visibleTasks.isEmpty {
+                    Text(emptyText)
+                        .font(.caption)
+                        .foregroundStyle(MacTheme.secondaryText)
+                }
+
+                ForEach(visibleTasks) { task in
                     HStack(spacing: 12) {
                         Button(task.isDone ? "标记未完成" : "完成", systemImage: task.isDone ? "arrow.uturn.backward.circle" : "checkmark.circle") {
                             toggleTask(task)
@@ -432,6 +488,18 @@ private struct MacTaskListPanelView: View {
         }
     }
 
+    private func taskCount(in category: String?) -> Int {
+        guard let category else { return store.upcomingTasks().count }
+        return store.upcomingTasks().filter { $0.category == category }.count
+    }
+
+    private var emptyText: String {
+        if let selectedCategory {
+            return "当前没有「\(selectedCategory)」分类的未完成待办。"
+        }
+        return "当前没有未完成待办。"
+    }
+
     private func toggleTask(_ task: FocusTask) {
         if let updatedTask = store.toggleTaskDone(task) {
             syncMacTaskReminder(for: updatedTask, store: store, notifications: notifications)
@@ -442,6 +510,115 @@ private struct MacTaskListPanelView: View {
         if let updatedTask = store.setTaskEnabled(task, enabled: enabled) {
             syncMacTaskReminder(for: updatedTask, store: store, notifications: notifications)
         }
+    }
+}
+
+private struct MacCategoryPresetPicker: View {
+    @Binding var category: String
+    @Binding var accentHex: String
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(TaskCategoryPreset.defaults) { preset in
+                    Button(preset.title, systemImage: preset.symbolName) {
+                        category = preset.title
+                        accentHex = preset.accentHex
+                    }
+                    .font(.caption.bold())
+                    .foregroundStyle(isSelected(preset) ? Color.black.opacity(0.82) : MacTheme.primaryText)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(isSelected(preset) ? Color(hex: preset.accentHex) : Color.white.opacity(0.06), in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(Color(hex: preset.accentHex).opacity(isSelected(preset) ? 0.9 : 0.42), lineWidth: 1)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 1)
+        }
+        .accessibilityLabel("常用分类")
+    }
+
+    private func isSelected(_ preset: TaskCategoryPreset) -> Bool {
+        category.trimmingCharacters(in: .whitespacesAndNewlines) == preset.title
+    }
+}
+
+private struct MacCategoryFilterBar: View {
+    let categories: [String]
+    @Binding var selectedCategory: String?
+    let countProvider: (String?) -> Int
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                MacCategoryFilterChip(
+                    title: "全部",
+                    symbolName: "tray.full.fill",
+                    count: countProvider(nil),
+                    isSelected: selectedCategory == nil,
+                    tintHex: "#3DE8C5"
+                ) {
+                    selectedCategory = nil
+                }
+
+                ForEach(categories, id: \.self) { category in
+                    let preset = TaskCategoryPreset.matching(category)
+                    MacCategoryFilterChip(
+                        title: category,
+                        symbolName: preset?.symbolName ?? "tag.fill",
+                        count: countProvider(category),
+                        isSelected: selectedCategory == category,
+                        tintHex: preset?.accentHex ?? "#3DE8C5"
+                    ) {
+                        selectedCategory = category
+                    }
+                }
+            }
+            .padding(.vertical, 1)
+        }
+    }
+}
+
+private struct MacCategoryFilterChip: View {
+    let title: String
+    let symbolName: String
+    let count: Int
+    let isSelected: Bool
+    let tintHex: String
+    let action: () -> Void
+
+    private var tint: Color {
+        Color(hex: tintHex)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: symbolName)
+                Text(title)
+                Text("\(count)")
+                    .font(.caption.bold())
+                    .foregroundStyle(isSelected ? Color.black.opacity(0.72) : tint)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(isSelected ? Color.black.opacity(0.08) : tint.opacity(0.16), in: Capsule())
+            }
+            .font(.caption.bold())
+            .foregroundStyle(isSelected ? Color.black.opacity(0.82) : MacTheme.primaryText)
+            .frame(minHeight: 34)
+            .padding(.horizontal, 10)
+            .background(isSelected ? tint : Color.white.opacity(0.06), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(isSelected ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title)分类，\(count)项")
     }
 }
 

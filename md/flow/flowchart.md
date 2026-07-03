@@ -11,13 +11,15 @@ flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
+  V --> CAT["TaskCategoryPreset / 分类筛选<br/>常用分类快选、分类计数、UI 临时筛选"]
+  CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]
   S --> E
   E --> S
   E --> N["TimerNotificationServicing<br/>完成通知、任务提醒、声音、振动"]
   E --> L["TimerLiveActivityServicing<br/>iOS Live Activity / Mac 占位服务"]
-  S --> C["统计和计划计算<br/>7 日趋势、分类投入、工作压力、PomodoroPlanItem"]
+  S --> C["统计和计划计算<br/>7 日趋势、分类投入、分类列表、工作压力、PomodoroPlanItem"]
   CAL["CalendarSyncService / MacCalendarSyncService<br/>系统日历事件"] --> S
   PRO["PremiumAccessService / MacPremiumAccessService<br/>StoreKit Pro 权益"] --> V
   S --> V
@@ -60,9 +62,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["用户新增/编辑任务<br/>或系统日历同步事件"] --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
+  A["用户新增/编辑任务<br/>或系统日历同步事件"] --> P0["分类 UI<br/>常用分类快选或手写分类<br/>筛选状态只留在 View"]
+  P0 --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
   B --> C["FocusTask<br/>标题、分类、截止时间、轮次、循环、外部日历 ID"]
-  C --> D{"autoGeneratePomodoroPlan 开启?"}
+  C --> C2["FocusStore.taskCategories<br/>合并预设分类和已有分类<br/>提供 iOS/Mac 筛选栏"]
+  C2 --> D{"autoGeneratePomodoroPlan 开启?"}
   D -->|是| E["generatePomodoroPlanFromSchedule<br/>按未完成任务和截止时间生成计划"]
   D -->|否| F["仅保存任务<br/>等待用户手动生成或开始"]
   E --> G["PomodoroPlanItem 列表<br/>计划开始/结束、轮次、颜色"]
@@ -103,8 +107,8 @@ flowchart TD
   B1 --> L["本地轻量检查<br/>git diff --check<br/>YAML/plist/脚本语法检查"]
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
-  PUSH --> CI["GitHub Actions<br/>ci-results.yml<br/>静态检查、verify_project、Mac build"]
-  CI --> ART["未加密 CI 结果包<br/>manifest、failure summary、JUnit、日志、xcresult、快照"]
+  PUSH --> CI["GitHub Actions<br/>ci-results.yml<br/>静态检查、verify_project、Mac build、iOS build"]
+  CI --> ART["未加密 CI 结果包<br/>manifest、failure summary、JUnit、Mac/iOS 日志、Mac/iOS xcresult、快照"]
   ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>日志和项目专属产物"]
   V --> PASS{"验收通过?"}

@@ -26,6 +26,17 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
   -derivedDataPath /tmp/ChronoFocusMacDerivedData build
 ```
 
+云端 iOS generic 构建命令：
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocus -configuration Debug \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath "$RUNNER_TEMP/ChronoFocusIOSDerivedData" \
+  -resultBundlePath "$PWD/ci-results/ChronoFocus-iOS.xcresult" \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
 主结构验证命令：
 
 ```bash
@@ -84,6 +95,7 @@ ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); put
 共享模型或核心数据逻辑改动时再运行：
 
 ```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
 xcrun --sdk macosx swiftc \
   -module-cache-path /tmp/chrono_focus_mac_core_module_cache \
   ChronoFocus/Models/AppModels.swift \
@@ -120,8 +132,9 @@ bash scripts/verify_project.sh
 当前基线：
 
 - 检查项目和 plist 语法。
-- 检查必需文件、工程引用、shared schemes。
+- 检查必需文件、工程引用、三个 shared schemes 语法。
 - 检查 Live Activity、本地通知、Pro、日历同步、自动计划、Mac 状态栏等实现标记。
+- 检查分类预设、分类筛选和 CI iOS 结果包实现标记。
 - 编译并运行 Mac core tests。
 - 渲染 Mac 快照到 `/tmp/chronofocus-mac-snapshots/`。
 - 最终输出 `Project structure verified.`。
@@ -170,15 +183,18 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
 - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`。
 - `bash scripts/verify_project.sh`，生成 Mac core tests 与 Mac UI snapshots。
 - `xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration Debug -destination 'generic/platform=macOS' ... build`，生成 `xcodebuild.log` 和 `.xcresult`。
+- `xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocus -configuration Debug -destination 'generic/platform=iOS' ... build`，生成 `ios-xcodebuild.log` 和 `ChronoFocus-iOS.xcresult`。
 
 结果包最低内容：
 
-- `ci-artifact-manifest.json`：记录版本、branch、commitSha、run id、run attempt、workflow、scheme、destination、日志路径、结果路径和各阶段 outcome。
+- `ci-artifact-manifest.json`：记录版本、branch、commitSha、run id、run attempt、workflow、Mac/iOS scheme、Mac/iOS destination、日志路径、结果路径和各阶段 outcome。
 - `ci-failure-summary.md`：记录通过/失败摘要和日志入口。
 - `junit.xml`：Agent C 可读的阶段摘要。
 - `xcodebuild.log`：Mac build 主日志。
+- `ios-xcodebuild.log`：iOS `ChronoFocus` scheme generic build 主日志。
 - `verify_project.log`：项目专属验证日志。
 - `ChronoFocusMac.xcresult`：Mac build 原生结果包。
+- `ChronoFocus-iOS.xcresult`：iOS build 原生结果包。
 - `project-reports/mac-snapshots/`：Mac 快照脚本产物副本。
 
 Agent C 验收时必须核对：
@@ -187,8 +203,11 @@ Agent C 验收时必须核对：
 - manifest 中 `branch` 为 `main`。
 - manifest 中 `commitSha` 与 `origin/main` 最新 SHA 完全一致。
 - manifest 中 `runId` 和 `runAttempt` 与下载的 GitHub Actions run 一致。
-- `staticChecksOutcome`、`projectVerificationOutcome`、`buildOutcome` 均为 `success`。
+- `staticChecksOutcome`、`projectVerificationOutcome`、`buildOutcome`、`macBuildOutcome`、`iosBuildOutcome` 均为 `success`。
 - failure summary、JUnit、主日志和项目专属产物存在且不是旧 checkout 里的遗留文件。
+- `junit.xml` 必须包含 `staticChecks`、`projectVerification`、`macBuild`、`iosBuild` 四个 testcase。
+- `ci-failure-summary.md` 和 GitHub Step Summary 必须列出 iOS build 状态、`ios-xcodebuild.log` 和 `ChronoFocus-iOS.xcresult`。
+- workflow 的 Final CI status 必须把 iOS build outcome 纳入失败判定。
 
 ### 4. Full
 
@@ -226,7 +245,8 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocus -showdestinations
 当前基线：
 
 - Mac 侧已有明确脚本和构建基线。
-- iOS 侧需要根据本机 destination 状态补充稳定命令。
+- 云端固定使用 `generic/platform=iOS` 构建 `ChronoFocus` scheme，并上传 `ios-xcodebuild.log` 与 `ChronoFocus-iOS.xcresult`。
+- 本机 iOS 构建仍可根据当前机器 destination 状态选择可用模拟器；若当前环境没有可用模拟器或 Xcode 服务异常，最终回复必须说明未跑 iOS 构建的原因。
 
 ## 静态检查
 
