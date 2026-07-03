@@ -45,6 +45,7 @@
 - 明确 `agenta` / `a:`、`agentb` / `b:`、`agentc` / `c:` 角色召唤和最终回复身份标识。
 - 明确 `main` 是唯一默认上传、提交、推送和云端验证分支；现存 `smalldata_test` 只记录为历史现状，不纳入默认流程。
 - 新增 `.github/workflows/ci-results.yml`，在 `main` push 和手动触发时运行静态检查、`scripts/verify_project.sh` 和 `ChronoFocusMac` build，并上传 Agent C 可下载的未加密结果包。
+- 移除 AppIcon PNG 的 ignore 规则，并纳入 `AppIcon-1024.png`，保证云端 checkout 满足 `scripts/verify_project.sh` 的视觉资源检查。
 - 更新测试规范、核心流程、流程图、prompt 目录说明和 README，写清本地轻量检查、云端结果包、`gh auth login`、下载缓存和失败后追加修复 commit 规则。
 
 关键文件：
@@ -57,6 +58,8 @@
 - `md/flow/flow.md`
 - `md/flow/flowchart.md`
 - `.github/workflows/ci-results.yml`
+- `.gitignore`
+- `ChronoFocus/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`
 
 验证结果：
 
@@ -64,6 +67,7 @@
 - 已运行 `git diff --check`，通过。
 - 已运行 `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
 - 已运行 `plutil -lint ChronoFocus.xcodeproj/project.pbxproj`，输出 `ChronoFocus.xcodeproj/project.pbxproj: OK`。
+- 已运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`。
 - 云端重验证由 `main` push 触发 `.github/workflows/ci-results.yml` 后，以 Agent C 下载的结果包为准。
 
 遗留事项：
