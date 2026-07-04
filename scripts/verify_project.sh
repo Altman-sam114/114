@@ -241,6 +241,10 @@ grep -q "Failure Excerpts" .github/workflows/ci-results.yml
 grep -q "failure_excerpts" .github/workflows/ci-results.yml
 grep -q "SnapshotError" .github/workflows/ci-results.yml
 grep -q "BUILD FAILED" .github/workflows/ci-results.yml
+grep -q "ci-artifact-index.json" .github/workflows/ci-results.yml
+grep -q "artifactIndexPath" .github/workflows/ci-results.yml
+grep -q "path_metadata" .github/workflows/ci-results.yml
+grep -q "recursiveByteCount" .github/workflows/ci-results.yml
 
 echo "Running Mac core tests..."
 xcrun --sdk macosx swiftc \

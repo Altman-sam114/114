@@ -58,7 +58,7 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
 
 ## 协作与云端验证
 
-项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 完成本地轻量检查后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、JUnit、failure summary 错误摘录、日志、Mac/iOS `.xcresult`、Mac 快照和各阶段 outcome，再确认最新 `origin/main` 是否通过。
+项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 完成本地轻量检查后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、artifact index、JUnit、failure summary 错误摘录、日志、Mac/iOS `.xcresult`、Mac 快照和各阶段 outcome，再确认最新 `origin/main` 是否通过。
 
 可用 `agentx:`、`x:` 或 `X:` 启动主控循环。Agent X 接收总目标并拆分多轮 A/B/C 迭代；它不直接替代 Agent A 的提示词、Agent B 的实现 push，也不替代 Agent C 对最新云端 artifact 的验收。
 

@@ -4,7 +4,7 @@
 
 ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作番茄钟/日程 -> `FocusStore` 保存设置、任务、计划、会话和活跃计时快照 -> `TimerEngine` 按真实系统时间驱动计时状态 -> 平台服务负责通知、Live Activity/占位、日历同步和 Pro 权益 -> SwiftUI 视图渲染当前状态。
 
-协作验证主链路是：Agent A 写版本化提示词 -> Agent B 在最新 `origin/main` 上实现、轻量检查、commit 并 push 到 `origin/main` -> GitHub Actions 运行 `ci-results.yml` -> 上传未加密 CI 结果包 -> Agent C 下载并核对 manifest、日志和产物 -> 失败时退回 Agent B 在 `main` 追加修复 commit。Agent X 可围绕人工总目标主控多轮 A/B/C 闭环，但每轮仍必须经过 Agent A 提示词、Agent B push 和 Agent C artifact 验收。
+协作验证主链路是：Agent A 写版本化提示词 -> Agent B 在最新 `origin/main` 上实现、轻量检查、commit 并 push 到 `origin/main` -> GitHub Actions 运行 `ci-results.yml` -> 上传未加密 CI 结果包 -> Agent C 下载并核对 manifest、artifact index、日志和产物 -> 失败时退回 Agent B 在 `main` 追加修复 commit。Agent X 可围绕人工总目标主控多轮 A/B/C 闭环，但每轮仍必须经过 Agent A 提示词、Agent B push 和 Agent C artifact 验收。
 
 ## 1. 当前核心数据流
 
@@ -181,7 +181,7 @@ macOS：
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。
 - `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选、核心测试和快照的本地/云端项目专属验证入口。
-- `.github/workflows/ci-results.yml` 是默认云端重验证入口，负责在 `main` push 和手动触发时运行静态检查、项目验证、Mac build 和 iOS generic build，并生成未加密 CI 结果包；失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录。
+- `.github/workflows/ci-results.yml` 是默认云端重验证入口，负责在 `main` push 和手动触发时运行静态检查、项目验证、Mac build 和 iOS generic build，并生成带 artifact index 的未加密 CI 结果包；失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录。
 
 ## 7. 协作与云端验证流
 
@@ -200,7 +200,7 @@ macOS：
 3. Agent B 只提交本轮相关文件，提交信息使用 `vX.Y: 简要说明本版本做了什么`。
 4. Agent B `git push origin main` 触发 GitHub Actions。
 5. `.github/workflows/ci-results.yml` 在云端运行静态检查、`scripts/verify_project.sh`、`ChronoFocusMac` build 和 `ChronoFocus` iOS generic build。
-6. workflow 上传未加密结果包，包含 `ci-artifact-manifest.json`、带失败错误摘录的 `ci-failure-summary.md`、`junit.xml`、Mac/iOS build 日志、`verify_project.log`、Mac/iOS `.xcresult`、Mac 快照和 Mac 快照 manifest。
+6. workflow 上传未加密结果包，包含 `ci-artifact-manifest.json`、`ci-artifact-index.json`、带失败错误摘录的 `ci-failure-summary.md`、`junit.xml`、Mac/iOS build 日志、`verify_project.log`、Mac/iOS `.xcresult`、Mac 快照和 Mac 快照 manifest。
 7. Agent C 用 `gh auth login` 后下载 artifact 到 `/private/tmp/chronofocus-c-review-<run_id>/`。
 8. Agent C 只验收 manifest 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新状态一致的结果包。
 9. 如果云端失败或结果包不一致，Agent C 不回滚；退回 Agent B 在 `main` 上追加修复 commit 后重新 push。
@@ -218,7 +218,7 @@ Agent X 是可选的调度层，不直接替代 Agent A、Agent B 或 Agent C。
 2. Agent X 调用 Agent A 产出版本化提示词，提示词必须写入 `md/prompt/` 并包含本轮目标、验证、CI、artifact 和 Agent C 复判要求。
 3. Agent B 基于 Agent A 提示词在 `main` 上实现、运行本地轻量检查、提交并 push 到 `origin/main`。
 4. GitHub Actions 运行 `.github/workflows/ci-results.yml` 并上传最新未加密 CI 结果包。
-5. Agent C 下载最新 run 对应 artifact，核对 manifest、JUnit、failure summary、主日志、`.xcresult` 和项目专属产物。
+5. Agent C 下载最新 run 对应 artifact，核对 manifest、artifact index、JUnit、failure summary、主日志、`.xcresult` 和项目专属产物。
 6. Agent X 只基于 Agent C 对最新 `origin/main` artifact 的结论判断：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
 
 Agent X 停止条件：
