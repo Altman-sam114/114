@@ -33,6 +33,10 @@ struct TimerView: View {
         return upcomingTasks.filter { $0.category == category }.count
     }
 
+    private func clearTaskCategoryFilter() {
+        selectedTaskCategory = nil
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
@@ -268,20 +272,30 @@ struct TimerView: View {
                         .foregroundStyle(AppTheme.secondaryText)
                 }
 
-                if upcomingTasks.isEmpty {
-                    Text("暂无待办，仍可启动自由专注。")
-                        .foregroundStyle(AppTheme.secondaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
+                if !upcomingTasks.isEmpty {
                     TimerTaskCategoryFilterBar(
                         categories: store.taskCategories,
                         selectedCategory: $selectedTaskCategory,
                         countProvider: taskCount(in:)
                     )
+                }
 
+                if let selectedTaskCategory {
+                    TimerSelectedTaskCategorySummaryView(
+                        category: selectedTaskCategory,
+                        count: filteredUpcomingTasks.count,
+                        onClear: clearTaskCategoryFilter
+                    )
+                }
+
+                if upcomingTasks.isEmpty {
+                    Text("暂无待办，仍可启动自由专注。")
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
                     if filteredUpcomingTasks.isEmpty, let selectedTaskCategory {
                         TimerTaskCategoryEmptyView(category: selectedTaskCategory) {
-                            self.selectedTaskCategory = nil
+                            clearTaskCategoryFilter()
                         }
                     } else {
                         VStack(spacing: 10) {
@@ -455,6 +469,54 @@ private struct TimerTaskCategoryFilterChip: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(title)分类，\(count)项")
+    }
+}
+
+private struct TimerSelectedTaskCategorySummaryView: View {
+    let category: String
+    let count: Int
+    let onClear: () -> Void
+
+    private var preset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(category)
+    }
+
+    private var tint: Color {
+        Color(hex: preset?.accentHex ?? "#3DE8C5")
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Label(category, systemImage: preset?.symbolName ?? "tag.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.primaryText)
+                .lineLimit(1)
+
+            Text("\(count) 项可启动")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(tint)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(tint.opacity(0.14), in: Capsule())
+
+            Spacer()
+
+            Button("清除", systemImage: "xmark.circle.fill", action: onClear)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(tint)
+                .buttonStyle(.plain)
+                .frame(minWidth: 72)
+                .frame(minHeight: 44)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(tint.opacity(0.36), lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("当前筛选\(category)分类，\(count)项可启动")
     }
 }
 

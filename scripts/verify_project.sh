@@ -198,6 +198,11 @@ grep -q "新增此分类" ChronoFocus/Views/ScheduleView.swift
 grep -q "frame(minHeight: 44)" ChronoFocus/Views/ScheduleView.swift
 grep -q "selectedTaskCategory" ChronoFocus/Views/TimerView.swift
 grep -q "filteredUpcomingTasks" ChronoFocus/Views/TimerView.swift
+grep -q "TimerSelectedTaskCategorySummaryView" ChronoFocus/Views/TimerView.swift
+grep -q "项可启动" ChronoFocus/Views/TimerView.swift
+grep -q "当前筛选" ChronoFocus/Views/TimerView.swift
+grep -q "clearTaskCategoryFilter" ChronoFocus/Views/TimerView.swift
+ruby -e 'source = File.read("ChronoFocus/Views/TimerView.swift"); summary = source.index("TimerSelectedTaskCategorySummaryView("); empty_branch = source.index("if upcomingTasks.isEmpty"); clear = source.index("onClear: clearTaskCategoryFilter"); raise "Timer category summary must render before empty task branch" unless summary && empty_branch && summary < empty_branch; raise "Timer category summary must use clearTaskCategoryFilter" unless clear'
 grep -q "TimerTaskCategoryFilterBar" ChronoFocus/Views/TimerView.swift
 grep -q "TimerTaskCategoryBadge" ChronoFocus/Views/TimerView.swift
 grep -q "TaskCategoryPreset.prioritizedFilterOptions(categories: categories)" ChronoFocus/Views/TimerView.swift
