@@ -52,6 +52,20 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
   -derivedDataPath /tmp/ChronoFocusMacDerivedData build
 ```
 
+需要本机定位 iOS 模拟器构建问题时，可先解析当前机器可用 destination：
+
+```bash
+ruby scripts/resolve_ios_simulator_destination.rb
+```
+
+也可直接打印本机 iOS simulator build 命令：
+
+```bash
+ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
+```
+
+该脚本会在 `DEVELOPER_DIR` 未设置且本机存在 `/Applications/Xcode.app/Contents/Developer` 时自动使用完整 Xcode，避免 `xcode-select` 指向 Command Line Tools 时找不到 `simctl`；如果你已设置 `DEVELOPER_DIR`，打印的 build 命令会沿用该路径。
+
 验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选和筛选摘要、计时页分类筛选、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 日历权限说明、Mac 快照 manifest，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。

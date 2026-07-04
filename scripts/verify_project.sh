@@ -62,6 +62,7 @@ required_files=(
   "scripts/test_mac_core.swift"
   "scripts/render_mac_snapshots.swift"
   "scripts/validate_ci_artifact.rb"
+  "scripts/resolve_ios_simulator_destination.rb"
 )
 
 echo "Checking required files..."
@@ -246,12 +247,55 @@ grep -q "MacRecentSessionsPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView
 
 echo "Checking CI result package markers..."
 ruby -c scripts/validate_ci_artifact.rb >/dev/null
+ruby -c scripts/resolve_ios_simulator_destination.rb >/dev/null
 grep -q "ci-artifact-manifest.json" scripts/validate_ci_artifact.rb
 grep -q "missingRequiredCount" scripts/validate_ci_artifact.rb
 grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
 grep -q "Project structure verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
+grep -q "xcrun.*simctl" scripts/resolve_ios_simulator_destination.rb
+grep -q "platform=iOS Simulator,id=" scripts/resolve_ios_simulator_destination.rb
+grep -q "print_build_command" scripts/resolve_ios_simulator_destination.rb
+simctl_fixture="$(mktemp)"
+python3 - "$simctl_fixture" <<'PY'
+import json
+import sys
+
+payload = {
+    "devices": {
+        "com.apple.CoreSimulator.SimRuntime.iOS-18-5": [
+            {
+                "name": "iPhone 16",
+                "udid": "11111111-1111-1111-1111-111111111111",
+                "state": "Shutdown",
+                "isAvailable": True,
+            },
+            {
+                "name": "iPhone 15",
+                "udid": "22222222-2222-2222-2222-222222222222",
+                "state": "Booted",
+                "isAvailable": True,
+            },
+        ],
+        "com.apple.CoreSimulator.SimRuntime.watchOS-11-0": [
+            {
+                "name": "Apple Watch",
+                "udid": "33333333-3333-3333-3333-333333333333",
+                "state": "Booted",
+                "isAvailable": True,
+            }
+        ],
+    }
+}
+
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    json.dump(payload, handle)
+PY
+ruby scripts/resolve_ios_simulator_destination.rb --simctl-json "$simctl_fixture" | grep -q "platform=iOS Simulator,id=22222222-2222-2222-2222-222222222222"
+ruby scripts/resolve_ios_simulator_destination.rb --simctl-json "$simctl_fixture" --name "iPhone 16" | grep -q "platform=iOS Simulator,id=11111111-1111-1111-1111-111111111111"
+ruby scripts/resolve_ios_simulator_destination.rb --simctl-json "$simctl_fixture" --print-build-command | grep -q "xcodebuild .*ChronoFocus.xcodeproj.*platform\\\\=iOS\\\\ Simulator,id\\\\=22222222-2222-2222-2222-222222222222"
+rm -f "$simctl_fixture"
 grep -q "IOS_SCHEME: ChronoFocus" .github/workflows/ci-results.yml
 grep -q "generic/platform=iOS" .github/workflows/ci-results.yml
 grep -q "iosBuildOutcome" .github/workflows/ci-results.yml

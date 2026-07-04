@@ -28,11 +28,46 @@
 
 ## 遗留问题
 
-- iOS scheme 已纳入云端 generic build；本机模拟器构建命令和本机 destination 基线仍可继续补强。
 - StoreKit 和 EventKit 仍缺少更明确的本地 mock 或配置说明。
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.14 / iOS 模拟器构建基线
+
+日期：2026-07-04
+
+核心变更：
+
+- 新增 `scripts/resolve_ios_simulator_destination.rb`，从 `xcrun simctl list devices available -j` 解析可用 iOS Simulator destination。
+- 脚本支持 `--simctl-json` fixture、`--name` 指定设备优先级和 `--print-build-command` 打印完整本机 iOS simulator build 命令。
+- 脚本会在 `DEVELOPER_DIR` 未设置且本机存在完整 Xcode 时自动使用 `/Applications/Xcode.app/Contents/Developer`，降低 Command Line Tools 环境下找不到 `simctl` 的概率；打印 build 命令时会尊重用户已有 `DEVELOPER_DIR`。
+- `scripts/verify_project.sh` 增加脚本语法、关键标记和小型 simctl JSON fixture 解析检查。
+- README 和测试规范增加本机 iOS simulator destination 与 build 命令说明。
+
+关键文件：
+
+- `scripts/resolve_ios_simulator_destination.rb`
+- `scripts/verify_project.sh`
+- `README.md`
+- `md/test/test.md`
+- `md/prompt/v0（持续优化）/v0.14（iOS模拟器构建基线）.md`
+- `update_log.md`
+
+验证结果：
+
+- 已运行 `git diff --check`，通过。
+- 已运行 `ruby -c scripts/resolve_ios_simulator_destination.rb`，输出 `Syntax OK`。
+- 已运行 `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 已运行 `plutil -lint ChronoFocus.xcodeproj/project.pbxproj`，输出 `ChronoFocus.xcodeproj/project.pbxproj: OK`。
+- 已运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照和 `/tmp/chronofocus-mac-snapshots/manifest.json`。
+- 已用内置 fixture 验证 `scripts/resolve_ios_simulator_destination.rb` 默认选择 Booted iOS simulator，指定 `--name` 时优先选择指定设备，并能打印包含该 destination 的 iOS simulator build 命令。
+- 已运行脱沙箱只读命令 `ruby scripts/resolve_ios_simulator_destination.rb --print-build-command`，成功输出包含本机 iOS Simulator UDID 的 `xcodebuild` 命令；完整本机 iOS simulator build 未默认运行。
+- 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
+
+遗留事项：
+
+- 总目标仍未完成；v0.14 通过后继续寻找 StoreKit/EventKit 本地 mock 说明或更多 UI 分类细节优化点。
 
 ### v0.13 / CI 结果包校验脚本
 

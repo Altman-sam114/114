@@ -49,6 +49,20 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocus -configuration Deb
   CODE_SIGNING_ALLOWED=NO build
 ```
 
+本机 iOS simulator destination 解析：
+
+```bash
+ruby scripts/resolve_ios_simulator_destination.rb
+```
+
+本机 iOS simulator build 命令可由脚本打印：
+
+```bash
+ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
+```
+
+该脚本会在 `DEVELOPER_DIR` 未设置且 `/Applications/Xcode.app/Contents/Developer` 存在时自动使用完整 Xcode，减少 Command Line Tools 环境下的 `simctl` 解析失败；如果已设置 `DEVELOPER_DIR`，打印的 build 命令会沿用该路径。
+
 主结构验证命令：
 
 ```bash
@@ -175,7 +189,7 @@ bash scripts/verify_project.sh
 - 检查项目和 plist 语法。
 - 检查必需文件、工程引用、三个 shared schemes 语法。
 - 检查 Live Activity、本地通知、铃声/音色、Pro、日历同步、自动计划、Mac 状态栏等实现标记。
-- 检查分类预设、日程页和计时页分类筛选、新建预填、筛选摘要、筛选优先级、44pt iOS 分类点击区域、iOS 设置页音色选择/试听、根视图非 Pro 音色清洗、Mac 小窗任务分类上下文、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件、CI iOS/错误摘录/artifact index 结果包实现标记和结果包校验脚本语法。
+- 检查分类预设、日程页和计时页分类筛选、新建预填、筛选摘要、筛选优先级、44pt iOS 分类点击区域、iOS 设置页音色选择/试听、根视图非 Pro 音色清洗、Mac 小窗任务分类上下文、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件、CI iOS/错误摘录/artifact index 结果包实现标记、结果包校验脚本语法和 iOS simulator destination 解析 fixture。
 - 编译并运行 Mac core tests。
 - 渲染 Mac 快照到 `/tmp/chronofocus-mac-snapshots/`，并生成 `manifest.json` 记录 5 张快照的文件名、尺寸和字节数。
 - 最终输出 `Project structure verified.`。
@@ -279,7 +293,13 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
   -derivedDataPath /tmp/ChronoFocusMacDerivedData build
 ```
 
-iOS 构建需按当前机器可用模拟器选择目的地。可先查看：
+iOS simulator 构建需按当前机器可用模拟器选择目的地。优先使用脚本解析：
+
+```bash
+ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
+```
+
+也可手工查看：
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
@@ -292,7 +312,7 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocus -showdestinations
 
 - Mac 侧已有明确脚本和构建基线。
 - 云端固定使用 `generic/platform=iOS` 构建 `ChronoFocus` scheme，并上传 `ios-xcodebuild.log` 与 `ChronoFocus-iOS.xcresult`。
-- 本机 iOS 构建仍可根据当前机器 destination 状态选择可用模拟器；若当前环境没有可用模拟器或 Xcode 服务异常，最终回复必须说明未跑 iOS 构建的原因。
+- 本机 iOS simulator destination 可用 `scripts/resolve_ios_simulator_destination.rb` 解析；若当前环境没有可用模拟器或 Xcode 服务异常，最终回复必须说明未跑 iOS 构建的原因。
 
 ## 静态检查
 
