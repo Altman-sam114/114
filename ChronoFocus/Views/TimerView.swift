@@ -3,12 +3,34 @@ import SwiftUI
 struct TimerView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
+    @State private var selectedTaskCategory: String?
 
     private var currentTint: Color {
         if let task = store.task(for: engine.selectedTaskID) {
             return Color(hex: task.accentHex)
         }
         return Color(hex: engine.mode.tintHex)
+    }
+
+    private var upcomingTasks: [FocusTask] {
+        store.upcomingTasks()
+    }
+
+    private var filteredUpcomingTasks: [FocusTask] {
+        guard let selectedTaskCategory else { return upcomingTasks }
+        return upcomingTasks.filter { $0.category == selectedTaskCategory }
+    }
+
+    private var taskPickerCountText: String {
+        if selectedTaskCategory != nil {
+            return "\(filteredUpcomingTasks.count)/\(upcomingTasks.count) 项待办"
+        }
+        return "\(upcomingTasks.count) 项待办"
+    }
+
+    private func taskCount(in category: String?) -> Int {
+        guard let category else { return upcomingTasks.count }
+        return upcomingTasks.filter { $0.category == category }.count
     }
 
     var body: some View {
@@ -241,27 +263,39 @@ struct TimerView: View {
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
                     Spacer()
-                    Text("\(store.upcomingTasks().count) 项待办")
+                    Text(taskPickerCountText)
                         .font(.caption)
                         .foregroundStyle(AppTheme.secondaryText)
                 }
 
-                if store.upcomingTasks().isEmpty {
+                if upcomingTasks.isEmpty {
                     Text("暂无待办，仍可启动自由专注。")
                         .foregroundStyle(AppTheme.secondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    VStack(spacing: 10) {
-                        ForEach(store.upcomingTasks().prefix(4)) { task in
-                            Button {
-                                if !engine.isRunning {
-                                    engine.selectTask(task)
+                    TimerTaskCategoryFilterBar(
+                        categories: store.taskCategories,
+                        selectedCategory: $selectedTaskCategory,
+                        countProvider: taskCount(in:)
+                    )
+
+                    if filteredUpcomingTasks.isEmpty, let selectedTaskCategory {
+                        TimerTaskCategoryEmptyView(category: selectedTaskCategory) {
+                            self.selectedTaskCategory = nil
+                        }
+                    } else {
+                        VStack(spacing: 10) {
+                            ForEach(filteredUpcomingTasks.prefix(4)) { task in
+                                Button {
+                                    if !engine.isRunning {
+                                        engine.selectTask(task)
+                                    }
+                                } label: {
+                                    TaskRow(task: task, isSelected: engine.selectedTaskID == task.id)
                                 }
-                            } label: {
-                                TaskRow(task: task, isSelected: engine.selectedTaskID == task.id)
+                                .buttonStyle(.plain)
+                                .disabled(engine.isRunning)
                             }
-                            .buttonStyle(.plain)
-                            .disabled(engine.isRunning)
                         }
                     }
                 }
@@ -315,10 +349,15 @@ private struct TaskRow: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
-                Text(task.dueDate?.scheduleTimeText ?? task.category)
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    TimerTaskCategoryBadge(task: task)
+                    if let dueDate = task.dueDate {
+                        Text(dueDate.scheduleTimeText)
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .lineLimit(1)
+                    }
+                }
             }
 
             Spacer()
@@ -336,6 +375,134 @@ private struct TaskRow: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(isSelected ? Color(hex: task.accentHex).opacity(0.7) : AppTheme.border, lineWidth: 1)
         }
+    }
+}
+
+private struct TimerTaskCategoryFilterBar: View {
+    let categories: [String]
+    @Binding var selectedCategory: String?
+    let countProvider: (String?) -> Int
+
+    private var categoryOptions: [TaskCategoryFilterOption] {
+        TaskCategoryPreset.prioritizedFilterOptions(categories: categories) { category in
+            countProvider(category)
+        }
+    }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                TimerTaskCategoryFilterChip(
+                    title: "全部",
+                    symbolName: "tray.full.fill",
+                    count: countProvider(nil),
+                    isSelected: selectedCategory == nil,
+                    tintHex: "#3DE8C5"
+                ) {
+                    selectedCategory = nil
+                }
+
+                ForEach(categoryOptions) { option in
+                    TimerTaskCategoryFilterChip(
+                        title: option.category,
+                        symbolName: option.symbolName,
+                        count: option.count,
+                        isSelected: selectedCategory == option.category,
+                        tintHex: option.accentHex
+                    ) {
+                        selectedCategory = option.category
+                    }
+                }
+            }
+            .padding(.vertical, 1)
+        }
+    }
+}
+
+private struct TimerTaskCategoryFilterChip: View {
+    let title: String
+    let symbolName: String
+    let count: Int
+    let isSelected: Bool
+    let tintHex: String
+    let action: () -> Void
+
+    private var tint: Color {
+        Color(hex: tintHex)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: symbolName)
+                Text(title)
+                Text("\(count)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(isSelected ? Color.black.opacity(0.72) : tint)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(isSelected ? Color.black.opacity(0.08) : tint.opacity(0.16), in: Capsule())
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(isSelected ? Color.black.opacity(0.82) : AppTheme.primaryText)
+            .frame(minHeight: 44)
+            .padding(.horizontal, 10)
+            .background(isSelected ? tint : AppTheme.panel, in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(isSelected ? tint.opacity(0.9) : AppTheme.border, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title)分类，\(count)项")
+    }
+}
+
+private struct TimerTaskCategoryEmptyView: View {
+    let category: String
+    let onClear: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "tag.slash")
+                .foregroundStyle(AppTheme.secondaryText)
+            Text("\(category) 分类暂无可启动待办")
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.secondaryText)
+                .lineLimit(2)
+            Spacer()
+            Button("清除", systemImage: "xmark.circle.fill", action: onClear)
+                .font(.caption.weight(.bold))
+                .buttonStyle(.plain)
+                .foregroundStyle(.cyan)
+        }
+        .padding(12)
+        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct TimerTaskCategoryBadge: View {
+    let task: FocusTask
+
+    private var preset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(task.category)
+    }
+
+    private var tint: Color {
+        Color(hex: preset?.accentHex ?? task.accentHex)
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: preset?.symbolName ?? "tag.fill")
+            Text(task.category)
+                .lineLimit(1)
+        }
+        .font(.caption2.weight(.bold))
+        .foregroundStyle(tint)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(tint.opacity(0.14), in: Capsule())
     }
 }
 

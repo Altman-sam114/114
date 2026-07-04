@@ -14,7 +14,7 @@
 
 - iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/振动、亮暗主题。
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
-- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、分类筛选/预填/排序/摘要标记、Mac 核心测试、Mac UI 快照和快照 manifest。
+- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、计时页/日程页分类筛选/预填/排序/摘要标记、Mac 核心测试、Mac UI 快照和快照 manifest。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、Mac 快照 manifest 和失败阶段关键错误摘录。
 
@@ -35,6 +35,41 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.9 / 计时页分类筛选待办
+
+日期：2026-07-04
+
+核心变更：
+
+- iOS 计时页“当前日程”面板新增分类筛选 chip，可按当前待办分类快速筛选任务。
+- 计时页分类筛选复用 `TaskCategoryPreset.prioritizedFilterOptions`，按当前可启动待办数量优先显示有任务分类。
+- 选中分类时任务列表只显示该分类待办，空分类显示清除筛选入口。
+- 计时页任务行新增分类 badge，即使任务有开始时间也能直接看到分类。
+- `scripts/verify_project.sh` 增加计时页分类筛选、过滤列表和分类 badge 标记检查。
+
+关键文件：
+
+- `ChronoFocus/Views/TimerView.swift`
+- `scripts/verify_project.sh`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v0（持续优化）/v0.9（计时页分类筛选待办）.md`
+- `update_log.md`
+
+验证结果：
+
+- 已运行 `git diff --check`，通过。
+- 已运行 `plutil -lint ChronoFocus.xcodeproj/project.pbxproj`，输出 `ChronoFocus.xcodeproj/project.pbxproj: OK`。
+- 已运行 `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 已运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照和 `/tmp/chronofocus-mac-snapshots/manifest.json`。
+- 本轮未默认运行完整本机 Xcode build；最终 Mac/iOS 编译结论以本轮 push 后 GitHub Actions artifact 为准。
+
+遗留事项：
+
+- 总目标仍未完成；v0.9 通过后继续寻找下一轮 Mac 小窗任务上下文、iOS 铃声选择或 CI artifact 完整性优化点。
 
 ### v0.8 / Mac 快捷入口与 CI 错误摘录
 

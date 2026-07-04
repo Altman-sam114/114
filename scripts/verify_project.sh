@@ -185,6 +185,11 @@ grep -q "TaskCategoryFilterBar" ChronoFocus/Views/ScheduleView.swift
 grep -q "TaskCategoryPresetPicker" ChronoFocus/Views/ScheduleView.swift
 grep -q "initialCategory: selectedCategory" ChronoFocus/Views/ScheduleView.swift
 grep -q "frame(minHeight: 44)" ChronoFocus/Views/ScheduleView.swift
+grep -q "selectedTaskCategory" ChronoFocus/Views/TimerView.swift
+grep -q "filteredUpcomingTasks" ChronoFocus/Views/TimerView.swift
+grep -q "TimerTaskCategoryFilterBar" ChronoFocus/Views/TimerView.swift
+grep -q "TimerTaskCategoryBadge" ChronoFocus/Views/TimerView.swift
+grep -q "TaskCategoryPreset.prioritizedFilterOptions(categories: categories)" ChronoFocus/Views/TimerView.swift
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
 grep -q "LSUIElement = YES" "$project"
 grep -q "MACOSX_DEPLOYMENT_TARGET = 14.0" "$project"
