@@ -152,7 +152,7 @@ macOS：
 - iOS 平台层可以依赖 UIKit、UserNotifications、ActivityKit、StoreKit、EventKit。
 - macOS 平台层可以依赖 AppKit、UserNotifications、StoreKit、EventKit。
 - Mac 状态栏逻辑集中在 `MacStatusBarController`。
-- Mac 快照测试通过脚本编译 Swift 文件并使用 `ImageRenderer` 渲染，不等同于完整 App 运行。
+- Mac 快照测试通过脚本编译 Swift 文件并使用 `ImageRenderer` 渲染，不等同于完整 App 运行；快照路径用 `macSnapshotRendering` 替换原生 `Picker`、`Toggle`、`Slider`、`DatePicker`、`Stepper` 和部分 bordered `Button`，避免黄色缺失控件占位。
 
 ## 5. 用户入口
 

@@ -45,10 +45,14 @@ struct MacScheduleDetailView: View {
                             Stepper("预计 \(estimatedRounds) 轮", value: $estimatedRounds, in: 1...12)
                         }
 
-                        Button("新增待办", systemImage: "plus", action: addTask)
-                            .buttonStyle(.borderedProminent)
-                            .tint(.cyan)
-                            .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        if isSnapshotRendering {
+                            MacStaticScheduleActionChipView(title: "新增待办", symbolName: "plus", tint: .cyan, isProminent: true)
+                        } else {
+                            Button("新增待办", systemImage: "plus", action: addTask)
+                                .buttonStyle(.borderedProminent)
+                                .tint(.cyan)
+                                .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
                     }
                 }
                 .frame(width: 320)
@@ -116,6 +120,53 @@ private struct MacStaticCategoryPresetStrip: View {
                 .background(Color.white.opacity(0.06), in: Capsule())
         }
         .padding(.vertical, 1)
+    }
+}
+
+private struct MacStaticScheduleActionChipView: View {
+    let title: String
+    let symbolName: String
+    let tint: Color
+    let isProminent: Bool
+    var iconOnly = false
+
+    var body: some View {
+        Group {
+            if iconOnly {
+                Image(systemName: symbolName)
+                    .font(.subheadline.bold())
+                    .frame(width: 34, height: 30)
+            } else {
+                Label(title, systemImage: symbolName)
+                    .font(.subheadline.bold())
+                    .frame(minHeight: 30)
+                    .padding(.horizontal, 10)
+            }
+        }
+        .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
+        .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(isProminent ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)
+        }
+        .accessibilityLabel(title)
+    }
+}
+
+private struct MacStaticTaskEnablePillView: View {
+    let isEnabled: Bool
+
+    var body: some View {
+        Capsule()
+            .fill(isEnabled ? Color.cyan.opacity(0.95) : Color.white.opacity(0.14))
+            .frame(width: 38, height: 22)
+            .overlay(alignment: isEnabled ? .trailing : .leading) {
+                Circle()
+                    .fill(isEnabled ? Color.black.opacity(0.82) : MacTheme.secondaryText)
+                    .frame(width: 16, height: 16)
+                    .padding(3)
+            }
+            .accessibilityLabel(isEnabled ? "已启用" : "已停用")
     }
 }
 
@@ -209,21 +260,27 @@ private struct MacCalendarPanelView: View {
                 }
 
                 HStack {
-                    Button("上一段", systemImage: "chevron.left") {
-                        moveSelection(by: -1)
-                    }
-                    .labelStyle(.iconOnly)
+                    if isSnapshotRendering {
+                        MacStaticScheduleActionChipView(title: "上一段", symbolName: "chevron.left", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
+                        MacStaticScheduleActionChipView(title: "今天", symbolName: "calendar", tint: .cyan, isProminent: true)
+                        MacStaticScheduleActionChipView(title: "下一段", symbolName: "chevron.right", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
+                    } else {
+                        Button("上一段", systemImage: "chevron.left") {
+                            moveSelection(by: -1)
+                        }
+                        .labelStyle(.iconOnly)
 
-                    Button("今天") {
-                        selectedDate = Date()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
+                        Button("今天") {
+                            selectedDate = Date()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.cyan)
 
-                    Button("下一段", systemImage: "chevron.right") {
-                        moveSelection(by: 1)
+                        Button("下一段", systemImage: "chevron.right") {
+                            moveSelection(by: 1)
+                        }
+                        .labelStyle(.iconOnly)
                     }
-                    .labelStyle(.iconOnly)
 
                     Spacer()
                     Text("\(visibleTasks.count) 项")
@@ -320,6 +377,7 @@ private struct MacCalendarSyncPanelView: View {
     @EnvironmentObject private var premium: MacPremiumAccessService
     @EnvironmentObject private var calendarSync: MacCalendarSyncService
     @EnvironmentObject private var notifications: MacNotificationService
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     var body: some View {
         MacGlassPanel {
@@ -339,33 +397,47 @@ private struct MacCalendarSyncPanelView: View {
                     .foregroundStyle(MacTheme.secondaryText)
 
                 if premium.isProUnlocked {
-                    Button(calendarSync.isSyncing ? "同步中" : "同步近期日程", systemImage: "arrow.triangle.2.circlepath") {
-                        Task {
-                            await calendarSync.syncUpcomingEvents(into: store)
-                            await syncAllMacTaskReminders(store: store, notifications: notifications)
+                    if isSnapshotRendering {
+                        MacStaticScheduleActionChipView(
+                            title: calendarSync.isSyncing ? "同步中" : "同步近期日程",
+                            symbolName: "arrow.triangle.2.circlepath",
+                            tint: .cyan,
+                            isProminent: true
+                        )
+                    } else {
+                        Button(calendarSync.isSyncing ? "同步中" : "同步近期日程", systemImage: "arrow.triangle.2.circlepath") {
+                            Task {
+                                await calendarSync.syncUpcomingEvents(into: store)
+                                await syncAllMacTaskReminders(store: store, notifications: notifications)
+                            }
                         }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.cyan)
+                        .disabled(calendarSync.isSyncing)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
-                    .disabled(calendarSync.isSyncing)
 
                     Text(calendarSync.statusText)
                         .font(.caption)
                         .foregroundStyle(MacTheme.secondaryText)
                 } else {
                     HStack {
-                        Button("解锁 Pro 同步日历", systemImage: "lock.fill") {
-                            Task { await premium.purchasePro() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.cyan)
-                        .disabled(premium.isLoading)
+                        if isSnapshotRendering {
+                            MacStaticScheduleActionChipView(title: "解锁 Pro 同步日历", symbolName: "lock.fill", tint: .cyan, isProminent: true)
+                            MacStaticScheduleActionChipView(title: "恢复购买", symbolName: "arrow.clockwise", tint: MacTheme.secondaryText, isProminent: false)
+                        } else {
+                            Button("解锁 Pro 同步日历", systemImage: "lock.fill") {
+                                Task { await premium.purchasePro() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.cyan)
+                            .disabled(premium.isLoading)
 
-                        Button("恢复购买", systemImage: "arrow.clockwise") {
-                            Task { await premium.restorePurchases() }
+                            Button("恢复购买", systemImage: "arrow.clockwise") {
+                                Task { await premium.restorePurchases() }
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(premium.isLoading)
                         }
-                        .buttonStyle(.bordered)
-                        .disabled(premium.isLoading)
                     }
 
                     Text(premium.statusText)
@@ -380,6 +452,7 @@ private struct MacCalendarSyncPanelView: View {
 private struct MacPlanPanelView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     var body: some View {
         MacGlassPanel {
@@ -394,15 +467,20 @@ private struct MacPlanPanelView: View {
                 }
 
                 HStack {
-                    Button("按日程生成", systemImage: "calendar.badge.plus") {
-                        store.generatePomodoroPlanFromSchedule()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
+                    if isSnapshotRendering {
+                        MacStaticScheduleActionChipView(title: "按日程生成", symbolName: "calendar.badge.plus", tint: .cyan, isProminent: true)
+                        MacStaticScheduleActionChipView(title: "清空", symbolName: "trash", tint: MacTheme.secondaryText, isProminent: false)
+                    } else {
+                        Button("按日程生成", systemImage: "calendar.badge.plus") {
+                            store.generatePomodoroPlanFromSchedule()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.cyan)
 
-                    Button("清空", systemImage: "trash", action: store.clearPomodoroPlan)
-                        .buttonStyle(.bordered)
-                        .disabled(store.pomodoroPlan.isEmpty)
+                        Button("清空", systemImage: "trash", action: store.clearPomodoroPlan)
+                            .buttonStyle(.bordered)
+                            .disabled(store.pomodoroPlan.isEmpty)
+                    }
                 }
 
                 ForEach(store.pomodoroPlan.prefix(6)) { item in
@@ -419,11 +497,15 @@ private struct MacPlanPanelView: View {
                                 .foregroundStyle(MacTheme.secondaryText)
                         }
                         Spacer()
-                        Button("开始", systemImage: "play.fill") {
-                            engine.startPlanItem(item)
+                        if isSnapshotRendering {
+                            MacStaticScheduleActionChipView(title: "开始", symbolName: "play.fill", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
+                        } else {
+                            Button("开始", systemImage: "play.fill") {
+                                engine.startPlanItem(item)
+                            }
+                            .labelStyle(.iconOnly)
+                            .disabled(engine.isRunning || item.isCompleted)
                         }
-                        .labelStyle(.iconOnly)
-                        .disabled(engine.isRunning || item.isCompleted)
                     }
                     .padding(10)
                     .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
@@ -437,6 +519,7 @@ private struct MacTaskListPanelView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var notifications: MacNotificationService
     @Binding var selectedCategory: String?
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     private var visibleTasks: [FocusTask] {
         let tasks = store.upcomingTasks()
@@ -470,24 +553,39 @@ private struct MacTaskListPanelView: View {
 
                 ForEach(visibleTasks) { task in
                     HStack(spacing: 12) {
-                        Button(task.isDone ? "标记未完成" : "完成", systemImage: task.isDone ? "arrow.uturn.backward.circle" : "checkmark.circle") {
-                            toggleTask(task)
+                        if isSnapshotRendering {
+                            MacStaticScheduleActionChipView(
+                                title: task.isDone ? "标记未完成" : "完成",
+                                symbolName: task.isDone ? "arrow.uturn.backward.circle" : "checkmark.circle",
+                                tint: MacTheme.secondaryText,
+                                isProminent: false,
+                                iconOnly: true
+                            )
+                        } else {
+                            Button(task.isDone ? "标记未完成" : "完成", systemImage: task.isDone ? "arrow.uturn.backward.circle" : "checkmark.circle") {
+                                toggleTask(task)
+                            }
+                            .labelStyle(.iconOnly)
                         }
-                        .labelStyle(.iconOnly)
 
                         MacTaskRowView(task: task)
 
-                        Toggle("启用", isOn: Binding(
-                            get: { task.isEnabled },
-                            set: { setTask(task, enabled: $0) }
-                        ))
-                        .labelsHidden()
+                        if isSnapshotRendering {
+                            MacStaticTaskEnablePillView(isEnabled: task.isEnabled)
+                            MacStaticScheduleActionChipView(title: "删除", symbolName: "trash", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
+                        } else {
+                            Toggle("启用", isOn: Binding(
+                                get: { task.isEnabled },
+                                set: { setTask(task, enabled: $0) }
+                            ))
+                            .labelsHidden()
 
-                        Button("删除", systemImage: "trash") {
-                            notifications.cancelTaskReminder(taskID: task.id)
-                            store.deleteTasks(ids: [task.id])
+                            Button("删除", systemImage: "trash") {
+                                notifications.cancelTaskReminder(taskID: task.id)
+                                store.deleteTasks(ids: [task.id])
+                            }
+                            .labelStyle(.iconOnly)
                         }
-                        .labelStyle(.iconOnly)
                     }
                 }
             }

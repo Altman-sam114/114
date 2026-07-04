@@ -166,7 +166,7 @@ bash scripts/verify_project.sh
 - 检查项目和 plist 语法。
 - 检查必需文件、工程引用、三个 shared schemes 语法。
 - 检查 Live Activity、本地通知、Pro、日历同步、自动计划、Mac 状态栏等实现标记。
-- 检查分类预设、分类筛选、新建预填、筛选优先级、44pt iOS 分类点击区域和 CI iOS 结果包实现标记。
+- 检查分类预设、分类筛选、新建预填、筛选优先级、44pt iOS 分类点击区域、Mac 日程/计时快照安全静态控件和 CI iOS 结果包实现标记。
 - 编译并运行 Mac core tests。
 - 渲染 Mac 快照到 `/tmp/chronofocus-mac-snapshots/`。
 - 最终输出 `Project structure verified.`。

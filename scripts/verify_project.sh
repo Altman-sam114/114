@@ -197,6 +197,8 @@ grep -q "NavigationSplitView" ChronoFocusMac/Views/MacDetailView.swift
 grep -q "MacMiniTimerView" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "MacAnalyticsDetailView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 grep -q "MacStaticTimerActionRowView" ChronoFocusMac/Views/MacTimerDetailView.swift
+grep -q "MacStaticScheduleActionChipView" ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "MacStaticTaskEnablePillView" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "import StoreKit" ChronoFocusMac/Services/MacPremiumAccessService.swift
 grep -q "purchasePro" ChronoFocusMac/Services/MacPremiumAccessService.swift
 grep -q "restorePurchases" ChronoFocusMac/Services/MacPremiumAccessService.swift
