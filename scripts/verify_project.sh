@@ -201,6 +201,10 @@ grep -q "MacStaticScheduleActionChipView" ChronoFocusMac/Views/MacScheduleDetail
 grep -q "MacStaticTaskEnablePillView" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "MacStaticAnalyticsActionChipView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 grep -q "MacStaticSettingsActionChipView" ChronoFocusMac/Views/MacSettingsDetailView.swift
+grep -q "SelectedCategorySummaryView" ChronoFocus/Views/ScheduleView.swift
+grep -q "MacSelectedCategorySummaryView" ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "SnapshotManifest" scripts/render_mac_snapshots.swift
+grep -q "manifest.json" scripts/render_mac_snapshots.swift
 grep -q "import StoreKit" ChronoFocusMac/Services/MacPremiumAccessService.swift
 grep -q "purchasePro" ChronoFocusMac/Services/MacPremiumAccessService.swift
 grep -q "restorePurchases" ChronoFocusMac/Services/MacPremiumAccessService.swift
@@ -263,5 +267,26 @@ test -s /tmp/chronofocus-mac-snapshots/detail-timer.png
 test -s /tmp/chronofocus-mac-snapshots/detail-schedule.png
 test -s /tmp/chronofocus-mac-snapshots/detail-analytics.png
 test -s /tmp/chronofocus-mac-snapshots/detail-settings.png
+test -s /tmp/chronofocus-mac-snapshots/manifest.json
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+manifest = json.loads(Path("/tmp/chronofocus-mac-snapshots/manifest.json").read_text())
+expected = {
+    "mini-timer.png",
+    "detail-timer.png",
+    "detail-schedule.png",
+    "detail-analytics.png",
+    "detail-settings.png",
+}
+snapshots = manifest.get("snapshots", [])
+actual = {item.get("fileName") for item in snapshots}
+if actual != expected:
+    raise SystemExit(f"Unexpected Mac snapshot manifest entries: {sorted(actual)}")
+for item in snapshots:
+    if item.get("width", 0) <= 0 or item.get("height", 0) <= 0 or item.get("byteCount", 0) <= 0:
+        raise SystemExit(f"Invalid Mac snapshot manifest metadata: {item}")
+PY
 
 echo "Project structure verified."

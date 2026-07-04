@@ -545,6 +545,16 @@ private struct MacTaskListPanelView: View {
                     countProvider: taskCount(in:)
                 )
 
+                if let selectedCategoryName = selectedCategory {
+                    MacSelectedCategorySummaryView(
+                        category: selectedCategoryName,
+                        count: taskCount(in: selectedCategoryName),
+                        isSnapshotRendering: isSnapshotRendering
+                    ) {
+                        selectedCategory = nil
+                    }
+                }
+
                 if visibleTasks.isEmpty {
                     Text(emptyText)
                         .font(.caption)
@@ -599,7 +609,7 @@ private struct MacTaskListPanelView: View {
 
     private var emptyText: String {
         if let selectedCategory {
-            return "当前没有「\(selectedCategory)」分类的未完成待办。"
+            return "当前没有「\(selectedCategory)」分类的未完成待办。可清除筛选查看全部，或在左侧快速新增该分类待办。"
         }
         return "当前没有未完成待办。"
     }
@@ -614,6 +624,64 @@ private struct MacTaskListPanelView: View {
         if let updatedTask = store.setTaskEnabled(task, enabled: enabled) {
             syncMacTaskReminder(for: updatedTask, store: store, notifications: notifications)
         }
+    }
+}
+
+private struct MacSelectedCategorySummaryView: View {
+    let category: String
+    let count: Int
+    let isSnapshotRendering: Bool
+    let onClear: () -> Void
+
+    private var preset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(category)
+    }
+
+    private var tint: Color {
+        Color(hex: preset?.accentHex ?? "#3DE8C5")
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Label(category, systemImage: preset?.symbolName ?? "tag.fill")
+                .font(.subheadline.bold())
+                .foregroundStyle(MacTheme.primaryText)
+
+            Text("\(count) 项")
+                .font(.caption.bold())
+                .foregroundStyle(tint)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(tint.opacity(0.16), in: Capsule())
+
+            Spacer()
+
+            if isSnapshotRendering {
+                Text("清除")
+                    .font(.caption.bold())
+                    .foregroundStyle(tint)
+                    .frame(minHeight: 30)
+                    .padding(.horizontal, 10)
+                    .background(Color.white.opacity(0.07), in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(tint.opacity(0.36), lineWidth: 1)
+                    }
+            } else {
+                Button("清除", systemImage: "xmark.circle.fill", action: onClear)
+                    .font(.caption.bold())
+                    .foregroundStyle(tint)
+                    .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(tint.opacity(0.36), lineWidth: 1)
+        }
+        .accessibilityLabel("当前筛选\(category)分类，\(count)项")
     }
 }
 

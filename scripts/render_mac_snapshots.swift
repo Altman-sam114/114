@@ -45,6 +45,7 @@ struct MacSnapshotRenderer {
         try render(miniView, to: miniURL)
         try assertNonBlankImage(at: miniURL)
         try assertNoMissingControlPlaceholders(at: miniURL)
+        var snapshotMetadata = [try metadata(for: miniURL)]
 
         print("Mac snapshots rendered:")
         print(miniURL.path)
@@ -74,8 +75,14 @@ struct MacSnapshotRenderer {
             try assertNonBlankImage(at: detailURL)
             try assertForegroundContent(at: detailURL, minimumXRatio: 0.22)
             try assertNoMissingControlPlaceholders(at: detailURL)
+            snapshotMetadata.append(try metadata(for: detailURL))
             print(detailURL.path)
         }
+
+        let manifestURL = outputDirectory.appendingPathComponent("manifest.json")
+        try writeManifest(snapshotMetadata, to: manifestURL)
+        try assertSnapshotManifest(at: manifestURL)
+        print(manifestURL.path)
     }
 
     @MainActor
@@ -245,6 +252,67 @@ struct MacSnapshotRenderer {
             throw SnapshotError("Rendered image contains missing-control placeholders: \(url.path)")
         }
     }
+
+    private static func metadata(for url: URL) throws -> SnapshotMetadata {
+        guard
+            let image = NSImage(contentsOf: url),
+            let tiffData = image.tiffRepresentation,
+            let bitmap = NSBitmapImageRep(data: tiffData)
+        else {
+            throw SnapshotError("Could not read rendered image metadata at \(url.path)")
+        }
+
+        let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+        let byteCount = attributes[.size] as? Int ?? 0
+        return SnapshotMetadata(
+            fileName: url.lastPathComponent,
+            width: bitmap.pixelsWide,
+            height: bitmap.pixelsHigh,
+            byteCount: byteCount
+        )
+    }
+
+    private static func writeManifest(_ snapshots: [SnapshotMetadata], to url: URL) throws {
+        let manifest = SnapshotManifest(
+            generatedAt: ISO8601DateFormatter().string(from: Date()),
+            snapshots: snapshots
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(manifest)
+        try data.write(to: url)
+    }
+
+    private static func assertSnapshotManifest(at url: URL) throws {
+        let data = try Data(contentsOf: url)
+        let manifest = try JSONDecoder().decode(SnapshotManifest.self, from: data)
+        let expectedNames: Set<String> = [
+            "mini-timer.png",
+            "detail-timer.png",
+            "detail-schedule.png",
+            "detail-analytics.png",
+            "detail-settings.png"
+        ]
+        let actualNames = Set(manifest.snapshots.map(\.fileName))
+        guard actualNames == expectedNames else {
+            throw SnapshotError("Snapshot manifest entries do not match expected files: \(actualNames.sorted())")
+        }
+        guard manifest.snapshots.allSatisfy({ $0.width > 0 && $0.height > 0 && $0.byteCount > 0 }) else {
+            throw SnapshotError("Snapshot manifest contains invalid image metadata: \(url.path)")
+        }
+    }
+}
+
+private struct SnapshotManifest: Codable {
+    let generatedAt: String
+    let snapshots: [SnapshotMetadata]
+}
+
+private struct SnapshotMetadata: Codable {
+    let fileName: String
+    let width: Int
+    let height: Int
+    let byteCount: Int
 }
 
 struct SnapshotError: Error, CustomStringConvertible {

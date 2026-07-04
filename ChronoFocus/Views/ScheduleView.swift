@@ -240,6 +240,15 @@ struct ScheduleView: View {
                     countProvider: taskCount(in:)
                 )
 
+                if let selectedCategoryName = selectedCategory {
+                    SelectedCategorySummaryView(
+                        category: selectedCategoryName,
+                        count: taskCount(in: selectedCategoryName)
+                    ) {
+                        selectedCategory = nil
+                    }
+                }
+
                 if visibleTasks.isEmpty {
                     Text(emptyTaskListText)
                         .foregroundStyle(AppTheme.secondaryText)
@@ -369,7 +378,7 @@ struct ScheduleView: View {
 
     private var emptyTaskListText: String {
         if let selectedCategory {
-            return "当前时间范围没有「\(selectedCategory)」分类待办。"
+            return "当前时间范围没有「\(selectedCategory)」分类待办。可清除筛选查看全部，或点击右上角新增该分类待办。"
         }
         return "这个时间范围还没有待办。点击右上角添加，或用 Pro 同步 iPhone 日历。"
     }
@@ -394,6 +403,52 @@ struct ScheduleView: View {
         if let updatedTask = store.setTaskEnabled(task, enabled: enabled) {
             syncTaskReminder(for: updatedTask, store: store, notifications: notifications)
         }
+    }
+}
+
+private struct SelectedCategorySummaryView: View {
+    let category: String
+    let count: Int
+    let onClear: () -> Void
+
+    private var preset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(category)
+    }
+
+    private var tint: Color {
+        Color(hex: preset?.accentHex ?? "#3DE8C5")
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Label(category, systemImage: preset?.symbolName ?? "tag.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.primaryText)
+
+            Text("\(count) 项")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(tint)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(tint.opacity(0.14), in: Capsule())
+
+            Spacer()
+
+            Button("清除", systemImage: "xmark.circle.fill", action: onClear)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(tint)
+                .buttonStyle(.plain)
+                .frame(minHeight: 44)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(tint.opacity(0.36), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("当前筛选\(category)分类，\(count)项")
     }
 }
 
