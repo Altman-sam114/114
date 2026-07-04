@@ -29,6 +29,10 @@ struct MacScheduleDetailView: View {
                             .font(.headline)
                             .foregroundStyle(MacTheme.primaryText)
 
+                        if let selectedCategory {
+                            MacQuickAddCategoryContextView(category: selectedCategory)
+                        }
+
                         if isSnapshotRendering {
                             MacStaticInputRowView(title: "任务名称", value: "新的专注任务")
                             MacStaticInputRowView(title: "分类", value: category)
@@ -88,6 +92,33 @@ struct MacScheduleDetailView: View {
         estimatedRounds = 2
         category = selectedCategory ?? "工作"
         accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? "#3DE8C5"
+    }
+}
+
+private struct MacQuickAddCategoryContextView: View {
+    let category: String
+
+    private var preset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(category)
+    }
+
+    private var tint: Color {
+        Color(hex: preset?.accentHex ?? "#3DE8C5")
+    }
+
+    var body: some View {
+        Label("已预填「\(category)」分类", systemImage: preset?.symbolName ?? "tag.fill")
+            .font(.caption.bold())
+            .foregroundStyle(tint)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(tint.opacity(0.14), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(tint.opacity(0.36), lineWidth: 1)
+            }
+            .accessibilityLabel("快速新增已预填\(category)分类")
     }
 }
 

@@ -243,10 +243,14 @@ struct ScheduleView: View {
                 if let selectedCategoryName = selectedCategory {
                     SelectedCategorySummaryView(
                         category: selectedCategoryName,
-                        count: taskCount(in: selectedCategoryName)
-                    ) {
-                        selectedCategory = nil
-                    }
+                        count: taskCount(in: selectedCategoryName),
+                        onAddTask: {
+                            showingEditor = true
+                        },
+                        onClear: {
+                            selectedCategory = nil
+                        }
+                    )
                 }
 
                 if visibleTasks.isEmpty {
@@ -378,7 +382,7 @@ struct ScheduleView: View {
 
     private var emptyTaskListText: String {
         if let selectedCategory {
-            return "当前时间范围没有「\(selectedCategory)」分类待办。可清除筛选查看全部，或点击右上角新增该分类待办。"
+            return "当前时间范围没有「\(selectedCategory)」分类待办。可清除筛选查看全部，或点击新增此分类创建待办。"
         }
         return "这个时间范围还没有待办。点击右上角添加，或用 Pro 同步 iPhone 日历。"
     }
@@ -409,6 +413,7 @@ struct ScheduleView: View {
 private struct SelectedCategorySummaryView: View {
     let category: String
     let count: Int
+    let onAddTask: () -> Void
     let onClear: () -> Void
 
     private var preset: TaskCategoryPreset? {
@@ -420,25 +425,39 @@ private struct SelectedCategorySummaryView: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Label(category, systemImage: preset?.symbolName ?? "tag.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppTheme.primaryText)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Label(category, systemImage: preset?.symbolName ?? "tag.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.primaryText)
 
-            Text("\(count) 项")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(tint)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(tint.opacity(0.14), in: Capsule())
+                Text("\(count) 项")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(tint)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(tint.opacity(0.14), in: Capsule())
 
-            Spacer()
+                Spacer()
+            }
 
-            Button("清除", systemImage: "xmark.circle.fill", action: onClear)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(tint)
-                .buttonStyle(.plain)
-                .frame(minHeight: 44)
+            HStack(spacing: 8) {
+                Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.black.opacity(0.82))
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 44)
+                    .padding(.horizontal, 10)
+                    .background(tint, in: Capsule())
+
+                Button("清除", systemImage: "xmark.circle.fill", action: onClear)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(tint)
+                    .buttonStyle(.plain)
+                    .frame(minWidth: 72)
+                    .frame(minHeight: 44)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -447,7 +466,7 @@ private struct SelectedCategorySummaryView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(tint.opacity(0.36), lineWidth: 1)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("当前筛选\(category)分类，\(count)项")
     }
 }

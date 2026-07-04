@@ -11,7 +11,7 @@
 - 自动化默认开启，专注、短休、长休会按设置连续流转。
 - 日程页改为日历/待办样式，可按日、周、月和分类查看；待办可启用/停用、循环、到时间自动开启番茄钟。
 - 新增/编辑待办时可一键选择常用分类；选中分类筛选后新增待办会自动沿用该分类，分类会同步用于计划、统计和筛选。
-- 分类筛选会优先展示当前范围内有待办的分类，选中分类后会显示当前筛选摘要和一键清除入口，减少在空分类间来回查找。
+- 分类筛选会优先展示当前范围内有待办的分类，选中分类后可从筛选摘要直接新增此分类待办或一键清除筛选，减少在空分类间来回查找。
 - 计时页的当前日程也可按分类筛选，任务行会显示分类 badge，方便从待办直接进入专注。
 - 待办支持“按轮次”和“只设开始”两种模式；只设开始的任务由用户手动完成，实际用时会计入统计。
 - 根据日程任务按截止时间自动生成可执行的番茄钟计划，可从计划项直接开始专注。
@@ -20,7 +20,7 @@
 - 使用 StoreKit 2 购买/恢复 Pro 权益，内购商品 ID 为 `com.example.ChronoFocus.pro.analytics`。
 - 使用本地通知在番茄钟结束和日程到期时提醒，并按设置播放系统铃声。
 - 使用 ActivityKit Live Activity 在锁屏、通知栏和灵动岛显示后台倒计时。
-- macOS 版提供状态栏剩余时间、弹出式极简计时器、带分类和时间上下文的当前待办、可直达日程/统计/设置的快捷面板、详细功能窗口、桌面通知、触觉反馈、Pro 统计和 Mac 日历同步。
+- macOS 版提供状态栏剩余时间、弹出式极简计时器、带分类和时间上下文的当前待办、可直达日程/统计/设置的快捷面板、详细功能窗口、分类筛选快速新增预填提示、桌面通知、触觉反馈、Pro 统计和 Mac 日历同步。
 - 通知权限未授权时可在 App 内请求；用户拒绝后会引导到系统设置。
 - 所有核心数据使用 `UserDefaults` JSON 持久化，重启后可恢复。
 
@@ -76,7 +76,7 @@ ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
 
 该脚本会在 `DEVELOPER_DIR` 未设置且本机存在 `/Applications/Xcode.app/Contents/Developer` 时自动使用完整 Xcode，避免 `xcode-select` 指向 Command Line Tools 时找不到 `simctl`；如果你已设置 `DEVELOPER_DIR`，打印的 build 命令会沿用该路径。
 
-验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选和筛选摘要、计时页分类筛选、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 日历权限说明、Mac 快照 manifest，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
+验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选、筛选摘要和分类快捷新增、计时页分类筛选、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 分类预填提示、Mac 日历权限说明、Mac 快照 manifest，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
