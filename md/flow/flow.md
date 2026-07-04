@@ -181,7 +181,7 @@ macOS：
 - 平台服务负责系统能力，不持有核心业务规则。
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。
-- `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选摘要、Mac 待办筛选计数、分类摘要插入点/动作接线、分类快捷新增/预填提示、validator 正向/负向 fixture、核心测试和快照的本地/云端项目专属验证入口。
+- `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选摘要、Mac 待办筛选计数、分类摘要插入点/动作接线、分类快捷新增/预填提示、validator 正向、artifactName mismatch 负向和本地缺失产物负向 fixture、核心测试和快照的本地/云端项目专属验证入口。
 - `scripts/validate_ci_artifact.rb` 是 Agent C 下载结果包后的结构化复判脚本，覆盖 manifest 身份和路径字段、run context 身份与 artifact 名称、artifact index 必需路径与本地文件/目录非空状态、JUnit testcase、failure summary 日志入口、主日志成功标记和快照 manifest。
 - `.github/workflows/ci-results.yml` 是默认云端重验证入口，负责在 `main` push 和手动触发时运行静态检查、项目验证、Mac build 和 iOS generic build，并生成带 artifact index 的未加密 CI 结果包；失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录。
 

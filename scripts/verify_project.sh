@@ -311,7 +311,9 @@ grep -q "ci-run-context.txt" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
+grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
+grep -q "FAIL index required local artifacts" scripts/verify_project.sh
 grep -q "manifest paths" scripts/validate_ci_artifact.rb
 grep -q "index required paths" scripts/validate_ci_artifact.rb
 grep -q "index required local artifacts" scripts/validate_ci_artifact.rb
@@ -530,6 +532,18 @@ fi
 grep -q "FAIL run context artifact name" "$negative_artifact_output"
 rm -rf "$negative_artifact_fixture"
 rm -f "$negative_artifact_output"
+missing_local_artifact_fixture="$(mktemp -d)"
+missing_local_artifact_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$missing_local_artifact_fixture"/
+rm -f "$missing_local_artifact_fixture/static-checks.log"
+if ruby scripts/validate_ci_artifact.rb "$missing_local_artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$missing_local_artifact_output" 2>&1; then
+  echo "Expected missing local artifact fixture to fail validation" >&2
+  cat "$missing_local_artifact_output" >&2
+  exit 1
+fi
+grep -q "FAIL index required local artifacts" "$missing_local_artifact_output"
+rm -rf "$missing_local_artifact_fixture"
+rm -f "$missing_local_artifact_output"
 rm -rf "$artifact_fixture"
 simctl_fixture="$(mktemp)"
 python3 - "$simctl_fixture" <<'PY'
