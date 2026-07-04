@@ -79,6 +79,15 @@ Agent C 结果包缓存默认目录：
 /private/tmp/chronofocus-c-review-<run_id>/
 ```
 
+下载结果包后可用结构化脚本辅助复判：
+
+```bash
+ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id> \
+  --commit <origin-main-sha> \
+  --run-id <run_id> \
+  --attempt <run_attempt>
+```
+
 ## 测试数据与下载容量限制
 
 本项目默认采用小数据量验证策略，避免下载过大 artifact、模型、数据集、缓存或结果包，把本机、CI runner 或临时目录容量撑爆。
@@ -166,7 +175,7 @@ bash scripts/verify_project.sh
 - 检查项目和 plist 语法。
 - 检查必需文件、工程引用、三个 shared schemes 语法。
 - 检查 Live Activity、本地通知、铃声/音色、Pro、日历同步、自动计划、Mac 状态栏等实现标记。
-- 检查分类预设、日程页和计时页分类筛选、新建预填、筛选摘要、筛选优先级、44pt iOS 分类点击区域、iOS 设置页音色选择/试听、根视图非 Pro 音色清洗、Mac 小窗任务分类上下文、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件和 CI iOS/错误摘录/artifact index 结果包实现标记。
+- 检查分类预设、日程页和计时页分类筛选、新建预填、筛选摘要、筛选优先级、44pt iOS 分类点击区域、iOS 设置页音色选择/试听、根视图非 Pro 音色清洗、Mac 小窗任务分类上下文、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件、CI iOS/错误摘录/artifact index 结果包实现标记和结果包校验脚本语法。
 - 编译并运行 Mac core tests。
 - 渲染 Mac 快照到 `/tmp/chronofocus-mac-snapshots/`，并生成 `manifest.json` 记录 5 张快照的文件名、尺寸和字节数。
 - 最终输出 `Project structure verified.`。
@@ -237,6 +246,7 @@ Agent C 验收时必须核对：
 - manifest 中 `branch` 为 `main`。
 - manifest 中 `commitSha` 与 `origin/main` 最新 SHA 完全一致。
 - manifest 中 `runId` 和 `runAttempt` 与下载的 GitHub Actions run 一致。
+- `scripts/validate_ci_artifact.rb` 对下载目录输出全 PASS，作为结构化辅助证据；若脚本失败，必须人工核对失败项并退回 Agent B 或说明原因。
 - `staticChecksOutcome`、`projectVerificationOutcome`、`buildOutcome`、`macBuildOutcome`、`iosBuildOutcome` 均为 `success`。
 - artifact index、failure summary、JUnit、主日志和项目专属产物存在且不是旧 checkout 里的遗留文件。
 - `ci-artifact-index.json` 必须覆盖 manifest、summary、JUnit、主日志、Mac/iOS `.xcresult`、Mac 快照目录、快照 manifest 和 5 张快照；required 条目必须存在，文件字节数或目录递归字节数必须为正。

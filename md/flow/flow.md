@@ -4,7 +4,7 @@
 
 ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作番茄钟/日程 -> `FocusStore` 保存设置、任务、计划、会话和活跃计时快照 -> `TimerEngine` 按真实系统时间驱动计时状态 -> 平台服务负责通知、Live Activity/占位、日历同步和 Pro 权益 -> SwiftUI 视图渲染当前状态。
 
-协作验证主链路是：Agent A 写版本化提示词 -> Agent B 在最新 `origin/main` 上实现、轻量检查、commit 并 push 到 `origin/main` -> GitHub Actions 运行 `ci-results.yml` -> 上传未加密 CI 结果包 -> Agent C 下载并核对 manifest、artifact index、日志和产物 -> 失败时退回 Agent B 在 `main` 追加修复 commit。Agent X 可围绕人工总目标主控多轮 A/B/C 闭环，但每轮仍必须经过 Agent A 提示词、Agent B push 和 Agent C artifact 验收。
+协作验证主链路是：Agent A 写版本化提示词 -> Agent B 在最新 `origin/main` 上实现、轻量检查、commit 并 push 到 `origin/main` -> GitHub Actions 运行 `ci-results.yml` -> 上传未加密 CI 结果包 -> Agent C 下载并核对 manifest、artifact index、日志和产物，可用 `scripts/validate_ci_artifact.rb` 辅助结构化复判 -> 失败时退回 Agent B 在 `main` 追加修复 commit。Agent X 可围绕人工总目标主控多轮 A/B/C 闭环，但每轮仍必须经过 Agent A 提示词、Agent B push 和 Agent C artifact 验收。
 
 ## 1. 当前核心数据流
 
@@ -182,6 +182,7 @@ macOS：
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。
 - `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选、核心测试和快照的本地/云端项目专属验证入口。
+- `scripts/validate_ci_artifact.rb` 是 Agent C 下载结果包后的结构化复判脚本，覆盖 manifest、artifact index、JUnit、failure summary、日志和快照 manifest。
 - `.github/workflows/ci-results.yml` 是默认云端重验证入口，负责在 `main` push 和手动触发时运行静态检查、项目验证、Mac build 和 iOS generic build，并生成带 artifact index 的未加密 CI 结果包；失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录。
 
 ## 7. 协作与云端验证流
@@ -203,9 +204,10 @@ macOS：
 5. `.github/workflows/ci-results.yml` 在云端运行静态检查、`scripts/verify_project.sh`、`ChronoFocusMac` build 和 `ChronoFocus` iOS generic build。
 6. workflow 上传未加密结果包，包含 `ci-artifact-manifest.json`、`ci-artifact-index.json`、带失败错误摘录的 `ci-failure-summary.md`、`junit.xml`、Mac/iOS build 日志、`verify_project.log`、Mac/iOS `.xcresult`、Mac 快照和 Mac 快照 manifest。
 7. Agent C 用 `gh auth login` 后下载 artifact 到 `/private/tmp/chronofocus-c-review-<run_id>/`。
-8. Agent C 只验收 manifest 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新状态一致的结果包。
-9. 如果云端失败或结果包不一致，Agent C 不回滚；退回 Agent B 在 `main` 上追加修复 commit 后重新 push。
-10. 如果 Agent C 需要补齐核心文档，也必须用 `main` 追加 commit/push，并验收新的最新 run。
+8. Agent C 可运行 `scripts/validate_ci_artifact.rb` 辅助核对结果包结构和关键成功标记。
+9. Agent C 只验收 manifest 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新状态一致的结果包。
+10. 如果云端失败或结果包不一致，Agent C 不回滚；退回 Agent B 在 `main` 上追加修复 commit 后重新 push。
+11. 如果 Agent C 需要补齐核心文档，也必须用 `main` 追加 commit/push，并验收新的最新 run。
 
 本轮不把现存 `smalldata_test` 分支、PR 合并流、AITRANS 的漫画探针、GGUF、模型 Release、`test/1.png` 等项目特例写入 ChronoFocus 默认流程。
 

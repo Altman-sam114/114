@@ -61,6 +61,7 @@ required_files=(
   "ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusMac.xcscheme"
   "scripts/test_mac_core.swift"
   "scripts/render_mac_snapshots.swift"
+  "scripts/validate_ci_artifact.rb"
 )
 
 echo "Checking required files..."
@@ -244,6 +245,13 @@ grep -q "MacCategoryChartPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.
 grep -q "MacRecentSessionsPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 
 echo "Checking CI result package markers..."
+ruby -c scripts/validate_ci_artifact.rb >/dev/null
+grep -q "ci-artifact-manifest.json" scripts/validate_ci_artifact.rb
+grep -q "missingRequiredCount" scripts/validate_ci_artifact.rb
+grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
+grep -q "Project structure verified." scripts/validate_ci_artifact.rb
+grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "IOS_SCHEME: ChronoFocus" .github/workflows/ci-results.yml
 grep -q "generic/platform=iOS" .github/workflows/ci-results.yml
 grep -q "iosBuildOutcome" .github/workflows/ci-results.yml
