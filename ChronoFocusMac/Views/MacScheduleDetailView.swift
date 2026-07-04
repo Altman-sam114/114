@@ -558,6 +558,17 @@ private struct MacTaskListPanelView: View {
         return tasks.filter { $0.category == selectedCategory }
     }
 
+    private var taskListCountText: String {
+        let totalCount = store.upcomingTasks().count
+        guard totalCount > 0 else {
+            return "0 项未完成"
+        }
+        guard selectedCategory != nil else {
+            return "\(totalCount) 项未完成"
+        }
+        return "\(visibleTasks.count)/\(totalCount) 项未完成"
+    }
+
     var body: some View {
         MacGlassPanel {
             VStack(alignment: .leading, spacing: 14) {
@@ -566,8 +577,11 @@ private struct MacTaskListPanelView: View {
                         .font(.headline)
                         .foregroundStyle(MacTheme.primaryText)
                     Spacer()
-                    Text("\(store.upcomingTasks().count) 项未完成")
+                    Text(taskListCountText)
+                        .font(.caption)
                         .foregroundStyle(MacTheme.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
                 }
 
                 MacCategoryFilterBar(

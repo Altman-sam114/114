@@ -66,7 +66,7 @@ flowchart TD
   P0 --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
   B --> C["FocusTask<br/>标题、分类、截止时间、轮次、循环、外部日历 ID"]
   C --> C2["FocusStore.taskCategories + TaskCategoryFilterOption<br/>合并预设/已有分类<br/>有任务分类优先显示"]
-  C2 --> C3["选中分类摘要/预填提示<br/>当前数量、iOS 新增此分类、一键清除、Mac 已预填提示、空态提示"]
+  C2 --> C3["选中分类摘要/预填提示<br/>当前数量、筛选/总数计数<br/>iOS 新增此分类、一键清除、Mac 已预填提示、空态提示"]
   C3 --> D{"autoGeneratePomodoroPlan 开启?"}
   D -->|是| E["generatePomodoroPlanFromSchedule<br/>按未完成任务和截止时间生成计划"]
   D -->|否| F["仅保存任务<br/>等待用户手动生成或开始"]

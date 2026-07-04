@@ -287,6 +287,9 @@ grep -q "MacQuickAddCategoryContextView" ChronoFocusMac/Views/MacScheduleDetailV
 grep -q "已预填" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q 'MacTaskListPanelView(selectedCategory: $selectedCategory)' ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "onChange(of: selectedCategory)" ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "taskListCountText" ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "Text(taskListCountText)" ChronoFocusMac/Views/MacScheduleDetailView.swift
+ruby -e 'source = File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift"); property = source[/private var taskListCountText: String \{[\s\S]*?\n    \}/]; raise "Mac task list count text missing" unless property; raise "Mac task list count text must handle zero total" unless property.include?("totalCount > 0") && property.include?("0 项未完成"); raise "Mac task list count text must include filtered and total counts" unless property.include?("visibleTasks.count") && property.include?("totalCount") && property.include?("项未完成")'
 grep -q "MacProPreviewPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 grep -q "MacReportPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 grep -q "MacCategoryChartPanelView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
