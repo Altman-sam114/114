@@ -102,6 +102,31 @@ ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id> 
   --attempt <run_attempt>
 ```
 
+## StoreKit / EventKit 本地人工验证
+
+StoreKit 和 EventKit 依赖真实系统服务、App Store Connect / StoreKit 配置、sandbox 账号、系统日历数据和权限弹窗，默认 GitHub Actions 不访问真实 App Store 或系统日历数据。CI 只检查代码标记、plist / project 配置、项目专属脚本、Mac build 和 iOS generic build，不能替代人工环境验证。
+
+当前真实实现边界：
+
+- iOS Pro：`ChronoFocus/Services/PremiumAccessService.swift`，商品 ID 为 `com.example.ChronoFocus.pro.analytics`。
+- macOS Pro：`ChronoFocusMac/Services/MacPremiumAccessService.swift`，商品 ID 同上。
+- iOS 日历同步：`ChronoFocus/Services/CalendarSyncService.swift`，首次授权在 iOS 17+ 使用 EventKit 请求完整日历访问，当前实现也接受已有 `writeOnly` / `authorized` 状态。
+- macOS 日历同步：`ChronoFocusMac/Services/MacCalendarSyncService.swift`，首次授权在 macOS 14+ 使用 EventKit 请求完整日历访问，当前实现也接受已有 `writeOnly` / `authorized` 状态。
+- 外部日历事件必须通过 `FocusStore.upsertExternalTask(...)` 合并，不能绕过 `FocusStore` 直接写持久化。
+
+涉及 StoreKit / EventKit 代码、权限描述、商品 ID、同步规则或 Pro gating 的改动，本地至少运行：
+
+```bash
+git diff --check
+bash scripts/verify_project.sh
+```
+
+人工验证 StoreKit 时，使用 Xcode scheme 绑定包含 `com.example.ChronoFocus.pro.analytics` 的 StoreKit 配置，或使用 App Store Connect sandbox 中已配置的同名商品。检查商品加载、购买、恢复、取消、无商品配置和 entitlement 刷新后的状态文案；不要通过直接改 `UserDefaults`、`FocusStore` 或新增调试开关伪造 Pro 权益。
+
+人工验证 EventKit 时，先通过 StoreKit 本地配置或 sandbox 解锁 Pro，再在系统日历中创建从今天零点起 45 天范围内的非全天事件，执行同步，确认待办列表出现同标题任务、分类为来源日历名称、开始时间进入待办时间，并且重复同步不会复制同一外部事件。还要检查拒绝日历权限、无近期非全天事件和权限重新授权后的状态文案。
+
+如后续需要自动化覆盖 StoreKit / EventKit，优先在平台服务边界注入测试替身，不要复制 `TimerEngine`、`FocusStore`、日历导入或 Pro 权益规则。
+
 ## 测试数据与下载容量限制
 
 本项目默认采用小数据量验证策略，避免下载过大 artifact、模型、数据集、缓存或结果包，把本机、CI runner 或临时目录容量撑爆。

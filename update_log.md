@@ -28,10 +28,39 @@
 
 ## 遗留问题
 
-- StoreKit 和 EventKit 仍缺少更明确的本地 mock 或配置说明。
+- StoreKit 和 EventKit 已有本地配置和人工验证说明；自动化 mock 尚未实现，后续如需覆盖真实系统服务失败路径可在平台服务边界补测试替身。
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.15 / StoreKit 与日历同步本地说明
+
+日期：2026-07-04
+
+核心变更：
+
+- README 增加 StoreKit 2 商品配置、App Store Connect sandbox / StoreKit 配置要求、失败状态和禁止伪造 Pro 权益的说明。
+- README 增加 EventKit 日历同步的权限、日程 UI Pro gating、从今天零点起 45 天范围内非全天事件导入规则和手工验证步骤。
+- `md/test/test.md` 增加 StoreKit / EventKit 本地人工验证边界，明确默认 CI 不访问真实 App Store 或系统日历数据。
+- `md/flow/flow.md` 和遗留问题同步为“已有配置说明，自动化 mock 后续可补”。
+
+关键文件：
+
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/prompt/v0（持续优化）/v0.15（StoreKit日历本地说明）.md`
+- `update_log.md`
+
+验证结果：
+
+- 已运行 `git diff --check`，通过。
+- 已运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照和 `/tmp/chronofocus-mac-snapshots/manifest.json`。
+- 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
+
+遗留事项：
+
+- 总目标仍未完成；v0.15 通过后可继续收紧 CI artifact 校验脚本或寻找更多 UI 分类细节优化点。
 
 ### v0.14 / iOS 模拟器构建基线
 
