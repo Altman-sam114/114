@@ -261,6 +261,9 @@ grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SUMMARY_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_JUNIT_TESTCASES" scripts/validate_ci_artifact.rb
+grep -q "ci-run-context.txt" scripts/validate_ci_artifact.rb
+grep -q "run context identity" scripts/validate_ci_artifact.rb
+grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "manifest paths" scripts/validate_ci_artifact.rb
 grep -q "index required paths" scripts/validate_ci_artifact.rb
 grep -q "index required local artifacts" scripts/validate_ci_artifact.rb
@@ -293,7 +296,7 @@ files = {
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\n",
-    "ci-run-context.txt": f"branch=main\ncommitSha={commit}\nrunId={run_id}\nrunAttempt={attempt}\n",
+    "ci-run-context.txt": f"artifactName=chronofocus-ci-v0.10-main-fixture-run{run_id}-attempt{attempt}\nbranch=main\ncommitSha={commit}\nrunId={run_id}\nrunAttempt={attempt}\n",
 }
 
 for relative_path, content in files.items():

@@ -82,7 +82,7 @@ ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
 
 ## 协作与云端验证
 
-项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 完成本地轻量检查后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、artifact index、JUnit、failure summary 错误摘录、日志、Mac/iOS `.xcresult`、Mac 快照和各阶段 outcome，再确认最新 `origin/main` 是否通过。
+项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 完成本地轻量检查后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、artifact index、run context、artifact 名称、JUnit、failure summary 错误摘录、日志、Mac/iOS `.xcresult`、Mac 快照和各阶段 outcome，再确认最新 `origin/main` 是否通过。
 
 下载 artifact 后可用脚本做结构化复判：
 
@@ -93,7 +93,7 @@ ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id> 
   --attempt <run_attempt>
 ```
 
-该脚本会核对 manifest 的分支/提交/run/attempt/关键路径、artifact index 的必需路径和本地文件/目录非空状态、JUnit 四个阶段 testcase、failure summary 的日志入口、Mac/iOS build 成功标记和 Mac 快照 manifest。
+该脚本会核对 manifest 的分支/提交/run/attempt/关键路径、`ci-run-context.txt` 的身份字段和 artifact 名称、artifact index 的必需路径和本地文件/目录非空状态、JUnit 四个阶段 testcase、failure summary 的日志入口、Mac/iOS build 成功标记和 Mac 快照 manifest。
 
 可用 `agentx:`、`x:` 或 `X:` 启动主控循环。Agent X 接收总目标并拆分多轮 A/B/C 迭代；它不直接替代 Agent A 的提示词、Agent B 的实现 push，也不替代 Agent C 对最新云端 artifact 的验收。
 

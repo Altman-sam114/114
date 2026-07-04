@@ -122,6 +122,18 @@ def read_json(path)
   JSON.parse(File.read(path, encoding: "UTF-8"))
 end
 
+def read_key_values(path)
+  return {} unless File.file?(path)
+
+  File.readlines(path, encoding: "UTF-8").each_with_object({}) do |line, values|
+    stripped = line.strip
+    next if stripped.empty? || !stripped.include?("=")
+
+    key, value = stripped.split("=", 2)
+    values[key] = value
+  end
+end
+
 def check(checks, name)
   checks << [name, yield]
 rescue StandardError => e
@@ -154,6 +166,7 @@ manifest_path = File.join(artifact_dir, "ci-artifact-manifest.json")
 index_path = File.join(artifact_dir, "ci-artifact-index.json")
 junit_path = File.join(artifact_dir, "junit.xml")
 summary_path = File.join(artifact_dir, "ci-failure-summary.md")
+context_path = File.join(artifact_dir, "ci-run-context.txt")
 verify_log_path = File.join(artifact_dir, "verify_project.log")
 mac_build_log_path = File.join(artifact_dir, "xcodebuild.log")
 ios_build_log_path = File.join(artifact_dir, "ios-xcodebuild.log")
@@ -161,8 +174,12 @@ snapshot_manifest_path = File.join(artifact_dir, "project-reports", "mac-snapsho
 
 manifest = read_json(manifest_path)
 index = read_json(index_path)
+run_context = read_key_values(context_path)
 snapshot_manifest = read_json(snapshot_manifest_path)
 junit = REXML::Document.new(File.read(junit_path, encoding: "UTF-8")).root
+branch_slug = options["branch"].gsub("/", "-")
+short_sha = options["commit"][0, 7]
+expected_artifact_name = "chronofocus-ci-#{manifest["version"]}-#{branch_slug}-#{short_sha}-run#{options["run_id"]}-attempt#{options["attempt"]}"
 
 check(checks, "artifact dir exists") { File.directory?(artifact_dir) }
 check(checks, "manifest branch") { manifest["branch"] == options["branch"] }
@@ -175,6 +192,16 @@ end
 EXPECTED_OUTCOME_KEYS.each do |key|
   check(checks, key) { manifest[key] == "success" }
 end
+check(checks, "run context fields") do
+  %w[artifactName branch commitSha runId runAttempt].all? { |key| !run_context[key].to_s.empty? }
+end
+check(checks, "run context identity") do
+  run_context["branch"] == options["branch"] &&
+    run_context["commitSha"] == options["commit"] &&
+    run_context["runId"] == options["run_id"] &&
+    run_context["runAttempt"] == options["attempt"].to_s
+end
+check(checks, "run context artifact name") { run_context["artifactName"] == expected_artifact_name }
 
 entries_by_path = index.fetch("entries").each_with_object({}) do |entry, lookup|
   lookup[entry.fetch("path")] = entry
