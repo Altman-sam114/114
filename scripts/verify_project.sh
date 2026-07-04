@@ -202,10 +202,48 @@ grep -q "TimerSelectedTaskCategorySummaryView" ChronoFocus/Views/TimerView.swift
 grep -q "项可启动" ChronoFocus/Views/TimerView.swift
 grep -q "当前筛选" ChronoFocus/Views/TimerView.swift
 grep -q "clearTaskCategoryFilter" ChronoFocus/Views/TimerView.swift
-ruby -e 'source = File.read("ChronoFocus/Views/TimerView.swift"); summary = source.index("TimerSelectedTaskCategorySummaryView("); empty_branch = source.index("if upcomingTasks.isEmpty"); clear = source.index("onClear: clearTaskCategoryFilter"); raise "Timer category summary must render before empty task branch" unless summary && empty_branch && summary < empty_branch; raise "Timer category summary must use clearTaskCategoryFilter" unless clear'
 grep -q "TimerTaskCategoryFilterBar" ChronoFocus/Views/TimerView.swift
 grep -q "TimerTaskCategoryBadge" ChronoFocus/Views/TimerView.swift
 grep -q "TaskCategoryPreset.prioritizedFilterOptions(categories: categories)" ChronoFocus/Views/TimerView.swift
+ruby <<'RUBY'
+def source_slice(path, earlier, later, message)
+  source = File.read(path)
+  earlier_index = source.index(earlier)
+  later_index = source.index(later, earlier_index || 0)
+  raise message unless earlier_index && later_index && earlier_index < later_index
+  source[earlier_index...later_index]
+end
+
+def assert_slice_contains(path, earlier, later, pattern, message)
+  segment = source_slice(path, earlier, later, message)
+  matched = pattern.is_a?(Regexp) ? segment.match?(pattern) : segment.include?(pattern)
+  raise message unless matched
+end
+
+assert_slice_contains(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "SelectedCategorySummaryView(",
+  "if visibleTasks.isEmpty",
+  /SelectedCategorySummaryView\([\s\S]*?onAddTask:\s*\{\s*showingEditor = true\s*\}[\s\S]*?onClear:\s*\{\s*selectedCategory = nil\s*\}/,
+  "Schedule category summary must wire add and clear actions"
+)
+
+assert_slice_contains(
+  "ChronoFocus/Views/TimerView.swift",
+  "TimerSelectedTaskCategorySummaryView(",
+  "if upcomingTasks.isEmpty",
+  /TimerSelectedTaskCategorySummaryView\([\s\S]*?onClear: clearTaskCategoryFilter/,
+  "Timer category summary must use clearTaskCategoryFilter"
+)
+
+assert_slice_contains(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "MacSelectedCategorySummaryView(",
+  "if visibleTasks.isEmpty",
+  /MacSelectedCategorySummaryView\([\s\S]*?\)\s*\{\s*selectedCategory = nil\s*\}/,
+  "Mac category summary must wire clear action"
+)
+RUBY
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
 grep -q "makeToneWavData(for completionSound: CompletionSound)" ChronoFocus/Services/NotificationService.swift
 grep -q "completionSound.frequencies" ChronoFocus/Services/NotificationService.swift
