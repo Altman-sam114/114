@@ -210,6 +210,9 @@ grep -q "MacDetailSelection" ChronoFocusMac/Views/MacDetailView.swift
 grep -q "openDetails(.schedule)" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "openDetails(.analytics)" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "openDetails(.settings)" ChronoFocusMac/Views/MacMiniTimerView.swift
+grep -q "MacMiniTaskCategoryBadgeView" ChronoFocusMac/Views/MacMiniTimerView.swift
+grep -q "taskContextText(for task: FocusTask)" ChronoFocusMac/Views/MacMiniTimerView.swift
+grep -q "TaskCategoryPreset.matching(task.category)" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "CHRONOFOCUS_MAC_OPEN_DETAILS" ChronoFocusMac/App/ChronoFocusMacApp.swift
 grep -q "CHRONOFOCUS_MAC_OPEN_POPOVER" ChronoFocusMac/App/ChronoFocusMacApp.swift
 grep -q "NavigationSplitView" ChronoFocusMac/Views/MacDetailView.swift

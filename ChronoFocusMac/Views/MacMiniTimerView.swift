@@ -19,7 +19,7 @@ struct MacMiniTimerView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            VStack(spacing: 18) {
+            VStack(spacing: 16) {
                 MacMiniHeaderView(isShowingQuickPanel: $isShowingQuickPanel)
                 MacMiniClockView(currentTint: currentTint)
                 MacMiniControlsView(currentTint: currentTint)
@@ -230,16 +230,22 @@ private struct MacMiniTaskPickerView: View {
                         Circle()
                             .fill(Color(hex: task.accentHex))
                             .frame(width: 8, height: 8)
-                        Text(task.title)
-                            .font(.subheadline)
-                            .foregroundStyle(MacTheme.primaryText)
-                            .lineLimit(1)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(task.title)
+                                .font(.subheadline)
+                                .foregroundStyle(MacTheme.primaryText)
+                                .lineLimit(1)
+                            MacMiniTaskCategoryBadgeView(task: task)
+                        }
+                        .layoutPriority(1)
                         Spacer()
-                        Text(task.dueDate?.shortTimeText ?? task.category)
+                        Text(taskContextText(for: task))
                             .font(.caption)
                             .foregroundStyle(MacTheme.secondaryText)
+                            .monospacedDigit()
+                            .lineLimit(1)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
                     .padding(.horizontal, 10)
                     .background(rowBackground(for: task), in: RoundedRectangle(cornerRadius: 8))
                 }
@@ -253,6 +259,46 @@ private struct MacMiniTaskPickerView: View {
 
     private func rowBackground(for task: FocusTask) -> Color {
         engine.selectedTaskID == task.id ? currentTint.opacity(0.18) : Color.white.opacity(0.05)
+    }
+
+    private func taskContextText(for task: FocusTask) -> String {
+        if let dueDate = task.dueDate {
+            return dueDate.shortTimeText
+        }
+
+        switch task.startMode {
+        case .openEnded:
+            return "只设开始"
+        case .plannedRounds:
+            return "\(task.remainingRounds) 轮"
+        }
+    }
+}
+
+private struct MacMiniTaskCategoryBadgeView: View {
+    let task: FocusTask
+
+    private var tint: Color {
+        Color(hex: task.accentHex)
+    }
+
+    private var symbolName: String {
+        TaskCategoryPreset.matching(task.category)?.symbolName ?? "tag.fill"
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbolName)
+                .font(.caption2.bold())
+            Text(task.category)
+                .font(.caption2.bold())
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 2)
+        .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }
 
