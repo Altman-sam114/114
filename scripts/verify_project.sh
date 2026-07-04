@@ -254,9 +254,203 @@ grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
 grep -q "Project structure verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_SUMMARY_ENTRIES" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_JUNIT_TESTCASES" scripts/validate_ci_artifact.rb
+grep -q "manifest paths" scripts/validate_ci_artifact.rb
+grep -q "index required paths" scripts/validate_ci_artifact.rb
+grep -q "index required local artifacts" scripts/validate_ci_artifact.rb
+grep -q "failure summary log entries" scripts/validate_ci_artifact.rb
+grep -q "junit testcase names" scripts/validate_ci_artifact.rb
 grep -q "xcrun.*simctl" scripts/resolve_ios_simulator_destination.rb
 grep -q "platform=iOS Simulator,id=" scripts/resolve_ios_simulator_destination.rb
 grep -q "print_build_command" scripts/resolve_ios_simulator_destination.rb
+artifact_fixture="$(mktemp -d)"
+python3 - "$artifact_fixture" <<'PY'
+import json
+import os
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+root = Path(sys.argv[1])
+commit = "fixture-sha"
+run_id = "12345"
+attempt = "1"
+
+snapshot_dir = root / "project-reports" / "mac-snapshots"
+snapshot_dir.mkdir(parents=True)
+(root / "ChronoFocusMac.xcresult").mkdir()
+(root / "ChronoFocus-iOS.xcresult").mkdir()
+
+files = {
+    "static-checks.log": "Running committed diff whitespace check...\nyaml ok\n",
+    "verify_project.log": "Mac core tests passed.\nProject structure verified.\n",
+    "xcodebuild.log": "** BUILD SUCCEEDED **\n",
+    "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
+    "xcode-version.log": "Xcode 16.0\n",
+    "ci-run-context.txt": f"branch=main\ncommitSha={commit}\nrunId={run_id}\nrunAttempt={attempt}\n",
+}
+
+for relative_path, content in files.items():
+    (root / relative_path).write_text(content, encoding="utf-8")
+
+(root / "ChronoFocusMac.xcresult" / "Info.plist").write_text("mac result\n", encoding="utf-8")
+(root / "ChronoFocus-iOS.xcresult" / "Info.plist").write_text("ios result\n", encoding="utf-8")
+
+snapshots = [
+    "mini-timer.png",
+    "detail-timer.png",
+    "detail-schedule.png",
+    "detail-analytics.png",
+    "detail-settings.png",
+]
+for name in snapshots:
+    (snapshot_dir / name).write_bytes(b"png-data")
+
+snapshot_manifest = {
+    "generatedAt": "2026-07-04T00:00:00Z",
+    "snapshots": [
+        {"fileName": name, "width": 100, "height": 80, "byteCount": 8}
+        for name in snapshots
+    ],
+}
+(snapshot_dir / "manifest.json").write_text(
+    json.dumps(snapshot_manifest, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+
+summary = f"""# ChronoFocus CI Failure Summary
+
+- Version: `v0.10`
+- Branch: `main`
+- Commit: `{commit}`
+- Run: `{run_id}` attempt `{attempt}`
+- Static checks: `success`
+- Project verification: `success`
+- Mac build: `success`
+- iOS build: `success`
+
+## Logs
+
+- Static checks: `ci-results/static-checks.log`
+- Project verification: `ci-results/verify_project.log`
+- Mac build: `ci-results/xcodebuild.log`
+- Xcode result bundle: `ci-results/ChronoFocusMac.xcresult`
+- iOS build: `ci-results/ios-xcodebuild.log`
+- iOS Xcode result bundle: `ci-results/ChronoFocus-iOS.xcresult`
+- Mac snapshots: `ci-results/project-reports/mac-snapshots/`
+
+All CI stages passed.
+"""
+(root / "ci-failure-summary.md").write_text(summary, encoding="utf-8")
+
+tests = [
+    ("staticChecks", "ci-results/static-checks.log"),
+    ("projectVerification", "ci-results/verify_project.log"),
+    ("macBuild", "ci-results/xcodebuild.log"),
+    ("iosBuild", "ci-results/ios-xcodebuild.log"),
+]
+suite = ET.Element("testsuite", name="ChronoFocus CI Results", tests="4", failures="0")
+for name, log_path in tests:
+    case = ET.SubElement(suite, "testcase", name=name, classname="ChronoFocusCI")
+    ET.SubElement(case, "system-out").text = f"outcome=success; log={log_path}"
+ET.ElementTree(suite).write(root / "junit.xml", encoding="utf-8", xml_declaration=True)
+
+manifest = {
+    "version": "v0.10",
+    "branch": "main",
+    "commitSha": commit,
+    "runId": run_id,
+    "runAttempt": attempt,
+    "workflowName": "ChronoFocus CI Results",
+    "resultBundlePath": "ci-results/ChronoFocusMac.xcresult",
+    "macResultBundlePath": "ci-results/ChronoFocusMac.xcresult",
+    "iosResultBundlePath": "ci-results/ChronoFocus-iOS.xcresult",
+    "junitPath": "ci-results/junit.xml",
+    "buildLogPath": "ci-results/xcodebuild.log",
+    "macBuildLogPath": "ci-results/xcodebuild.log",
+    "iosBuildLogPath": "ci-results/ios-xcodebuild.log",
+    "failureSummaryPath": "ci-results/ci-failure-summary.md",
+    "artifactIndexPath": "ci-results/ci-artifact-index.json",
+    "staticChecksOutcome": "success",
+    "projectVerificationOutcome": "success",
+    "buildOutcome": "success",
+    "macBuildOutcome": "success",
+    "iosBuildOutcome": "success",
+    "testOutcome": "success",
+}
+(root / "ci-artifact-manifest.json").write_text(
+    json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+(root / "ci-artifact-index.json").write_text("{}\n", encoding="utf-8")
+
+index_paths = [
+    "ci-results/ci-artifact-manifest.json",
+    "ci-results/ci-artifact-index.json",
+    "ci-results/ci-failure-summary.md",
+    "ci-results/junit.xml",
+    "ci-results/static-checks.log",
+    "ci-results/verify_project.log",
+    "ci-results/xcodebuild.log",
+    "ci-results/ios-xcodebuild.log",
+    "ci-results/xcode-version.log",
+    "ci-results/ci-run-context.txt",
+    "ci-results/ChronoFocusMac.xcresult",
+    "ci-results/ChronoFocus-iOS.xcresult",
+    "ci-results/project-reports/mac-snapshots",
+    "ci-results/project-reports/mac-snapshots/manifest.json",
+    "ci-results/project-reports/mac-snapshots/mini-timer.png",
+    "ci-results/project-reports/mac-snapshots/detail-timer.png",
+    "ci-results/project-reports/mac-snapshots/detail-schedule.png",
+    "ci-results/project-reports/mac-snapshots/detail-analytics.png",
+    "ci-results/project-reports/mac-snapshots/detail-settings.png",
+]
+
+def local_path(contract_path):
+    prefix = "ci-results/"
+    relative_path = contract_path[len(prefix):] if contract_path.startswith(prefix) else contract_path
+    return root / relative_path
+
+def metadata(contract_path):
+    path = local_path(contract_path)
+    entry = {"path": contract_path, "required": True, "exists": path.exists()}
+    if path.is_file():
+        entry.update({"kind": "file", "byteCount": path.stat().st_size})
+    elif path.is_dir():
+        files = [child for child in path.rglob("*") if child.is_file()]
+        entry.update({
+            "kind": "directory",
+            "fileCount": len(files),
+            "recursiveByteCount": sum(child.stat().st_size for child in files),
+        })
+    else:
+        entry["kind"] = "missing"
+    return entry
+
+index = {
+    "version": "v0.10",
+    "branch": "main",
+    "commitSha": commit,
+    "runId": run_id,
+    "runAttempt": attempt,
+    "entries": [metadata(path) for path in index_paths],
+}
+index["totals"] = {
+    "entryCount": len(index["entries"]),
+    "missingRequiredCount": sum(
+        1 for entry in index["entries"]
+        if entry["required"] and not entry["exists"]
+    ),
+}
+(root / "ci-artifact-index.json").write_text(
+    json.dumps(index, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >/dev/null
+rm -rf "$artifact_fixture"
 simctl_fixture="$(mktemp)"
 python3 - "$simctl_fixture" <<'PY'
 import json

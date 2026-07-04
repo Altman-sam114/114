@@ -14,7 +14,7 @@
 
 - iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/音色/振动、亮暗主题。
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
-- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、计时页/日程页分类筛选/预填/排序/摘要标记、iOS 设置页音色选择、Mac 小窗分类上下文、CI 结果包校验脚本、Mac 核心测试、Mac UI 快照和快照 manifest。
+- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、计时页/日程页分类筛选/预填/排序/摘要标记、iOS 设置页音色选择、Mac 小窗分类上下文、CI 结果包校验脚本与小型 fixture、Mac 核心测试、Mac UI 快照和快照 manifest。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、artifact index、Mac 快照 manifest 和失败阶段关键错误摘录。
 
@@ -32,6 +32,38 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.16 / CI 结果包校验收紧
+
+日期：2026-07-04
+
+核心变更：
+
+- `scripts/validate_ci_artifact.rb` 显式核对 manifest 关键路径字段、artifact index 必需路径和 kind、下载后本地文件/目录非空状态。
+- validator 增加 JUnit 四个 testcase 名称与日志入口、failure summary 日志入口和 Mac 快照本地文件存在性检查。
+- `scripts/verify_project.sh` 增加小型 CI artifact fixture，覆盖 validator 新增路径 contract。
+- README、测试规范和核心流程文档同步结构化复判覆盖范围。
+
+关键文件：
+
+- `scripts/validate_ci_artifact.rb`
+- `scripts/verify_project.sh`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/prompt/v0（持续优化）/v0.16（CI结果包校验收紧）.md`
+- `update_log.md`
+
+验证结果：
+
+- 已运行 `ruby -c scripts/validate_ci_artifact.rb`，输出 `Syntax OK`。
+- 已用 v0.15 最新下载结果包运行 `ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-28709905752 --commit dd52b6a0c55ea13b8e94d9cae94d7d0954b48a92 --run-id 28709905752 --attempt 1`，输出全 PASS。
+- 已运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照和 `/tmp/chronofocus-mac-snapshots/manifest.json`。
+- 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
+
+遗留事项：
+
+- 总目标仍未完成；v0.16 通过后可继续寻找更多 UI 分类细节优化点或补 StoreKit/EventKit 自动化测试替身。
 
 ### v0.15 / StoreKit 与日历同步本地说明
 

@@ -93,6 +93,8 @@ ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id> 
   --attempt <run_attempt>
 ```
 
+该脚本会核对 manifest 的分支/提交/run/attempt/关键路径、artifact index 的必需路径和本地文件/目录非空状态、JUnit 四个阶段 testcase、failure summary 的日志入口、Mac/iOS build 成功标记和 Mac 快照 manifest。
+
 可用 `agentx:`、`x:` 或 `X:` 启动主控循环。Agent X 接收总目标并拆分多轮 A/B/C 迭代；它不直接替代 Agent A 的提示词、Agent B 的实现 push，也不替代 Agent C 对最新云端 artifact 的验收。
 
 本轮流程不使用 `smalldata_test`、`develop`、`codeb/...` 或 PR 合并流；现存非 main 分支只作为历史现状保留。

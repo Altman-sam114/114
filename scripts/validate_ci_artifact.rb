@@ -13,6 +13,64 @@ EXPECTED_SNAPSHOTS = %w[
   detail-settings.png
 ].freeze
 
+EXPECTED_INDEX_ENTRIES = {
+  "ci-results/ci-artifact-manifest.json" => "file",
+  "ci-results/ci-artifact-index.json" => "file",
+  "ci-results/ci-failure-summary.md" => "file",
+  "ci-results/junit.xml" => "file",
+  "ci-results/static-checks.log" => "file",
+  "ci-results/verify_project.log" => "file",
+  "ci-results/xcodebuild.log" => "file",
+  "ci-results/ios-xcodebuild.log" => "file",
+  "ci-results/xcode-version.log" => "file",
+  "ci-results/ci-run-context.txt" => "file",
+  "ci-results/ChronoFocusMac.xcresult" => "directory",
+  "ci-results/ChronoFocus-iOS.xcresult" => "directory",
+  "ci-results/project-reports/mac-snapshots" => "directory",
+  "ci-results/project-reports/mac-snapshots/manifest.json" => "file",
+  "ci-results/project-reports/mac-snapshots/mini-timer.png" => "file",
+  "ci-results/project-reports/mac-snapshots/detail-timer.png" => "file",
+  "ci-results/project-reports/mac-snapshots/detail-schedule.png" => "file",
+  "ci-results/project-reports/mac-snapshots/detail-analytics.png" => "file",
+  "ci-results/project-reports/mac-snapshots/detail-settings.png" => "file"
+}.freeze
+
+EXPECTED_MANIFEST_PATHS = {
+  "resultBundlePath" => "ci-results/ChronoFocusMac.xcresult",
+  "macResultBundlePath" => "ci-results/ChronoFocusMac.xcresult",
+  "iosResultBundlePath" => "ci-results/ChronoFocus-iOS.xcresult",
+  "junitPath" => "ci-results/junit.xml",
+  "buildLogPath" => "ci-results/xcodebuild.log",
+  "macBuildLogPath" => "ci-results/xcodebuild.log",
+  "iosBuildLogPath" => "ci-results/ios-xcodebuild.log",
+  "failureSummaryPath" => "ci-results/ci-failure-summary.md",
+  "artifactIndexPath" => "ci-results/ci-artifact-index.json"
+}.freeze
+
+EXPECTED_SUMMARY_ENTRIES = [
+  "Static checks: `ci-results/static-checks.log`",
+  "Project verification: `ci-results/verify_project.log`",
+  "Mac build: `ci-results/xcodebuild.log`",
+  "Xcode result bundle: `ci-results/ChronoFocusMac.xcresult`",
+  "iOS build: `ci-results/ios-xcodebuild.log`",
+  "iOS Xcode result bundle: `ci-results/ChronoFocus-iOS.xcresult`",
+  "Mac snapshots: `ci-results/project-reports/mac-snapshots/`"
+].freeze
+
+EXPECTED_JUNIT_TESTCASES = %w[
+  staticChecks
+  projectVerification
+  macBuild
+  iosBuild
+].freeze
+
+EXPECTED_JUNIT_LOGS = {
+  "staticChecks" => "ci-results/static-checks.log",
+  "projectVerification" => "ci-results/verify_project.log",
+  "macBuild" => "ci-results/xcodebuild.log",
+  "iosBuild" => "ci-results/ios-xcodebuild.log"
+}.freeze
+
 EXPECTED_OUTCOME_KEYS = %w[
   staticChecksOutcome
   projectVerificationOutcome
@@ -70,6 +128,24 @@ rescue StandardError => e
   checks << [name, false, e.message]
 end
 
+def local_artifact_path(artifact_dir, contract_path)
+  relative_path = contract_path.sub(%r{\Aci-results/}, "")
+  File.join(artifact_dir, relative_path)
+end
+
+def positive_local_artifact?(artifact_dir, entry)
+  path = local_artifact_path(artifact_dir, entry.fetch("path"))
+  case entry["kind"]
+  when "file"
+    File.file?(path) && File.size(path).positive?
+  when "directory"
+    File.directory?(path) && Dir.children(path).any? &&
+      Dir.glob(File.join(path, "**", "*")).any? { |child| File.file?(child) && File.size(child).positive? }
+  else
+    false
+  end
+end
+
 begin
 artifact_dir = resolve_artifact_dir(artifact_arg)
 checks = []
@@ -93,8 +169,15 @@ check(checks, "manifest branch") { manifest["branch"] == options["branch"] }
 check(checks, "manifest commit") { manifest["commitSha"] == options["commit"] }
 check(checks, "manifest run") { manifest["runId"] == options["run_id"] }
 check(checks, "manifest attempt") { manifest["runAttempt"] == options["attempt"].to_s }
+check(checks, "manifest paths") do
+  EXPECTED_MANIFEST_PATHS.all? { |key, expected_path| manifest[key] == expected_path }
+end
 EXPECTED_OUTCOME_KEYS.each do |key|
   check(checks, key) { manifest[key] == "success" }
+end
+
+entries_by_path = index.fetch("entries").each_with_object({}) do |entry, lookup|
+  lookup[entry.fetch("path")] = entry
 end
 
 check(checks, "index branch") { index["branch"] == options["branch"] }
@@ -102,7 +185,13 @@ check(checks, "index commit") { index["commitSha"] == options["commit"] }
 check(checks, "index run") { index["runId"] == options["run_id"] }
 check(checks, "index attempt") { index["runAttempt"] == options["attempt"].to_s }
 check(checks, "index missing required") { index.dig("totals", "missingRequiredCount").to_i.zero? }
-check(checks, "index entry count") { index.dig("totals", "entryCount").to_i >= 19 }
+check(checks, "index entry count") { index.dig("totals", "entryCount").to_i >= EXPECTED_INDEX_ENTRIES.length }
+check(checks, "index required paths") do
+  EXPECTED_INDEX_ENTRIES.all? do |path, expected_kind|
+    entry = entries_by_path[path]
+    entry && entry["required"] && entry["exists"] && entry["kind"] == expected_kind
+  end
+end
 check(checks, "index required entry sizes") do
   index.fetch("entries").select { |entry| entry["required"] }.all? do |entry|
     next false unless entry["exists"]
@@ -116,10 +205,29 @@ check(checks, "index required entry sizes") do
     end
   end
 end
+check(checks, "index required local artifacts") do
+  EXPECTED_INDEX_ENTRIES.keys.all? do |path|
+    entry = entries_by_path[path]
+    entry && positive_local_artifact?(artifact_dir, entry)
+  end
+end
 
 check(checks, "junit tests") { junit.attributes["tests"] == "4" }
 check(checks, "junit failures") { junit.attributes["failures"] == "0" }
-check(checks, "failure summary") { File.read(summary_path, encoding: "UTF-8").include?("All CI stages passed.") }
+testcases = junit.get_elements("testcase")
+testcase_names = testcases.map { |testcase| testcase.attributes["name"] }
+check(checks, "junit testcase names") { testcase_names.sort == EXPECTED_JUNIT_TESTCASES.sort }
+check(checks, "junit testcase logs") do
+  testcases.all? do |testcase|
+    expected_log = EXPECTED_JUNIT_LOGS[testcase.attributes["name"]]
+    expected_log && testcase.get_text("system-out").to_s.include?("log=#{expected_log}")
+  end
+end
+summary = File.read(summary_path, encoding: "UTF-8")
+check(checks, "failure summary") { summary.include?("All CI stages passed.") }
+check(checks, "failure summary log entries") do
+  EXPECTED_SUMMARY_ENTRIES.all? { |entry| summary.include?(entry) }
+end
 check(checks, "verify_project core tests") { File.read(verify_log_path, encoding: "UTF-8").include?("Mac core tests passed.") }
 check(checks, "verify_project success") { File.read(verify_log_path, encoding: "UTF-8").include?("Project structure verified.") }
 check(checks, "mac build succeeded") { File.read(mac_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }
@@ -130,9 +238,12 @@ snapshot_names = snapshots.map { |snapshot| snapshot["fileName"] }
 check(checks, "snapshot names") { (EXPECTED_SNAPSHOTS - snapshot_names).empty? && snapshots.length == EXPECTED_SNAPSHOTS.length }
 check(checks, "snapshot dimensions") do
   snapshots.all? do |snapshot|
+    snapshot_path = File.join(artifact_dir, "project-reports", "mac-snapshots", snapshot.fetch("fileName"))
     snapshot["width"].to_i.positive? &&
       snapshot["height"].to_i.positive? &&
-      snapshot["byteCount"].to_i.positive?
+      snapshot["byteCount"].to_i.positive? &&
+      File.file?(snapshot_path) &&
+      File.size(snapshot_path).positive?
   end
 end
 
