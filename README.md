@@ -1,12 +1,12 @@
 # ChronoFocus
 
-一个 SwiftUI 番茄钟 App 原型，包含 iOS 和 macOS 两个版本。iOS 版提供可自定义轮次时间、日历式日程记录、Pro 统计分析、自动番茄钟计划、后台本地通知、可调铃声/振动和 Live Activity 通知栏显示；macOS 版是状态栏应用，点击菜单栏时间胶囊可打开极简番茄钟，也可展开详细窗口管理日程、统计、设置和高级功能。
+一个 SwiftUI 番茄钟 App 原型，包含 iOS 和 macOS 两个版本。iOS 版提供可自定义轮次时间、日历式日程记录、Pro 统计分析、自动番茄钟计划、后台本地通知、可调/可选铃声与振动和 Live Activity 通知栏显示；macOS 版是状态栏应用，点击菜单栏时间胶囊可打开极简番茄钟，也可展开详细窗口管理日程、统计、设置和高级功能。
 
 ## 功能
 
 - 自定义专注、短休、长休时间和长休间隔。
 - 创建日程任务，绑定番茄钟轮次并自动累计进度，可为截止时间调度本地提醒。
-- 计时主界面可调铃声音量，音量为 0 时静音；可开启到点振动；可选择运行时屏幕是否常亮。
+- 计时主界面可调铃声音量，音量为 0 时静音；设置页可选择 App 内到点音色并试听，后台系统通知继续使用系统默认提示声；可开启到点振动；可选择运行时屏幕是否常亮。
 - 支持暗色/亮色两套 UI，可在计时页右上角快速切换。
 - 自动化默认开启，专注、短休、长休会按设置连续流转。
 - 日程页改为日历/待办样式，可按日、周、月和分类查看；待办可启用/停用、循环、到时间自动开启番茄钟。
@@ -52,7 +52,7 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
   -derivedDataPath /tmp/ChronoFocusMacDerivedData build
 ```
 
-验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选和筛选摘要、计时页分类筛选、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 日历权限说明、Mac 快照 manifest，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
+验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选和筛选摘要、计时页分类筛选、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 日历权限说明、Mac 快照 manifest，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 

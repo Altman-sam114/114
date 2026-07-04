@@ -17,7 +17,7 @@ flowchart TD
   V --> E["TimerEngine<br/>唯一计时状态机"]
   S --> E
   E --> S
-  E --> N["TimerNotificationServicing<br/>完成通知、任务提醒、声音、振动"]
+  E --> N["TimerNotificationServicing<br/>完成通知、任务提醒、声音/音色、振动"]
   E --> L["TimerLiveActivityServicing<br/>iOS Live Activity / Mac 占位服务"]
   S --> C["统计和计划计算<br/>7 日趋势、分类投入、分类列表、工作压力、PomodoroPlanItem"]
   CAL["CalendarSyncService / MacCalendarSyncService<br/>系统日历事件"] --> S
@@ -49,7 +49,7 @@ flowchart TD
   H -->|停止| K["stop<br/>取消通知和 Live Activity<br/>必要时记录未完成会话"]
   H -->|完成| L["completeCurrentSession<br/>记录 FocusSession"]
   L --> M["专注模式更新任务轮次<br/>更新计划项和任务完成状态"]
-  M --> N["播放提示音/振动<br/>结束 Live Activity<br/>清空 activeTimer"]
+  M --> N["按 completionSound 播放 App 内提示音/振动<br/>结束 Live Activity<br/>清空 activeTimer"]
   N --> O["计算下一模式<br/>短休/长休/专注"]
   O --> P{"自动流转开启?"}
   P -->|是| B

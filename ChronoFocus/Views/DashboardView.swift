@@ -5,6 +5,7 @@ struct DashboardView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
     @EnvironmentObject private var notifications: NotificationService
+    @EnvironmentObject private var premium: PremiumAccessService
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: AppTab = .timer
 
@@ -30,7 +31,15 @@ struct DashboardView: View {
         .background(AppTheme.background.ignoresSafeArea())
         .task {
             await notifications.refreshAuthorizationStatus()
+            await premium.refreshEntitlements()
+            enforceCompletionSoundAccess()
             engine.checkScheduledAutoStart()
+        }
+        .onChange(of: premium.isProUnlocked) { _, _ in
+            enforceCompletionSoundAccess()
+        }
+        .onChange(of: store.settings.completionSound) { _, _ in
+            enforceCompletionSoundAccess()
         }
         .onReceive(Timer.publish(every: 30, on: .main, in: .common).autoconnect()) { _ in
             engine.checkScheduledAutoStart()
@@ -44,8 +53,18 @@ struct DashboardView: View {
             if phase == .active {
                 engine.refreshFromClock()
                 engine.checkScheduledAutoStart()
-                Task { await notifications.refreshAuthorizationStatus() }
+                Task {
+                    await notifications.refreshAuthorizationStatus()
+                    await premium.refreshEntitlements()
+                    enforceCompletionSoundAccess()
+                }
             }
+        }
+    }
+
+    private func enforceCompletionSoundAccess() {
+        if !premium.isProUnlocked && store.settings.completionSound.isPro {
+            store.settings.completionSound = .chime
         }
     }
 

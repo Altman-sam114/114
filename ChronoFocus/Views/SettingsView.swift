@@ -13,6 +13,7 @@ struct SettingsView: View {
                     durationPanel
                     automationPanel
                     premiumPanel
+                    soundPanel
                     systemPanel
                 }
                 .padding(18)
@@ -20,6 +21,17 @@ struct SettingsView: View {
             }
             .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("设置")
+            .task {
+                await notifications.refreshAuthorizationStatus()
+                await premium.refreshEntitlements()
+                enforceCompletionSoundAccess()
+            }
+            .onChange(of: premium.isProUnlocked) { _, _ in
+                enforceCompletionSoundAccess()
+            }
+            .onChange(of: store.settings.completionSound) { _, _ in
+                enforceCompletionSoundAccess()
+            }
         }
     }
 
@@ -107,6 +119,61 @@ struct SettingsView: View {
         }
     }
 
+    private var soundPanel: some View {
+        GlassPanel {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Label("铃声与音色", systemImage: "music.note")
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.primaryText)
+                    Spacer()
+                    Text(premium.isProUnlocked ? "已解锁" : "Pro")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(premium.isProUnlocked ? .mint : .cyan)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background((premium.isProUnlocked ? Color.mint : Color.cyan).opacity(0.12), in: Capsule())
+                }
+
+                Picker("音色", selection: $store.settings.completionSound) {
+                    ForEach(CompletionSound.allCases) { sound in
+                        Text(sound.title).tag(sound)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(!premium.isProUnlocked)
+
+                Text(premium.isProUnlocked ? "到点提示和试听会使用当前音色。" : "默认音色可直接使用，更多音色随 Pro 解锁。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryText)
+
+                HStack(spacing: 10) {
+                    Button {
+                        previewCompletionSound()
+                    } label: {
+                        Label("试听", systemImage: "speaker.wave.2.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.cyan)
+                    .disabled(!premium.isProUnlocked && store.settings.completionSound.isPro)
+
+                    if !premium.isProUnlocked {
+                        Button {
+                            Task { await premium.purchasePro() }
+                        } label: {
+                            Label("解锁 Pro", systemImage: "sparkles")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.cyan)
+                        .disabled(premium.isLoading)
+                    }
+                }
+            }
+        }
+    }
+
     private var premiumPanel: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
@@ -189,6 +256,21 @@ struct SettingsView: View {
         default:
             break
         }
+    }
+
+    private func enforceCompletionSoundAccess() {
+        if !premium.isProUnlocked && store.settings.completionSound.isPro {
+            store.settings.completionSound = .chime
+        }
+    }
+
+    private func previewCompletionSound() {
+        enforceCompletionSoundAccess()
+        notifications.playCompletionAlert(
+            soundVolume: store.settings.soundVolume,
+            vibrationEnabled: false,
+            completionSound: store.settings.completionSound
+        )
     }
 }
 

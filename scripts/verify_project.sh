@@ -133,8 +133,15 @@ grep -q "reportPanel" ChronoFocus/Views/AnalyticsView.swift
 grep -q "ReportRange" ChronoFocus/Models/AppModels.swift
 grep -q "工作复盘报表" ChronoFocus/Views/AnalyticsView.swift
 grep -q "premiumPanel" ChronoFocus/Views/SettingsView.swift
+grep -q "soundPanel" ChronoFocus/Views/SettingsView.swift
+grep -q "CompletionSound.allCases" ChronoFocus/Views/SettingsView.swift
+grep -q "previewCompletionSound" ChronoFocus/Views/SettingsView.swift
+grep -q "enforceCompletionSoundAccess" ChronoFocus/Views/SettingsView.swift
+grep -q "premium.refreshEntitlements" ChronoFocus/Views/DashboardView.swift
+grep -q "store.settings.completionSound.isPro" ChronoFocus/Views/DashboardView.swift
 grep -q "taskDueRemindersEnabled" ChronoFocus/Models/AppModels.swift
 grep -q "soundVolume" ChronoFocus/Models/AppModels.swift
+grep -q "completionSound" ChronoFocus/Models/AppModels.swift
 grep -q "vibrationEnabled" ChronoFocus/Models/AppModels.swift
 grep -q "keepScreenAwake" ChronoFocus/Models/AppModels.swift
 grep -q "AppThemeMode" ChronoFocus/Models/AppModels.swift
@@ -191,6 +198,8 @@ grep -q "TimerTaskCategoryFilterBar" ChronoFocus/Views/TimerView.swift
 grep -q "TimerTaskCategoryBadge" ChronoFocus/Views/TimerView.swift
 grep -q "TaskCategoryPreset.prioritizedFilterOptions(categories: categories)" ChronoFocus/Views/TimerView.swift
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
+grep -q "makeToneWavData(for completionSound: CompletionSound)" ChronoFocus/Services/NotificationService.swift
+grep -q "completionSound.frequencies" ChronoFocus/Services/NotificationService.swift
 grep -q "LSUIElement = YES" "$project"
 grep -q "MACOSX_DEPLOYMENT_TARGET = 14.0" "$project"
 grep -q "NSCalendarsFullAccessUsageDescription" "$project"
