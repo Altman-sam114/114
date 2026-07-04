@@ -110,10 +110,19 @@ private struct MacTimerDialView: View {
 
 private struct MacTimerActionRowView: View {
     @EnvironmentObject private var engine: TimerEngine
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     let currentTint: Color
 
     var body: some View {
+        if isSnapshotRendering {
+            MacStaticTimerActionRowView(currentTint: currentTint)
+        } else {
+            interactiveActionRow
+        }
+    }
+
+    private var interactiveActionRow: some View {
         HStack(spacing: 12) {
             Button("停止", systemImage: "stop.fill") {
                 engine.stop()
@@ -147,6 +156,30 @@ private struct MacTimerActionRowView: View {
         } else {
             engine.pause()
         }
+    }
+}
+
+private struct MacStaticTimerActionRowView: View {
+    let currentTint: Color
+
+    var body: some View {
+        HStack(spacing: 12) {
+            staticChip(title: "停止", symbolName: "stop.fill", tint: MacTheme.secondaryText, isProminent: false)
+            staticChip(title: "跳过", symbolName: "forward.end.fill", tint: MacTheme.secondaryText, isProminent: false)
+            staticChip(title: "开始", symbolName: "play.fill", tint: currentTint, isProminent: true)
+        }
+    }
+
+    private func staticChip(title: String, symbolName: String, tint: Color, isProminent: Bool) -> some View {
+        Label(title, systemImage: symbolName)
+            .font(.headline)
+            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
+            .frame(minWidth: 96, minHeight: 44)
+            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(isProminent ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)
+            }
     }
 }
 

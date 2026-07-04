@@ -46,6 +46,7 @@
 - iOS 日程页选中分类后新增待办会自动预填该分类和匹配预设色；编辑已有待办不受当前筛选影响。
 - macOS 日程详情把待办分类筛选状态上提，选中分类时同步快速新增区域的分类和预设色。
 - iOS 分类筛选 chip 和常用分类快选按钮提升到 44pt 最小高度。
+- Mac 计时详情页在快照渲染时使用静态操作按钮，避免 CI `ImageRenderer` 将原生按钮渲为黄色缺失控件占位。
 - `scripts/test_mac_core.swift` 增加空白分类归一、默认分类顺序、预设元数据、筛选排序和 fallback 元数据断言。
 - `scripts/verify_project.sh` 增加分类排序 helper、新建预填、44pt 点击高度和 macOS binding/onChange 标记检查。
 - `.github/workflows/ci-results.yml` 的 `CI_PROCESS_VERSION` 更新为 v0.6。
@@ -55,6 +56,7 @@
 - `ChronoFocus/Models/AppModels.swift`
 - `ChronoFocus/Views/ScheduleView.swift`
 - `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `ChronoFocusMac/Views/MacTimerDetailView.swift`
 - `scripts/test_mac_core.swift`
 - `scripts/verify_project.sh`
 - `.github/workflows/ci-results.yml`
@@ -70,9 +72,11 @@
 - 已运行 `git diff --check`，通过。
 - 已运行 `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
 - 已运行 `plutil -lint ChronoFocus.xcodeproj/project.pbxproj`，输出 `ChronoFocus.xcodeproj/project.pbxproj: OK`。
-- 首次运行 `bash scripts/verify_project.sh` 发现新增 grep 标记在 `set -u` 下误展开 `$selectedCategory`，已改为单引号字面量。
-- 修复后重新运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照。
-- 已查看 `/tmp/chronofocus-mac-snapshots/detail-schedule.png`，分类快选和快速新增区域显示正常，未见黄色缺失控件占位。
+- 首次本地运行 `bash scripts/verify_project.sh` 发现新增 grep 标记在 `set -u` 下误展开 `$selectedCategory`，已改为单引号字面量。
+- 修复后本地运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照。
+- 首次 v0.6 云端 run `28682521455` 的 static、Mac build 和 iOS build 成功，但 project verification 因 `detail-timer.png` missing-control placeholder 失败。
+- 已将 Mac 计时详情页操作按钮加入快照安全静态路径，并重新本地运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`。
+- 已查看 `/tmp/chronofocus-mac-snapshots/detail-schedule.png` 和 `/tmp/chronofocus-mac-snapshots/detail-timer.png`，分类快选、快速新增区域和计时操作按钮显示正常，未见黄色缺失控件占位。
 - 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
 
 遗留事项：
