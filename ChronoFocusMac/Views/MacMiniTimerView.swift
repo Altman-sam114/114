@@ -8,7 +8,7 @@ struct MacMiniTimerView: View {
     @Environment(\.macSnapshotShowsQuickPanel) private var snapshotShowsQuickPanel
     @State private var isShowingQuickPanel = false
 
-    let openDetails: () -> Void
+    let openDetails: (MacDetailSection) -> Void
 
     private var currentTint: Color {
         if let task = store.task(for: engine.selectedTaskID) {
@@ -29,9 +29,9 @@ struct MacMiniTimerView: View {
             if isShowingQuickPanel {
                 MacMiniQuickPanelView(
                     currentTint: currentTint,
-                    openDetails: {
+                    openDetails: { section in
                         isShowingQuickPanel = false
-                        openDetails()
+                        openDetails(section)
                     }
                 )
                 .padding(.top, 38)
@@ -263,7 +263,7 @@ private struct MacMiniQuickPanelView: View {
     @EnvironmentObject private var notifications: MacNotificationService
 
     let currentTint: Color
-    let openDetails: () -> Void
+    let openDetails: (MacDetailSection) -> Void
 
     private let quickFocusMinutes = [15, 25, 45]
 
@@ -336,9 +336,15 @@ private struct MacMiniQuickPanelView: View {
 
             Divider().opacity(0.28)
 
-            MacMiniQuickButton(title: "日程", value: "", systemImage: "calendar", tint: .blue, isSelected: false, action: openDetails)
-            MacMiniQuickButton(title: "统计", value: "", systemImage: "chart.xyaxis.line", tint: .mint, isSelected: false, action: openDetails)
-            MacMiniQuickButton(title: "设置", value: "更多", systemImage: "slider.horizontal.3", tint: .purple, isSelected: false, action: openDetails)
+            MacMiniQuickButton(title: "日程", value: "", systemImage: "calendar", tint: .blue, isSelected: false) {
+                openDetails(.schedule)
+            }
+            MacMiniQuickButton(title: "统计", value: "", systemImage: "chart.xyaxis.line", tint: .mint, isSelected: false) {
+                openDetails(.analytics)
+            }
+            MacMiniQuickButton(title: "设置", value: "更多", systemImage: "slider.horizontal.3", tint: .purple, isSelected: false) {
+                openDetails(.settings)
+            }
         }
         .padding(14)
         .frame(width: 210)

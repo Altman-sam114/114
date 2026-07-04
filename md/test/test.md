@@ -166,7 +166,7 @@ bash scripts/verify_project.sh
 - 检查项目和 plist 语法。
 - 检查必需文件、工程引用、三个 shared schemes 语法。
 - 检查 Live Activity、本地通知、Pro、日历同步、自动计划、Mac 状态栏等实现标记。
-- 检查分类预设、分类筛选、新建预填、筛选摘要、筛选优先级、44pt iOS 分类点击区域、Mac 各详情页快照安全静态控件和 CI iOS 结果包实现标记。
+- 检查分类预设、分类筛选、新建预填、筛选摘要、筛选优先级、44pt iOS 分类点击区域、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件和 CI iOS/错误摘录结果包实现标记。
 - 编译并运行 Mac core tests。
 - 渲染 Mac 快照到 `/tmp/chronofocus-mac-snapshots/`，并生成 `manifest.json` 记录 5 张快照的文件名、尺寸和字节数。
 - 最终输出 `Project structure verified.`。
@@ -220,7 +220,7 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
 结果包最低内容：
 
 - `ci-artifact-manifest.json`：记录版本、branch、commitSha、run id、run attempt、workflow、Mac/iOS scheme、Mac/iOS destination、日志路径、结果路径和各阶段 outcome。
-- `ci-failure-summary.md`：记录通过/失败摘要和日志入口。
+- `ci-failure-summary.md`：记录通过/失败摘要和日志入口；存在失败阶段时追加有限 `Failure Excerpts` 错误摘录。
 - `junit.xml`：Agent C 可读的阶段摘要。
 - `xcodebuild.log`：Mac build 主日志。
 - `ios-xcodebuild.log`：iOS `ChronoFocus` scheme generic build 主日志。
@@ -239,7 +239,7 @@ Agent C 验收时必须核对：
 - `staticChecksOutcome`、`projectVerificationOutcome`、`buildOutcome`、`macBuildOutcome`、`iosBuildOutcome` 均为 `success`。
 - failure summary、JUnit、主日志和项目专属产物存在且不是旧 checkout 里的遗留文件。
 - `junit.xml` 必须包含 `staticChecks`、`projectVerification`、`macBuild`、`iosBuild` 四个 testcase。
-- `ci-failure-summary.md` 和 GitHub Step Summary 必须列出 iOS build 状态、`ios-xcodebuild.log` 和 `ChronoFocus-iOS.xcresult`。
+- `ci-failure-summary.md` 和 GitHub Step Summary 必须列出 iOS build 状态、`ios-xcodebuild.log` 和 `ChronoFocus-iOS.xcresult`；若任一阶段失败，必须包含 `Failure Excerpts` 并按阶段摘录关键错误行。
 - Mac 快照 manifest 必须包含 `mini-timer.png`、`detail-timer.png`、`detail-schedule.png`、`detail-analytics.png`、`detail-settings.png` 五个条目，且每项 `width`、`height`、`byteCount` 均大于 0。
 - workflow 的 Final CI status 必须把 iOS build outcome 纳入失败判定。
 

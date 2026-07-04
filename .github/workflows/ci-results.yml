@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  CI_PROCESS_VERSION: v0.7
+  CI_PROCESS_VERSION: v0.8
   PROJECT_NAME: ChronoFocus
   XCODE_PROJECT: ChronoFocus.xcodeproj
   MAC_SCHEME: ChronoFocusMac
@@ -134,6 +134,7 @@ jobs:
           python3 - <<'PY'
           import json
           import os
+          import re
           import xml.etree.ElementTree as ET
           from datetime import datetime, timezone
           from pathlib import Path
@@ -151,6 +152,40 @@ jobs:
               ("macBuild", build_outcome, "ci-results/xcodebuild.log"),
               ("iosBuild", ios_build_outcome, "ci-results/ios-xcodebuild.log"),
           ]
+          failure_pattern = re.compile(
+              r"(error:|BUILD FAILED|TEST FAILED|SnapshotError|missing-control|Traceback|Exception|fatal error|Command failed|exit code|No such file|not found|Unexpected|Invalid|appears blank|placeholder)",
+              re.IGNORECASE,
+          )
+
+          def compact_log_line(line, limit=220):
+              compacted = " ".join(line.strip().split())
+              if len(compacted) <= limit:
+                  return compacted
+              return compacted[: limit - 3] + "..."
+
+          def failure_excerpts(outcome, log_path, max_lines=8):
+              if outcome == "success":
+                  return []
+              path = Path(log_path)
+              if not path.exists():
+                  return [f"Log missing: {log_path}"]
+
+              log_lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+              excerpts = []
+              seen = set()
+              for line_number, line in enumerate(log_lines, start=1):
+                  if not failure_pattern.search(line):
+                      continue
+                  excerpt = compact_log_line(line)
+                  if not excerpt or excerpt in seen:
+                      continue
+                  seen.add(excerpt)
+                  excerpts.append(f"{line_number}: {excerpt}")
+                  if len(excerpts) >= max_lines:
+                      return excerpts
+
+              fallback_tail = [compact_log_line(line) for line in log_lines if line.strip()]
+              return [f"tail: {line}" for line in fallback_tail[-max_lines:]] or [f"No log content: {log_path}"]
 
           manifest = {
               "version": os.environ["CI_PROCESS_VERSION"],
@@ -260,6 +295,13 @@ jobs:
           if failed:
               lines.extend(["", "## Failed Stages", ""])
               lines.extend(f"- `{name}`" for name in failed)
+              lines.extend(["", "## Failure Excerpts", ""])
+              for name, outcome, log_path in tests:
+                  if outcome == "success":
+                      continue
+                  lines.extend([f"### `{name}`", "", "```text"])
+                  lines.extend(failure_excerpts(outcome, log_path))
+                  lines.extend(["```", ""])
           else:
               lines.extend(["", "All CI stages passed."])
           (result_dir / "ci-failure-summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")

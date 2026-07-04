@@ -191,6 +191,11 @@ grep -q "MACOSX_DEPLOYMENT_TARGET = 14.0" "$project"
 grep -q "NSCalendarsFullAccessUsageDescription" "$project"
 grep -q "NSStatusBar.system.statusItem" ChronoFocusMac/App/MacStatusBarController.swift
 grep -q "NSPopover" ChronoFocusMac/App/MacStatusBarController.swift
+grep -q "showDetails(section:" ChronoFocusMac/App/MacStatusBarController.swift
+grep -q "MacDetailSelection" ChronoFocusMac/Views/MacDetailView.swift
+grep -q "openDetails(.schedule)" ChronoFocusMac/Views/MacMiniTimerView.swift
+grep -q "openDetails(.analytics)" ChronoFocusMac/Views/MacMiniTimerView.swift
+grep -q "openDetails(.settings)" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "CHRONOFOCUS_MAC_OPEN_DETAILS" ChronoFocusMac/App/ChronoFocusMacApp.swift
 grep -q "CHRONOFOCUS_MAC_OPEN_POPOVER" ChronoFocusMac/App/ChronoFocusMacApp.swift
 grep -q "NavigationSplitView" ChronoFocusMac/Views/MacDetailView.swift
@@ -227,6 +232,10 @@ grep -q "generic/platform=iOS" .github/workflows/ci-results.yml
 grep -q "iosBuildOutcome" .github/workflows/ci-results.yml
 grep -q "ChronoFocus-iOS.xcresult" .github/workflows/ci-results.yml
 grep -q "ios-xcodebuild.log" .github/workflows/ci-results.yml
+grep -q "Failure Excerpts" .github/workflows/ci-results.yml
+grep -q "failure_excerpts" .github/workflows/ci-results.yml
+grep -q "SnapshotError" .github/workflows/ci-results.yml
+grep -q "BUILD FAILED" .github/workflows/ci-results.yml
 
 echo "Running Mac core tests..."
 xcrun --sdk macosx swiftc \

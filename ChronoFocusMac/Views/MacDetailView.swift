@@ -1,11 +1,20 @@
 import SwiftUI
 
+@MainActor
+final class MacDetailSelection: ObservableObject {
+    @Published var selectedSection: MacDetailSection?
+
+    init(selectedSection: MacDetailSection = .timer) {
+        self.selectedSection = selectedSection
+    }
+}
+
 struct MacDetailView: View {
-    @State private var selectedSection: MacDetailSection? = .timer
+    @ObservedObject var selection: MacDetailSelection
 
     var body: some View {
         NavigationSplitView {
-            List(MacDetailSection.allCases, selection: $selectedSection) { section in
+            List(MacDetailSection.allCases, selection: $selection.selectedSection) { section in
                 Label(section.title, systemImage: section.symbolName)
                     .tag(section)
             }
@@ -14,7 +23,7 @@ struct MacDetailView: View {
             .background(Color.black.opacity(0.18))
             .frame(minWidth: 190)
         } detail: {
-            MacDetailContentView(section: selectedSection ?? .timer)
+            MacDetailContentView(section: selection.selectedSection ?? .timer)
         }
         .background(MacTheme.background)
         .preferredColorScheme(.dark)
@@ -42,7 +51,7 @@ private struct MacDetailContentView: View {
     }
 }
 
-private enum MacDetailSection: String, CaseIterable, Identifiable {
+enum MacDetailSection: String, CaseIterable, Identifiable {
     case timer
     case schedule
     case analytics

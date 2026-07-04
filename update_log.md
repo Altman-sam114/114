@@ -16,7 +16,7 @@
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
 - 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、分类筛选/预填/排序/摘要标记、Mac 核心测试、Mac UI 快照和快照 manifest。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
-- 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build 和 Mac 快照 manifest。
+- 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、Mac 快照 manifest 和失败阶段关键错误摘录。
 
 ## 关键决策
 
@@ -30,11 +30,53 @@
 
 - iOS scheme 已纳入云端 generic build；本机模拟器构建命令和本机 destination 基线仍可继续补强。
 - StoreKit 和 EventKit 仍缺少更明确的本地 mock 或配置说明。
-- Mac 小窗快捷入口可以继续优化为打开详细窗口并定位到指定 tab。
+- Mac 小窗待办行可继续补强分类 badge 或更多上下文，帮助从小窗快速选任务。
 - iOS 端尚未明确是否需要同步提供 `CompletionSound` 多铃声选择 UI。
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.8 / Mac 快捷入口与 CI 错误摘录
+
+日期：2026-07-04
+
+核心变更：
+
+- macOS 小窗快捷面板的“日程”“统计”“设置”入口会直接打开或切换到对应详情 Tab。
+- `MacStatusBarController` 持有共享 `MacDetailSelection`，详情窗口已打开时复用窗口并更新选中 Tab。
+- 右键菜单和 `CHRONOFOCUS_MAC_OPEN_DETAILS` 仍默认打开计时详情。
+- `.github/workflows/ci-results.yml` 的 `CI_PROCESS_VERSION` 更新为 v0.8。
+- `ci-failure-summary.md` 在任一阶段失败时追加 `Failure Excerpts`，按阶段从对应日志摘录有限关键错误行。
+- `scripts/verify_project.sh` 增加 Mac 小窗直达详情入口和 CI 错误摘录实现标记检查。
+
+关键文件：
+
+- `ChronoFocusMac/App/MacStatusBarController.swift`
+- `ChronoFocusMac/Views/MacDetailView.swift`
+- `ChronoFocusMac/Views/MacMiniTimerView.swift`
+- `scripts/render_mac_snapshots.swift`
+- `.github/workflows/ci-results.yml`
+- `scripts/verify_project.sh`
+- `README.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/test/test.md`
+- `md/prompt/v0（持续优化）/v0.8（Mac快捷入口与CI错误摘录）.md`
+- `update_log.md`
+
+验证结果：
+
+- 已运行 `git diff --check`，通过。
+- 已运行 `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'`，输出 `yaml ok`。
+- 已运行 `plutil -lint ChronoFocus.xcodeproj/project.pbxproj`，输出 `ChronoFocus.xcodeproj/project.pbxproj: OK`。
+- 已运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照和 `/tmp/chronofocus-mac-snapshots/manifest.json`。
+- 已查看 `/tmp/chronofocus-mac-snapshots/mini-timer.png`，小窗快捷面板布局正常，未见黄色缺失控件占位。
+- 已运行 `python3 -m json.tool /tmp/chronofocus-mac-snapshots/manifest.json`，确认 5 张快照均有正数尺寸和字节数。
+- 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
+
+遗留事项：
+
+- 总目标仍未完成；v0.8 通过后继续寻找下一轮 iOS 分类入口、Mac 小窗任务上下文或 CI artifact 完整性优化点。
 
 ### v0.7 / 分类筛选摘要与快照清单
 

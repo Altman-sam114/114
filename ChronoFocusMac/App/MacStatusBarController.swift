@@ -9,6 +9,7 @@ final class MacStatusBarController: NSObject, ObservableObject {
     private let premium: MacPremiumAccessService
     private let calendarSync: MacCalendarSyncService
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let detailSelection = MacDetailSelection()
     private var popover: NSPopover?
     private var detailWindow: NSWindow?
     private var ticker: Timer?
@@ -30,14 +31,16 @@ final class MacStatusBarController: NSObject, ObservableObject {
         startStatusTicker()
     }
 
-    func showDetails() {
+    func showDetails(section: MacDetailSection = .timer) {
+        detailSelection.selectedSection = section
+
         if let detailWindow {
             detailWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
-        let rootView = MacDetailView()
+        let rootView = MacDetailView(selection: detailSelection)
             .environmentObject(store)
             .environmentObject(engine)
             .environmentObject(notifications)
@@ -110,9 +113,9 @@ final class MacStatusBarController: NSObject, ObservableObject {
         popover.animates = true
         popover.contentSize = NSSize(width: 430, height: 500)
         popover.contentViewController = NSHostingController(
-            rootView: MacMiniTimerView(openDetails: { [weak self] in
+            rootView: MacMiniTimerView(openDetails: { [weak self] section in
                 self?.popover?.performClose(nil)
-                self?.showDetails()
+                self?.showDetails(section: section)
             })
             .environmentObject(store)
             .environmentObject(engine)

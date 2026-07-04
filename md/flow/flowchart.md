@@ -109,7 +109,7 @@ flowchart TD
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
   PUSH --> CI["GitHub Actions<br/>ci-results.yml<br/>静态检查、verify_project、Mac build、iOS build"]
-  CI --> ART["未加密 CI 结果包<br/>manifest、failure summary、JUnit、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
+  CI --> ART["未加密 CI 结果包<br/>manifest、failure summary/错误摘录、JUnit、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
   ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id<br/>核对快照 manifest"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>日志和项目专属产物"]
   V --> PASS{"验收通过?"}
@@ -135,7 +135,7 @@ flowchart TD
   X1 --> A["Agent A<br/>写 md/prompt 版本化提示词<br/>包含验证、CI、artifact、Agent C 要求"]
   A --> B["Agent B<br/>按提示词实现<br/>本地轻量检查、commit、push origin/main"]
   B --> CI["GitHub Actions<br/>ci-results.yml<br/>运行静态检查、verify_project、Mac/iOS build"]
-  CI --> ART["最新未加密 artifact<br/>manifest、JUnit、failure summary、日志、xcresult、快照 manifest、项目产物"]
+  CI --> ART["最新未加密 artifact<br/>manifest、JUnit、failure summary/错误摘录、日志、xcresult、快照 manifest、项目产物"]
   ART --> C["Agent C<br/>下载最新 run artifact<br/>核对 branch、commitSha、run id、run attempt"]
   C --> X2["Agent X 读取 Agent C 结论<br/>只基于最新 origin/main artifact 判断"]
   X2 --> D{"下一步判断"}

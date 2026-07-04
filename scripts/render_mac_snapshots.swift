@@ -32,7 +32,7 @@ struct MacSnapshotRenderer {
         let premium = MacPremiumAccessService(loadProductsOnInit: false, isProUnlockedForSnapshots: true)
         let calendarSync = MacCalendarSyncService()
 
-        let miniView = MacMiniTimerView(openDetails: {})
+        let miniView = MacMiniTimerView(openDetails: { _ in })
             .environmentObject(store)
             .environmentObject(engine)
             .environmentObject(notifications)

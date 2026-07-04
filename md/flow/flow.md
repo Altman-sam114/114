@@ -45,7 +45,7 @@ macOS：
 - App 设置为 accessory，无 Dock 图标。
 - 创建 `FocusStore`、`MacNotificationService`、`MacPremiumAccessService`、`MacCalendarSyncService`、`MacLiveActivityService` 和 `TimerEngine`。
 - `MacStatusBarController` 创建状态栏项目，菜单栏显示 `engine.formattedRemaining`。
-- 左键打开 `MacMiniTimerView` popover，右键显示开始/暂停、打开详情、退出菜单。
+- 左键打开 `MacMiniTimerView` popover，快捷面板可直接进入日程、统计或设置详情；右键显示开始/暂停、打开计时详情、退出菜单。
 
 ### 2.2 开始计时
 
@@ -167,7 +167,7 @@ iOS：
 macOS：
 
 - 菜单栏时间胶囊：显示剩余时间。
-- 左键 popover：极简计时器、动态进度条、快捷面板。
+- 左键 popover：极简计时器、动态进度条、快捷面板，并可直接打开日程、统计或设置详情页。
 - 右键菜单：开始/暂停、打开详细界面、退出。
 - 详细窗口：计时、日程、分类筛选、统计、设置。
 
@@ -181,7 +181,7 @@ macOS：
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。
 - `scripts/verify_project.sh` 是结构、标记、核心测试和快照的本地/云端项目专属验证入口。
-- `.github/workflows/ci-results.yml` 是默认云端重验证入口，负责在 `main` push 和手动触发时运行静态检查、项目验证、Mac build 和 iOS generic build，并生成未加密 CI 结果包。
+- `.github/workflows/ci-results.yml` 是默认云端重验证入口，负责在 `main` push 和手动触发时运行静态检查、项目验证、Mac build 和 iOS generic build，并生成未加密 CI 结果包；失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录。
 
 ## 7. 协作与云端验证流
 
@@ -200,7 +200,7 @@ macOS：
 3. Agent B 只提交本轮相关文件，提交信息使用 `vX.Y: 简要说明本版本做了什么`。
 4. Agent B `git push origin main` 触发 GitHub Actions。
 5. `.github/workflows/ci-results.yml` 在云端运行静态检查、`scripts/verify_project.sh`、`ChronoFocusMac` build 和 `ChronoFocus` iOS generic build。
-6. workflow 上传未加密结果包，包含 `ci-artifact-manifest.json`、`ci-failure-summary.md`、`junit.xml`、Mac/iOS build 日志、`verify_project.log`、Mac/iOS `.xcresult`、Mac 快照和 Mac 快照 manifest。
+6. workflow 上传未加密结果包，包含 `ci-artifact-manifest.json`、带失败错误摘录的 `ci-failure-summary.md`、`junit.xml`、Mac/iOS build 日志、`verify_project.log`、Mac/iOS `.xcresult`、Mac 快照和 Mac 快照 manifest。
 7. Agent C 用 `gh auth login` 后下载 artifact 到 `/private/tmp/chronofocus-c-review-<run_id>/`。
 8. Agent C 只验收 manifest 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新状态一致的结果包。
 9. 如果云端失败或结果包不一致，Agent C 不回滚；退回 Agent B 在 `main` 上追加修复 commit 后重新 push。
