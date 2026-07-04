@@ -150,6 +150,7 @@ private struct MacDailyGoalPanelView: View {
 
 private struct MacProPreviewPanelView: View {
     @EnvironmentObject private var premium: MacPremiumAccessService
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     let analysis: WorkloadAnalysis
 
@@ -173,18 +174,23 @@ private struct MacProPreviewPanelView: View {
                 }
 
                 HStack(spacing: 10) {
-                    Button("解锁 Pro", systemImage: "sparkles") {
-                        Task { await premium.purchasePro() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
-                    .disabled(premium.isLoading)
+                    if isSnapshotRendering {
+                        MacStaticAnalyticsActionChipView(title: "解锁 Pro", symbolName: "sparkles", tint: .cyan, isProminent: true)
+                        MacStaticAnalyticsActionChipView(title: "恢复购买", symbolName: "arrow.clockwise", tint: MacTheme.secondaryText, isProminent: false)
+                    } else {
+                        Button("解锁 Pro", systemImage: "sparkles") {
+                            Task { await premium.purchasePro() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.cyan)
+                        .disabled(premium.isLoading)
 
-                    Button("恢复购买", systemImage: "arrow.clockwise") {
-                        Task { await premium.restorePurchases() }
+                        Button("恢复购买", systemImage: "arrow.clockwise") {
+                            Task { await premium.restorePurchases() }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(premium.isLoading)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(premium.isLoading)
                 }
 
                 Text(premium.statusText)
@@ -192,6 +198,27 @@ private struct MacProPreviewPanelView: View {
                     .foregroundStyle(MacTheme.secondaryText)
             }
         }
+    }
+}
+
+private struct MacStaticAnalyticsActionChipView: View {
+    let title: String
+    let symbolName: String
+    let tint: Color
+    let isProminent: Bool
+
+    var body: some View {
+        Label(title, systemImage: symbolName)
+            .font(.subheadline.bold())
+            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
+            .frame(minHeight: 30)
+            .padding(.horizontal, 10)
+            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(isProminent ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)
+            }
+            .accessibilityLabel(title)
     }
 }
 

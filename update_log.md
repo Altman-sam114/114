@@ -24,7 +24,7 @@
 - `TimerEngine` 是唯一计时状态机；View 不维护第二套开始/暂停/完成逻辑。
 - `FocusStore` 是核心数据仓库；任务、设置、会话、计划和活跃计时快照使用 `UserDefaults` JSON 持久化。
 - 平台能力通过协议和服务隔离：iOS 使用本地通知、ActivityKit、StoreKit、EventKit；macOS 使用 AppKit 状态栏、桌面通知、StoreKit、EventKit 和 Live Activity 空实现。
-- Mac 快照渲染中，原生 `Picker`、`Toggle`、`Slider`、`DatePicker`、`Stepper` 和部分 bordered `Button` 可能显示黄色缺失占位；快照路径使用 `macSnapshotRendering` 环境值切换快照安全控件。
+- Mac 快照渲染中，原生 `Picker`、`Toggle`、`Slider`、`DatePicker`、`Stepper` 和部分 bordered/prominent `Button` 可能显示黄色缺失占位；快照路径使用 `macSnapshotRendering` 环境值切换快照安全控件。
 
 ## 遗留问题
 
@@ -48,6 +48,8 @@
 - iOS 分类筛选 chip 和常用分类快选按钮提升到 44pt 最小高度。
 - Mac 计时详情页在快照渲染时使用静态操作按钮，避免 CI `ImageRenderer` 将原生按钮渲为黄色缺失控件占位。
 - Mac 日程详情页在快照渲染时使用静态日程操作 chip 和启用状态 pill，覆盖快速新增、日历导航、日历同步、计划操作和任务列表启用控件。
+- Mac 统计详情页在快照渲染时使用静态统计操作 chip，覆盖 Pro 预览态购买/恢复按钮。
+- Mac 设置详情页在快照渲染时使用静态设置操作 chip，覆盖通知授权、Pro 购买/恢复和铃声试听按钮。
 - `scripts/test_mac_core.swift` 增加空白分类归一、默认分类顺序、预设元数据、筛选排序和 fallback 元数据断言。
 - `scripts/verify_project.sh` 增加分类排序 helper、新建预填、44pt 点击高度和 macOS binding/onChange 标记检查。
 - `.github/workflows/ci-results.yml` 的 `CI_PROCESS_VERSION` 更新为 v0.6。
@@ -58,6 +60,8 @@
 - `ChronoFocus/Views/ScheduleView.swift`
 - `ChronoFocusMac/Views/MacScheduleDetailView.swift`
 - `ChronoFocusMac/Views/MacTimerDetailView.swift`
+- `ChronoFocusMac/Views/MacAnalyticsDetailView.swift`
+- `ChronoFocusMac/Views/MacSettingsDetailView.swift`
 - `scripts/test_mac_core.swift`
 - `scripts/verify_project.sh`
 - `.github/workflows/ci-results.yml`
@@ -79,9 +83,12 @@
 - 已将 Mac 计时详情页操作按钮加入快照安全静态路径，并重新本地运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`。
 - v0.6 修复提交云端 run `28701309467` 的 static、Mac build 和 iOS build 成功，但 project verification 因 `detail-schedule.png` missing-control placeholder 失败。
 - 已将 Mac 日程详情页快速新增、日历导航、日历同步、计划操作、任务列表启用状态加入快照安全静态路径。
+- v0.6 第二次追加修复云端 run `28702188484` 的 static、Mac build 和 iOS build 成功，但 project verification 因 `detail-settings.png` missing-control placeholder 失败。
+- 已将 Mac 设置详情页通知授权、高级功能和 Pro 铃声按钮加入快照安全静态路径；同时补强 Mac 统计详情页 Pro 预览态购买/恢复按钮的快照安全路径。
 - 已重新运行 `git diff --check`，通过。
 - 已重新运行 `bash scripts/verify_project.sh`，输出 `Project structure verified.`，并生成 5 张 Mac 快照。
 - 已查看 `/tmp/chronofocus-mac-snapshots/detail-schedule.png`，分类快选、快速新增区域、日历导航、日历同步和计划按钮显示正常，未见黄色缺失控件占位。
+- 已查看 `/tmp/chronofocus-mac-snapshots/detail-settings.png`，设置开关、音量、铃声和授权按钮显示正常，未见黄色缺失控件占位。
 - 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
 
 遗留事项：
