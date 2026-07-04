@@ -264,6 +264,8 @@ grep -q "EXPECTED_JUNIT_TESTCASES" scripts/validate_ci_artifact.rb
 grep -q "ci-run-context.txt" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
+grep -q "negative_artifact_fixture" scripts/verify_project.sh
+grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "manifest paths" scripts/validate_ci_artifact.rb
 grep -q "index required paths" scripts/validate_ci_artifact.rb
 grep -q "index required local artifacts" scripts/validate_ci_artifact.rb
@@ -457,6 +459,31 @@ index["totals"] = {
 )
 PY
 ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >/dev/null
+negative_artifact_fixture="$(mktemp -d)"
+negative_artifact_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_artifact_fixture"/
+python3 - "$negative_artifact_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+(root / "ci-run-context.txt").write_text(
+    "artifactName=chronofocus-ci-v0.10-main-wrong-run12345-attempt1\n"
+    "branch=main\n"
+    "commitSha=fixture-sha\n"
+    "runId=12345\n"
+    "runAttempt=1\n",
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_artifact_output" 2>&1; then
+  echo "Expected negative artifact fixture to fail validation" >&2
+  cat "$negative_artifact_output" >&2
+  exit 1
+fi
+grep -q "FAIL run context artifact name" "$negative_artifact_output"
+rm -rf "$negative_artifact_fixture"
+rm -f "$negative_artifact_output"
 rm -rf "$artifact_fixture"
 simctl_fixture="$(mktemp)"
 python3 - "$simctl_fixture" <<'PY'
