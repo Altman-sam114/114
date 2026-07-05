@@ -376,6 +376,7 @@ grep -q "EXPECTED_SUMMARY_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_STATIC_CHECK_MARKERS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_JUNIT_TESTCASES" scripts/validate_ci_artifact.rb
 grep -q "ci-run-context.txt" scripts/validate_ci_artifact.rb
+grep -q "xcode version log" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
@@ -418,7 +419,7 @@ files = {
     "verify_project.log": "Mac core tests passed.\nCategory chip accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
-    "xcode-version.log": "Xcode 16.0\n",
+    "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
     "ci-run-context.txt": f"artifactName=chronofocus-ci-v0.10-main-fixture-run{run_id}-attempt{attempt}\nbranch=main\ncommitSha={commit}\nrunId={run_id}\nrunAttempt={attempt}\n",
 }
 

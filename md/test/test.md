@@ -102,7 +102,7 @@ ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id> 
   --attempt <run_attempt>
 ```
 
-该脚本会核对 manifest branch/commit/run/attempt 和关键路径字段、`ci-run-context.txt` 身份字段与 artifact 名称、artifact index 身份字段、必需路径与 kind、下载后本地文件/目录非空状态、index totals 与 entries 聚合一致性、JUnit 四个 testcase、failure summary 日志入口、`static-checks.log` 静态检查 marker、`verify_project.log` 分类可访问 contract marker、Mac/iOS build 成功标记和 Mac 快照 manifest。`verify_project.sh` 用小型成功 fixture、错误 artifactName 负向 fixture、artifact index 身份错包负向 fixture、artifact index totals 篡改负向 fixture 和本地缺失产物负向 fixture 覆盖 validator 的放行/拒绝路径。脚本只能辅助复判，不能替代 Agent C 对最新 `origin/main` run 和 artifact 来源的一致性核对。
+该脚本会核对 manifest branch/commit/run/attempt 和关键路径字段、`ci-run-context.txt` 身份字段与 artifact 名称、artifact index 身份字段、必需路径与 kind、下载后本地文件/目录非空状态、index totals 与 entries 聚合一致性、JUnit 四个 testcase、failure summary 日志入口、`static-checks.log` 静态检查 marker、`xcode-version.log` 版本内容、`verify_project.log` 分类可访问 contract marker、Mac/iOS build 成功标记和 Mac 快照 manifest。`verify_project.sh` 用小型成功 fixture、错误 artifactName 负向 fixture、artifact index 身份错包负向 fixture、artifact index totals 篡改负向 fixture 和本地缺失产物负向 fixture 覆盖 validator 的放行/拒绝路径。脚本只能辅助复判，不能替代 Agent C 对最新 `origin/main` run 和 artifact 来源的一致性核对。
 
 ## StoreKit / EventKit 本地人工验证
 
@@ -289,7 +289,7 @@ Agent C 验收时必须核对：
 - manifest 中 `commitSha` 与 `origin/main` 最新 SHA 完全一致。
 - manifest 中 `runId` 和 `runAttempt` 与下载的 GitHub Actions run 一致。
 - `ci-run-context.txt` 中 `branch`、`commitSha`、`runId`、`runAttempt` 和 artifact 名称必须与本轮 run 一致。
-- `scripts/validate_ci_artifact.rb` 对下载目录输出全 PASS，且包含 `PASS static checks log markers` 和 `PASS verify_project category accessibility contracts`，作为结构化辅助证据；若脚本失败，必须人工核对失败项并退回 Agent B 或说明原因。
+- `scripts/validate_ci_artifact.rb` 对下载目录输出全 PASS，且包含 `PASS static checks log markers`、`PASS xcode version log` 和 `PASS verify_project category accessibility contracts`，作为结构化辅助证据；若脚本失败，必须人工核对失败项并退回 Agent B 或说明原因。
 - `staticChecksOutcome`、`projectVerificationOutcome`、`buildOutcome`、`macBuildOutcome`、`iosBuildOutcome` 均为 `success`。
 - artifact index、failure summary、JUnit、主日志和项目专属产物存在且不是旧 checkout 里的遗留文件。
 - `ci-artifact-index.json` 必须覆盖 manifest、summary、JUnit、主日志、Mac/iOS `.xcresult`、Mac 快照目录、快照 manifest 和 5 张快照；required 条目必须存在，文件字节数或目录递归字节数必须为正。

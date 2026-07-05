@@ -178,6 +178,7 @@ static_checks_log_path = File.join(artifact_dir, "static-checks.log")
 verify_log_path = File.join(artifact_dir, "verify_project.log")
 mac_build_log_path = File.join(artifact_dir, "xcodebuild.log")
 ios_build_log_path = File.join(artifact_dir, "ios-xcodebuild.log")
+xcode_version_log_path = File.join(artifact_dir, "xcode-version.log")
 snapshot_manifest_path = File.join(artifact_dir, "project-reports", "mac-snapshots", "manifest.json")
 
 manifest = read_json(manifest_path)
@@ -275,6 +276,10 @@ end
 check(checks, "static checks log markers") do
   static_checks_log = File.read(static_checks_log_path, encoding: "UTF-8")
   EXPECTED_STATIC_CHECK_MARKERS.all? { |marker| static_checks_log.include?(marker) }
+end
+check(checks, "xcode version log") do
+  xcode_version_log = File.read(xcode_version_log_path, encoding: "UTF-8")
+  xcode_version_log.include?("Xcode") && xcode_version_log.include?("Build version")
 end
 check(checks, "verify_project core tests") { File.read(verify_log_path, encoding: "UTF-8").include?("Mac core tests passed.") }
 check(checks, "verify_project category accessibility contracts") do
