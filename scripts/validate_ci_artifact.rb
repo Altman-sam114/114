@@ -372,6 +372,12 @@ check(checks, "snapshot dimensions") do
       File.size(snapshot_path).positive?
   end
 end
+check(checks, "snapshot byte counts") do
+  snapshots.all? do |snapshot|
+    snapshot_path = File.join(artifact_dir, "project-reports", "mac-snapshots", snapshot.fetch("fileName"))
+    File.file?(snapshot_path) && snapshot["byteCount"].to_i == File.size(snapshot_path)
+  end
+end
 
 checks.each do |name, ok, detail|
   puts "#{ok ? "PASS" : "FAIL"} #{name}#{detail ? " - #{detail}" : ""}"

@@ -458,6 +458,7 @@ grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
 grep -q "FAIL index totals consistency" scripts/verify_project.sh
 grep -q "FAIL index required local artifacts" scripts/verify_project.sh
+grep -q "FAIL snapshot byte counts" scripts/verify_project.sh
 grep -q "manifest paths" scripts/validate_ci_artifact.rb
 grep -q "index required paths" scripts/validate_ci_artifact.rb
 grep -q "index required local artifacts" scripts/validate_ci_artifact.rb
@@ -468,6 +469,7 @@ grep -q "failure summary identity" scripts/validate_ci_artifact.rb
 grep -q "failure summary outcomes" scripts/validate_ci_artifact.rb
 grep -q "junit testcase names" scripts/validate_ci_artifact.rb
 grep -q "junit testcase outcomes" scripts/validate_ci_artifact.rb
+grep -q "snapshot byte counts" scripts/validate_ci_artifact.rb
 grep -q "xcrun.*simctl" scripts/resolve_ios_simulator_destination.rb
 grep -q "platform=iOS Simulator,id=" scripts/resolve_ios_simulator_destination.rb
 grep -q "print_build_command" scripts/resolve_ios_simulator_destination.rb
@@ -791,6 +793,31 @@ fi
 grep -q "FAIL index required local metadata" "$mismatched_local_artifact_output"
 rm -rf "$mismatched_local_artifact_fixture"
 rm -f "$mismatched_local_artifact_output"
+mismatched_snapshot_manifest_fixture="$(mktemp -d)"
+mismatched_snapshot_manifest_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$mismatched_snapshot_manifest_fixture"/
+python3 - "$mismatched_snapshot_manifest_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+manifest_path = root / "project-reports" / "mac-snapshots" / "manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+manifest["snapshots"][0]["byteCount"] += 1
+manifest_path.write_text(
+    json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$mismatched_snapshot_manifest_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$mismatched_snapshot_manifest_output" 2>&1; then
+  echo "Expected mismatched snapshot manifest fixture to fail validation" >&2
+  cat "$mismatched_snapshot_manifest_output" >&2
+  exit 1
+fi
+grep -q "FAIL snapshot byte counts" "$mismatched_snapshot_manifest_output"
+rm -rf "$mismatched_snapshot_manifest_fixture"
+rm -f "$mismatched_snapshot_manifest_output"
 rm -rf "$artifact_fixture"
 simctl_fixture="$(mktemp)"
 python3 - "$simctl_fixture" <<'PY'

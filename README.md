@@ -76,7 +76,7 @@ ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
 
 该脚本会在 `DEVELOPER_DIR` 未设置且本机存在 `/Applications/Xcode.app/Contents/Developer` 时自动使用完整 Xcode，避免 `xcode-select` 指向 Command Line Tools 时找不到 `simctl`；如果你已设置 `DEVELOPER_DIR`，打印的 build 命令会沿用该路径。
 
-验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、筛选摘要动作提示和分类快捷新增、iOS 日程筛选计数、iOS 日程任务行分类 badge、计时页分类筛选摘要、计时页分类空态清除入口、计时页分类 badge 可访问标签、Mac 任务行分类 badge、分类摘要插入点和动作接线检查、Mac 待办筛选计数、Mac 分类摘要快捷新增、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 分类预填提示、Mac 日历权限说明、CI validator 正向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地缺失产物负向 fixture、static-checks 日志 marker 和分类可访问 contract 日志复判、Mac 快照 manifest，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
+验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、筛选摘要动作提示和分类快捷新增、iOS 日程筛选计数、iOS 日程任务行分类 badge、计时页分类筛选摘要、计时页分类空态清除入口、计时页分类 badge 可访问标签、Mac 任务行分类 badge、分类摘要插入点和动作接线检查、Mac 待办筛选计数、Mac 分类摘要快捷新增、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 分类预填提示、Mac 日历权限说明、CI validator 正向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地缺失产物负向 fixture、static-checks 日志 marker 和分类可访问 contract 日志复判、Mac 快照 manifest byteCount 复判，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
@@ -93,7 +93,7 @@ ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id> 
   --attempt <run_attempt>
 ```
 
-该脚本会核对 manifest 的分支/提交/run/attempt/关键路径、`ci-run-context.txt` 的身份字段和 artifact 名称、artifact index 的身份字段、必需路径、本地文件/目录非空状态、required entry 的本地 byteCount/fileCount/recursiveByteCount 复算和 totals/entries 一致性、JUnit 四个阶段 testcase、JUnit outcome 与 manifest outcome、failure summary 的身份字段、阶段 outcome 和日志入口、static-checks 日志 marker、Xcode 版本日志、分类可访问 contract marker、Mac/iOS build 成功标记和 Mac 快照 manifest；`verify_project.sh` 还用错误 JUnit outcome、错误 artifact 名称、错误 artifact index 身份、错误 artifact index totals、本地文件大小篡改和本地缺失产物负向 fixture 确认 validator 不会放行错包或残缺下载。
+该脚本会核对 manifest 的分支/提交/run/attempt/关键路径、`ci-run-context.txt` 的身份字段和 artifact 名称、artifact index 的身份字段、必需路径、本地文件/目录非空状态、required entry 的本地 byteCount/fileCount/recursiveByteCount 复算和 totals/entries 一致性、JUnit 四个阶段 testcase、JUnit outcome 与 manifest outcome、failure summary 的身份字段、阶段 outcome 和日志入口、static-checks 日志 marker、Xcode 版本日志、分类可访问 contract marker、Mac/iOS build 成功标记、Mac 快照 manifest 以及 manifest 中每张 PNG 的 byteCount 与下载文件大小一致；`verify_project.sh` 还用错误 JUnit outcome、错误 artifact 名称、错误 artifact index 身份、错误 artifact index totals、本地文件大小篡改、本地缺失产物和快照 manifest 大小篡改负向 fixture 确认 validator 不会放行错包或残缺下载。
 
 可用 `agentx:`、`x:` 或 `X:` 启动主控循环。Agent X 接收总目标并拆分多轮 A/B/C 迭代；它不直接替代 Agent A 的提示词、Agent B 的实现 push，也不替代 Agent C 对最新云端 artifact 的验收。
 
