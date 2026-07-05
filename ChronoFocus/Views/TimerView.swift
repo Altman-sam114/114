@@ -533,6 +533,8 @@ private struct TimerSelectedTaskCategorySummaryView: View {
                 .buttonStyle(.plain)
                 .frame(minWidth: 72)
                 .frame(minHeight: 44)
+                .accessibilityLabel("清除\(category)分类筛选")
+                .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

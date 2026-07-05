@@ -292,6 +292,10 @@ timer_summary_source = source_slice(
   "Timer category summary source missing"
 )
 raise "Timer category summary accessibility label must announce clear action" unless timer_summary_source.include?("可清除筛选")
+raise "Timer category summary clear button missing" unless timer_summary_source.include?("Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)")
+raise "Timer category summary clear button tap target missing" unless timer_summary_source.include?(".frame(minWidth: 72)") && timer_summary_source.include?(".frame(minHeight: 44)")
+raise "Timer category summary clear accessibility label missing" unless timer_summary_source.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
+raise "Timer category summary clear Voice Control input labels missing" unless timer_summary_source.include?(".accessibilityInputLabels([Text(\"清除筛选\"), Text(\"清除\\(category)分类\")])")
 
 timer_empty_source = source_slice(
   "ChronoFocus/Views/TimerView.swift",
