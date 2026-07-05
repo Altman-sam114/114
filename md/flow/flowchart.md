@@ -11,7 +11,7 @@ flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
-  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、iOS日程筛选计数、计时页筛选摘要、新建预填、筛选摘要/快捷新增/清除"]
+  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、重复点击已选分类退出、iOS日程筛选计数、计时页筛选摘要、新建预填、筛选摘要/快捷新增/清除"]
   CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]
@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线检查<br/>validator 正向/错包/index错包/缺失产物 fixture"]
+  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线和点击切换检查<br/>validator 正向/错包/index错包/totals错包/缺失产物 fixture"]
 ```
 
 ## 计时执行流
@@ -62,7 +62,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["用户新增/编辑任务<br/>或系统日历同步事件"] --> P0["分类 UI<br/>iOS日程筛选/总数计数<br/>计时页当前待办筛选摘要<br/>常用分类快选、手写分类<br/>筛选摘要新增/清除<br/>筛选联动新建预填<br/>Mac 快速新增已预填提示"]
+  A["用户新增/编辑任务<br/>或系统日历同步事件"] --> P0["分类 UI<br/>iOS日程筛选/总数计数<br/>计时页当前待办筛选摘要<br/>常用分类快选、手写分类<br/>重复点击已选分类退出<br/>筛选摘要新增/清除<br/>筛选联动新建预填<br/>Mac 快速新增已预填提示"]
   P0 --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
   B --> C["FocusTask<br/>标题、分类、截止时间、轮次、循环、外部日历 ID"]
   C --> C2["FocusStore.taskCategories + TaskCategoryFilterOption<br/>合并预设/已有分类<br/>有任务分类优先显示"]
@@ -110,7 +110,7 @@ flowchart TD
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
   PUSH --> CI["GitHub Actions<br/>ci-results.yml<br/>静态检查、verify_project、Mac build、iOS build"]
   CI --> ART["未加密 CI 结果包<br/>manifest、artifact index、run context、failure summary/错误摘录、JUnit、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
-  ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id<br/>核对 artifact index、run context、artifact 名称和快照 manifest"]
+  ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id<br/>核对 artifact index、index totals、run context、artifact 名称和快照 manifest"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}
   PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]

@@ -251,6 +251,30 @@ assert_slice_contains(
   /MacSelectedCategorySummaryView\([\s\S]*?\)\s*\{\s*selectedCategory = nil\s*\}/,
   "Mac category summary must wire clear action"
 )
+
+assert_slice_contains(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "private struct TaskCategoryFilterBar",
+  "private struct TaskCategoryFilterChip",
+  /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory == category \? nil : category/,
+  "Schedule category filter chip must toggle off the selected category"
+)
+
+assert_slice_contains(
+  "ChronoFocus/Views/TimerView.swift",
+  "private struct TimerTaskCategoryFilterBar",
+  "private struct TimerTaskCategoryFilterChip",
+  /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory == category \? nil : category/,
+  "Timer category filter chip must toggle off the selected category"
+)
+
+assert_slice_contains(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private struct MacCategoryFilterBar",
+  "private struct MacCategoryFilterChip",
+  /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory == category \? nil : category/,
+  "Mac category filter chip must toggle off the selected category"
+)
 RUBY
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
 grep -q "makeToneWavData(for completionSound: CompletionSound)" ChronoFocus/Services/NotificationService.swift
@@ -320,13 +344,16 @@ grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
+grep -q "corrupt_index_totals_fixture" scripts/verify_project.sh
 grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
+grep -q "FAIL index totals consistency" scripts/verify_project.sh
 grep -q "FAIL index required local artifacts" scripts/verify_project.sh
 grep -q "manifest paths" scripts/validate_ci_artifact.rb
 grep -q "index required paths" scripts/validate_ci_artifact.rb
 grep -q "index required local artifacts" scripts/validate_ci_artifact.rb
+grep -q "index totals consistency" scripts/validate_ci_artifact.rb
 grep -q "failure summary log entries" scripts/validate_ci_artifact.rb
 grep -q "junit testcase names" scripts/validate_ci_artifact.rb
 grep -q "xcrun.*simctl" scripts/resolve_ios_simulator_destination.rb
@@ -510,6 +537,10 @@ index["totals"] = {
         1 for entry in index["entries"]
         if entry["required"] and not entry["exists"]
     ),
+    "fileByteCount": sum(entry.get("byteCount", 0) for entry in index["entries"]),
+    "directoryRecursiveByteCount": sum(
+        entry.get("recursiveByteCount", 0) for entry in index["entries"]
+    ),
 }
 (root / "ci-artifact-index.json").write_text(
     json.dumps(index, ensure_ascii=False, indent=2) + "\n",
@@ -567,6 +598,31 @@ fi
 grep -q "FAIL index commit" "$negative_index_output"
 rm -rf "$negative_index_fixture"
 rm -f "$negative_index_output"
+corrupt_index_totals_fixture="$(mktemp -d)"
+corrupt_index_totals_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$corrupt_index_totals_fixture"/
+python3 - "$corrupt_index_totals_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+index["totals"]["fileByteCount"] += 1
+index_path.write_text(
+    json.dumps(index, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$corrupt_index_totals_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$corrupt_index_totals_output" 2>&1; then
+  echo "Expected corrupt index totals fixture to fail validation" >&2
+  cat "$corrupt_index_totals_output" >&2
+  exit 1
+fi
+grep -q "FAIL index totals consistency" "$corrupt_index_totals_output"
+rm -rf "$corrupt_index_totals_fixture"
+rm -f "$corrupt_index_totals_output"
 missing_local_artifact_fixture="$(mktemp -d)"
 missing_local_artifact_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$missing_local_artifact_fixture"/

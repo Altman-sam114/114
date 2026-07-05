@@ -796,12 +796,16 @@ private struct MacCategoryFilterBar: View {
                         isSelected: selectedCategory == option.category,
                         tintHex: option.accentHex
                     ) {
-                        selectedCategory = option.category
+                        toggleCategory(option.category)
                     }
                 }
             }
             .padding(.vertical, 1)
         }
+    }
+
+    private func toggleCategory(_ category: String) {
+        selectedCategory = selectedCategory == category ? nil : category
     }
 }
 

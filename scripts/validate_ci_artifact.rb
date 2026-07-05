@@ -206,11 +206,20 @@ check(checks, "run context artifact name") { run_context["artifactName"] == expe
 entries_by_path = index.fetch("entries").each_with_object({}) do |entry, lookup|
   lookup[entry.fetch("path")] = entry
 end
+expected_index_totals = {
+  "entryCount" => index.fetch("entries").length,
+  "missingRequiredCount" => index.fetch("entries").count { |entry| entry["required"] && !entry["exists"] },
+  "fileByteCount" => index.fetch("entries").sum { |entry| entry["byteCount"].to_i },
+  "directoryRecursiveByteCount" => index.fetch("entries").sum { |entry| entry["recursiveByteCount"].to_i }
+}
 
 check(checks, "index branch") { index["branch"] == options["branch"] }
 check(checks, "index commit") { index["commitSha"] == options["commit"] }
 check(checks, "index run") { index["runId"] == options["run_id"] }
 check(checks, "index attempt") { index["runAttempt"] == options["attempt"].to_s }
+check(checks, "index totals consistency") do
+  expected_index_totals.all? { |key, value| index.dig("totals", key).to_i == value }
+end
 check(checks, "index missing required") { index.dig("totals", "missingRequiredCount").to_i.zero? }
 check(checks, "index entry count") { index.dig("totals", "entryCount").to_i >= EXPECTED_INDEX_ENTRIES.length }
 check(checks, "index required paths") do
