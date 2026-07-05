@@ -512,12 +512,14 @@ grep -q "xcode version log" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_junit_fixture" scripts/verify_project.sh
+grep -q "negative_summary_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
 grep -q "corrupt_index_totals_fixture" scripts/verify_project.sh
 grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
 grep -q "mismatched_local_artifact_fixture" scripts/verify_project.sh
 grep -q "FAIL junit testcase outcomes" scripts/verify_project.sh
+grep -q "FAIL verify_project category summary action contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
 grep -q "FAIL index totals consistency" scripts/verify_project.sh
@@ -732,6 +734,31 @@ for _ in range(5):
     last_size = new_size
 PY
 ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >/dev/null
+negative_summary_marker_fixture="$(mktemp -d)"
+negative_summary_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_summary_marker_fixture"/
+python3 - "$negative_summary_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Category summary action contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_summary_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_summary_marker_output" 2>&1; then
+  echo "Expected negative summary marker fixture to fail validation" >&2
+  cat "$negative_summary_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project category summary action contracts" "$negative_summary_marker_output"
+rm -rf "$negative_summary_marker_fixture"
+rm -f "$negative_summary_marker_output"
 negative_junit_fixture="$(mktemp -d)"
 negative_junit_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_junit_fixture"/

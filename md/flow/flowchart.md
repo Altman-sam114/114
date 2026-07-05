@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、日程摘要按钮分类语义、Mac摘要按钮点击区、预设按钮、点击切换、iOS日程任务行分类badge、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、Mac 任务行分类 badge、selected trait 和 Voice Control 标签检查<br/>validator 复判 JUnit outcome、index本地元数据、Mac快照byteCount、static-checks、Xcode 版本、分类摘要动作与分类可访问日志 marker<br/>validator 正向/JUnit错包/错包/index错包/totals错包/本地篡改/缺失产物/快照manifest篡改 fixture"]
+  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、日程摘要按钮分类语义、Mac摘要按钮点击区、预设按钮、点击切换、iOS日程任务行分类badge、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、Mac 任务行分类 badge、selected trait 和 Voice Control 标签检查<br/>validator 复判 JUnit outcome、index本地元数据、Mac快照byteCount、static-checks、Xcode 版本、分类摘要动作与分类可访问日志 marker<br/>validator 正向/摘要marker缺失/JUnit错包/错包/index错包/totals错包/本地篡改/缺失产物/快照manifest篡改 fixture"]
 ```
 
 ## 计时执行流
