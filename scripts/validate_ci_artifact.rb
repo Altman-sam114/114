@@ -265,6 +265,9 @@ check(checks, "failure summary log entries") do
   EXPECTED_SUMMARY_ENTRIES.all? { |entry| summary.include?(entry) }
 end
 check(checks, "verify_project core tests") { File.read(verify_log_path, encoding: "UTF-8").include?("Mac core tests passed.") }
+check(checks, "verify_project category accessibility contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Category chip accessibility contracts verified.")
+end
 check(checks, "verify_project success") { File.read(verify_log_path, encoding: "UTF-8").include?("Project structure verified.") }
 check(checks, "mac build succeeded") { File.read(mac_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }
 check(checks, "ios build succeeded") { File.read(ios_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }
