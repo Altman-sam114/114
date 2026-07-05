@@ -153,7 +153,7 @@ macOS：
 - iOS 平台层可以依赖 UIKit、UserNotifications、ActivityKit、StoreKit、EventKit。
 - macOS 平台层可以依赖 AppKit、UserNotifications、StoreKit、EventKit。
 - Mac 状态栏逻辑集中在 `MacStatusBarController`。
-- Mac 快照测试通过脚本编译 Swift 文件并使用 `ImageRenderer` 渲染，不等同于完整 App 运行；快照路径用 `macSnapshotRendering` 替换原生 `Picker`、`Toggle`、`Slider`、`DatePicker`、`Stepper` 和部分 bordered/prominent `Button`，避免黄色缺失控件占位。
+- Mac 快照测试通过脚本编译 Swift 文件并使用 `ImageRenderer` 渲染，不等同于完整 App 运行；快照路径用 `macSnapshotRendering` 替换原生 `Picker`、`Toggle`、`Slider`、`DatePicker`、`Stepper` 和部分 bordered/prominent `Button`，日程摘要静态动作按钮保持与真实按钮一致的稳定宽高，避免黄色缺失控件占位和按钮尺寸回退。
 
 ## 5. 用户入口
 
@@ -170,7 +170,7 @@ macOS：
 - 菜单栏时间胶囊：显示剩余时间。
 - 左键 popover：极简计时器、动态进度条、当前待办分类 badge/时间上下文、快捷面板，并可直接打开日程、统计或设置详情页。
 - 右键菜单：开始/暂停、打开详细界面、退出。
-- 详细窗口：计时、日程、任务行常驻分类 badge、分类筛选、再次点击已选分类退出筛选、分类 chip 可访问状态/动作提示、selected trait 和 Voice Control input labels、筛选/总数计数、选中分类摘要快捷新增、摘要新增/清除按钮分类语义、快速新增分类预填提示、统计、设置。
+- 详细窗口：计时、日程、任务行常驻分类 badge、分类筛选、再次点击已选分类退出筛选、分类 chip 可访问状态/动作提示、selected trait 和 Voice Control input labels、筛选/总数计数、选中分类摘要快捷新增、摘要新增/清除按钮分类语义和稳定点击区、快速新增分类预填提示、统计、设置。
 
 ## 6. 前端 / 数据层 / 模型层 / 测试层关系
 
@@ -181,7 +181,7 @@ macOS：
 - 平台服务负责系统能力，不持有核心业务规则。
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。
-- `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选摘要、iOS/Mac 日程摘要按钮分类语义、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程任务行分类 badge、Mac 待办筛选计数、Mac 任务行分类 badge、Mac 分类摘要快捷新增、分类摘要插入点/动作接线、分类快捷新增/预填提示、validator 正向、JUnit outcome 负向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地文件大小篡改负向、本地缺失产物负向 fixture、分类可访问 contract 日志 marker、核心测试和快照的本地/云端项目专属验证入口。
+- `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选摘要、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程任务行分类 badge、Mac 待办筛选计数、Mac 任务行分类 badge、Mac 分类摘要快捷新增、分类摘要插入点/动作接线、分类快捷新增/预填提示、validator 正向、JUnit outcome 负向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地文件大小篡改负向、本地缺失产物负向 fixture、分类可访问 contract 日志 marker、核心测试和快照的本地/云端项目专属验证入口。
 - `scripts/validate_ci_artifact.rb` 是 Agent C 下载结果包后的结构化复判脚本，覆盖 manifest 身份和路径字段、run context 身份与 artifact 名称、artifact index 身份、必需路径与本地文件/目录非空状态、required entry 本地元数据复算、index totals 与 entries 聚合一致性、JUnit testcase/outcome、failure summary 身份/outcome/日志入口、`static-checks.log` 静态检查 marker、`xcode-version.log` 版本内容、`verify_project.log` 分类可访问 contract marker、主日志成功标记、快照 manifest 和快照 manifest 中 PNG byteCount 与下载文件大小一致性。
 - `.github/workflows/ci-results.yml` 是默认云端重验证入口，负责在 `main` push 和手动触发时运行静态检查、项目验证、Mac build 和 iOS generic build，并生成带 artifact index 的未加密 CI 结果包；失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录。
 

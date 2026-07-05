@@ -370,6 +370,7 @@ mac_schedule_summary_add_button = segment_slice(
 )
 raise "Mac category summary add accessibility label missing" unless mac_schedule_summary_add_button.include?(".accessibilityLabel(\"新增\\(category)分类待办\")")
 raise "Mac category summary add Voice Control input labels missing" unless mac_schedule_summary_add_button.include?(".accessibilityInputLabels([Text(\"新增此分类\"), Text(\"新增\\(category)分类待办\"), Text(\"新增\\(category)分类\")])")
+raise "Mac category summary add button tap target missing" unless mac_schedule_summary_add_button.include?(".frame(minWidth: 104, minHeight: 36)")
 mac_schedule_summary_clear_button = segment_slice(
   mac_schedule_summary_source,
   "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
@@ -378,6 +379,14 @@ mac_schedule_summary_clear_button = segment_slice(
 )
 raise "Mac category summary clear accessibility label missing" unless mac_schedule_summary_clear_button.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
 raise "Mac category summary clear Voice Control input labels missing" unless mac_schedule_summary_clear_button.include?(".accessibilityInputLabels([Text(\"清除筛选\"), Text(\"清除\\(category)分类\")])")
+raise "Mac category summary clear button tap target missing" unless mac_schedule_summary_clear_button.include?(".frame(minWidth: 72, minHeight: 36)")
+mac_summary_static_action_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private struct MacSummaryStaticActionView",
+  "private struct MacCategoryPresetPicker",
+  "Mac summary static action source missing"
+)
+raise "Mac summary static action tap target missing" unless mac_summary_static_action_source.include?(".frame(minWidth: isProminent ? 104 : 72, minHeight: 36)")
 
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",

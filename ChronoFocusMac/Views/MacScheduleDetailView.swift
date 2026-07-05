@@ -729,7 +729,7 @@ private struct MacSelectedCategorySummaryView: View {
                         .foregroundStyle(Color.black.opacity(0.82))
                         .buttonStyle(.plain)
                         .padding(.horizontal, 10)
-                        .frame(minHeight: 30)
+                        .frame(minWidth: 104, minHeight: 36)
                         .background(tint, in: Capsule())
                         .accessibilityLabel("新增\(category)分类待办")
                         .accessibilityInputLabels([Text("新增此分类"), Text("新增\(category)分类待办"), Text("新增\(category)分类")])
@@ -738,7 +738,7 @@ private struct MacSelectedCategorySummaryView: View {
                         .font(.caption.bold())
                         .foregroundStyle(tint)
                         .buttonStyle(.plain)
-                        .frame(minHeight: 30)
+                        .frame(minWidth: 72, minHeight: 36)
                         .accessibilityLabel("清除\(category)分类筛选")
                         .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
                 }
@@ -765,7 +765,7 @@ private struct MacSummaryStaticActionView: View {
         Text(title)
             .font(.caption.bold())
             .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
-            .frame(minHeight: 30)
+            .frame(minWidth: isProminent ? 104 : 72, minHeight: 36)
             .padding(.horizontal, 10)
             .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
             .overlay {
