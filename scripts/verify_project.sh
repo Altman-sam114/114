@@ -387,6 +387,7 @@ mac_summary_static_action_source = source_slice(
   "Mac summary static action source missing"
 )
 raise "Mac summary static action tap target missing" unless mac_summary_static_action_source.include?(".frame(minWidth: isProminent ? 104 : 72, minHeight: 36)")
+puts "Category summary action contracts verified."
 
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
@@ -498,6 +499,7 @@ grep -q "require \"find\"" scripts/validate_ci_artifact.rb
 grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
 grep -q "Project structure verified." scripts/validate_ci_artifact.rb
 grep -q "Category chip accessibility contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Category summary action contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
@@ -555,7 +557,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory chip accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",

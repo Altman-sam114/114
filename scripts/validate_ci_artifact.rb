@@ -352,6 +352,9 @@ check(checks, "xcode version log") do
   xcode_version_log.include?("Xcode") && xcode_version_log.include?("Build version")
 end
 check(checks, "verify_project core tests") { File.read(verify_log_path, encoding: "UTF-8").include?("Mac core tests passed.") }
+check(checks, "verify_project category summary action contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Category summary action contracts verified.")
+end
 check(checks, "verify_project category accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Category chip accessibility contracts verified.")
 end
