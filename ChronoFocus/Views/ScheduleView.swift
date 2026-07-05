@@ -591,6 +591,10 @@ private struct TaskCategoryFilterChip: View {
         isSelected ? .isSelected : []
     }
 
+    private var voiceControlInputLabels: [Text] {
+        [Text(title), Text("\(title)分类")]
+    }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
@@ -617,6 +621,7 @@ private struct TaskCategoryFilterChip: View {
         .accessibilityLabel("\(title)分类，\(count)项\(accessibilityStateText)")
         .accessibilityHint(accessibilityHintText)
         .accessibilityAddTraits(accessibilityTraits)
+        .accessibilityInputLabels(voiceControlInputLabels)
     }
 }
 
