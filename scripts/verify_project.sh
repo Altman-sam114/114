@@ -293,6 +293,18 @@ timer_summary_source = source_slice(
 )
 raise "Timer category summary accessibility label must announce clear action" unless timer_summary_source.include?("可清除筛选")
 
+timer_task_badge = source_slice(
+  "ChronoFocus/Views/TimerView.swift",
+  "private struct TimerTaskCategoryBadge",
+  "private struct IconActionButtonStyle",
+  "Timer task category badge source missing"
+)
+raise "Timer task category badge preset missing" unless timer_task_badge.include?("TaskCategoryPreset.matching(task.category)")
+raise "Timer task category badge symbol missing" unless timer_task_badge.include?("private var categorySymbolName")
+raise "Timer task category badge label missing" unless timer_task_badge.include?("Label(task.category, systemImage: categorySymbolName)")
+raise "Timer task category badge accessibility label missing" unless timer_task_badge.include?(".accessibilityLabel(\"\\(task.category)分类\")")
+raise "Timer task category badge Voice Control input labels missing" unless timer_task_badge.include?(".accessibilityInputLabels([Text(task.category), Text(\"\\(task.category)分类\")])")
+
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "MacSelectedCategorySummaryView(",

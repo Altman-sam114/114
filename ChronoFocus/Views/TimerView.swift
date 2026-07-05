@@ -580,17 +580,20 @@ private struct TimerTaskCategoryBadge: View {
         Color(hex: preset?.accentHex ?? task.accentHex)
     }
 
+    private var categorySymbolName: String {
+        preset?.symbolName ?? "tag.fill"
+    }
+
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: preset?.symbolName ?? "tag.fill")
-            Text(task.category)
-                .lineLimit(1)
-        }
-        .font(.caption2.weight(.bold))
-        .foregroundStyle(tint)
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
-        .background(tint.opacity(0.14), in: Capsule())
+        Label(task.category, systemImage: categorySymbolName)
+            .lineLimit(1)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(tint.opacity(0.14), in: Capsule())
+            .accessibilityLabel("\(task.category)分类")
+            .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
     }
 }
 
