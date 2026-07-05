@@ -265,6 +265,18 @@ raise "Schedule task list count text missing" unless schedule_count_property
 raise "Schedule task list count text must handle zero total" unless schedule_count_property.include?("totalCount > 0") && schedule_count_property.include?("0 项")
 raise "Schedule task list count text must include filtered and total counts" unless schedule_count_property.include?("visibleTasks.count") && schedule_count_property.include?("totalCount") && schedule_count_property.include?("项")
 
+schedule_task_cell = source_slice(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "private struct ScheduleTaskCell",
+  "private struct TaskEditorView",
+  "Schedule task cell source missing"
+)
+raise "Schedule task cell category preset missing" unless schedule_task_cell.include?("TaskCategoryPreset.matching(task.category)")
+raise "Schedule task cell category symbol missing" unless schedule_task_cell.include?("private var categorySymbolName")
+raise "Schedule task cell category badge missing" unless schedule_task_cell.include?("Label(task.category, systemImage: categorySymbolName)")
+raise "Schedule task cell category accessibility label missing" unless schedule_task_cell.include?(".accessibilityLabel(\"\\(task.category)分类\")")
+raise "Schedule task cell must keep due date as secondary metadata" unless schedule_task_cell.include?("if let dueDate = task.dueDate") && schedule_task_cell.include?("dueDate.scheduleTimeText")
+
 assert_slice_contains(
   "ChronoFocus/Views/TimerView.swift",
   "TimerSelectedTaskCategorySummaryView(",

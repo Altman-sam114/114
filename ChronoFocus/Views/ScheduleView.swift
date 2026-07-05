@@ -631,6 +631,18 @@ private struct ScheduleTaskCell: View {
     let onEnable: () -> Void
     let onEdit: () -> Void
 
+    private var categoryPreset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(task.category)
+    }
+
+    private var categoryTint: Color {
+        Color(hex: categoryPreset?.accentHex ?? task.accentHex)
+    }
+
+    private var categorySymbolName: String {
+        categoryPreset?.symbolName ?? "tag.fill"
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Button(action: onToggle) {
@@ -658,7 +670,14 @@ private struct ScheduleTaskCell: View {
                     .tint(Color(hex: task.accentHex))
 
                 HStack(spacing: 8) {
-                    Text(task.category)
+                    Label(task.category, systemImage: categorySymbolName)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(categoryTint)
+                        .lineLimit(1)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(categoryTint.opacity(0.14), in: Capsule())
+                        .accessibilityLabel("\(task.category)分类")
                     if let dueDate = task.dueDate {
                         Text(dueDate.scheduleTimeText)
                     }

@@ -11,7 +11,7 @@ flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
-  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、重复点击已选分类退出、可访问状态/动作提示、selected trait、Voice Control input labels、iOS日程筛选计数、计时页筛选摘要、新建预填、筛选摘要/快捷新增/清除、Mac摘要快捷新增"]
+  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、重复点击已选分类退出、可访问状态/动作提示、selected trait、Voice Control input labels、iOS日程筛选计数、iOS日程任务行分类badge、计时页筛选摘要、新建预填、筛选摘要/快捷新增/清除、Mac摘要快捷新增"]
   CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]
@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、预设按钮、点击切换、Mac 任务行分类 badge、selected trait 和 Voice Control 标签检查<br/>validator 复判 JUnit outcome、index本地元数据、static-checks、Xcode 版本与分类可访问日志 marker<br/>validator 正向/JUnit错包/错包/index错包/totals错包/本地篡改/缺失产物 fixture"]
+  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、预设按钮、点击切换、iOS日程任务行分类badge、Mac 任务行分类 badge、selected trait 和 Voice Control 标签检查<br/>validator 复判 JUnit outcome、index本地元数据、static-checks、Xcode 版本与分类可访问日志 marker<br/>validator 正向/JUnit错包/错包/index错包/totals错包/本地篡改/缺失产物 fixture"]
 ```
 
 ## 计时执行流
