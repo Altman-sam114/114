@@ -449,6 +449,17 @@ private struct TimerTaskCategoryFilterChip: View {
         Color(hex: tintHex)
     }
 
+    private var accessibilityStateText: String {
+        isSelected ? "，已选中" : ""
+    }
+
+    private var accessibilityHintText: String {
+        if isSelected {
+            return title == "全部" ? "当前显示全部分类" : "再次点击清除筛选"
+        }
+        return title == "全部" ? "显示全部分类" : "筛选\(title)分类"
+    }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
@@ -472,7 +483,8 @@ private struct TimerTaskCategoryFilterChip: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(title)分类，\(count)项")
+        .accessibilityLabel("\(title)分类，\(count)项\(accessibilityStateText)")
+        .accessibilityHint(accessibilityHintText)
     }
 }
 

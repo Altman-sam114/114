@@ -222,6 +222,15 @@ def assert_slice_contains(path, earlier, later, pattern, message)
   raise message unless matched
 end
 
+def assert_chip_accessibility(path, chip_name, later)
+  segment = source_slice(path, "private struct #{chip_name}", later, "#{chip_name} slice missing")
+  raise "#{chip_name} must expose selected state text" unless segment.include?("accessibilityStateText") && segment.include?("已选中")
+  raise "#{chip_name} must expose filter hint text" unless segment.include?("accessibilityHintText") && segment.include?("筛选\\(title)分类")
+  raise "#{chip_name} must expose selected clear hint" unless segment.include?("再次点击清除筛选")
+  raise "#{chip_name} must attach accessibility hint" unless segment.include?(".accessibilityHint(accessibilityHintText)")
+  raise "#{chip_name} must include selected state in label" unless segment.include?("accessibilityStateText)")
+end
+
 assert_slice_contains(
   "ChronoFocus/Views/ScheduleView.swift",
   "SelectedCategorySummaryView(",
@@ -291,6 +300,10 @@ assert_slice_contains(
   /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory == category \? nil : category/,
   "Mac category filter chip must toggle off the selected category"
 )
+
+assert_chip_accessibility("ChronoFocus/Views/ScheduleView.swift", "TaskCategoryFilterChip", "private struct ScheduleTaskCell")
+assert_chip_accessibility("ChronoFocus/Views/TimerView.swift", "TimerTaskCategoryFilterChip", "private struct TimerSelectedTaskCategorySummaryView")
+assert_chip_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCategoryFilterChip", "@MainActor\nprivate func syncMacTaskReminder")
 RUBY
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
 grep -q "makeToneWavData(for completionSound: CompletionSound)" ChronoFocus/Services/NotificationService.swift
