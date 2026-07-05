@@ -542,7 +542,7 @@ private struct TimerSelectedTaskCategorySummaryView: View {
                 .stroke(tint.opacity(0.36), lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("当前筛选\(category)分类，\(count)项可启动")
+        .accessibilityLabel("当前筛选\(category)分类，\(count)项可启动，可清除筛选")
     }
 }
 

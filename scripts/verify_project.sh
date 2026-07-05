@@ -241,6 +241,14 @@ assert_slice_contains(
   "Schedule category summary must wire add and clear actions"
 )
 
+schedule_summary_source = source_slice(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "private struct SelectedCategorySummaryView",
+  "private struct CalendarDayButton",
+  "Schedule category summary source missing"
+)
+raise "Schedule category summary accessibility label must announce add and clear actions" unless schedule_summary_source.include?("可新增此分类待办或清除筛选")
+
 schedule_source = File.read("ChronoFocus/Views/ScheduleView.swift")
 schedule_count_property = schedule_source[/private var taskListCountText: String \{[\s\S]*?\n    \}/]
 raise "Schedule task list count text missing" unless schedule_count_property
@@ -254,6 +262,14 @@ assert_slice_contains(
   /TimerSelectedTaskCategorySummaryView\([\s\S]*?onClear: clearTaskCategoryFilter/,
   "Timer category summary must use clearTaskCategoryFilter"
 )
+
+timer_summary_source = source_slice(
+  "ChronoFocus/Views/TimerView.swift",
+  "private struct TimerSelectedTaskCategorySummaryView",
+  "private struct TimerTaskCategoryEmptyView",
+  "Timer category summary source missing"
+)
+raise "Timer category summary accessibility label must announce clear action" unless timer_summary_source.include?("可清除筛选")
 
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",

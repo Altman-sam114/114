@@ -480,7 +480,7 @@ private struct SelectedCategorySummaryView: View {
                 .stroke(tint.opacity(0.36), lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("当前筛选\(category)分类，\(count)项")
+        .accessibilityLabel("当前筛选\(category)分类，\(count)项，可新增此分类待办或清除筛选")
     }
 }
 
