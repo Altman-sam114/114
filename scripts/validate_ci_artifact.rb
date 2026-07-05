@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "find"
 require "optparse"
 require "rexml/document"
 
@@ -179,6 +180,28 @@ def positive_local_artifact?(artifact_dir, entry)
   end
 end
 
+def local_artifact_metadata(artifact_dir, entry)
+  path = local_artifact_path(artifact_dir, entry.fetch("path"))
+  case entry["kind"]
+  when "file"
+    return nil unless File.file?(path)
+
+    { "kind" => "file", "byteCount" => File.size(path) }
+  when "directory"
+    return nil unless File.directory?(path)
+
+    file_count = 0
+    recursive_byte_count = 0
+    Find.find(path) do |child|
+      next unless File.file?(child)
+
+      file_count += 1
+      recursive_byte_count += File.size(child)
+    end
+    { "kind" => "directory", "fileCount" => file_count, "recursiveByteCount" => recursive_byte_count }
+  end
+end
+
 begin
 artifact_dir = resolve_artifact_dir(artifact_arg)
 checks = []
@@ -268,6 +291,20 @@ check(checks, "index required local artifacts") do
   EXPECTED_INDEX_ENTRIES.keys.all? do |path|
     entry = entries_by_path[path]
     entry && positive_local_artifact?(artifact_dir, entry)
+  end
+end
+check(checks, "index required local metadata") do
+  EXPECTED_INDEX_ENTRIES.keys.all? do |path|
+    entry = entries_by_path[path]
+    metadata = entry && local_artifact_metadata(artifact_dir, entry)
+    next false unless metadata && metadata["kind"] == entry["kind"]
+
+    if entry["kind"] == "file"
+      metadata["byteCount"] == entry["byteCount"].to_i
+    else
+      metadata["fileCount"] == entry["fileCount"].to_i &&
+        metadata["recursiveByteCount"] == entry["recursiveByteCount"].to_i
+    end
   end
 end
 

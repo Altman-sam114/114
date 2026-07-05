@@ -395,6 +395,7 @@ ruby -c scripts/validate_ci_artifact.rb >/dev/null
 ruby -c scripts/resolve_ios_simulator_destination.rb >/dev/null
 grep -q "ci-artifact-manifest.json" scripts/validate_ci_artifact.rb
 grep -q "missingRequiredCount" scripts/validate_ci_artifact.rb
+grep -q "require \"find\"" scripts/validate_ci_artifact.rb
 grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
 grep -q "Project structure verified." scripts/validate_ci_artifact.rb
 grep -q "Category chip accessibility contracts verified." scripts/validate_ci_artifact.rb
@@ -414,6 +415,7 @@ grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
 grep -q "corrupt_index_totals_fixture" scripts/verify_project.sh
 grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
+grep -q "mismatched_local_artifact_fixture" scripts/verify_project.sh
 grep -q "FAIL junit testcase outcomes" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
@@ -422,6 +424,7 @@ grep -q "FAIL index required local artifacts" scripts/verify_project.sh
 grep -q "manifest paths" scripts/validate_ci_artifact.rb
 grep -q "index required paths" scripts/validate_ci_artifact.rb
 grep -q "index required local artifacts" scripts/validate_ci_artifact.rb
+grep -q "index required local metadata" scripts/validate_ci_artifact.rb
 grep -q "index totals consistency" scripts/validate_ci_artifact.rb
 grep -q "failure summary log entries" scripts/validate_ci_artifact.rb
 grep -q "failure summary identity" scripts/validate_ci_artifact.rb
@@ -550,8 +553,6 @@ manifest = {
     json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
     encoding="utf-8",
 )
-(root / "ci-artifact-index.json").write_text("{}\n", encoding="utf-8")
-
 index_paths = [
     "ci-results/ci-artifact-manifest.json",
     "ci-results/ci-artifact-index.json",
@@ -595,29 +596,37 @@ def metadata(contract_path):
         entry["kind"] = "missing"
     return entry
 
-index = {
-    "version": "v0.10",
-    "branch": "main",
-    "commitSha": commit,
-    "runId": run_id,
-    "runAttempt": attempt,
-    "entries": [metadata(path) for path in index_paths],
-}
-index["totals"] = {
-    "entryCount": len(index["entries"]),
-    "missingRequiredCount": sum(
-        1 for entry in index["entries"]
-        if entry["required"] and not entry["exists"]
-    ),
-    "fileByteCount": sum(entry.get("byteCount", 0) for entry in index["entries"]),
-    "directoryRecursiveByteCount": sum(
-        entry.get("recursiveByteCount", 0) for entry in index["entries"]
-    ),
-}
-(root / "ci-artifact-index.json").write_text(
-    json.dumps(index, ensure_ascii=False, indent=2) + "\n",
-    encoding="utf-8",
-)
+index_path = root / "ci-artifact-index.json"
+index_path.write_text("{}\n", encoding="utf-8")
+last_size = None
+for _ in range(5):
+    index = {
+        "version": "v0.10",
+        "branch": "main",
+        "commitSha": commit,
+        "runId": run_id,
+        "runAttempt": attempt,
+        "entries": [metadata(path) for path in index_paths],
+    }
+    index["totals"] = {
+        "entryCount": len(index["entries"]),
+        "missingRequiredCount": sum(
+            1 for entry in index["entries"]
+            if entry["required"] and not entry["exists"]
+        ),
+        "fileByteCount": sum(entry.get("byteCount", 0) for entry in index["entries"]),
+        "directoryRecursiveByteCount": sum(
+            entry.get("recursiveByteCount", 0) for entry in index["entries"]
+        ),
+    }
+    index_path.write_text(
+        json.dumps(index, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    new_size = index_path.stat().st_size
+    if new_size == last_size:
+        break
+    last_size = new_size
 PY
 ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >/dev/null
 negative_junit_fixture="$(mktemp -d)"
@@ -732,6 +741,19 @@ fi
 grep -q "FAIL index required local artifacts" "$missing_local_artifact_output"
 rm -rf "$missing_local_artifact_fixture"
 rm -f "$missing_local_artifact_output"
+mismatched_local_artifact_fixture="$(mktemp -d)"
+mismatched_local_artifact_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$mismatched_local_artifact_fixture"/
+printf "tampered\n" >> "$mismatched_local_artifact_fixture/static-checks.log"
+printf "extra\n" > "$mismatched_local_artifact_fixture/project-reports/mac-snapshots/extra-local-file.txt"
+if ruby scripts/validate_ci_artifact.rb "$mismatched_local_artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$mismatched_local_artifact_output" 2>&1; then
+  echo "Expected mismatched local artifact fixture to fail validation" >&2
+  cat "$mismatched_local_artifact_output" >&2
+  exit 1
+fi
+grep -q "FAIL index required local metadata" "$mismatched_local_artifact_output"
+rm -rf "$mismatched_local_artifact_fixture"
+rm -f "$mismatched_local_artifact_output"
 rm -rf "$artifact_fixture"
 simctl_fixture="$(mktemp)"
 python3 - "$simctl_fixture" <<'PY'
