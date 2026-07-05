@@ -85,6 +85,13 @@ EXPECTED_JUNIT_LOGS = {
   "iosBuild" => "ci-results/ios-xcodebuild.log"
 }.freeze
 
+EXPECTED_JUNIT_OUTCOMES = {
+  "staticChecks" => "staticChecksOutcome",
+  "projectVerification" => "projectVerificationOutcome",
+  "macBuild" => "macBuildOutcome",
+  "iosBuild" => "iosBuildOutcome"
+}.freeze
+
 EXPECTED_OUTCOME_KEYS = %w[
   staticChecksOutcome
   projectVerificationOutcome
@@ -273,6 +280,12 @@ check(checks, "junit testcase logs") do
   testcases.all? do |testcase|
     expected_log = EXPECTED_JUNIT_LOGS[testcase.attributes["name"]]
     expected_log && testcase.get_text("system-out").to_s.include?("log=#{expected_log}")
+  end
+end
+check(checks, "junit testcase outcomes") do
+  testcases.all? do |testcase|
+    expected_key = EXPECTED_JUNIT_OUTCOMES[testcase.attributes["name"]]
+    expected_key && testcase.get_text("system-out").to_s.include?("outcome=#{manifest[expected_key]};")
   end
 end
 summary = File.read(summary_path, encoding: "UTF-8")

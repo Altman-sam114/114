@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、预设按钮、点击切换、Mac 任务行分类 badge、selected trait 和 Voice Control 标签检查<br/>validator 复判 static-checks、Xcode 版本与分类可访问日志 marker<br/>validator 正向/错包/index错包/totals错包/缺失产物 fixture"]
+  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、预设按钮、点击切换、Mac 任务行分类 badge、selected trait 和 Voice Control 标签检查<br/>validator 复判 JUnit outcome、static-checks、Xcode 版本与分类可访问日志 marker<br/>validator 正向/JUnit错包/错包/index错包/totals错包/缺失产物 fixture"]
 ```
 
 ## 计时执行流
@@ -109,7 +109,7 @@ flowchart TD
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
   PUSH --> CI["GitHub Actions<br/>ci-results.yml<br/>静态检查、verify_project、Mac build、iOS build"]
-  CI --> ART["未加密 CI 结果包<br/>manifest、artifact index、run context、failure summary 身份/outcome/错误摘录、JUnit、static-checks marker、Xcode 版本、verify_project 分类可访问 marker、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
+  CI --> ART["未加密 CI 结果包<br/>manifest、artifact index、run context、failure summary 身份/outcome/错误摘录、JUnit outcome、static-checks marker、Xcode 版本、verify_project 分类可访问 marker、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
   ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id<br/>核对 artifact index、index totals、run context、artifact 名称和快照 manifest"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}

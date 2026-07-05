@@ -404,14 +404,17 @@ grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SUMMARY_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_STATIC_CHECK_MARKERS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_JUNIT_TESTCASES" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_JUNIT_OUTCOMES" scripts/validate_ci_artifact.rb
 grep -q "ci-run-context.txt" scripts/validate_ci_artifact.rb
 grep -q "xcode version log" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
+grep -q "negative_junit_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
 grep -q "corrupt_index_totals_fixture" scripts/verify_project.sh
 grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
+grep -q "FAIL junit testcase outcomes" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
 grep -q "FAIL index totals consistency" scripts/verify_project.sh
@@ -424,6 +427,7 @@ grep -q "failure summary log entries" scripts/validate_ci_artifact.rb
 grep -q "failure summary identity" scripts/validate_ci_artifact.rb
 grep -q "failure summary outcomes" scripts/validate_ci_artifact.rb
 grep -q "junit testcase names" scripts/validate_ci_artifact.rb
+grep -q "junit testcase outcomes" scripts/validate_ci_artifact.rb
 grep -q "xcrun.*simctl" scripts/resolve_ios_simulator_destination.rb
 grep -q "platform=iOS Simulator,id=" scripts/resolve_ios_simulator_destination.rb
 grep -q "print_build_command" scripts/resolve_ios_simulator_destination.rb
@@ -616,6 +620,31 @@ index["totals"] = {
 )
 PY
 ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >/dev/null
+negative_junit_fixture="$(mktemp -d)"
+negative_junit_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_junit_fixture"/
+python3 - "$negative_junit_fixture" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+root = Path(sys.argv[1])
+junit_path = root / "junit.xml"
+tree = ET.parse(junit_path)
+for testcase in tree.getroot().findall("testcase"):
+    if testcase.get("name") == "staticChecks":
+        testcase.find("system-out").text = "outcome=failure; log=ci-results/static-checks.log"
+        break
+tree.write(junit_path, encoding="utf-8", xml_declaration=True)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_junit_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_junit_output" 2>&1; then
+  echo "Expected negative JUnit fixture to fail validation" >&2
+  cat "$negative_junit_output" >&2
+  exit 1
+fi
+grep -q "FAIL junit testcase outcomes" "$negative_junit_output"
+rm -rf "$negative_junit_fixture"
+rm -f "$negative_junit_output"
 negative_artifact_fixture="$(mktemp -d)"
 negative_artifact_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_artifact_fixture"/
