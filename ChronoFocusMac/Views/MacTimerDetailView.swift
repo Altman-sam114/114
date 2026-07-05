@@ -261,26 +261,47 @@ struct MacTaskRowView: View {
     let task: FocusTask
     var isSelected = false
 
+    private var categoryTint: Color {
+        Color(hex: task.accentHex)
+    }
+
+    private var categorySymbolName: String {
+        TaskCategoryPreset.matching(task.category)?.symbolName ?? "tag.fill"
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle.fill")
-                .foregroundStyle(Color(hex: task.accentHex))
+                .foregroundStyle(categoryTint)
             VStack(alignment: .leading, spacing: 3) {
                 Text(task.title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(MacTheme.primaryText)
                     .lineLimit(1)
-                Text(task.dueDate?.scheduleTimeText ?? task.category)
-                    .font(.caption)
-                    .foregroundStyle(MacTheme.secondaryText)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Label(task.category, systemImage: categorySymbolName)
+                        .font(.caption.bold())
+                        .foregroundStyle(categoryTint)
+                        .lineLimit(1)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(categoryTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .accessibilityLabel("\(task.category)分类")
+
+                    if let dueDate = task.dueDate {
+                        Text(dueDate.scheduleTimeText)
+                            .font(.caption)
+                            .foregroundStyle(MacTheme.secondaryText)
+                            .lineLimit(1)
+                    }
+                }
             }
             Spacer()
-            MacLinearProgressView(value: task.progress, tint: Color(hex: task.accentHex), height: 6)
+            MacLinearProgressView(value: task.progress, tint: categoryTint, height: 6)
                 .frame(width: 74)
         }
         .padding(10)
-        .background(isSelected ? Color(hex: task.accentHex).opacity(0.16) : Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+        .background(isSelected ? categoryTint.opacity(0.16) : Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 

@@ -352,6 +352,7 @@ grep -q "openDetails(.settings)" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "MacMiniTaskCategoryBadgeView" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "taskContextText(for task: FocusTask)" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "TaskCategoryPreset.matching(task.category)" ChronoFocusMac/Views/MacMiniTimerView.swift
+ruby -e 'source = File.read("ChronoFocusMac/Views/MacTimerDetailView.swift"); row = source[/struct MacTaskRowView: View[\s\S]*?struct MacPageHeaderView: View/]; raise "MacTaskRowView missing" unless row; raise "Mac task row category symbol missing" unless row.include?("private var categorySymbolName") && row.include?("TaskCategoryPreset.matching(task.category)?.symbolName ?? \"tag.fill\""); raise "Mac task row category badge missing" unless row.include?("Label(task.category, systemImage: categorySymbolName)"); raise "Mac task row category accessibility label missing" unless row.include?(".accessibilityLabel(\"\\(task.category)分类\")"); raise "Mac task row must not replace category with due date" if row.include?("task.dueDate?.scheduleTimeText ?? task.category"); raise "Mac task row must keep due date as secondary metadata" unless row.include?("if let dueDate = task.dueDate") && row.include?("dueDate.scheduleTimeText")'
 grep -q "CHRONOFOCUS_MAC_OPEN_DETAILS" ChronoFocusMac/App/ChronoFocusMacApp.swift
 grep -q "CHRONOFOCUS_MAC_OPEN_POPOVER" ChronoFocusMac/App/ChronoFocusMacApp.swift
 grep -q "NavigationSplitView" ChronoFocusMac/Views/MacDetailView.swift

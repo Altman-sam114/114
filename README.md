@@ -20,7 +20,7 @@
 - 使用 StoreKit 2 购买/恢复 Pro 权益，内购商品 ID 为 `com.example.ChronoFocus.pro.analytics`。
 - 使用本地通知在番茄钟结束和日程到期时提醒，并按设置播放系统铃声。
 - 使用 ActivityKit Live Activity 在锁屏、通知栏和灵动岛显示后台倒计时。
-- macOS 版提供状态栏剩余时间、弹出式极简计时器、带分类和时间上下文的当前待办、可直达日程/统计/设置的快捷面板、详细功能窗口、分类筛选快速新增预填提示、筛选摘要快捷新增和筛选/总数计数、桌面通知、触觉反馈、Pro 统计和 Mac 日历同步。
+- macOS 版提供状态栏剩余时间、弹出式极简计时器、带分类和时间上下文的当前待办、可直达日程/统计/设置的快捷面板、详细功能窗口、任务行常驻分类 badge、分类筛选快速新增预填提示、筛选摘要快捷新增和筛选/总数计数、桌面通知、触觉反馈、Pro 统计和 Mac 日历同步。
 - 通知权限未授权时可在 App 内请求；用户拒绝后会引导到系统设置。
 - 所有核心数据使用 `UserDefaults` JSON 持久化，重启后可恢复。
 
@@ -76,7 +76,7 @@ ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
 
 该脚本会在 `DEVELOPER_DIR` 未设置且本机存在 `/Applications/Xcode.app/Contents/Developer` 时自动使用完整 Xcode，避免 `xcode-select` 指向 Command Line Tools 时找不到 `simctl`；如果你已设置 `DEVELOPER_DIR`，打印的 build 命令会沿用该路径。
 
-验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、筛选摘要动作提示和分类快捷新增、iOS 日程筛选计数、计时页分类筛选摘要、分类摘要插入点和动作接线检查、Mac 待办筛选计数、Mac 分类摘要快捷新增、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 分类预填提示、Mac 日历权限说明、CI validator 正向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地缺失产物负向 fixture、static-checks 日志 marker 和分类可访问 contract 日志复判、Mac 快照 manifest，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
+验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、筛选摘要动作提示和分类快捷新增、iOS 日程筛选计数、计时页分类筛选摘要、Mac 任务行分类 badge、分类摘要插入点和动作接线检查、Mac 待办筛选计数、Mac 分类摘要快捷新增、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 分类预填提示、Mac 日历权限说明、CI validator 正向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地缺失产物负向 fixture、static-checks 日志 marker 和分类可访问 contract 日志复判、Mac 快照 manifest，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
