@@ -311,8 +311,10 @@ grep -q "ci-run-context.txt" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
+grep -q "negative_index_fixture" scripts/verify_project.sh
 grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
+grep -q "FAIL index commit" scripts/verify_project.sh
 grep -q "FAIL index required local artifacts" scripts/verify_project.sh
 grep -q "manifest paths" scripts/validate_ci_artifact.rb
 grep -q "index required paths" scripts/validate_ci_artifact.rb
@@ -532,6 +534,31 @@ fi
 grep -q "FAIL run context artifact name" "$negative_artifact_output"
 rm -rf "$negative_artifact_fixture"
 rm -f "$negative_artifact_output"
+negative_index_fixture="$(mktemp -d)"
+negative_index_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_index_fixture"/
+python3 - "$negative_index_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+index["commitSha"] = "stale-index-sha"
+index_path.write_text(
+    json.dumps(index, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_index_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_index_output" 2>&1; then
+  echo "Expected negative index fixture to fail validation" >&2
+  cat "$negative_index_output" >&2
+  exit 1
+fi
+grep -q "FAIL index commit" "$negative_index_output"
+rm -rf "$negative_index_fixture"
+rm -f "$negative_index_output"
 missing_local_artifact_fixture="$(mktemp -d)"
 missing_local_artifact_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$missing_local_artifact_fixture"/

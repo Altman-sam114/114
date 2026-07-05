@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线检查<br/>validator 正向/错包/缺失产物 fixture"]
+  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线检查<br/>validator 正向/错包/index错包/缺失产物 fixture"]
 ```
 
 ## 计时执行流
