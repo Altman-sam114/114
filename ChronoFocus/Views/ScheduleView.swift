@@ -682,6 +682,7 @@ private struct ScheduleTaskCell: View {
                         .padding(.vertical, 3)
                         .background(categoryTint.opacity(0.14), in: Capsule())
                         .accessibilityLabel("\(task.category)分类")
+                        .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
                     if let dueDate = task.dueDate {
                         Text(dueDate.scheduleTimeText)
                     }

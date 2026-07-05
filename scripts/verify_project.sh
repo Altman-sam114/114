@@ -300,6 +300,7 @@ raise "Schedule task cell category preset missing" unless schedule_task_cell.inc
 raise "Schedule task cell category symbol missing" unless schedule_task_cell.include?("private var categorySymbolName")
 raise "Schedule task cell category badge missing" unless schedule_task_cell.include?("Label(task.category, systemImage: categorySymbolName)")
 raise "Schedule task cell category accessibility label missing" unless schedule_task_cell.include?(".accessibilityLabel(\"\\(task.category)分类\")")
+raise "Schedule task cell category Voice Control input labels missing" unless schedule_task_cell.include?(".accessibilityInputLabels([Text(task.category), Text(\"\\(task.category)分类\")])")
 raise "Schedule task cell must keep due date as secondary metadata" unless schedule_task_cell.include?("if let dueDate = task.dueDate") && schedule_task_cell.include?("dueDate.scheduleTimeText")
 
 assert_slice_contains(
