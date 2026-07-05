@@ -109,7 +109,7 @@ flowchart TD
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
   PUSH --> CI["GitHub Actions<br/>ci-results.yml<br/>静态检查、verify_project、Mac build、iOS build"]
-  CI --> ART["未加密 CI 结果包<br/>manifest、artifact index、run context、failure summary/错误摘录、JUnit、static-checks marker、Xcode 版本、verify_project 分类可访问 marker、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
+  CI --> ART["未加密 CI 结果包<br/>manifest、artifact index、run context、failure summary 身份/outcome/错误摘录、JUnit、static-checks marker、Xcode 版本、verify_project 分类可访问 marker、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
   ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id<br/>核对 artifact index、index totals、run context、artifact 名称和快照 manifest"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}

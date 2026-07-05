@@ -57,6 +57,13 @@ EXPECTED_SUMMARY_ENTRIES = [
   "Mac snapshots: `ci-results/project-reports/mac-snapshots/`"
 ].freeze
 
+EXPECTED_SUMMARY_OUTCOMES = {
+  "Static checks" => "staticChecksOutcome",
+  "Project verification" => "projectVerificationOutcome",
+  "Mac build" => "macBuildOutcome",
+  "iOS build" => "iosBuildOutcome"
+}.freeze
+
 EXPECTED_STATIC_CHECK_MARKERS = [
   "Running committed diff whitespace check...",
   "Running project plist lint...",
@@ -272,6 +279,19 @@ summary = File.read(summary_path, encoding: "UTF-8")
 check(checks, "failure summary") { summary.include?("All CI stages passed.") }
 check(checks, "failure summary log entries") do
   EXPECTED_SUMMARY_ENTRIES.all? { |entry| summary.include?(entry) }
+end
+check(checks, "failure summary identity") do
+  [
+    "- Version: `#{manifest["version"]}`",
+    "- Branch: `#{options["branch"]}`",
+    "- Commit: `#{options["commit"]}`",
+    "- Run: `#{options["run_id"]}` attempt `#{options["attempt"]}`"
+  ].all? { |entry| summary.include?(entry) }
+end
+check(checks, "failure summary outcomes") do
+  EXPECTED_SUMMARY_OUTCOMES.all? do |label, manifest_key|
+    summary.include?("- #{label}: `#{manifest[manifest_key]}`")
+  end
 end
 check(checks, "static checks log markers") do
   static_checks_log = File.read(static_checks_log_path, encoding: "UTF-8")
