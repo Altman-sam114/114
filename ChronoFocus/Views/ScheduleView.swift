@@ -463,6 +463,8 @@ private struct SelectedCategorySummaryView: View {
                     .frame(minHeight: 44)
                     .padding(.horizontal, 10)
                     .background(tint, in: Capsule())
+                    .accessibilityLabel("新增\(category)分类待办")
+                    .accessibilityInputLabels([Text("新增此分类"), Text("新增\(category)分类待办"), Text("新增\(category)分类")])
 
                 Button("清除", systemImage: "xmark.circle.fill", action: onClear)
                     .font(.caption.weight(.bold))
@@ -470,6 +472,8 @@ private struct SelectedCategorySummaryView: View {
                     .buttonStyle(.plain)
                     .frame(minWidth: 72)
                     .frame(minHeight: 44)
+                    .accessibilityLabel("清除\(category)分类筛选")
+                    .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
             }
         }
         .padding(.horizontal, 12)

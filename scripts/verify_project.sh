@@ -216,6 +216,13 @@ def source_slice(path, earlier, later, message)
   source[earlier_index...later_index]
 end
 
+def segment_slice(source, earlier, later, message)
+  earlier_index = source.index(earlier)
+  later_index = source.index(later, earlier_index || 0)
+  raise message unless earlier_index && later_index && earlier_index < later_index
+  source[earlier_index...later_index]
+end
+
 def assert_slice_contains(path, earlier, later, pattern, message)
   segment = source_slice(path, earlier, later, message)
   matched = pattern.is_a?(Regexp) ? segment.match?(pattern) : segment.include?(pattern)
@@ -258,6 +265,24 @@ schedule_summary_source = source_slice(
   "Schedule category summary source missing"
 )
 raise "Schedule category summary accessibility label must announce add and clear actions" unless schedule_summary_source.include?("可新增此分类待办或清除筛选")
+schedule_summary_add_button = segment_slice(
+  schedule_summary_source,
+  "Button(\"新增此分类\", systemImage: \"plus.circle.fill\", action: onAddTask)",
+  "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
+  "Schedule category summary add button source missing"
+)
+raise "Schedule category summary add button tap target missing" unless schedule_summary_add_button.include?(".frame(maxWidth: .infinity)") && schedule_summary_add_button.include?(".frame(minHeight: 44)")
+raise "Schedule category summary add accessibility label missing" unless schedule_summary_add_button.include?(".accessibilityLabel(\"新增\\(category)分类待办\")")
+raise "Schedule category summary add Voice Control input labels missing" unless schedule_summary_add_button.include?(".accessibilityInputLabels([Text(\"新增此分类\"), Text(\"新增\\(category)分类待办\"), Text(\"新增\\(category)分类\")])")
+schedule_summary_clear_button = segment_slice(
+  schedule_summary_source,
+  "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
+  ".accessibilityElement(children: .contain)",
+  "Schedule category summary clear button source missing"
+)
+raise "Schedule category summary clear button tap target missing" unless schedule_summary_clear_button.include?(".frame(minWidth: 72)") && schedule_summary_clear_button.include?(".frame(minHeight: 44)")
+raise "Schedule category summary clear accessibility label missing" unless schedule_summary_clear_button.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
+raise "Schedule category summary clear Voice Control input labels missing" unless schedule_summary_clear_button.include?(".accessibilityInputLabels([Text(\"清除筛选\"), Text(\"清除\\(category)分类\")])")
 
 schedule_source = File.read("ChronoFocus/Views/ScheduleView.swift")
 schedule_count_property = schedule_source[/private var taskListCountText: String \{[\s\S]*?\n    \}/]
@@ -329,6 +354,30 @@ assert_slice_contains(
   /MacSelectedCategorySummaryView\([\s\S]*?onAddTask:\s*\{\s*onAddTaskInCategory\(selectedCategoryName\)\s*\}[\s\S]*?\)\s*\{\s*selectedCategory = nil\s*\}/,
   "Mac category summary must wire add and clear actions"
 )
+
+mac_schedule_summary_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private struct MacSelectedCategorySummaryView",
+  "private struct MacSummaryStaticActionView",
+  "Mac category summary source missing"
+)
+raise "Mac category summary must keep child accessibility elements" unless mac_schedule_summary_source.include?(".accessibilityElement(children: .contain)")
+mac_schedule_summary_add_button = segment_slice(
+  mac_schedule_summary_source,
+  "Button(\"新增此分类\", systemImage: \"plus.circle.fill\", action: onAddTask)",
+  "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
+  "Mac category summary add button source missing"
+)
+raise "Mac category summary add accessibility label missing" unless mac_schedule_summary_add_button.include?(".accessibilityLabel(\"新增\\(category)分类待办\")")
+raise "Mac category summary add Voice Control input labels missing" unless mac_schedule_summary_add_button.include?(".accessibilityInputLabels([Text(\"新增此分类\"), Text(\"新增\\(category)分类待办\"), Text(\"新增\\(category)分类\")])")
+mac_schedule_summary_clear_button = segment_slice(
+  mac_schedule_summary_source,
+  "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
+  ".accessibilityElement(children: .contain)",
+  "Mac category summary clear button source missing"
+)
+raise "Mac category summary clear accessibility label missing" unless mac_schedule_summary_clear_button.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
+raise "Mac category summary clear Voice Control input labels missing" unless mac_schedule_summary_clear_button.include?(".accessibilityInputLabels([Text(\"清除筛选\"), Text(\"清除\\(category)分类\")])")
 
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",

@@ -731,12 +731,16 @@ private struct MacSelectedCategorySummaryView: View {
                         .padding(.horizontal, 10)
                         .frame(minHeight: 30)
                         .background(tint, in: Capsule())
+                        .accessibilityLabel("新增\(category)分类待办")
+                        .accessibilityInputLabels([Text("新增此分类"), Text("新增\(category)分类待办"), Text("新增\(category)分类")])
 
                     Button("清除", systemImage: "xmark.circle.fill", action: onClear)
                         .font(.caption.bold())
                         .foregroundStyle(tint)
                         .buttonStyle(.plain)
                         .frame(minHeight: 30)
+                        .accessibilityLabel("清除\(category)分类筛选")
+                        .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
                 }
             }
         }
@@ -747,6 +751,7 @@ private struct MacSelectedCategorySummaryView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(tint.opacity(0.36), lineWidth: 1)
         }
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("当前筛选\(category)分类，\(count)项，可新增此分类待办或清除筛选")
     }
 }

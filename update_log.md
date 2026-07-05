@@ -14,7 +14,7 @@
 
 - iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/音色/振动、亮暗主题。
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
-- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、计时页/日程页分类筛选摘要/预填/排序/快捷新增标记、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程任务行分类 badge、分类摘要插入点和动作接线、Mac 待办筛选计数、Mac 任务行分类 badge、Mac 分类摘要快捷新增、Mac 分类预填提示、iOS 设置页音色选择、Mac 小窗分类上下文、CI 结果包校验脚本与小型成功、JUnit outcome 负向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地文件大小篡改负向、本地缺失产物负向 fixture、快照 manifest 大小篡改负向 fixture、run context 复判、分类可访问 contract 日志复判、Mac 核心测试、Mac UI 快照和快照 manifest byteCount 复判。
+- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、计时页/日程页分类筛选摘要/预填/排序/快捷新增标记、iOS/Mac 日程摘要按钮分类语义、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程任务行分类 badge、分类摘要插入点和动作接线、Mac 待办筛选计数、Mac 任务行分类 badge、Mac 分类摘要快捷新增、Mac 分类预填提示、iOS 设置页音色选择、Mac 小窗分类上下文、CI 结果包校验脚本与小型成功、JUnit outcome 负向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地文件大小篡改负向、本地缺失产物负向 fixture、快照 manifest 大小篡改负向 fixture、run context 复判、分类可访问 contract 日志复判、Mac 核心测试、Mac UI 快照和快照 manifest byteCount 复判。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、artifact index、本地元数据复算、index totals 一致性、run context、JUnit outcome、failure summary 身份/outcome、static-checks 日志 marker、Xcode 版本日志、分类可访问 contract marker、Mac 快照 manifest byteCount 复判和失败阶段关键错误摘录。
 
@@ -32,6 +32,39 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.45 / 日程摘要按钮分类语义
+
+日期：2026-07-05
+
+核心变更：
+
+- iOS 日程页选中分类摘要的“新增此分类”和“清除”按钮补齐分类名可访问标签。
+- iOS 日程摘要按钮补充 Voice Control input labels，支持“新增此分类”“新增某分类待办”“新增某分类”“清除筛选”和“清除某分类”语音入口。
+- macOS 日程详情选中分类摘要的真实新增/清除按钮补齐同等分类名可访问标签和 Voice Control input labels。
+- `scripts/verify_project.sh` 增加 iOS/Mac 日程摘要按钮级源码契约，锁定新增/清除按钮的分类 label、Voice Control input labels 和 iOS 44pt 点击区。
+- README、测试规范和核心流程文档同步日程摘要按钮分类语义。
+
+关键文件：
+
+- `ChronoFocus/Views/ScheduleView.swift`
+- `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `scripts/verify_project.sh`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（持续优化）/v0.45（日程摘要按钮分类语义）.md`
+- `update_log.md`
+
+验证结果：
+
+- 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
+- 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
+
+遗留事项：
+
+- 总目标仍未完成；v0.45 通过后继续评估更多分类操作效率或 CI artifact 一致性检查。
 
 ### v0.44 / 计时页摘要清除语义
 
