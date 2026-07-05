@@ -216,7 +216,7 @@ bash scripts/verify_project.sh
 - 检查项目和 plist 语法。
 - 检查必需文件、工程引用、三个 shared schemes 语法。
 - 检查 Live Activity、本地通知、铃声/音色、Pro、日历同步、自动计划、Mac 状态栏等实现标记。
-- 检查分类预设、日程页和计时页分类筛选、分类 chip 点击切换和可访问提示、新建预填、筛选摘要、iOS 日程筛选计数、计时页分类筛选摘要、分类摘要插入点和新增/清除动作接线、iOS 摘要快捷新增分类待办、Mac 待办筛选计数、Mac 分类摘要快捷新增、Mac 快速新增分类预填提示、筛选优先级、44pt iOS 分类点击区域、iOS 设置页音色选择/试听、根视图非 Pro 音色清洗、Mac 小窗任务分类上下文、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件、CI iOS/错误摘录/artifact index/run context 结果包实现标记、结果包校验脚本语法、validator 小型成功、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地缺失产物负向 fixture 和分类可访问 contract 日志复判、iOS simulator destination 解析 fixture。
+- 检查分类预设、日程页和计时页分类筛选、分类 chip 点击切换、可访问提示和 selected trait、新建预填、筛选摘要、iOS 日程筛选计数、计时页分类筛选摘要、分类摘要插入点和新增/清除动作接线、iOS 摘要快捷新增分类待办、Mac 待办筛选计数、Mac 分类摘要快捷新增、Mac 快速新增分类预填提示、筛选优先级、44pt iOS 分类点击区域、iOS 设置页音色选择/试听、根视图非 Pro 音色清洗、Mac 小窗任务分类上下文、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件、CI iOS/错误摘录/artifact index/run context 结果包实现标记、结果包校验脚本语法、validator 小型成功、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地缺失产物负向 fixture 和分类可访问 contract 日志复判、iOS simulator destination 解析 fixture。
 - 编译并运行 Mac core tests。
 - 渲染 Mac 快照到 `/tmp/chronofocus-mac-snapshots/`，并生成 `manifest.json` 记录 5 张快照的文件名、尺寸和字节数。
 - 最终输出 `Project structure verified.`。

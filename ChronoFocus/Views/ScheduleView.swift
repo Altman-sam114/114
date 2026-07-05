@@ -587,6 +587,10 @@ private struct TaskCategoryFilterChip: View {
         return title == "全部" ? "显示全部分类" : "筛选\(title)分类"
     }
 
+    private var accessibilityTraits: AccessibilityTraits {
+        isSelected ? .isSelected : []
+    }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
@@ -612,6 +616,7 @@ private struct TaskCategoryFilterChip: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(title)分类，\(count)项\(accessibilityStateText)")
         .accessibilityHint(accessibilityHintText)
+        .accessibilityAddTraits(accessibilityTraits)
     }
 }
 

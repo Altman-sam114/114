@@ -229,6 +229,7 @@ def assert_chip_accessibility(path, chip_name, later)
   raise "#{chip_name} must expose selected clear hint" unless segment.include?("再次点击清除筛选")
   raise "#{chip_name} must attach accessibility hint" unless segment.include?(".accessibilityHint(accessibilityHintText)")
   raise "#{chip_name} must include selected state in label" unless segment.include?("accessibilityStateText)")
+  raise "#{chip_name} must expose selected accessibility trait" unless segment.include?("accessibilityTraits: AccessibilityTraits") && segment.include?(".isSelected") && segment.include?(".accessibilityAddTraits(accessibilityTraits)")
 end
 
 assert_slice_contains(
