@@ -293,6 +293,19 @@ timer_summary_source = source_slice(
 )
 raise "Timer category summary accessibility label must announce clear action" unless timer_summary_source.include?("可清除筛选")
 
+timer_empty_source = source_slice(
+  "ChronoFocus/Views/TimerView.swift",
+  "private struct TimerTaskCategoryEmptyView",
+  "private struct TimerTaskCategoryBadge",
+  "Timer category empty view source missing"
+)
+raise "Timer category empty view preset missing" unless timer_empty_source.include?("TaskCategoryPreset.matching(category)")
+raise "Timer category empty clear button missing" unless timer_empty_source.include?("Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)")
+raise "Timer category empty clear button tap target missing" unless timer_empty_source.include?(".frame(minWidth: 72)") && timer_empty_source.include?(".frame(minHeight: 44)")
+raise "Timer category empty clear accessibility label missing" unless timer_empty_source.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
+raise "Timer category empty clear Voice Control input labels missing" unless timer_empty_source.include?(".accessibilityInputLabels([Text(\"清除筛选\"), Text(\"清除\\(category)分类\")])")
+raise "Timer category empty state accessibility label missing" unless timer_empty_source.include?(".accessibilityLabel(\"\\(category)分类暂无可启动待办，可清除筛选\")")
+
 timer_task_badge = source_slice(
   "ChronoFocus/Views/TimerView.swift",
   "private struct TimerTaskCategoryBadge",

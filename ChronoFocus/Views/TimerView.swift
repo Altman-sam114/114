@@ -550,10 +550,18 @@ private struct TimerTaskCategoryEmptyView: View {
     let category: String
     let onClear: () -> Void
 
+    private var preset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(category)
+    }
+
+    private var tint: Color {
+        Color(hex: preset?.accentHex ?? "#3DE8C5")
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "tag.slash")
-                .foregroundStyle(AppTheme.secondaryText)
+                .foregroundStyle(tint)
             Text("\(category) 分类暂无可启动待办")
                 .font(.subheadline)
                 .foregroundStyle(AppTheme.secondaryText)
@@ -562,10 +570,16 @@ private struct TimerTaskCategoryEmptyView: View {
             Button("清除", systemImage: "xmark.circle.fill", action: onClear)
                 .font(.caption.weight(.bold))
                 .buttonStyle(.plain)
-                .foregroundStyle(.cyan)
+                .foregroundStyle(tint)
+                .frame(minWidth: 72)
+                .frame(minHeight: 44)
+                .accessibilityLabel("清除\(category)分类筛选")
+                .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
         }
         .padding(12)
         .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(category)分类暂无可启动待办，可清除筛选")
     }
 }
 
