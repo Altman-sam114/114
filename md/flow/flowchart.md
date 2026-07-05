@@ -11,7 +11,7 @@ flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
-  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、计时页筛选摘要、新建预填、筛选摘要/快捷新增/清除"]
+  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、iOS日程筛选计数、计时页筛选摘要、新建预填、筛选摘要/快捷新增/清除"]
   CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]
@@ -62,11 +62,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["用户新增/编辑任务<br/>或系统日历同步事件"] --> P0["分类 UI<br/>计时页当前待办筛选摘要<br/>常用分类快选、手写分类<br/>筛选摘要新增/清除<br/>筛选联动新建预填<br/>Mac 快速新增已预填提示"]
+  A["用户新增/编辑任务<br/>或系统日历同步事件"] --> P0["分类 UI<br/>iOS日程筛选/总数计数<br/>计时页当前待办筛选摘要<br/>常用分类快选、手写分类<br/>筛选摘要新增/清除<br/>筛选联动新建预填<br/>Mac 快速新增已预填提示"]
   P0 --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
   B --> C["FocusTask<br/>标题、分类、截止时间、轮次、循环、外部日历 ID"]
   C --> C2["FocusStore.taskCategories + TaskCategoryFilterOption<br/>合并预设/已有分类<br/>有任务分类优先显示"]
-  C2 --> C3["选中分类摘要/预填提示<br/>当前数量、筛选/总数计数<br/>iOS 新增此分类、一键清除、Mac 已预填提示、空态提示"]
+  C2 --> C3["选中分类摘要/预填提示<br/>iOS/Mac 筛选/总数计数<br/>iOS 新增此分类、一键清除、Mac 已预填提示、空态提示"]
   C3 --> D{"autoGeneratePomodoroPlan 开启?"}
   D -->|是| E["generatePomodoroPlanFromSchedule<br/>按未完成任务和截止时间生成计划"]
   D -->|否| F["仅保存任务<br/>等待用户手动生成或开始"]

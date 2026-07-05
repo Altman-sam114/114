@@ -193,6 +193,8 @@ grep -q "taskCategories" ChronoFocus/Services/FocusStore.swift
 grep -q "TaskCategoryFilterBar" ChronoFocus/Views/ScheduleView.swift
 grep -q "TaskCategoryPresetPicker" ChronoFocus/Views/ScheduleView.swift
 grep -q "initialCategory: selectedCategory" ChronoFocus/Views/ScheduleView.swift
+grep -q "taskListCountText" ChronoFocus/Views/ScheduleView.swift
+grep -q "Text(taskListCountText)" ChronoFocus/Views/ScheduleView.swift
 grep -q "onAddTask" ChronoFocus/Views/ScheduleView.swift
 grep -q "新增此分类" ChronoFocus/Views/ScheduleView.swift
 grep -q "frame(minHeight: 44)" ChronoFocus/Views/ScheduleView.swift
@@ -227,6 +229,12 @@ assert_slice_contains(
   /SelectedCategorySummaryView\([\s\S]*?onAddTask:\s*\{\s*showingEditor = true\s*\}[\s\S]*?onClear:\s*\{\s*selectedCategory = nil\s*\}/,
   "Schedule category summary must wire add and clear actions"
 )
+
+schedule_source = File.read("ChronoFocus/Views/ScheduleView.swift")
+schedule_count_property = schedule_source[/private var taskListCountText: String \{[\s\S]*?\n    \}/]
+raise "Schedule task list count text missing" unless schedule_count_property
+raise "Schedule task list count text must handle zero total" unless schedule_count_property.include?("totalCount > 0") && schedule_count_property.include?("0 项")
+raise "Schedule task list count text must include filtered and total counts" unless schedule_count_property.include?("visibleTasks.count") && schedule_count_property.include?("totalCount") && schedule_count_property.include?("项")
 
 assert_slice_contains(
   "ChronoFocus/Views/TimerView.swift",

@@ -29,6 +29,17 @@ struct ScheduleView: View {
             }
     }
 
+    private var taskListCountText: String {
+        let totalCount = taskCount(in: nil)
+        guard totalCount > 0 else {
+            return "0 项"
+        }
+        guard selectedCategory != nil else {
+            return "\(totalCount) 项"
+        }
+        return "\(visibleTasks.count)/\(totalCount) 项"
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
@@ -229,9 +240,11 @@ struct ScheduleView: View {
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
                     Spacer()
-                    Text("\(visibleTasks.count) 项")
+                    Text(taskListCountText)
                         .font(.caption)
                         .foregroundStyle(AppTheme.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
                 }
 
                 TaskCategoryFilterBar(
