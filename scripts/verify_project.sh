@@ -248,8 +248,24 @@ assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "MacSelectedCategorySummaryView(",
   "if visibleTasks.isEmpty",
-  /MacSelectedCategorySummaryView\([\s\S]*?\)\s*\{\s*selectedCategory = nil\s*\}/,
-  "Mac category summary must wire clear action"
+  /MacSelectedCategorySummaryView\([\s\S]*?onAddTask:\s*\{\s*onAddTaskInCategory\(selectedCategoryName\)\s*\}[\s\S]*?\)\s*\{\s*selectedCategory = nil\s*\}/,
+  "Mac category summary must wire add and clear actions"
+)
+
+assert_slice_contains(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "MacTaskListPanelView(",
+  ".onChange(of: selectedCategory)",
+  /MacTaskListPanelView\([\s\S]*?selectedCategory:\s*\$selectedCategory,[\s\S]*?onAddTaskInCategory:\s*prepareQuickAdd/,
+  "Mac task list panel must pass quick add category action"
+)
+
+assert_slice_contains(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private func prepareQuickAdd(_ category: String)",
+  "private struct MacQuickAddCategoryContextView",
+  /self\.category = category[\s\S]*?accentHex = TaskCategoryPreset\.matching\(category\)\?\.accentHex \?\? "#3DE8C5"[\s\S]*?isTaskTitleFocused = true/,
+  "Mac quick add category action must prefill category and focus title"
 )
 
 assert_slice_contains(
@@ -317,7 +333,9 @@ grep -q "MacCategoryFilterBar" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "MacCategoryPresetPicker" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "MacQuickAddCategoryContextView" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "已预填" ChronoFocusMac/Views/MacScheduleDetailView.swift
-grep -q 'MacTaskListPanelView(selectedCategory: $selectedCategory)' ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "onAddTaskInCategory" ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "MacSummaryStaticActionView" ChronoFocusMac/Views/MacScheduleDetailView.swift
+grep -q "新增此分类" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "onChange(of: selectedCategory)" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "taskListCountText" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "Text(taskListCountText)" ChronoFocusMac/Views/MacScheduleDetailView.swift

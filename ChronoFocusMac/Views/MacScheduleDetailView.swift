@@ -12,6 +12,7 @@ struct MacScheduleDetailView: View {
     @State private var estimatedRounds = 2
     @State private var accentHex = "#3DE8C5"
     @State private var selectedCategory: String?
+    @FocusState private var isTaskTitleFocused: Bool
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     var body: some View {
@@ -42,6 +43,7 @@ struct MacScheduleDetailView: View {
                         } else {
                             TextField("任务名称", text: $taskTitle)
                                 .textFieldStyle(.roundedBorder)
+                                .focused($isTaskTitleFocused)
                             TextField("分类", text: $category)
                                 .textFieldStyle(.roundedBorder)
                             MacCategoryPresetPicker(category: $category, accentHex: $accentHex)
@@ -65,7 +67,10 @@ struct MacScheduleDetailView: View {
                     MacCalendarPanelView()
                     MacCalendarSyncPanelView()
                     MacPlanPanelView()
-                    MacTaskListPanelView(selectedCategory: $selectedCategory)
+                    MacTaskListPanelView(
+                        selectedCategory: $selectedCategory,
+                        onAddTaskInCategory: prepareQuickAdd
+                    )
                 }
             }
         }
@@ -92,6 +97,12 @@ struct MacScheduleDetailView: View {
         estimatedRounds = 2
         category = selectedCategory ?? "工作"
         accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? "#3DE8C5"
+    }
+
+    private func prepareQuickAdd(_ category: String) {
+        self.category = category
+        accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? "#3DE8C5"
+        isTaskTitleFocused = true
     }
 }
 
@@ -550,6 +561,7 @@ private struct MacTaskListPanelView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var notifications: MacNotificationService
     @Binding var selectedCategory: String?
+    let onAddTaskInCategory: (String) -> Void
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     private var visibleTasks: [FocusTask] {
@@ -594,7 +606,10 @@ private struct MacTaskListPanelView: View {
                     MacSelectedCategorySummaryView(
                         category: selectedCategoryName,
                         count: taskCount(in: selectedCategoryName),
-                        isSnapshotRendering: isSnapshotRendering
+                        isSnapshotRendering: isSnapshotRendering,
+                        onAddTask: {
+                            onAddTaskInCategory(selectedCategoryName)
+                        }
                     ) {
                         selectedCategory = nil
                     }
@@ -676,6 +691,7 @@ private struct MacSelectedCategorySummaryView: View {
     let category: String
     let count: Int
     let isSnapshotRendering: Bool
+    let onAddTask: () -> Void
     let onClear: () -> Void
 
     private var preset: TaskCategoryPreset? {
@@ -702,21 +718,26 @@ private struct MacSelectedCategorySummaryView: View {
             Spacer()
 
             if isSnapshotRendering {
-                Text("清除")
-                    .font(.caption.bold())
-                    .foregroundStyle(tint)
-                    .frame(minHeight: 30)
-                    .padding(.horizontal, 10)
-                    .background(Color.white.opacity(0.07), in: Capsule())
-                    .overlay {
-                        Capsule()
-                            .stroke(tint.opacity(0.36), lineWidth: 1)
-                    }
+                HStack(spacing: 8) {
+                    MacSummaryStaticActionView(title: "新增此分类", tint: tint, isProminent: true)
+                    MacSummaryStaticActionView(title: "清除", tint: tint, isProminent: false)
+                }
             } else {
-                Button("清除", systemImage: "xmark.circle.fill", action: onClear)
-                    .font(.caption.bold())
-                    .foregroundStyle(tint)
-                    .buttonStyle(.plain)
+                HStack(spacing: 8) {
+                    Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
+                        .font(.caption.bold())
+                        .foregroundStyle(Color.black.opacity(0.82))
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 10)
+                        .frame(minHeight: 30)
+                        .background(tint, in: Capsule())
+
+                    Button("清除", systemImage: "xmark.circle.fill", action: onClear)
+                        .font(.caption.bold())
+                        .foregroundStyle(tint)
+                        .buttonStyle(.plain)
+                        .frame(minHeight: 30)
+                }
             }
         }
         .padding(.horizontal, 12)
@@ -726,7 +747,26 @@ private struct MacSelectedCategorySummaryView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(tint.opacity(0.36), lineWidth: 1)
         }
-        .accessibilityLabel("当前筛选\(category)分类，\(count)项")
+        .accessibilityLabel("当前筛选\(category)分类，\(count)项，可新增此分类待办或清除筛选")
+    }
+}
+
+private struct MacSummaryStaticActionView: View {
+    let title: String
+    let tint: Color
+    let isProminent: Bool
+
+    var body: some View {
+        Text(title)
+            .font(.caption.bold())
+            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
+            .frame(minHeight: 30)
+            .padding(.horizontal, 10)
+            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(tint.opacity(isProminent ? 0.9 : 0.36), lineWidth: 1)
+            }
     }
 }
 
