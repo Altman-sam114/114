@@ -57,6 +57,13 @@ EXPECTED_SUMMARY_ENTRIES = [
   "Mac snapshots: `ci-results/project-reports/mac-snapshots/`"
 ].freeze
 
+EXPECTED_STATIC_CHECK_MARKERS = [
+  "Running committed diff whitespace check...",
+  "Running project plist lint...",
+  "Running workflow YAML parse check...",
+  "yaml ok"
+].freeze
+
 EXPECTED_JUNIT_TESTCASES = %w[
   staticChecks
   projectVerification
@@ -167,6 +174,7 @@ index_path = File.join(artifact_dir, "ci-artifact-index.json")
 junit_path = File.join(artifact_dir, "junit.xml")
 summary_path = File.join(artifact_dir, "ci-failure-summary.md")
 context_path = File.join(artifact_dir, "ci-run-context.txt")
+static_checks_log_path = File.join(artifact_dir, "static-checks.log")
 verify_log_path = File.join(artifact_dir, "verify_project.log")
 mac_build_log_path = File.join(artifact_dir, "xcodebuild.log")
 ios_build_log_path = File.join(artifact_dir, "ios-xcodebuild.log")
@@ -263,6 +271,10 @@ summary = File.read(summary_path, encoding: "UTF-8")
 check(checks, "failure summary") { summary.include?("All CI stages passed.") }
 check(checks, "failure summary log entries") do
   EXPECTED_SUMMARY_ENTRIES.all? { |entry| summary.include?(entry) }
+end
+check(checks, "static checks log markers") do
+  static_checks_log = File.read(static_checks_log_path, encoding: "UTF-8")
+  EXPECTED_STATIC_CHECK_MARKERS.all? { |marker| static_checks_log.include?(marker) }
 end
 check(checks, "verify_project core tests") { File.read(verify_log_path, encoding: "UTF-8").include?("Mac core tests passed.") }
 check(checks, "verify_project category accessibility contracts") do

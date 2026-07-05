@@ -102,7 +102,7 @@ ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id> 
   --attempt <run_attempt>
 ```
 
-该脚本会核对 manifest branch/commit/run/attempt 和关键路径字段、`ci-run-context.txt` 身份字段与 artifact 名称、artifact index 身份字段、必需路径与 kind、下载后本地文件/目录非空状态、index totals 与 entries 聚合一致性、JUnit 四个 testcase、failure summary 日志入口、`verify_project.log` 分类可访问 contract marker、Mac/iOS build 成功标记和 Mac 快照 manifest。`verify_project.sh` 用小型成功 fixture、错误 artifactName 负向 fixture、artifact index 身份错包负向 fixture、artifact index totals 篡改负向 fixture 和本地缺失产物负向 fixture 覆盖 validator 的放行/拒绝路径。脚本只能辅助复判，不能替代 Agent C 对最新 `origin/main` run 和 artifact 来源的一致性核对。
+该脚本会核对 manifest branch/commit/run/attempt 和关键路径字段、`ci-run-context.txt` 身份字段与 artifact 名称、artifact index 身份字段、必需路径与 kind、下载后本地文件/目录非空状态、index totals 与 entries 聚合一致性、JUnit 四个 testcase、failure summary 日志入口、`static-checks.log` 静态检查 marker、`verify_project.log` 分类可访问 contract marker、Mac/iOS build 成功标记和 Mac 快照 manifest。`verify_project.sh` 用小型成功 fixture、错误 artifactName 负向 fixture、artifact index 身份错包负向 fixture、artifact index totals 篡改负向 fixture 和本地缺失产物负向 fixture 覆盖 validator 的放行/拒绝路径。脚本只能辅助复判，不能替代 Agent C 对最新 `origin/main` run 和 artifact 来源的一致性核对。
 
 ## StoreKit / EventKit 本地人工验证
 
@@ -216,7 +216,7 @@ bash scripts/verify_project.sh
 - 检查项目和 plist 语法。
 - 检查必需文件、工程引用、三个 shared schemes 语法。
 - 检查 Live Activity、本地通知、铃声/音色、Pro、日历同步、自动计划、Mac 状态栏等实现标记。
-- 检查分类预设、日程页和计时页分类筛选、分类 chip 点击切换、可访问提示和 selected trait、新建预填、筛选摘要、iOS 日程筛选计数、计时页分类筛选摘要、分类摘要插入点和新增/清除动作接线、iOS 摘要快捷新增分类待办、Mac 待办筛选计数、Mac 分类摘要快捷新增、Mac 快速新增分类预填提示、筛选优先级、44pt iOS 分类点击区域、iOS 设置页音色选择/试听、根视图非 Pro 音色清洗、Mac 小窗任务分类上下文、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件、CI iOS/错误摘录/artifact index/run context 结果包实现标记、结果包校验脚本语法、validator 小型成功、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地缺失产物负向 fixture 和分类可访问 contract 日志复判、iOS simulator destination 解析 fixture。
+- 检查分类预设、日程页和计时页分类筛选、分类 chip 点击切换、可访问提示和 selected trait、新建预填、筛选摘要、iOS 日程筛选计数、计时页分类筛选摘要、分类摘要插入点和新增/清除动作接线、iOS 摘要快捷新增分类待办、Mac 待办筛选计数、Mac 分类摘要快捷新增、Mac 快速新增分类预填提示、筛选优先级、44pt iOS 分类点击区域、iOS 设置页音色选择/试听、根视图非 Pro 音色清洗、Mac 小窗任务分类上下文、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件、CI iOS/错误摘录/artifact index/run context 结果包实现标记、结果包校验脚本语法、validator 小型成功、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地缺失产物负向 fixture、static-checks 日志 marker 和分类可访问 contract 日志复判、iOS simulator destination 解析 fixture。
 - 编译并运行 Mac core tests。
 - 渲染 Mac 快照到 `/tmp/chronofocus-mac-snapshots/`，并生成 `manifest.json` 记录 5 张快照的文件名、尺寸和字节数。
 - 最终输出 `Project structure verified.`。
@@ -289,7 +289,7 @@ Agent C 验收时必须核对：
 - manifest 中 `commitSha` 与 `origin/main` 最新 SHA 完全一致。
 - manifest 中 `runId` 和 `runAttempt` 与下载的 GitHub Actions run 一致。
 - `ci-run-context.txt` 中 `branch`、`commitSha`、`runId`、`runAttempt` 和 artifact 名称必须与本轮 run 一致。
-- `scripts/validate_ci_artifact.rb` 对下载目录输出全 PASS，且包含 `PASS verify_project category accessibility contracts`，作为结构化辅助证据；若脚本失败，必须人工核对失败项并退回 Agent B 或说明原因。
+- `scripts/validate_ci_artifact.rb` 对下载目录输出全 PASS，且包含 `PASS static checks log markers` 和 `PASS verify_project category accessibility contracts`，作为结构化辅助证据；若脚本失败，必须人工核对失败项并退回 Agent B 或说明原因。
 - `staticChecksOutcome`、`projectVerificationOutcome`、`buildOutcome`、`macBuildOutcome`、`iosBuildOutcome` 均为 `success`。
 - artifact index、failure summary、JUnit、主日志和项目专属产物存在且不是旧 checkout 里的遗留文件。
 - `ci-artifact-index.json` 必须覆盖 manifest、summary、JUnit、主日志、Mac/iOS `.xcresult`、Mac 快照目录、快照 manifest 和 5 张快照；required 条目必须存在，文件字节数或目录递归字节数必须为正。
