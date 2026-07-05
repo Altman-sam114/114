@@ -233,6 +233,16 @@ def assert_chip_accessibility(path, chip_name, later)
   raise "#{chip_name} must expose Voice Control input labels" unless segment.include?("voiceControlInputLabels: [Text]") && segment.include?("Text(\"\\(title)分类\")") && segment.include?(".accessibilityInputLabels(voiceControlInputLabels)")
 end
 
+def assert_preset_picker_accessibility(path, picker_name, later)
+  segment = source_slice(path, "private struct #{picker_name}", later, "#{picker_name} slice missing")
+  raise "#{picker_name} must expose selected state text" unless segment.include?("accessibilityStateText(for preset: TaskCategoryPreset)") && segment.include?("已选中")
+  raise "#{picker_name} must expose preset choice hint" unless segment.include?("accessibilityHintText(for preset: TaskCategoryPreset)") && segment.include?("选择\\(preset.title)分类")
+  raise "#{picker_name} must attach accessibility hint" unless segment.include?(".accessibilityHint(accessibilityHintText(for: preset))")
+  raise "#{picker_name} must include selected state in label" unless segment.include?("accessibilityStateText(for: preset)")
+  raise "#{picker_name} must expose selected accessibility trait" unless segment.include?("accessibilityTraits(for preset: TaskCategoryPreset)") && segment.include?(".isSelected") && segment.include?(".accessibilityAddTraits(accessibilityTraits(for: preset))")
+  raise "#{picker_name} must expose Voice Control input labels" unless segment.include?("voiceControlInputLabels(for preset: TaskCategoryPreset)") && segment.include?("Text(\"\\(preset.title)分类\")") && segment.include?(".accessibilityInputLabels(voiceControlInputLabels(for: preset))")
+end
+
 assert_slice_contains(
   "ChronoFocus/Views/ScheduleView.swift",
   "SelectedCategorySummaryView(",
@@ -322,6 +332,8 @@ assert_slice_contains(
 assert_chip_accessibility("ChronoFocus/Views/ScheduleView.swift", "TaskCategoryFilterChip", "private struct ScheduleTaskCell")
 assert_chip_accessibility("ChronoFocus/Views/TimerView.swift", "TimerTaskCategoryFilterChip", "private struct TimerSelectedTaskCategorySummaryView")
 assert_chip_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCategoryFilterChip", "@MainActor\nprivate func syncMacTaskReminder")
+assert_preset_picker_accessibility("ChronoFocus/Views/ScheduleView.swift", "TaskCategoryPresetPicker", "@MainActor\nprivate func syncTaskReminder")
+assert_preset_picker_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCategoryPresetPicker", "private struct MacCategoryFilterBar")
 puts "Category chip accessibility contracts verified."
 RUBY
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift

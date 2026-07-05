@@ -10,7 +10,7 @@
 - 支持暗色/亮色两套 UI，可在计时页右上角快速切换。
 - 自动化默认开启，专注、短休、长休会按设置连续流转。
 - 日程页改为日历/待办样式，可按日、周、月和分类查看；待办可启用/停用、循环、到时间自动开启番茄钟。
-- 新增/编辑待办时可一键选择常用分类；选中分类筛选后新增待办会自动沿用该分类，分类会同步用于计划、统计和筛选。
+- 新增/编辑待办时可一键选择常用分类；分类预设按钮会读出已选中状态并支持分类名 Voice Control 指令；选中分类筛选后新增待办会自动沿用该分类，分类会同步用于计划、统计和筛选。
 - 分类筛选会优先展示当前范围内有待办的分类，选中分类后待办标题显示筛选数/总数；再次点击已选分类、点击“全部”或从筛选摘要清除都能退出筛选，VoiceOver 会读出已选状态和点击后的筛选/清除动作，分类 chip 也会暴露 selected trait，并提供分类名 Voice Control 指令标签；筛选摘要会读出可新增或清除动作，摘要也可直接新增此分类待办，减少在空分类间来回查找。
 - 计时页的当前日程也可按分类筛选，选中分类后显示当前筛选摘要、可启动待办数和清除入口，任务行会显示分类 badge，方便从待办直接进入专注。
 - 待办支持“按轮次”和“只设开始”两种模式；只设开始的任务由用户手动完成，实际用时会计入统计。
@@ -76,7 +76,7 @@ ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
 
 该脚本会在 `DEVELOPER_DIR` 未设置且本机存在 `/Applications/Xcode.app/Contents/Developer` 时自动使用完整 Xcode，避免 `xcode-select` 指向 Command Line Tools 时找不到 `simctl`；如果你已设置 `DEVELOPER_DIR`，打印的 build 命令会沿用该路径。
 
-验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选、分类 chip 点击切换、可访问提示、selected trait 和 Voice Control input labels、筛选摘要动作提示和分类快捷新增、iOS 日程筛选计数、计时页分类筛选摘要、分类摘要插入点和动作接线检查、Mac 待办筛选计数、Mac 分类摘要快捷新增、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 分类预填提示、Mac 日历权限说明、CI validator 正向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地缺失产物负向 fixture、static-checks 日志 marker 和分类可访问 contract 日志复判、Mac 快照 manifest，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
+验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、筛选摘要动作提示和分类快捷新增、iOS 日程筛选计数、计时页分类筛选摘要、分类摘要插入点和动作接线检查、Mac 待办筛选计数、Mac 分类摘要快捷新增、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 分类预填提示、Mac 日历权限说明、CI validator 正向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、本地缺失产物负向 fixture、static-checks 日志 marker 和分类可访问 contract 日志复判、Mac 快照 manifest，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 

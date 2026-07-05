@@ -792,6 +792,10 @@ private struct MacCategoryPresetPicker: View {
                             .stroke(Color(hex: preset.accentHex).opacity(isSelected(preset) ? 0.9 : 0.42), lineWidth: 1)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(preset.title)分类\(accessibilityStateText(for: preset))")
+                    .accessibilityHint(accessibilityHintText(for: preset))
+                    .accessibilityAddTraits(accessibilityTraits(for: preset))
+                    .accessibilityInputLabels(voiceControlInputLabels(for: preset))
                 }
             }
             .padding(.vertical, 1)
@@ -801,6 +805,22 @@ private struct MacCategoryPresetPicker: View {
 
     private func isSelected(_ preset: TaskCategoryPreset) -> Bool {
         category.trimmingCharacters(in: .whitespacesAndNewlines) == preset.title
+    }
+
+    private func accessibilityStateText(for preset: TaskCategoryPreset) -> String {
+        isSelected(preset) ? "，已选中" : ""
+    }
+
+    private func accessibilityHintText(for preset: TaskCategoryPreset) -> String {
+        isSelected(preset) ? "当前使用\(preset.title)分类" : "选择\(preset.title)分类"
+    }
+
+    private func accessibilityTraits(for preset: TaskCategoryPreset) -> AccessibilityTraits {
+        isSelected(preset) ? .isSelected : []
+    }
+
+    private func voiceControlInputLabels(for preset: TaskCategoryPreset) -> [Text] {
+        [Text(preset.title), Text("\(preset.title)分类")]
     }
 }
 
