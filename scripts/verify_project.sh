@@ -504,6 +504,41 @@ raise "Mac quick add button accessibility label missing" unless mac_quick_add_so
 raise "Mac quick add button Voice Control labels missing" unless mac_quick_add_source.include?(".accessibilityInputLabels(quickAddInputLabels)")
 puts "Mac quick add action accessibility contracts verified."
 
+task_editor_category_source = source_slice(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "private struct TaskEditorView",
+  "private struct TaskCategoryPresetPicker",
+  "Task editor category input source missing"
+)
+raise "Task editor category display helper missing fallback" unless task_editor_category_source.include?("private var categoryDisplayName: String") && task_editor_category_source.include?("trimmedCategory.isEmpty ? \"未分类\" : trimmedCategory")
+raise "Task editor category preset helper missing" unless task_editor_category_source.include?("private var categoryPreset: TaskCategoryPreset?") && task_editor_category_source.include?("TaskCategoryPreset.matching(categoryDisplayName)")
+raise "Task editor category tint helper missing" unless task_editor_category_source.include?("private var categoryTint: Color") && task_editor_category_source.include?("categoryPreset?.accentHex ?? accentHex")
+raise "Task editor category symbol helper missing" unless task_editor_category_source.include?("private var categorySymbolName: String") && task_editor_category_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"")
+raise "Task editor category input accessibility label missing current category" unless task_editor_category_source.include?("private var categoryInputAccessibilityLabel: String") && task_editor_category_source.include?("\"待办分类，当前\\(categoryDisplayName)分类\"")
+raise "Task editor category input Voice Control labels missing current category" unless task_editor_category_source.include?("private var categoryInputLabels: [Text]") && task_editor_category_source.include?("Text(\"待办分类\")") && task_editor_category_source.include?("Text(\"\\(categoryDisplayName)分类\")")
+raise "Task editor category text field accessibility missing" unless task_editor_category_source.include?(".accessibilityLabel(categoryInputAccessibilityLabel)") && task_editor_category_source.include?(".accessibilityHint(\"可输入自定义分类，或选择常用分类\")") && task_editor_category_source.include?(".accessibilityInputLabels(categoryInputLabels)")
+raise "Task editor category context view call missing" unless task_editor_category_source.include?("TaskEditorCategoryContextView(") && task_editor_category_source.include?("category: categoryDisplayName") && task_editor_category_source.include?("tint: categoryTint") && task_editor_category_source.include?("symbolName: categorySymbolName")
+raise "Task editor category context view missing visible current category" unless task_editor_category_source.include?("Label(\"当前分类：\\(category)\", systemImage: symbolName)")
+raise "Task editor category context accessibility missing" unless task_editor_category_source.include?(".accessibilityLabel(\"当前待办分类\\(category)\")") && task_editor_category_source.include?("Text(\"\\(category)分类\")") && task_editor_category_source.include?("Text(\"当前分类\\(category)\")")
+
+mac_quick_add_category_context_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "struct MacScheduleDetailView",
+  "private struct MacStaticCategoryPresetStrip",
+  "Mac quick add category input source missing"
+)
+raise "Mac quick add category preset helper missing" unless mac_quick_add_category_context_source.include?("private var quickAddCategoryPreset: TaskCategoryPreset?") && mac_quick_add_category_context_source.include?("TaskCategoryPreset.matching(quickAddCategoryName)")
+raise "Mac quick add category tint helper missing" unless mac_quick_add_category_context_source.include?("private var quickAddCategoryTint: Color") && mac_quick_add_category_context_source.include?("quickAddCategoryPreset?.accentHex ?? accentHex")
+raise "Mac quick add category symbol helper missing" unless mac_quick_add_category_context_source.include?("private var quickAddCategorySymbolName: String") && mac_quick_add_category_context_source.include?("quickAddCategoryPreset?.symbolName ?? \"tag.fill\"")
+raise "Mac quick add prefilled helper missing" unless mac_quick_add_category_context_source.include?("private var isQuickAddCategoryPrefilled: Bool") && mac_quick_add_category_context_source.include?("selectedCategory?.trimmingCharacters")
+raise "Mac quick add category input accessibility label missing current category" unless mac_quick_add_category_context_source.include?("private var quickAddCategoryInputAccessibilityLabel: String") && mac_quick_add_category_context_source.include?("\"快速新增分类，当前\\(quickAddCategoryName)分类\"")
+raise "Mac quick add category input Voice Control labels missing current category" unless mac_quick_add_category_context_source.include?("private var quickAddCategoryInputLabels: [Text]") && mac_quick_add_category_context_source.include?("Text(\"快速新增分类\")") && mac_quick_add_category_context_source.include?("Text(\"\\(quickAddCategoryName)分类\")")
+raise "Mac quick add category text field accessibility missing" unless mac_quick_add_category_context_source.include?(".accessibilityLabel(quickAddCategoryInputAccessibilityLabel)") && mac_quick_add_category_context_source.include?(".accessibilityHint(\"可输入自定义分类，或选择常用分类\")") && mac_quick_add_category_context_source.include?(".accessibilityInputLabels(quickAddCategoryInputLabels)")
+raise "Mac quick add category context view call missing" unless mac_quick_add_category_context_source.include?("MacQuickAddCategoryContextView(") && mac_quick_add_category_context_source.include?("category: quickAddCategoryName") && mac_quick_add_category_context_source.include?("tint: quickAddCategoryTint") && mac_quick_add_category_context_source.include?("symbolName: quickAddCategorySymbolName") && mac_quick_add_category_context_source.include?("isPrefilled: isQuickAddCategoryPrefilled")
+raise "Mac quick add category context visible labels missing" unless mac_quick_add_category_context_source.include?("已预填「\\(category)」分类") && mac_quick_add_category_context_source.include?("当前分类：\\(category)")
+raise "Mac quick add category context accessibility missing" unless mac_quick_add_category_context_source.include?("快速新增已预填\\(category)分类") && mac_quick_add_category_context_source.include?("快速新增当前分类\\(category)") && mac_quick_add_category_context_source.include?("Text(\"\\(category)分类\")") && mac_quick_add_category_context_source.include?("Text(\"当前分类\\(category)\")")
+puts "Category input context contracts verified."
+
 mac_mini_quick_panel_source = source_slice(
   "ChronoFocusMac/Views/MacMiniTimerView.swift",
   "private struct MacMiniQuickPanelView",
@@ -675,6 +710,7 @@ grep -q "Mac plan category context contracts verified." scripts/validate_ci_arti
 grep -q "Plan panel action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Schedule toolbar add category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Category input context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac mini quick panel accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics category share accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
@@ -702,6 +738,7 @@ grep -q "negative_mac_plan_category_marker_fixture" scripts/verify_project.sh
 grep -q "negative_plan_panel_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
+grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_mini_quick_panel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_category_share_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
@@ -725,6 +762,7 @@ grep -q "FAIL verify_project mac plan category context contracts" scripts/verify
 grep -q "FAIL verify_project plan panel action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project schedule toolbar add category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac mini quick panel accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics category share accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
@@ -783,7 +821,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1233,6 +1271,31 @@ fi
 grep -q "FAIL verify_project mac quick add action accessibility contracts" "$negative_mac_quick_add_action_marker_output"
 rm -rf "$negative_mac_quick_add_action_marker_fixture"
 rm -f "$negative_mac_quick_add_action_marker_output"
+negative_category_input_context_marker_fixture="$(mktemp -d)"
+negative_category_input_context_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_category_input_context_marker_fixture"/
+python3 - "$negative_category_input_context_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Category input context contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_category_input_context_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_category_input_context_marker_output" 2>&1; then
+  echo "Expected negative category input context marker fixture to fail validation" >&2
+  cat "$negative_category_input_context_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project category input context contracts" "$negative_category_input_context_marker_output"
+rm -rf "$negative_category_input_context_marker_fixture"
+rm -f "$negative_category_input_context_marker_output"
 negative_mac_mini_quick_panel_marker_fixture="$(mktemp -d)"
 negative_mac_mini_quick_panel_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_mini_quick_panel_marker_fixture"/

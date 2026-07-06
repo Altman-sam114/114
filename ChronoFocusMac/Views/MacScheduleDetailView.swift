@@ -20,6 +20,34 @@ struct MacScheduleDetailView: View {
         return trimmedCategory.isEmpty ? "未分类" : trimmedCategory
     }
 
+    private var quickAddCategoryPreset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(quickAddCategoryName)
+    }
+
+    private var quickAddCategoryTint: Color {
+        Color(hex: quickAddCategoryPreset?.accentHex ?? accentHex)
+    }
+
+    private var quickAddCategorySymbolName: String {
+        quickAddCategoryPreset?.symbolName ?? "tag.fill"
+    }
+
+    private var isQuickAddCategoryPrefilled: Bool {
+        selectedCategory?.trimmingCharacters(in: .whitespacesAndNewlines) == quickAddCategoryName
+    }
+
+    private var quickAddCategoryInputAccessibilityLabel: String {
+        "快速新增分类，当前\(quickAddCategoryName)分类"
+    }
+
+    private var quickAddCategoryInputLabels: [Text] {
+        [
+            Text("分类"),
+            Text("快速新增分类"),
+            Text("\(quickAddCategoryName)分类")
+        ]
+    }
+
     private var quickAddAccessibilityLabel: String {
         "新增\(quickAddCategoryName)分类待办，预计 \(estimatedRounds) 轮"
     }
@@ -47,13 +75,15 @@ struct MacScheduleDetailView: View {
                             .font(.headline)
                             .foregroundStyle(MacTheme.primaryText)
 
-                        if let selectedCategory {
-                            MacQuickAddCategoryContextView(category: selectedCategory)
-                        }
-
                         if isSnapshotRendering {
                             MacStaticInputRowView(title: "任务名称", value: "新的专注任务")
                             MacStaticInputRowView(title: "分类", value: category)
+                            MacQuickAddCategoryContextView(
+                                category: quickAddCategoryName,
+                                tint: quickAddCategoryTint,
+                                symbolName: quickAddCategorySymbolName,
+                                isPrefilled: isQuickAddCategoryPrefilled
+                            )
                             MacStaticCategoryPresetStrip(selectedCategory: category)
                             MacStaticInputRowView(title: "截止时间", value: dueDate.scheduleTimeText)
                             MacStaticInputRowView(title: "预计轮次", value: "\(estimatedRounds) 轮")
@@ -63,6 +93,15 @@ struct MacScheduleDetailView: View {
                                 .focused($isTaskTitleFocused)
                             TextField("分类", text: $category)
                                 .textFieldStyle(.roundedBorder)
+                                .accessibilityLabel(quickAddCategoryInputAccessibilityLabel)
+                                .accessibilityHint("可输入自定义分类，或选择常用分类")
+                                .accessibilityInputLabels(quickAddCategoryInputLabels)
+                            MacQuickAddCategoryContextView(
+                                category: quickAddCategoryName,
+                                tint: quickAddCategoryTint,
+                                symbolName: quickAddCategorySymbolName,
+                                isPrefilled: isQuickAddCategoryPrefilled
+                            )
                             MacCategoryPresetPicker(category: $category, accentHex: $accentHex)
                             DatePicker("截止时间", selection: $dueDate)
                             Stepper("预计 \(estimatedRounds) 轮", value: $estimatedRounds, in: 1...12)
@@ -132,17 +171,20 @@ struct MacScheduleDetailView: View {
 
 private struct MacQuickAddCategoryContextView: View {
     let category: String
+    let tint: Color
+    let symbolName: String
+    let isPrefilled: Bool
 
-    private var preset: TaskCategoryPreset? {
-        TaskCategoryPreset.matching(category)
+    private var title: String {
+        isPrefilled ? "已预填「\(category)」分类" : "当前分类：\(category)"
     }
 
-    private var tint: Color {
-        Color(hex: preset?.accentHex ?? "#3DE8C5")
+    private var accessibilityLabelText: String {
+        isPrefilled ? "快速新增已预填\(category)分类" : "快速新增当前分类\(category)"
     }
 
     var body: some View {
-        Label("已预填「\(category)」分类", systemImage: preset?.symbolName ?? "tag.fill")
+        Label(title, systemImage: symbolName)
             .font(.caption.bold())
             .foregroundStyle(tint)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -153,7 +195,12 @@ private struct MacQuickAddCategoryContextView: View {
                 Capsule()
                     .stroke(tint.opacity(0.36), lineWidth: 1)
             }
-            .accessibilityLabel("快速新增已预填\(category)分类")
+            .accessibilityLabel(accessibilityLabelText)
+            .accessibilityInputLabels([
+                Text(category),
+                Text("\(category)分类"),
+                Text("当前分类\(category)")
+            ])
     }
 }
 

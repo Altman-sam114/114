@@ -832,6 +832,35 @@ private struct TaskEditorView: View {
     private let task: FocusTask?
     private let colors = ["#3DE8C5", "#A78BFA", "#FFB84D", "#FF6B6B", "#54A0FF"]
 
+    private var categoryDisplayName: String {
+        let trimmedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedCategory.isEmpty ? "未分类" : trimmedCategory
+    }
+
+    private var categoryPreset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(categoryDisplayName)
+    }
+
+    private var categoryTint: Color {
+        Color(hex: categoryPreset?.accentHex ?? accentHex)
+    }
+
+    private var categorySymbolName: String {
+        categoryPreset?.symbolName ?? "tag.fill"
+    }
+
+    private var categoryInputAccessibilityLabel: String {
+        "待办分类，当前\(categoryDisplayName)分类"
+    }
+
+    private var categoryInputLabels: [Text] {
+        [
+            Text("分类"),
+            Text("待办分类"),
+            Text("\(categoryDisplayName)分类")
+        ]
+    }
+
     init(task: FocusTask? = nil, initialDueDate: Date, initialCategory: String? = nil) {
         self.task = task
         let startingCategory = task?.category ?? initialCategory ?? "工作"
@@ -853,6 +882,14 @@ private struct TaskEditorView: View {
                 Section("待办") {
                     TextField("标题", text: $title)
                     TextField("分类", text: $category)
+                        .accessibilityLabel(categoryInputAccessibilityLabel)
+                        .accessibilityHint("可输入自定义分类，或选择常用分类")
+                        .accessibilityInputLabels(categoryInputLabels)
+                    TaskEditorCategoryContextView(
+                        category: categoryDisplayName,
+                        tint: categoryTint,
+                        symbolName: categorySymbolName
+                    )
                     TaskCategoryPresetPicker(category: $category, accentHex: $accentHex)
                     Toggle("启用", isOn: $isEnabled)
                     Toggle("设置开始时间", isOn: $usesDueDate)
@@ -951,6 +988,32 @@ private struct TaskEditorView: View {
         if let savedTask {
             syncTaskReminder(for: savedTask, store: store, notifications: notifications)
         }
+    }
+}
+
+private struct TaskEditorCategoryContextView: View {
+    let category: String
+    let tint: Color
+    let symbolName: String
+
+    var body: some View {
+        Label("当前分类：\(category)", systemImage: symbolName)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(tint)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(tint.opacity(0.14), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(tint.opacity(0.36), lineWidth: 1)
+            }
+            .accessibilityLabel("当前待办分类\(category)")
+            .accessibilityInputLabels([
+                Text(category),
+                Text("\(category)分类"),
+                Text("当前分类\(category)")
+            ])
     }
 }
 
