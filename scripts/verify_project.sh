@@ -490,6 +490,20 @@ raise "Mac plan clear accessibility label missing count" unless mac_plan_panel_s
 raise "Mac plan clear Voice Control labels missing" unless mac_plan_panel_source.include?("Text(\"清空番茄钟计划\")") && mac_plan_panel_source.include?("Text(\"清空\\(remainingPlanCount)轮计划\")")
 puts "Plan panel action accessibility contracts verified."
 
+mac_quick_add_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "struct MacScheduleDetailView",
+  "private struct MacQuickAddCategoryContextView",
+  "Mac quick add source missing"
+)
+raise "Mac quick add category helper missing fallback" unless mac_quick_add_source.include?("private var quickAddCategoryName: String") && mac_quick_add_source.include?("trimmedCategory.isEmpty ? \"未分类\" : trimmedCategory")
+raise "Mac quick add accessibility label missing category and rounds" unless mac_quick_add_source.include?("private var quickAddAccessibilityLabel: String") && mac_quick_add_source.include?("\"新增\\(quickAddCategoryName)分类待办，预计 \\(estimatedRounds) 轮\"")
+raise "Mac quick add Voice Control labels missing category context" unless mac_quick_add_source.include?("private var quickAddInputLabels: [Text]") && mac_quick_add_source.include?("Text(\"新增待办\")") && mac_quick_add_source.include?("Text(\"新增\\(quickAddCategoryName)分类待办\")") && mac_quick_add_source.include?("Text(\"新增\\(quickAddCategoryName)分类\")")
+raise "Mac quick add static button accessibility override missing" unless mac_quick_add_source.include?("MacStaticScheduleActionChipView(title: \"新增待办\", symbolName: \"plus\", tint: .cyan, isProminent: true, accessibilityLabelText: quickAddAccessibilityLabel)")
+raise "Mac quick add button accessibility label missing" unless mac_quick_add_source.include?(".accessibilityLabel(quickAddAccessibilityLabel)")
+raise "Mac quick add button Voice Control labels missing" unless mac_quick_add_source.include?(".accessibilityInputLabels(quickAddInputLabels)")
+puts "Mac quick add action accessibility contracts verified."
+
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "MacTaskListPanelView(",
@@ -624,6 +638,7 @@ grep -q "Plan start action accessibility contracts verified." scripts/validate_c
 grep -q "Mac plan category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Plan panel action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Schedule toolbar add category context contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
@@ -645,6 +660,7 @@ grep -q "negative_plan_start_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_plan_category_marker_fixture" scripts/verify_project.sh
 grep -q "negative_plan_panel_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
+grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
@@ -662,6 +678,7 @@ grep -q "FAIL verify_project plan start action accessibility contracts" scripts/
 grep -q "FAIL verify_project mac plan category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project plan panel action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project schedule toolbar add category context contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
@@ -715,7 +732,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1139,6 +1156,31 @@ fi
 grep -q "FAIL verify_project schedule toolbar add category context contracts" "$negative_schedule_toolbar_add_marker_output"
 rm -rf "$negative_schedule_toolbar_add_marker_fixture"
 rm -f "$negative_schedule_toolbar_add_marker_output"
+negative_mac_quick_add_action_marker_fixture="$(mktemp -d)"
+negative_mac_quick_add_action_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_mac_quick_add_action_marker_fixture"/
+python3 - "$negative_mac_quick_add_action_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Mac quick add action accessibility contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_mac_quick_add_action_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_mac_quick_add_action_marker_output" 2>&1; then
+  echo "Expected negative Mac quick add action marker fixture to fail validation" >&2
+  cat "$negative_mac_quick_add_action_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project mac quick add action accessibility contracts" "$negative_mac_quick_add_action_marker_output"
+rm -rf "$negative_mac_quick_add_action_marker_fixture"
+rm -f "$negative_mac_quick_add_action_marker_output"
 negative_junit_metadata_fixture="$(mktemp -d)"
 negative_junit_metadata_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_junit_metadata_fixture"/

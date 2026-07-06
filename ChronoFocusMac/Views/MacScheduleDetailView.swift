@@ -15,6 +15,23 @@ struct MacScheduleDetailView: View {
     @FocusState private var isTaskTitleFocused: Bool
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
+    private var quickAddCategoryName: String {
+        let trimmedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedCategory.isEmpty ? "未分类" : trimmedCategory
+    }
+
+    private var quickAddAccessibilityLabel: String {
+        "新增\(quickAddCategoryName)分类待办，预计 \(estimatedRounds) 轮"
+    }
+
+    private var quickAddInputLabels: [Text] {
+        [
+            Text("新增待办"),
+            Text("新增\(quickAddCategoryName)分类待办"),
+            Text("新增\(quickAddCategoryName)分类")
+        ]
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             MacPageHeaderView(
@@ -52,12 +69,14 @@ struct MacScheduleDetailView: View {
                         }
 
                         if isSnapshotRendering {
-                            MacStaticScheduleActionChipView(title: "新增待办", symbolName: "plus", tint: .cyan, isProminent: true)
+                            MacStaticScheduleActionChipView(title: "新增待办", symbolName: "plus", tint: .cyan, isProminent: true, accessibilityLabelText: quickAddAccessibilityLabel)
                         } else {
                             Button("新增待办", systemImage: "plus", action: addTask)
                                 .buttonStyle(.borderedProminent)
                                 .tint(.cyan)
                                 .disabled(taskTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                .accessibilityLabel(quickAddAccessibilityLabel)
+                                .accessibilityInputLabels(quickAddInputLabels)
                         }
                     }
                 }
