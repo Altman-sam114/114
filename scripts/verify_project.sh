@@ -572,6 +572,7 @@ grep -q "xcode version log" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_junit_fixture" scripts/verify_project.sh
+grep -q "negative_junit_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_summary_marker_fixture" scripts/verify_project.sh
 grep -q "negative_task_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
@@ -583,6 +584,7 @@ grep -q "unexpected_local_artifact_fixture" scripts/verify_project.sh
 grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
 grep -q "mismatched_local_artifact_fixture" scripts/verify_project.sh
 grep -q "FAIL junit testcase outcomes" scripts/verify_project.sh
+grep -q "FAIL junit metadata" scripts/verify_project.sh
 grep -q "FAIL verify_project category summary action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project schedule task action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
@@ -610,6 +612,7 @@ grep -q "unexpected local artifacts" scripts/validate_ci_artifact.rb
 grep -q "failure summary log entries" scripts/validate_ci_artifact.rb
 grep -q "failure summary identity" scripts/validate_ci_artifact.rb
 grep -q "failure summary outcomes" scripts/validate_ci_artifact.rb
+grep -q "junit metadata" scripts/validate_ci_artifact.rb
 grep -q "junit testcase names" scripts/validate_ci_artifact.rb
 grep -q "junit testcase outcomes" scripts/validate_ci_artifact.rb
 grep -q "snapshot manifest generated at" scripts/validate_ci_artifact.rb
@@ -909,6 +912,33 @@ fi
 grep -q "FAIL verify_project schedule task action accessibility contracts" "$negative_task_action_marker_output"
 rm -rf "$negative_task_action_marker_fixture"
 rm -f "$negative_task_action_marker_output"
+negative_junit_metadata_fixture="$(mktemp -d)"
+negative_junit_metadata_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_junit_metadata_fixture"/
+python3 - "$negative_junit_metadata_fixture" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+root = Path(sys.argv[1])
+junit_path = root / "junit.xml"
+tree = ET.parse(junit_path)
+root_element = tree.getroot()
+root_element.set("name", "Wrong CI Results")
+for testcase in root_element.findall("testcase"):
+    if testcase.get("name") == "projectVerification":
+        testcase.set("classname", "WrongCI")
+        break
+tree.write(junit_path, encoding="utf-8", xml_declaration=True)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_junit_metadata_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_junit_metadata_output" 2>&1; then
+  echo "Expected negative JUnit metadata fixture to fail validation" >&2
+  cat "$negative_junit_metadata_output" >&2
+  exit 1
+fi
+grep -q "FAIL junit metadata" "$negative_junit_metadata_output"
+rm -rf "$negative_junit_metadata_fixture"
+rm -f "$negative_junit_metadata_output"
 negative_junit_fixture="$(mktemp -d)"
 negative_junit_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_junit_fixture"/

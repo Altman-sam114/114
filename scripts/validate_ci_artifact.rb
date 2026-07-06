@@ -116,6 +116,9 @@ EXPECTED_PROJECT_REPORTS_ENTRIES = %w[
 
 EXPECTED_MAC_SNAPSHOT_ENTRIES = (["manifest.json"] + EXPECTED_SNAPSHOTS).freeze
 
+EXPECTED_JUNIT_SUITE_NAME = "ChronoFocus CI Results"
+EXPECTED_JUNIT_CLASSNAME = "ChronoFocusCI"
+
 EXPECTED_JUNIT_TESTCASES = %w[
   staticChecks
   projectVerification
@@ -406,6 +409,10 @@ check(checks, "junit tests") { junit.attributes["tests"] == "4" }
 check(checks, "junit failures") { junit.attributes["failures"] == "0" }
 testcases = junit.get_elements("testcase")
 testcase_names = testcases.map { |testcase| testcase.attributes["name"] }
+check(checks, "junit metadata") do
+  junit.attributes["name"] == EXPECTED_JUNIT_SUITE_NAME &&
+    testcases.all? { |testcase| testcase.attributes["classname"] == EXPECTED_JUNIT_CLASSNAME }
+end
 check(checks, "junit testcase names") { testcase_names.sort == EXPECTED_JUNIT_TESTCASES.sort }
 check(checks, "junit testcase logs") do
   testcases.all? do |testcase|
