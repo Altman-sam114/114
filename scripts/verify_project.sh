@@ -527,6 +527,9 @@ raise "Mac mini preview quick button accessibility missing" unless mac_mini_quic
 raise "Mac mini detail quick button accessibility missing" unless mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开日程详情\"") && mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开统计详情\"") && mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开设置详情\"") && mac_mini_quick_panel_source.include?("Text(\"打开日程详情\")") && mac_mini_quick_panel_source.include?("Text(\"打开统计详情\")") && mac_mini_quick_panel_source.include?("Text(\"打开设置详情\")")
 puts "Mac mini quick panel accessibility contracts verified."
 
+ruby -e 'ios = File.read("ChronoFocus/Views/AnalyticsView.swift"); mac = File.read("ChronoFocusMac/Views/MacAnalyticsDetailView.swift"); [ios, mac].each do |source|; raise "analytics category share total missing" unless source.include?("private var categoryShareTotalSeconds: Int") && source.include?("store.categoryBreakdown().reduce(0) { $0 + $1.seconds }"); raise "analytics category share percent helper missing" unless source.include?("private func categorySharePercent(for seconds: Int) -> Int") && source.include?("Double(categoryShareTotalSeconds)") && source.include?(".rounded()"); raise "analytics category share visible percent missing" unless source.include?("Text(\"\\(categorySharePercent(for: item.seconds))%\")") && source.include?(".monospacedDigit()"); raise "analytics category share progress total missing" unless source.include?("total: Double(categoryShareTotalSeconds)"); raise "analytics category share accessibility label missing" unless source.include?("private func categoryShareAccessibilityLabel(for item: CategoryFocus) -> String") && source.include?("占分类投入 \\(categorySharePercent(for: item.seconds))%") && source.include?(".accessibilityLabel(categoryShareAccessibilityLabel(for: item))"); raise "analytics category share Voice Control labels missing" unless source.include?(".accessibilityElement(children: .ignore)") && source.include?("Text(\"\\(item.category)分类投入\")") && source.include?(".accessibilityInputLabels(["); end'
+puts "Analytics category share accessibility contracts verified."
+
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "MacTaskListPanelView(",
@@ -663,6 +666,7 @@ grep -q "Plan panel action accessibility contracts verified." scripts/validate_c
 grep -q "Schedule toolbar add category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac mini quick panel accessibility contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Analytics category share accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
@@ -689,6 +693,7 @@ grep -q "negative_plan_panel_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_mini_quick_panel_marker_fixture" scripts/verify_project.sh
+grep -q "negative_analytics_category_share_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_artifact_name_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
@@ -711,6 +716,7 @@ grep -q "FAIL verify_project plan panel action accessibility contracts" scripts/
 grep -q "FAIL verify_project schedule toolbar add category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac mini quick panel accessibility contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project analytics category share accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
@@ -767,7 +773,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1242,6 +1248,31 @@ fi
 grep -q "FAIL verify_project mac mini quick panel accessibility contracts" "$negative_mac_mini_quick_panel_marker_output"
 rm -rf "$negative_mac_mini_quick_panel_marker_fixture"
 rm -f "$negative_mac_mini_quick_panel_marker_output"
+negative_analytics_category_share_marker_fixture="$(mktemp -d)"
+negative_analytics_category_share_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_analytics_category_share_marker_fixture"/
+python3 - "$negative_analytics_category_share_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Analytics category share accessibility contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_analytics_category_share_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_analytics_category_share_marker_output" 2>&1; then
+  echo "Expected negative analytics category share marker fixture to fail validation" >&2
+  cat "$negative_analytics_category_share_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project analytics category share accessibility contracts" "$negative_analytics_category_share_marker_output"
+rm -rf "$negative_analytics_category_share_marker_fixture"
+rm -f "$negative_analytics_category_share_marker_output"
 negative_junit_metadata_fixture="$(mktemp -d)"
 negative_junit_metadata_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_junit_metadata_fixture"/

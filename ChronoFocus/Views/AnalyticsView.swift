@@ -394,14 +394,40 @@ struct AnalyticsView: View {
                                 Text(item.seconds.hourMinuteText)
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(AppTheme.primaryText)
+                                Text("\(categorySharePercent(for: item.seconds))%")
+                                    .font(.caption.weight(.bold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(Color(hex: item.accentHex))
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .background(Color(hex: item.accentHex).opacity(0.14), in: Capsule())
                             }
-                            ProgressView(value: Double(item.seconds), total: Double(max(store.weekFocusSeconds, 1)))
+                            ProgressView(value: Double(item.seconds), total: Double(categoryShareTotalSeconds))
                                 .tint(Color(hex: item.accentHex))
                         }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(categoryShareAccessibilityLabel(for: item))
+                        .accessibilityInputLabels([
+                            Text(item.category),
+                            Text("\(item.category)分类"),
+                            Text("\(item.category)分类投入")
+                        ])
                     }
                 }
             }
         }
+    }
+
+    private func categorySharePercent(for seconds: Int) -> Int {
+        Int((Double(seconds) / Double(categoryShareTotalSeconds) * 100).rounded())
+    }
+
+    private func categoryShareAccessibilityLabel(for item: CategoryFocus) -> String {
+        "\(item.category)分类投入，\(item.seconds.hourMinuteText)，占分类投入 \(categorySharePercent(for: item.seconds))%"
+    }
+
+    private var categoryShareTotalSeconds: Int {
+        max(store.categoryBreakdown().reduce(0) { $0 + $1.seconds }, 1)
     }
 
     private var recentSessions: some View {
