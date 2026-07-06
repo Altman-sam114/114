@@ -320,18 +320,28 @@ schedule_task_cell = source_slice(
   "private struct TaskEditorView",
   "Schedule task cell source missing"
 )
+schedule_task_list_source = source_slice(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "private var taskList: some View",
+  "private struct TaskCategoryFilterBar",
+  "Schedule task list source missing"
+)
 raise "Schedule task cell category preset missing" unless schedule_task_cell.include?("TaskCategoryPreset.matching(task.category)")
 raise "Schedule task cell category symbol missing" unless schedule_task_cell.include?("private var categorySymbolName")
 raise "Schedule task cell category badge missing" unless schedule_task_cell.include?("Label(task.category, systemImage: categorySymbolName)")
 raise "Schedule task cell category accessibility label missing" unless schedule_task_cell.include?(".accessibilityLabel(\"\\(task.category)分类\")")
 raise "Schedule task cell category Voice Control input labels missing" unless schedule_task_cell.include?(".accessibilityInputLabels([Text(task.category), Text(\"\\(task.category)分类\")])")
 raise "Schedule task cell must keep due date as secondary metadata" unless schedule_task_cell.include?("if let dueDate = task.dueDate") && schedule_task_cell.include?("dueDate.scheduleTimeText")
-raise "Schedule task completion action accessibility label missing task title" unless schedule_task_cell.include?(".accessibilityLabel(task.isDone ? \"标记\\(task.title)待办未完成\" : \"完成\\(task.title)待办\")")
-raise "Schedule task completion action Voice Control labels missing task title" unless schedule_task_cell.include?("Text(task.isDone ? \"标记\\(task.title)未完成\" : \"完成\\(task.title)\")") && schedule_task_cell.include?("Text(task.isDone ? \"\\(task.title)未完成\" : \"\\(task.title)完成\")")
-raise "Schedule task enable action accessibility label missing task title" unless schedule_task_cell.include?(".accessibilityLabel(task.isEnabled ? \"停用\\(task.title)待办\" : \"启用\\(task.title)待办\")")
-raise "Schedule task enable action Voice Control labels missing task title" unless schedule_task_cell.include?("Text(task.isEnabled ? \"停用\\(task.title)\" : \"启用\\(task.title)\")") && schedule_task_cell.include?("Text(task.isEnabled ? \"\\(task.title)停用\" : \"\\(task.title)启用\")")
-raise "Schedule task edit action accessibility label missing task title" unless schedule_task_cell.include?(".accessibilityLabel(\"编辑\\(task.title)待办\")")
-raise "Schedule task edit action Voice Control labels missing task title" unless schedule_task_cell.include?("Text(\"编辑\\(task.title)\")") && schedule_task_cell.include?("Text(\"\\(task.title)编辑\")")
+raise "Schedule task completion action accessibility label missing category" unless schedule_task_cell.include?("task.isDone ? \"标记\\(task.title)待办未完成，\\(task.category)分类\" : \"完成\\(task.title)待办，\\(task.category)分类\"")
+raise "Schedule task completion action Voice Control labels missing category" unless schedule_task_cell.include?("Text(task.isDone ? \"标记\\(task.category)分类\\(task.title)未完成\" : \"完成\\(task.category)分类\\(task.title)\")") && schedule_task_cell.include?("Text(task.isDone ? \"\\(task.category)分类\\(task.title)未完成\" : \"\\(task.category)分类\\(task.title)完成\")")
+raise "Schedule task enable action accessibility label missing category" unless schedule_task_cell.include?("task.isEnabled ? \"停用\\(task.title)待办，\\(task.category)分类\" : \"启用\\(task.title)待办，\\(task.category)分类\"")
+raise "Schedule task enable action Voice Control labels missing category" unless schedule_task_cell.include?("Text(task.isEnabled ? \"停用\\(task.category)分类\\(task.title)\" : \"启用\\(task.category)分类\\(task.title)\")") && schedule_task_cell.include?("Text(task.isEnabled ? \"\\(task.category)分类\\(task.title)停用\" : \"\\(task.category)分类\\(task.title)启用\")")
+raise "Schedule task edit action accessibility label missing category" unless schedule_task_cell.include?("\"编辑\\(task.title)待办，\\(task.category)分类\"")
+raise "Schedule task edit action Voice Control labels missing category" unless schedule_task_cell.include?("Text(\"编辑\\(task.category)分类\\(task.title)\")") && schedule_task_cell.include?("Text(\"\\(task.category)分类\\(task.title)编辑\")")
+raise "Schedule task swipe edit accessibility label missing category" unless schedule_task_list_source.include?(".accessibilityLabel(\"编辑\\(task.title)待办，\\(task.category)分类\")")
+raise "Schedule task swipe edit Voice Control labels missing category" unless schedule_task_list_source.include?("Text(\"编辑\\(task.category)分类\\(task.title)\")") && schedule_task_list_source.include?("Text(\"\\(task.category)分类\\(task.title)编辑\")")
+raise "Schedule task swipe delete accessibility label missing category" unless schedule_task_list_source.include?(".accessibilityLabel(\"删除\\(task.title)待办，\\(task.category)分类\")")
+raise "Schedule task swipe delete Voice Control labels missing category" unless schedule_task_list_source.include?("Text(\"删除\\(task.category)分类\\(task.title)\")") && schedule_task_list_source.include?("Text(\"\\(task.category)分类\\(task.title)删除\")")
 
 pomodoro_plan_row = File.read("ChronoFocus/Views/ScheduleView.swift")[/private struct PomodoroPlanRow[\s\S]*\z/]
 raise "PomodoroPlanRow source missing" unless pomodoro_plan_row
@@ -448,22 +458,22 @@ mac_task_list_source = source_slice(
   "private struct MacSelectedCategorySummaryView",
   "Mac task list panel source missing"
 )
-raise "Mac task completion static accessibility label missing task title" unless mac_task_list_source.include?("title: task.isDone ? \"标记\\(task.title)待办未完成\" : \"完成\\(task.title)待办\"")
-raise "Mac task completion action accessibility label missing task title" unless mac_task_list_source.include?(".accessibilityLabel(task.isDone ? \"标记\\(task.title)待办未完成\" : \"完成\\(task.title)待办\")")
-raise "Mac task completion action Voice Control labels missing task title" unless mac_task_list_source.include?("Text(task.isDone ? \"标记\\(task.title)未完成\" : \"完成\\(task.title)\")") && mac_task_list_source.include?("Text(task.isDone ? \"\\(task.title)未完成\" : \"\\(task.title)完成\")")
-raise "Mac task enable static accessibility label missing task title" unless mac_task_list_source.include?("MacStaticTaskEnablePillView(isEnabled: task.isEnabled, taskTitle: task.title)")
-raise "Mac task enable action accessibility label missing task title" unless mac_task_list_source.include?(".accessibilityLabel(task.isEnabled ? \"停用\\(task.title)待办\" : \"启用\\(task.title)待办\")")
-raise "Mac task enable action Voice Control labels missing task title" unless mac_task_list_source.include?("Text(task.isEnabled ? \"停用\\(task.title)\" : \"启用\\(task.title)\")") && mac_task_list_source.include?("Text(task.isEnabled ? \"\\(task.title)停用\" : \"\\(task.title)启用\")")
-raise "Mac task delete static accessibility label missing task title" unless mac_task_list_source.include?("MacStaticScheduleActionChipView(title: \"删除\\(task.title)待办\"")
-raise "Mac task delete action accessibility label missing task title" unless mac_task_list_source.include?(".accessibilityLabel(\"删除\\(task.title)待办\")")
-raise "Mac task delete action Voice Control labels missing task title" unless mac_task_list_source.include?("Text(\"删除\\(task.title)\")") && mac_task_list_source.include?("Text(\"\\(task.title)删除\")")
+raise "Mac task completion static accessibility label missing category" unless mac_task_list_source.include?("title: task.isDone ? \"标记\\(task.title)待办未完成，\\(task.category)分类\" : \"完成\\(task.title)待办，\\(task.category)分类\"")
+raise "Mac task completion action accessibility label missing category" unless mac_task_list_source.include?(".accessibilityLabel(task.isDone ? \"标记\\(task.title)待办未完成，\\(task.category)分类\" : \"完成\\(task.title)待办，\\(task.category)分类\")")
+raise "Mac task completion action Voice Control labels missing category" unless mac_task_list_source.include?("Text(task.isDone ? \"标记\\(task.category)分类\\(task.title)未完成\" : \"完成\\(task.category)分类\\(task.title)\")") && mac_task_list_source.include?("Text(task.isDone ? \"\\(task.category)分类\\(task.title)未完成\" : \"\\(task.category)分类\\(task.title)完成\")")
+raise "Mac task enable static accessibility label missing category" unless mac_task_list_source.include?("MacStaticTaskEnablePillView(isEnabled: task.isEnabled, taskTitle: task.title, taskCategory: task.category)")
+raise "Mac task enable action accessibility label missing category" unless mac_task_list_source.include?(".accessibilityLabel(task.isEnabled ? \"停用\\(task.title)待办，\\(task.category)分类\" : \"启用\\(task.title)待办，\\(task.category)分类\")")
+raise "Mac task enable action Voice Control labels missing category" unless mac_task_list_source.include?("Text(task.isEnabled ? \"停用\\(task.category)分类\\(task.title)\" : \"启用\\(task.category)分类\\(task.title)\")") && mac_task_list_source.include?("Text(task.isEnabled ? \"\\(task.category)分类\\(task.title)停用\" : \"\\(task.category)分类\\(task.title)启用\")")
+raise "Mac task delete static accessibility label missing category" unless mac_task_list_source.include?("MacStaticScheduleActionChipView(title: \"删除\\(task.title)待办，\\(task.category)分类\"")
+raise "Mac task delete action accessibility label missing category" unless mac_task_list_source.include?(".accessibilityLabel(\"删除\\(task.title)待办，\\(task.category)分类\")")
+raise "Mac task delete action Voice Control labels missing category" unless mac_task_list_source.include?("Text(\"删除\\(task.category)分类\\(task.title)\")") && mac_task_list_source.include?("Text(\"\\(task.category)分类\\(task.title)删除\")")
 mac_static_enable_source = source_slice(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "private struct MacStaticTaskEnablePillView",
   "private struct MacCalendarPanelView",
   "Mac static task enable pill source missing"
 )
-raise "Mac static task enable pill task title semantics missing" unless mac_static_enable_source.include?("var taskTitle: String?") && mac_static_enable_source.include?("return isEnabled ? \"\\(taskTitle)待办已启用\" : \"\\(taskTitle)待办已停用\"")
+raise "Mac static task enable pill category semantics missing" unless mac_static_enable_source.include?("var taskTitle: String?") && mac_static_enable_source.include?("var taskCategory: String?") && mac_static_enable_source.include?("return \"\\(statusText)，\\(taskCategory)分类\"")
 puts "Schedule task action accessibility contracts verified."
 
 mac_plan_source = source_slice(

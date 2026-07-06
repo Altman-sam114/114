@@ -329,6 +329,12 @@ struct ScheduleView: View {
                                     Label("编辑", systemImage: "pencil")
                                 }
                                 .tint(.cyan)
+                                .accessibilityLabel("编辑\(task.title)待办，\(task.category)分类")
+                                .accessibilityInputLabels([
+                                    Text("编辑\(task.title)"),
+                                    Text("编辑\(task.category)分类\(task.title)"),
+                                    Text("\(task.category)分类\(task.title)编辑")
+                                ])
 
                                 Button(role: .destructive) {
                                     notifications.cancelTaskReminder(taskID: task.id)
@@ -336,6 +342,12 @@ struct ScheduleView: View {
                                 } label: {
                                     Label("删除", systemImage: "trash")
                                 }
+                                .accessibilityLabel("删除\(task.title)待办，\(task.category)分类")
+                                .accessibilityInputLabels([
+                                    Text("删除\(task.title)"),
+                                    Text("删除\(task.category)分类\(task.title)"),
+                                    Text("\(task.category)分类\(task.title)删除")
+                                ])
                             }
                         }
                     }
@@ -726,6 +738,46 @@ private struct ScheduleTaskCell: View {
         categoryPreset?.symbolName ?? "tag.fill"
     }
 
+    private var completionAccessibilityLabel: String {
+        task.isDone ? "标记\(task.title)待办未完成，\(task.category)分类" : "完成\(task.title)待办，\(task.category)分类"
+    }
+
+    private var completionInputLabels: [Text] {
+        [
+            Text(task.isDone ? "标记\(task.title)未完成" : "完成\(task.title)"),
+            Text(task.isDone ? "\(task.title)未完成" : "\(task.title)完成"),
+            Text(task.isDone ? "标记\(task.category)分类\(task.title)未完成" : "完成\(task.category)分类\(task.title)"),
+            Text(task.isDone ? "\(task.category)分类\(task.title)未完成" : "\(task.category)分类\(task.title)完成"),
+            Text(task.title)
+        ]
+    }
+
+    private var enableAccessibilityLabel: String {
+        task.isEnabled ? "停用\(task.title)待办，\(task.category)分类" : "启用\(task.title)待办，\(task.category)分类"
+    }
+
+    private var enableInputLabels: [Text] {
+        [
+            Text(task.isEnabled ? "停用\(task.title)" : "启用\(task.title)"),
+            Text(task.isEnabled ? "\(task.title)停用" : "\(task.title)启用"),
+            Text(task.isEnabled ? "停用\(task.category)分类\(task.title)" : "启用\(task.category)分类\(task.title)"),
+            Text(task.isEnabled ? "\(task.category)分类\(task.title)停用" : "\(task.category)分类\(task.title)启用")
+        ]
+    }
+
+    private var editAccessibilityLabel: String {
+        "编辑\(task.title)待办，\(task.category)分类"
+    }
+
+    private var editInputLabels: [Text] {
+        [
+            Text("编辑\(task.title)"),
+            Text("\(task.title)编辑"),
+            Text("编辑\(task.category)分类\(task.title)"),
+            Text("\(task.category)分类\(task.title)编辑")
+        ]
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Button(action: onToggle) {
@@ -735,12 +787,8 @@ private struct ScheduleTaskCell: View {
                     .frame(width: 36, height: 36)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(task.isDone ? "标记\(task.title)待办未完成" : "完成\(task.title)待办")
-            .accessibilityInputLabels([
-                Text(task.isDone ? "标记\(task.title)未完成" : "完成\(task.title)"),
-                Text(task.isDone ? "\(task.title)未完成" : "\(task.title)完成"),
-                Text(task.title)
-            ])
+            .accessibilityLabel(completionAccessibilityLabel)
+            .accessibilityInputLabels(completionInputLabels)
 
             VStack(alignment: .leading, spacing: 7) {
                 HStack {
@@ -789,11 +837,8 @@ private struct ScheduleTaskCell: View {
                         .foregroundStyle(task.isEnabled ? .cyan : AppTheme.secondaryText)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(task.isEnabled ? "停用\(task.title)待办" : "启用\(task.title)待办")
-                .accessibilityInputLabels([
-                    Text(task.isEnabled ? "停用\(task.title)" : "启用\(task.title)"),
-                    Text(task.isEnabled ? "\(task.title)停用" : "\(task.title)启用")
-                ])
+                .accessibilityLabel(enableAccessibilityLabel)
+                .accessibilityInputLabels(enableInputLabels)
 
                 Button(action: onEdit) {
                     Image(systemName: "pencil")
@@ -801,11 +846,8 @@ private struct ScheduleTaskCell: View {
                         .foregroundStyle(AppTheme.secondaryText)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("编辑\(task.title)待办")
-                .accessibilityInputLabels([
-                    Text("编辑\(task.title)"),
-                    Text("\(task.title)编辑")
-                ])
+                .accessibilityLabel(editAccessibilityLabel)
+                .accessibilityInputLabels(editInputLabels)
             }
             .frame(width: 34)
         }
