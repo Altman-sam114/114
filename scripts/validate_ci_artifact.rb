@@ -151,6 +151,14 @@ EXPECTED_OUTCOME_KEYS = %w[
   testOutcome
 ].freeze
 
+EXPECTED_RUN_CONTEXT_KEYS = %w[
+  artifactName
+  branch
+  commitSha
+  runId
+  runAttempt
+].freeze
+
 options = {
   "branch" => "main"
 }
@@ -194,14 +202,18 @@ def read_json(path)
 end
 
 def read_key_values(path)
-  return {} unless File.file?(path)
+  read_key_value_entries(path).to_h
+end
 
-  File.readlines(path, encoding: "UTF-8").each_with_object({}) do |line, values|
+def read_key_value_entries(path)
+  return [] unless File.file?(path)
+
+  File.readlines(path, encoding: "UTF-8").each_with_object([]) do |line, values|
     stripped = line.strip
     next if stripped.empty? || !stripped.include?("=")
 
     key, value = stripped.split("=", 2)
-    values[key] = value
+    values << [key, value]
   end
 end
 
@@ -285,6 +297,7 @@ snapshot_manifest_path = File.join(artifact_dir, "project-reports", "mac-snapsho
 manifest = read_json(manifest_path)
 index = read_json(index_path)
 run_context = read_key_values(context_path)
+run_context_entries = read_key_value_entries(context_path)
 snapshot_manifest = read_json(snapshot_manifest_path)
 junit = REXML::Document.new(File.read(junit_path, encoding: "UTF-8")).root
 branch_slug = options["branch"].gsub("/", "-")
@@ -313,6 +326,11 @@ EXPECTED_OUTCOME_KEYS.each do |key|
 end
 check(checks, "run context fields") do
   %w[artifactName branch commitSha runId runAttempt].all? { |key| !run_context[key].to_s.empty? }
+end
+check(checks, "run context exact keys") do
+  keys = run_context_entries.map(&:first)
+  keys.sort == EXPECTED_RUN_CONTEXT_KEYS.sort &&
+    keys.length == EXPECTED_RUN_CONTEXT_KEYS.length
 end
 check(checks, "run context identity") do
   run_context["branch"] == options["branch"] &&

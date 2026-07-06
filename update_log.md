@@ -14,9 +14,9 @@
 
 - iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/音色/振动、亮暗主题。
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
-- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、计时页/日程页分类筛选摘要/预填/排序/快捷新增标记、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、统计分类投入占比语义、分类 chip 点击切换、分类输入上下文、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增提交按钮分类/轮次语义、Mac 小窗快捷面板按钮语义、Mac 计划项分类上下文、分类摘要插入点和动作接线、Mac 待办筛选计数、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、Mac 分类摘要快捷新增、Mac 连续快速新增保留分类、Mac 分类预填提示、iOS 设置页音色选择、Mac 小窗分类上下文、CI 结果包校验脚本与小型成功、manifest artifactName 复判、旧 process version 负向、分类摘要 marker 缺失负向、日程任务操作 marker 缺失负向、计划开始 marker 缺失负向、Mac 计划分类 marker 缺失负向、计划面板操作 marker 缺失负向、日程 toolbar 新增 marker 缺失负向、Mac 快速新增 marker 缺失负向、分类输入上下文 marker 缺失负向、Mac 小窗快捷面板 marker 缺失负向、统计分类占比 marker 缺失负向、JUnit 元数据负向、JUnit errors 负向、JUnit outcome 负向、JUnit failure/error 元素负向、artifactName mismatch 负向、manifest artifactName 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向、额外 artifact 文件负向、本地文件大小篡改负向、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture、快照 manifest 大小篡改负向 fixture、run context 复判、固定 CI process version、分类摘要动作/分类可访问/日程任务操作/计划开始/Mac 计划分类/计划面板操作/日程 toolbar 新增/Mac 快速新增/分类输入上下文/Mac 小窗快捷面板/统计分类占比 contract 日志复判、Mac 核心测试、Mac UI 快照和快照 manifest generatedAt/byteCount 复判。
+- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、计时页/日程页分类筛选摘要/预填/排序/快捷新增标记、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、统计分类投入占比语义、分类 chip 点击切换、分类输入上下文、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增提交按钮分类/轮次语义、Mac 小窗快捷面板按钮语义、Mac 计划项分类上下文、分类摘要插入点和动作接线、Mac 待办筛选计数、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、Mac 分类摘要快捷新增、Mac 连续快速新增保留分类、Mac 分类预填提示、iOS 设置页音色选择、Mac 小窗分类上下文、CI 结果包校验脚本与小型成功、manifest artifactName 复判、旧 process version 负向、run context 额外字段负向、分类摘要 marker 缺失负向、日程任务操作 marker 缺失负向、计划开始 marker 缺失负向、Mac 计划分类 marker 缺失负向、计划面板操作 marker 缺失负向、日程 toolbar 新增 marker 缺失负向、Mac 快速新增 marker 缺失负向、分类输入上下文 marker 缺失负向、Mac 小窗快捷面板 marker 缺失负向、统计分类占比 marker 缺失负向、JUnit 元数据负向、JUnit errors 负向、JUnit outcome 负向、JUnit failure/error 元素负向、artifactName mismatch 负向、manifest artifactName 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向、额外 artifact 文件负向、本地文件大小篡改负向、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture、快照 manifest 大小篡改负向 fixture、run context 精确键集复判、固定 CI process version、分类摘要动作/分类可访问/日程任务操作/计划开始/Mac 计划分类/计划面板操作/日程 toolbar 新增/Mac 快速新增/分类输入上下文/Mac 小窗快捷面板/统计分类占比 contract 日志复判、Mac 核心测试、Mac UI 快照和快照 manifest generatedAt/byteCount 复判。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
-- 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计划开始 contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、Mac 快速新增 contract marker、分类输入上下文 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
+- 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context 精确键集、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计划开始 contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、Mac 快速新增 contract marker、分类输入上下文 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
 
 ## 关键决策
 
@@ -32,6 +32,37 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.72 / CI 运行上下文精确复判
+
+日期：2026-07-06
+
+核心变更：
+
+- `scripts/validate_ci_artifact.rb` 新增 `EXPECTED_RUN_CONTEXT_KEYS`，对 `ci-run-context.txt` 执行精确键集复判。
+- validator 新增 `run context exact keys` 检查，拒绝重复 key、额外 key 或缺失 key 的 run context。
+- `scripts/verify_project.sh` 新增 run context 额外字段负向 fixture，要求输出 `FAIL run context exact keys`。
+- README、测试规范和核心流程文档同步 run context 精确键集、无重复和无额外字段复判范围。
+
+关键文件：
+
+- `scripts/validate_ci_artifact.rb`
+- `scripts/verify_project.sh`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（持续优化）/v0.72（CI运行上下文精确复判）.md`
+- `update_log.md`
+
+验证结果：
+
+- 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
+- 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
+
+遗留事项：
+
+- 总目标仍未完成；v0.72 通过后可继续实现 v0.73 计划项分类 badge 可见化。
 
 ### v0.71 / 分类输入上下文
 

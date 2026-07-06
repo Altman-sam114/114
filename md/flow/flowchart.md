@@ -109,9 +109,9 @@ flowchart TD
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
   PUSH --> CI["GitHub Actions<br/>ci-results.yml<br/>静态检查、verify_project、Mac build、iOS build"]
-  CI --> ART["未加密 CI 结果包<br/>manifest元数据/artifactName/project reports、固定CI process version、artifact index version、精确清单和本地元数据复算、额外artifact拒绝、run context、failure summary 身份/outcome/错误摘录、JUnit 元数据/errors/outcome/failure元素、static-checks marker、Xcode 版本、verify_project 分类摘要动作/分类可访问/日程任务操作/计划开始/Mac计划分类/计划面板操作/日程toolbar新增/Mac快速新增/分类输入上下文/Mac小窗快捷面板/统计分类占比 marker、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
-  ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id<br/>核对 manifest artifactName、artifact index、index totals、run context、artifact 名称、计划面板操作/日程toolbar新增/Mac快速新增/分类输入上下文/Mac小窗快捷面板/统计分类占比 marker 和快照 manifest"]
-  C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>artifact 名称、日志和项目专属产物"]
+  CI --> ART["未加密 CI 结果包<br/>manifest元数据/artifactName/project reports、固定CI process version、artifact index version、精确清单和本地元数据复算、额外artifact拒绝、run context精确键集、failure summary 身份/outcome/错误摘录、JUnit 元数据/errors/outcome/failure元素、static-checks marker、Xcode 版本、verify_project 分类摘要动作/分类可访问/日程任务操作/计划开始/Mac计划分类/计划面板操作/日程toolbar新增/Mac快速新增/分类输入上下文/Mac小窗快捷面板/统计分类占比 marker、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
+  ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id<br/>核对 manifest artifactName、artifact index、index totals、run context精确键集、artifact 名称、计划面板操作/日程toolbar新增/Mac快速新增/分类输入上下文/Mac小窗快捷面板/统计分类占比 marker 和快照 manifest"]
+  C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>run context无重复/无额外字段<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}
   PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]
   BACK --> FIX["main 追加修复 commit<br/>不回滚旧提交"]
@@ -136,7 +136,7 @@ flowchart TD
   A --> B["Agent B<br/>按提示词实现<br/>本地轻量检查、commit、push origin/main"]
   B --> CI["GitHub Actions<br/>ci-results.yml<br/>运行静态检查、verify_project、Mac/iOS build"]
   CI --> ART["最新未加密 artifact<br/>manifest、artifact index、run context、JUnit、failure summary/错误摘录、日志、xcresult、快照 manifest、项目产物"]
-  ART --> C["Agent C<br/>下载最新 run artifact<br/>核对 branch、commitSha、run id、run attempt、artifact 名称、manifest artifactName、manifest元数据和project reports"]
+  ART --> C["Agent C<br/>下载最新 run artifact<br/>核对 branch、commitSha、run id、run attempt、run context精确键集、artifact 名称、manifest artifactName、manifest元数据和project reports"]
   C --> X2["Agent X 读取 Agent C 结论<br/>只基于最新 origin/main artifact 判断"]
   X2 --> D{"下一步判断"}
   D -->|通过且总目标未完成| X1

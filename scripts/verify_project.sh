@@ -721,8 +721,10 @@ grep -q "EXPECTED_STATIC_CHECK_MARKERS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_ARTIFACT_ROOT_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_JUNIT_TESTCASES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_JUNIT_OUTCOMES" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_RUN_CONTEXT_KEYS" scripts/validate_ci_artifact.rb
 grep -q "ci-run-context.txt" scripts/validate_ci_artifact.rb
 grep -q "xcode version log" scripts/validate_ci_artifact.rb
+grep -q "run context exact keys" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "manifest artifact name" scripts/validate_ci_artifact.rb
@@ -742,6 +744,7 @@ grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.
 grep -q "negative_mac_mini_quick_panel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_category_share_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
+grep -q "negative_run_context_extra_key_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_artifact_name_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
@@ -765,6 +768,7 @@ grep -q "FAIL verify_project mac quick add action accessibility contracts" scrip
 grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac mini quick panel accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics category share accessibility contracts" scripts/verify_project.sh
+grep -q "FAIL run context exact keys" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
@@ -1470,6 +1474,28 @@ fi
 grep -q "FAIL run context artifact name" "$negative_artifact_output"
 rm -rf "$negative_artifact_fixture"
 rm -f "$negative_artifact_output"
+negative_run_context_extra_key_fixture="$(mktemp -d)"
+negative_run_context_extra_key_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_run_context_extra_key_fixture"/
+python3 - "$negative_run_context_extra_key_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+context_path = root / "ci-run-context.txt"
+context_path.write_text(
+    context_path.read_text(encoding="utf-8") + "source=stale\n",
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_run_context_extra_key_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_run_context_extra_key_output" 2>&1; then
+  echo "Expected negative run context extra key fixture to fail validation" >&2
+  cat "$negative_run_context_extra_key_output" >&2
+  exit 1
+fi
+grep -q "FAIL run context exact keys" "$negative_run_context_extra_key_output"
+rm -rf "$negative_run_context_extra_key_fixture"
+rm -f "$negative_run_context_extra_key_output"
 negative_manifest_artifact_name_fixture="$(mktemp -d)"
 negative_manifest_artifact_name_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_manifest_artifact_name_fixture"/
