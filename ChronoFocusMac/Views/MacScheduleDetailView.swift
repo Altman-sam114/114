@@ -176,6 +176,7 @@ private struct MacStaticScheduleActionChipView: View {
     let tint: Color
     let isProminent: Bool
     var iconOnly = false
+    var accessibilityLabelText: String?
 
     var body: some View {
         Group {
@@ -196,7 +197,7 @@ private struct MacStaticScheduleActionChipView: View {
             Capsule()
                 .stroke(isProminent ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)
         }
-        .accessibilityLabel(title)
+        .accessibilityLabel(accessibilityLabelText ?? title)
     }
 }
 
@@ -547,6 +548,10 @@ private struct MacPlanPanelView: View {
     @EnvironmentObject private var engine: TimerEngine
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
+    private var remainingPlanCount: Int {
+        store.pomodoroPlan.filter { !$0.isCompleted }.count
+    }
+
     var body: some View {
         MacGlassPanel {
             VStack(alignment: .leading, spacing: 14) {
@@ -561,18 +566,29 @@ private struct MacPlanPanelView: View {
 
                 HStack {
                     if isSnapshotRendering {
-                        MacStaticScheduleActionChipView(title: "按日程生成", symbolName: "calendar.badge.plus", tint: .cyan, isProminent: true)
-                        MacStaticScheduleActionChipView(title: "清空", symbolName: "trash", tint: MacTheme.secondaryText, isProminent: false)
+                        MacStaticScheduleActionChipView(title: "按日程生成", symbolName: "calendar.badge.plus", tint: .cyan, isProminent: true, accessibilityLabelText: "按日程生成番茄钟计划，当前\(remainingPlanCount)轮未完成")
+                        MacStaticScheduleActionChipView(title: "清空", symbolName: "trash", tint: MacTheme.secondaryText, isProminent: false, accessibilityLabelText: "清空番茄钟计划，当前\(remainingPlanCount)轮未完成")
                     } else {
                         Button("按日程生成", systemImage: "calendar.badge.plus") {
                             store.generatePomodoroPlanFromSchedule()
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.cyan)
+                        .accessibilityLabel("按日程生成番茄钟计划，当前\(remainingPlanCount)轮未完成")
+                        .accessibilityInputLabels([
+                            Text("按日程生成"),
+                            Text("生成番茄钟计划"),
+                            Text("生成\(remainingPlanCount)轮计划")
+                        ])
 
                         Button("清空", systemImage: "trash", action: store.clearPomodoroPlan)
                             .buttonStyle(.bordered)
                             .disabled(store.pomodoroPlan.isEmpty)
+                            .accessibilityLabel("清空番茄钟计划，当前\(remainingPlanCount)轮未完成")
+                            .accessibilityInputLabels([
+                                Text("清空番茄钟计划"),
+                                Text("清空\(remainingPlanCount)轮计划")
+                            ])
                     }
                 }
 

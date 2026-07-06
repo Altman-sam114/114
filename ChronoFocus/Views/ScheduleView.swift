@@ -40,6 +40,10 @@ struct ScheduleView: View {
         return "\(visibleTasks.count)/\(totalCount) 项"
     }
 
+    private var remainingPlanCount: Int {
+        store.pomodoroPlan.filter { !$0.isCompleted }.count
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
@@ -206,6 +210,12 @@ struct ScheduleView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.cyan)
+                    .accessibilityLabel("按日程生成番茄钟计划，当前\(remainingPlanCount)轮未完成")
+                    .accessibilityInputLabels([
+                        Text("按日程生成"),
+                        Text("生成番茄钟计划"),
+                        Text("生成\(remainingPlanCount)轮计划")
+                    ])
 
                     Button {
                         store.clearPomodoroPlan()
@@ -216,7 +226,11 @@ struct ScheduleView: View {
                     .buttonStyle(.bordered)
                     .tint(.red)
                     .disabled(store.pomodoroPlan.isEmpty)
-                    .accessibilityLabel("清空番茄钟计划")
+                    .accessibilityLabel("清空番茄钟计划，当前\(remainingPlanCount)轮未完成")
+                    .accessibilityInputLabels([
+                        Text("清空番茄钟计划"),
+                        Text("清空\(remainingPlanCount)轮计划")
+                    ])
                 }
 
                 if !store.pomodoroPlan.isEmpty {

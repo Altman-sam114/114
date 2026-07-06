@@ -325,6 +325,18 @@ raise "PomodoroPlanRow source missing" unless pomodoro_plan_row
 raise "iOS plan start accessibility label missing task, time, round, and category" unless pomodoro_plan_row.include?(".accessibilityLabel(\"开始\\(item.taskTitle)计划番茄钟，\\(item.timeRangeText)，第 \\(item.roundNumber) 轮，\\(item.category)分类\")")
 raise "iOS plan start Voice Control labels missing task context" unless pomodoro_plan_row.include?("Text(\"开始\\(item.taskTitle)\")") && pomodoro_plan_row.include?("Text(\"\\(item.taskTitle)第 \\(item.roundNumber) 轮\")") && pomodoro_plan_row.include?("Text(\"\\(item.category)分类开始\")")
 
+schedule_plan_panel = source_slice(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "private var pomodoroPlanPanel",
+  "private var taskList",
+  "Schedule pomodoro plan panel source missing"
+)
+raise "iOS plan panel remaining count helper missing" unless File.read("ChronoFocus/Views/ScheduleView.swift").include?("private var remainingPlanCount: Int") && schedule_plan_panel.include?("remainingPlanCount")
+raise "iOS plan generate accessibility label missing count" unless schedule_plan_panel.include?(".accessibilityLabel(\"按日程生成番茄钟计划，当前\\(remainingPlanCount)轮未完成\")")
+raise "iOS plan generate Voice Control labels missing" unless schedule_plan_panel.include?("Text(\"按日程生成\")") && schedule_plan_panel.include?("Text(\"生成番茄钟计划\")") && schedule_plan_panel.include?("Text(\"生成\\(remainingPlanCount)轮计划\")")
+raise "iOS plan clear accessibility label missing count" unless schedule_plan_panel.include?(".accessibilityLabel(\"清空番茄钟计划，当前\\(remainingPlanCount)轮未完成\")")
+raise "iOS plan clear Voice Control labels missing" unless schedule_plan_panel.include?("Text(\"清空番茄钟计划\")") && schedule_plan_panel.include?("Text(\"清空\\(remainingPlanCount)轮计划\")")
+
 assert_slice_contains(
   "ChronoFocus/Views/TimerView.swift",
   "TimerSelectedTaskCategorySummaryView(",
@@ -442,6 +454,12 @@ mac_plan_source = source_slice(
   "private struct MacTaskListPanelView",
   "Mac pomodoro plan source missing"
 )
+mac_plan_panel_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private struct MacPlanPanelView",
+  "private struct MacTaskListPanelView",
+  "Mac pomodoro plan panel source missing"
+)
 raise "Mac plan static start accessibility label missing task, time, round, and category" unless mac_plan_source.include?("MacStaticScheduleActionChipView(title: \"开始\\(item.taskTitle)计划番茄钟，\\(item.timeRangeText)，第 \\(item.roundNumber) 轮，\\(item.category)分类\"")
 raise "Mac plan start accessibility label missing task, time, round, and category" unless mac_plan_source.include?(".accessibilityLabel(\"开始\\(item.taskTitle)计划番茄钟，\\(item.timeRangeText)，第 \\(item.roundNumber) 轮，\\(item.category)分类\")")
 raise "Mac plan start Voice Control labels missing task context" unless mac_plan_source.include?("Text(\"开始\\(item.taskTitle)\")") && mac_plan_source.include?("Text(\"\\(item.taskTitle)第 \\(item.roundNumber) 轮\")")
@@ -449,6 +467,15 @@ puts "Plan start action accessibility contracts verified."
 raise "Mac plan subtitle category missing" unless mac_plan_source.include?("Text(\"\\(item.timeRangeText) · 第 \\(item.roundNumber) 轮 · \\(item.category)\")")
 raise "Mac plan start Voice Control category label missing" unless mac_plan_source.include?("Text(\"\\(item.category)分类开始\")")
 puts "Mac plan category context contracts verified."
+raise "Mac static schedule action accessibility override missing" unless File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift").include?("var accessibilityLabelText: String?") && File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift").include?(".accessibilityLabel(accessibilityLabelText ?? title)")
+raise "Mac plan panel remaining count helper missing" unless mac_plan_panel_source.include?("private var remainingPlanCount: Int") && mac_plan_panel_source.include?("remainingPlanCount")
+raise "Mac plan static generate accessibility label missing count" unless mac_plan_panel_source.include?("accessibilityLabelText: \"按日程生成番茄钟计划，当前\\(remainingPlanCount)轮未完成\"")
+raise "Mac plan static clear accessibility label missing count" unless mac_plan_panel_source.include?("accessibilityLabelText: \"清空番茄钟计划，当前\\(remainingPlanCount)轮未完成\"")
+raise "Mac plan generate accessibility label missing count" unless mac_plan_panel_source.include?(".accessibilityLabel(\"按日程生成番茄钟计划，当前\\(remainingPlanCount)轮未完成\")")
+raise "Mac plan generate Voice Control labels missing" unless mac_plan_panel_source.include?("Text(\"按日程生成\")") && mac_plan_panel_source.include?("Text(\"生成番茄钟计划\")") && mac_plan_panel_source.include?("Text(\"生成\\(remainingPlanCount)轮计划\")")
+raise "Mac plan clear accessibility label missing count" unless mac_plan_panel_source.include?(".accessibilityLabel(\"清空番茄钟计划，当前\\(remainingPlanCount)轮未完成\")")
+raise "Mac plan clear Voice Control labels missing" unless mac_plan_panel_source.include?("Text(\"清空番茄钟计划\")") && mac_plan_panel_source.include?("Text(\"清空\\(remainingPlanCount)轮计划\")")
+puts "Plan panel action accessibility contracts verified."
 
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
@@ -580,6 +607,7 @@ grep -q "Category summary action contracts verified." scripts/validate_ci_artifa
 grep -q "Schedule task action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Plan start action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac plan category context contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Plan panel action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
@@ -598,6 +626,7 @@ grep -q "negative_summary_marker_fixture" scripts/verify_project.sh
 grep -q "negative_task_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_plan_start_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_plan_category_marker_fixture" scripts/verify_project.sh
+grep -q "negative_plan_panel_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
@@ -612,6 +641,7 @@ grep -q "FAIL verify_project category summary action contracts" scripts/verify_p
 grep -q "FAIL verify_project schedule task action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project plan start action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac plan category context contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project plan panel action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
@@ -665,7 +695,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -987,6 +1017,31 @@ fi
 grep -q "FAIL verify_project mac plan category context contracts" "$negative_mac_plan_category_marker_output"
 rm -rf "$negative_mac_plan_category_marker_fixture"
 rm -f "$negative_mac_plan_category_marker_output"
+negative_plan_panel_action_marker_fixture="$(mktemp -d)"
+negative_plan_panel_action_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_plan_panel_action_marker_fixture"/
+python3 - "$negative_plan_panel_action_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Plan panel action accessibility contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_plan_panel_action_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_plan_panel_action_marker_output" 2>&1; then
+  echo "Expected negative plan panel action marker fixture to fail validation" >&2
+  cat "$negative_plan_panel_action_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project plan panel action accessibility contracts" "$negative_plan_panel_action_marker_output"
+rm -rf "$negative_plan_panel_action_marker_fixture"
+rm -f "$negative_plan_panel_action_marker_output"
 negative_junit_metadata_fixture="$(mktemp -d)"
 negative_junit_metadata_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_junit_metadata_fixture"/
