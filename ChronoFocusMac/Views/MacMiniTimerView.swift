@@ -160,6 +160,7 @@ private struct MacMiniFlowProgressView: View {
 }
 
 private struct MacMiniControlsView: View {
+    @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
 
     let currentTint: Color
@@ -172,24 +173,68 @@ private struct MacMiniControlsView: View {
             .labelStyle(.iconOnly)
             .buttonStyle(MacIconButtonStyle(tint: .red, filled: false))
             .disabled(!engine.isRunning)
+            .accessibilityLabel("停止\(timerActionContext)计时")
+            .accessibilityInputLabels(timerActionInputLabels("停止"))
 
             Button("跳过", systemImage: "forward.end.fill", action: engine.skipToNextSession)
                 .labelStyle(.iconOnly)
                 .buttonStyle(MacIconButtonStyle(tint: .orange, filled: false))
                 .disabled(!engine.isRunning)
+                .accessibilityLabel("跳过\(timerActionContext)当前轮")
+                .accessibilityInputLabels(timerActionInputLabels("跳过"))
 
             Button(primaryTitle, systemImage: primarySymbol, action: toggleTimer)
                 .labelStyle(.iconOnly)
                 .buttonStyle(MacIconButtonStyle(tint: currentTint, filled: true, size: 74))
+                .accessibilityLabel(primaryTimerActionLabel)
+                .accessibilityInputLabels(timerActionInputLabels(primaryTimerActionInputCommand))
         }
+    }
+
+    private var timerActionTask: FocusTask? {
+        store.task(for: engine.selectedTaskID)
+    }
+
+    private var timerActionContext: String {
+        if let task = timerActionTask {
+            return "\(task.title)，\(task.category)分类"
+        }
+        return engine.currentTaskTitle
     }
 
     private var primaryTitle: String {
         !engine.isRunning || engine.isPaused ? "开始" : "暂停"
     }
 
+    private var primaryTimerActionLabel: String {
+        if !engine.isRunning {
+            return "开始\(timerActionContext)计时"
+        }
+        return engine.isPaused ? "继续\(timerActionContext)计时" : "暂停\(timerActionContext)计时"
+    }
+
+    private var primaryTimerActionInputCommand: String {
+        if !engine.isRunning {
+            return "开始"
+        }
+        return engine.isPaused ? "继续" : "暂停"
+    }
+
     private var primarySymbol: String {
         !engine.isRunning || engine.isPaused ? "play.fill" : "pause.fill"
+    }
+
+    private func timerActionInputLabels(_ action: String) -> [Text] {
+        var labels = [
+            Text(action),
+            Text("\(action)\(engine.currentTaskTitle)")
+        ]
+        if let task = timerActionTask {
+            labels.append(Text("\(action)\(task.title)"))
+            labels.append(Text("\(action)\(task.category)分类"))
+            labels.append(Text("\(task.category)分类\(action)"))
+        }
+        return labels
     }
 
     private func toggleTimer() {

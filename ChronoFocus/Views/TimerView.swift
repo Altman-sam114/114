@@ -37,6 +37,44 @@ struct TimerView: View {
         selectedTaskCategory = nil
     }
 
+    private var timerActionTask: FocusTask? {
+        store.task(for: engine.selectedTaskID)
+    }
+
+    private var timerActionContext: String {
+        if let task = timerActionTask {
+            return "\(task.title)，\(task.category)分类"
+        }
+        return engine.currentTaskTitle
+    }
+
+    private var primaryTimerActionLabel: String {
+        if !engine.isRunning {
+            return "开始\(timerActionContext)计时"
+        }
+        return engine.isPaused ? "继续\(timerActionContext)计时" : "暂停\(timerActionContext)计时"
+    }
+
+    private var primaryTimerActionInputCommand: String {
+        if !engine.isRunning {
+            return "开始"
+        }
+        return engine.isPaused ? "继续" : "暂停"
+    }
+
+    private func timerActionInputLabels(_ action: String) -> [Text] {
+        var labels = [
+            Text(action),
+            Text("\(action)\(engine.currentTaskTitle)")
+        ]
+        if let task = timerActionTask {
+            labels.append(Text("\(action)\(task.title)"))
+            labels.append(Text("\(action)\(task.category)分类"))
+            labels.append(Text("\(task.category)分类\(action)"))
+        }
+        return labels
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
@@ -171,7 +209,8 @@ struct TimerView: View {
             }
             .buttonStyle(IconActionButtonStyle(tint: .red.opacity(0.88), filled: false))
             .disabled(!engine.isRunning)
-            .accessibilityLabel("停止")
+            .accessibilityLabel("停止\(timerActionContext)计时")
+            .accessibilityInputLabels(timerActionInputLabels("停止"))
 
             Button {
                 engine.skipToNextSession()
@@ -181,7 +220,8 @@ struct TimerView: View {
             }
             .buttonStyle(IconActionButtonStyle(tint: .orange.opacity(0.9), filled: false))
             .disabled(!engine.isRunning)
-            .accessibilityLabel("跳过当前轮")
+            .accessibilityLabel("跳过\(timerActionContext)当前轮")
+            .accessibilityInputLabels(timerActionInputLabels("跳过"))
 
             Button {
                 if !engine.isRunning {
@@ -197,7 +237,8 @@ struct TimerView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(IconActionButtonStyle(tint: currentTint, filled: true))
-            .accessibilityLabel(!engine.isRunning || engine.isPaused ? "开始" : "暂停")
+            .accessibilityLabel(primaryTimerActionLabel)
+            .accessibilityInputLabels(timerActionInputLabels(primaryTimerActionInputCommand))
         }
         .frame(height: 58)
     }
@@ -212,7 +253,8 @@ struct TimerView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(IconActionButtonStyle(tint: .mint, filled: true))
-            .accessibilityLabel("完成当前待办")
+            .accessibilityLabel("完成\(timerActionContext)待办")
+            .accessibilityInputLabels(timerActionInputLabels("完成"))
         }
     }
 

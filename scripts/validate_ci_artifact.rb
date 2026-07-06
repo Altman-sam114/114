@@ -545,6 +545,9 @@ end
 check(checks, "verify_project analytics category share accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Analytics category share accessibility contracts verified.")
 end
+check(checks, "verify_project timer action accessibility contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Timer action accessibility contracts verified.")
+end
 check(checks, "verify_project success") { File.read(verify_log_path, encoding: "UTF-8").include?("Project structure verified.") }
 check(checks, "mac build succeeded") { File.read(mac_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }
 check(checks, "ios build succeeded") { File.read(ios_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }
