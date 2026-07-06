@@ -810,6 +810,7 @@ grep -q "manifest paths" scripts/validate_ci_artifact.rb
 grep -q "manifest short sha" scripts/validate_ci_artifact.rb
 grep -q "manifest metadata" scripts/validate_ci_artifact.rb
 grep -q "manifest created at" scripts/validate_ci_artifact.rb
+grep -q "manifest overall outcome" scripts/validate_ci_artifact.rb
 grep -q "manifest project reports" scripts/validate_ci_artifact.rb
 grep -q "index version" scripts/validate_ci_artifact.rb
 grep -q "index created at" scripts/validate_ci_artifact.rb
@@ -828,6 +829,7 @@ grep -q "junit errors" scripts/validate_ci_artifact.rb
 grep -q "junit testcase outcomes" scripts/validate_ci_artifact.rb
 grep -q "junit failure elements" scripts/validate_ci_artifact.rb
 grep -q "snapshot manifest generated at" scripts/validate_ci_artifact.rb
+grep -q "FAIL manifest overall outcome" scripts/verify_project.sh
 grep -q "snapshot byte counts" scripts/validate_ci_artifact.rb
 grep -q "xcrun.*simctl" scripts/resolve_ios_simulator_destination.rb
 grep -q "platform=iOS Simulator,id=" scripts/resolve_ios_simulator_destination.rb
@@ -893,6 +895,7 @@ summary = f"""# ChronoFocus CI Failure Summary
 - Branch: `main`
 - Commit: `{commit}`
 - Run: `{run_id}` attempt `{attempt}`
+- Overall outcome: `success`
 - Static checks: `success`
 - Project verification: `success`
 - Mac build: `success`
@@ -950,6 +953,7 @@ manifest = {
     "iosBuildLogPath": "ci-results/ios-xcodebuild.log",
     "failureSummaryPath": "ci-results/ci-failure-summary.md",
     "artifactIndexPath": "ci-results/ci-artifact-index.json",
+    "overallOutcome": "success",
     "staticChecksOutcome": "success",
     "projectVerificationOutcome": "success",
     "buildOutcome": "success",
@@ -1599,6 +1603,31 @@ fi
 grep -q "FAIL index artifact name" "$negative_index_artifact_name_output"
 rm -rf "$negative_index_artifact_name_fixture"
 rm -f "$negative_index_artifact_name_output"
+negative_manifest_overall_outcome_fixture="$(mktemp -d)"
+negative_manifest_overall_outcome_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_manifest_overall_outcome_fixture"/
+python3 - "$negative_manifest_overall_outcome_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+manifest_path = root / "ci-artifact-manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+manifest["overallOutcome"] = "failure"
+manifest_path.write_text(
+    json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_manifest_overall_outcome_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_manifest_overall_outcome_output" 2>&1; then
+  echo "Expected negative manifest overall outcome fixture to fail validation" >&2
+  cat "$negative_manifest_overall_outcome_output" >&2
+  exit 1
+fi
+grep -q "FAIL manifest overall outcome" "$negative_manifest_overall_outcome_output"
+rm -rf "$negative_manifest_overall_outcome_fixture"
+rm -f "$negative_manifest_overall_outcome_output"
 negative_manifest_metadata_fixture="$(mktemp -d)"
 negative_manifest_metadata_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_manifest_metadata_fixture"/
@@ -1847,6 +1876,8 @@ grep -q "generic/platform=iOS" .github/workflows/ci-results.yml
 ruby -e 'source = File.read(".github/workflows/ci-results.yml"); index_source = source[/index = \{[\s\S]*?"entries": entries,/]; raise "workflow artifact index source missing" unless index_source; raise "workflow artifact index artifactName missing" unless index_source.include?("\"artifactName\": os.environ[\"ARTIFACT_NAME\"]")'
 grep -q "errors=\"0\"" .github/workflows/ci-results.yml
 grep -q "iosBuildOutcome" .github/workflows/ci-results.yml
+grep -q "overallOutcome" .github/workflows/ci-results.yml
+grep -q "Overall outcome" .github/workflows/ci-results.yml
 grep -q "ChronoFocus-iOS.xcresult" .github/workflows/ci-results.yml
 grep -q "ios-xcodebuild.log" .github/workflows/ci-results.yml
 grep -q "Failure Excerpts" .github/workflows/ci-results.yml

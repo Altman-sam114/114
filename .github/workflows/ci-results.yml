@@ -152,6 +152,7 @@ jobs:
               ("macBuild", build_outcome, "ci-results/xcodebuild.log"),
               ("iosBuild", ios_build_outcome, "ci-results/ios-xcodebuild.log"),
           ]
+          overall_outcome = "success" if all(outcome == "success" for _, outcome, _ in tests) else "failure"
           failure_pattern = re.compile(
               r"(error:|BUILD FAILED|TEST FAILED|SnapshotError|missing-control|Traceback|Exception|fatal error|Command failed|exit code|No such file|not found|Unexpected|Invalid|appears blank|placeholder)",
               re.IGNORECASE,
@@ -296,6 +297,7 @@ jobs:
               "iosBuildLogPath": "ci-results/ios-xcodebuild.log",
               "failureSummaryPath": "ci-results/ci-failure-summary.md",
               "artifactIndexPath": "ci-results/ci-artifact-index.json",
+              "overallOutcome": overall_outcome,
               "staticChecksOutcome": static_outcome,
               "projectVerificationOutcome": verify_outcome,
               "buildOutcome": build_outcome,
@@ -367,6 +369,7 @@ jobs:
               f"- Branch: `{manifest['branch']}`",
               f"- Commit: `{manifest['commitSha']}`",
               f"- Run: `{manifest['runId']}` attempt `{manifest['runAttempt']}`",
+              f"- Overall outcome: `{overall_outcome}`",
               f"- Static checks: `{static_outcome}`",
               f"- Project verification: `{verify_outcome}`",
               f"- Mac build: `{build_outcome}`",

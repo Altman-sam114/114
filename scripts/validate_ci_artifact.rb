@@ -83,6 +83,7 @@ EXPECTED_SUMMARY_ENTRIES = [
 ].freeze
 
 EXPECTED_SUMMARY_OUTCOMES = {
+  "Overall outcome" => "overallOutcome",
   "Static checks" => "staticChecksOutcome",
   "Project verification" => "projectVerificationOutcome",
   "Mac build" => "macBuildOutcome",
@@ -149,6 +150,13 @@ EXPECTED_OUTCOME_KEYS = %w[
   macBuildOutcome
   iosBuildOutcome
   testOutcome
+].freeze
+
+EXPECTED_OVERALL_OUTCOME_SOURCE_KEYS = %w[
+  staticChecksOutcome
+  projectVerificationOutcome
+  macBuildOutcome
+  iosBuildOutcome
 ].freeze
 
 EXPECTED_RUN_CONTEXT_KEYS = %w[
@@ -323,6 +331,15 @@ check(checks, "manifest paths") do
 end
 EXPECTED_OUTCOME_KEYS.each do |key|
   check(checks, key) { manifest[key] == "success" }
+end
+check(checks, "manifest overall outcome") do
+  expected_overall_outcome =
+    if EXPECTED_OVERALL_OUTCOME_SOURCE_KEYS.all? { |key| manifest[key] == "success" }
+      "success"
+    else
+      "failure"
+    end
+  manifest["overallOutcome"] == expected_overall_outcome
 end
 check(checks, "run context fields") do
   %w[artifactName branch commitSha runId runAttempt].all? { |key| !run_context[key].to_s.empty? }
