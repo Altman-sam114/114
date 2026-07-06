@@ -247,6 +247,7 @@ jobs:
                   total_directory_bytes = sum(entry.get("recursiveByteCount", 0) for entry in entries)
                   index = {
                       "version": os.environ["CI_PROCESS_VERSION"],
+                      "artifactName": os.environ["ARTIFACT_NAME"],
                       "branch": os.environ["GITHUB_REF_NAME"],
                       "commitSha": os.environ["GITHUB_SHA"],
                       "runId": os.environ["GITHUB_RUN_ID"],

@@ -343,6 +343,11 @@ check(checks, "manifest artifact name") do
   manifest["artifactName"] == expected_artifact_name &&
     manifest["artifactName"] == run_context["artifactName"]
 end
+check(checks, "index artifact name") do
+  index["artifactName"] == expected_artifact_name &&
+    index["artifactName"] == manifest["artifactName"] &&
+    index["artifactName"] == run_context["artifactName"]
+end
 
 entries_by_path = index.fetch("entries").each_with_object({}) do |entry, lookup|
   lookup[entry.fetch("path")] = entry

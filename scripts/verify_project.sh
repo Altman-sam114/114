@@ -740,6 +740,7 @@ grep -q "run context exact keys" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "manifest artifact name" scripts/validate_ci_artifact.rb
+grep -q "index artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_junit_fixture" scripts/verify_project.sh
 grep -q "negative_junit_errors_fixture" scripts/verify_project.sh
 grep -q "stale_process_version_fixture" scripts/verify_project.sh
@@ -759,6 +760,7 @@ grep -q "negative_analytics_category_share_marker_fixture" scripts/verify_projec
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_run_context_extra_key_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_artifact_name_fixture" scripts/verify_project.sh
+grep -q "negative_index_artifact_name_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
 grep -q "corrupt_index_totals_fixture" scripts/verify_project.sh
@@ -785,6 +787,7 @@ grep -q "FAIL verify_project analytics category share accessibility contracts" s
 grep -q "FAIL run context exact keys" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest artifact name" scripts/verify_project.sh
+grep -q "FAIL index artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
 grep -q "FAIL index totals consistency" scripts/verify_project.sh
@@ -1034,6 +1037,7 @@ last_size = None
 for _ in range(5):
     index = {
         "version": "v0.10",
+        "artifactName": f"chronofocus-ci-v0.10-main-fixture-run{run_id}-attempt{attempt}",
         "branch": "main",
         "commitSha": commit,
         "runId": run_id,
@@ -1560,6 +1564,31 @@ fi
 grep -q "FAIL manifest artifact name" "$negative_manifest_artifact_name_output"
 rm -rf "$negative_manifest_artifact_name_fixture"
 rm -f "$negative_manifest_artifact_name_output"
+negative_index_artifact_name_fixture="$(mktemp -d)"
+negative_index_artifact_name_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_index_artifact_name_fixture"/
+python3 - "$negative_index_artifact_name_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+index["artifactName"] = "chronofocus-ci-v0.10-main-wrong-run12345-attempt1"
+index_path.write_text(
+    json.dumps(index, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_index_artifact_name_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_index_artifact_name_output" 2>&1; then
+  echo "Expected negative index artifact name fixture to fail validation" >&2
+  cat "$negative_index_artifact_name_output" >&2
+  exit 1
+fi
+grep -q "FAIL index artifact name" "$negative_index_artifact_name_output"
+rm -rf "$negative_index_artifact_name_fixture"
+rm -f "$negative_index_artifact_name_output"
 negative_manifest_metadata_fixture="$(mktemp -d)"
 negative_manifest_metadata_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_manifest_metadata_fixture"/
@@ -1805,7 +1834,7 @@ ruby scripts/resolve_ios_simulator_destination.rb --simctl-json "$simctl_fixture
 rm -f "$simctl_fixture"
 grep -q "IOS_SCHEME: ChronoFocus" .github/workflows/ci-results.yml
 grep -q "generic/platform=iOS" .github/workflows/ci-results.yml
-grep -q "\"artifactName\": os.environ\[\"ARTIFACT_NAME\"\]" .github/workflows/ci-results.yml
+ruby -e 'source = File.read(".github/workflows/ci-results.yml"); index_source = source[/index = \{[\s\S]*?"entries": entries,/]; raise "workflow artifact index source missing" unless index_source; raise "workflow artifact index artifactName missing" unless index_source.include?("\"artifactName\": os.environ[\"ARTIFACT_NAME\"]")'
 grep -q "errors=\"0\"" .github/workflows/ci-results.yml
 grep -q "iosBuildOutcome" .github/workflows/ci-results.yml
 grep -q "ChronoFocus-iOS.xcresult" .github/workflows/ci-results.yml
