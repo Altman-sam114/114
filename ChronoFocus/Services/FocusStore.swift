@@ -265,7 +265,7 @@ final class FocusStore: ObservableObject {
         return grouped.map { category, sessions in
             let seconds = sessions.reduce(0) { $0 + $1.actualSeconds }
             let accent = tasks.first(where: { $0.category == category })?.accentHex ?? "#3DE8C5"
-            return CategoryFocus(category: category, seconds: seconds, accentHex: accent)
+            return CategoryFocus(category: category, seconds: seconds, sessionCount: sessions.count, accentHex: accent)
         }
         .sorted { $0.seconds > $1.seconds }
     }

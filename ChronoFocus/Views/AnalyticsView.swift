@@ -406,8 +406,13 @@ struct AnalyticsView: View {
                     ForEach(store.categoryBreakdown()) { item in
                         VStack(alignment: .leading, spacing: 7) {
                             HStack {
-                                Label(item.category, systemImage: "circle.fill")
-                                    .foregroundStyle(Color(hex: item.accentHex))
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Label(item.category, systemImage: "circle.fill")
+                                        .foregroundStyle(Color(hex: item.accentHex))
+                                    Text(categoryShareSessionCountText(for: item))
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(AppTheme.secondaryText)
+                                }
                                 Spacer()
                                 Text(item.seconds.hourMinuteText)
                                     .font(.caption.weight(.semibold))
@@ -428,7 +433,8 @@ struct AnalyticsView: View {
                         .accessibilityInputLabels([
                             Text(item.category),
                             Text("\(item.category)分类"),
-                            Text("\(item.category)分类投入")
+                            Text("\(item.category)分类投入"),
+                            Text("\(item.category)分类\(item.sessionCount)次专注")
                         ])
                     }
                 }
@@ -440,8 +446,12 @@ struct AnalyticsView: View {
         Int((Double(seconds) / Double(categoryShareTotalSeconds) * 100).rounded())
     }
 
+    private func categoryShareSessionCountText(for item: CategoryFocus) -> String {
+        "\(item.sessionCount) 次专注"
+    }
+
     private func categoryShareAccessibilityLabel(for item: CategoryFocus) -> String {
-        "\(item.category)分类投入，\(item.seconds.hourMinuteText)，占分类投入 \(categorySharePercent(for: item.seconds))%"
+        "\(item.category)分类投入，\(item.seconds.hourMinuteText)，\(item.sessionCount)次专注，占分类投入 \(categorySharePercent(for: item.seconds))%"
     }
 
     private var categoryShareTotalSeconds: Int {

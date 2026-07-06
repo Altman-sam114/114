@@ -64,6 +64,7 @@ struct MacCoreTests {
         )
         assert(store.todayFocusSeconds == 1500, "Expected today's focus seconds to include completed session")
         assert(store.categoryBreakdown().first?.category == "测试", "Expected category breakdown for completed session")
+        assert(store.categoryBreakdown().first?.sessionCount == 1, "Expected category breakdown to count completed sessions")
 
         _ = store.incrementRound(for: task.id)
         assert(store.task(for: task.id)?.completedRounds == 1, "Expected completed rounds to increment")

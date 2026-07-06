@@ -448,6 +448,7 @@ struct CategoryFocus: Identifiable {
     var id: String { category }
     var category: String
     var seconds: Int
+    var sessionCount: Int
     var accentHex: String
 }
 

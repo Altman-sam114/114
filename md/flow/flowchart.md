@@ -4,7 +4,7 @@
 
 ## 核心数据流
 
-读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。重点看 `FocusStore` 与 `TimerEngine` 的职责边界；当前任务选择行分类语义、分类筛选反选清除、统计计划回顾分类语义和待办保存/取消按钮分类语义都有独立 `verify_project` marker 和 artifact validator 复判。
+读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。重点看 `FocusStore` 与 `TimerEngine` 的职责边界；当前任务选择行分类语义、分类筛选反选清除、统计分类投入次数上下文、统计计划回顾分类语义和待办保存/取消按钮分类语义都有独立 `verify_project` marker 和 artifact validator 复判。
 
 ```mermaid
 flowchart TD
@@ -19,7 +19,7 @@ flowchart TD
   E --> S
   E --> N["TimerNotificationServicing<br/>完成通知、任务提醒、声音/音色、振动"]
   E --> L["TimerLiveActivityServicing<br/>iOS Live Activity / Mac 占位服务"]
-  S --> C["统计和计划计算<br/>7 日趋势、分类投入、分类列表、工作压力、PomodoroPlanItem"]
+  S --> C["统计和计划计算<br/>7 日趋势、分类投入时长/次数、分类列表、工作压力、PomodoroPlanItem"]
   CAL["CalendarSyncService / MacCalendarSyncService<br/>系统日历事件"] --> S
   PRO["PremiumAccessService / MacPremiumAccessService<br/>StoreKit Pro 权益"] --> V
   S --> V

@@ -20,6 +20,7 @@
 - v0.81 起，iOS 统计页日程计划回顾分类语义新增独立云端结果包复判：`Analytics plan review category accessibility contracts verified.` 与 `PASS verify_project analytics plan review category accessibility contracts`。
 - v0.82 起，iOS 待办新增/编辑保存按钮分类语义新增独立云端结果包复判：`Task editor save category accessibility contracts verified.` 与 `PASS verify_project task editor save category accessibility contracts`。
 - v0.83 起，iOS 待办新增/编辑取消按钮分类语义新增独立云端结果包复判：`Task editor cancel category accessibility contracts verified.` 与 `PASS verify_project task editor cancel category accessibility contracts`。
+- v0.84 起，iOS/macOS 统计页分类投入专注次数上下文新增独立云端结果包复判：`Analytics category share session count contracts verified.` 与 `PASS verify_project analytics category share session count contracts`。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest overallOutcome、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index artifactName、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context 精确键集、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/总结果/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、Mac 快速新增 contract marker、分类输入上下文 contract marker、待办保存分类 contract marker、待办取消分类 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、统计最近记录分类 contract marker、统计计划回顾分类 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
 
@@ -37,6 +38,47 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.84 / 统计分类投入次数上下文
+
+日期：2026-07-06
+
+核心变更：
+
+- `CategoryFocus` 新增非持久化 `sessionCount`，`FocusStore.categoryBreakdown()` 按已完成专注会话聚合分类专注次数。
+- iOS 和 macOS 统计页“分类投入”行显示“X 次专注”，整行可访问标签与 Voice Control input labels 同步包含次数上下文。
+- Mac 核心测试补充分类统计专注次数断言。
+- `scripts/verify_project.sh` 新增 `Analytics category share session count contracts verified.` 源码契约和 marker 缺失负向 fixture。
+- `scripts/validate_ci_artifact.rb` 新增 `verify_project analytics category share session count contracts` 复判。
+- README、测试规范、核心流程和流程图同步分类投入次数上下文与 artifact 复判。
+
+关键文件：
+
+- `ChronoFocus/Models/AppModels.swift`
+- `ChronoFocus/Services/FocusStore.swift`
+- `ChronoFocus/Views/AnalyticsView.swift`
+- `ChronoFocusMac/Views/MacAnalyticsDetailView.swift`
+- `scripts/test_mac_core.swift`
+- `scripts/verify_project.sh`
+- `scripts/validate_ci_artifact.rb`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（持续优化）/v0.84（统计分类投入次数上下文artifact复判）.md`
+- `update_log.md`
+
+验证结果：
+
+- `git diff --check` 通过。
+- `ruby -c scripts/validate_ci_artifact.rb` 通过，输出 `Syntax OK`。
+- `bash -n scripts/verify_project.sh` 通过。
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 通过，输出 `yaml ok`。
+- `bash scripts/verify_project.sh` 未能在当前 Linux 容器完成，第一步因缺少 macOS/Xcode 工具 `plutil` 失败；完整项目验证、Mac build 和 iOS generic build 待 push 后由 GitHub Actions `ChronoFocus CI Results` 执行并由 Agent C 下载最新 artifact 复判。
+
+遗留事项：
+
+- 总目标仍未完成；v0.84 通过后可继续评估统计页分类筛选入口、分类排序解释或更多 CI artifact 负向路径。
 
 ### v0.83 / 待办编辑取消分类语义
 
