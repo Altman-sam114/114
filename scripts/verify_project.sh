@@ -658,6 +658,7 @@ assert_slice_contains(
   /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory == category \? nil : category/,
   "Mac category filter chip must toggle off the selected category"
 )
+puts "Category filter toggle contracts verified."
 
 assert_chip_accessibility("ChronoFocus/Views/ScheduleView.swift", "TaskCategoryFilterChip", "private struct ScheduleTaskCell")
 assert_chip_accessibility("ChronoFocus/Views/TimerView.swift", "TimerTaskCategoryFilterChip", "private struct TimerSelectedTaskCategorySummaryView")
@@ -792,6 +793,7 @@ grep -q "Category input context contracts verified." scripts/validate_ci_artifac
 grep -q "Mac mini quick panel accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics category share accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics recent session category contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Category filter toggle contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Current task selection accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Timer action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
@@ -827,6 +829,7 @@ grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.
 grep -q "negative_mac_mini_quick_panel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_category_share_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_recent_session_marker_fixture" scripts/verify_project.sh
+grep -q "negative_category_filter_toggle_marker_fixture" scripts/verify_project.sh
 grep -q "negative_current_task_selection_marker_fixture" scripts/verify_project.sh
 grep -q "negative_timer_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
@@ -857,6 +860,7 @@ grep -q "FAIL verify_project category input context contracts" scripts/verify_pr
 grep -q "FAIL verify_project mac mini quick panel accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics category share accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics recent session category contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project category filter toggle contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project current task selection accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project timer action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL run context exact keys" scripts/verify_project.sh
@@ -919,7 +923,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics recent session category contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics recent session category contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1497,6 +1501,31 @@ fi
 grep -q "FAIL verify_project analytics recent session category contracts" "$negative_analytics_recent_session_marker_output"
 rm -rf "$negative_analytics_recent_session_marker_fixture"
 rm -f "$negative_analytics_recent_session_marker_output"
+negative_category_filter_toggle_marker_fixture="$(mktemp -d)"
+negative_category_filter_toggle_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_category_filter_toggle_marker_fixture"/
+python3 - "$negative_category_filter_toggle_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Category filter toggle contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_category_filter_toggle_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_category_filter_toggle_marker_output" 2>&1; then
+  echo "Expected negative category filter toggle marker fixture to fail validation" >&2
+  cat "$negative_category_filter_toggle_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project category filter toggle contracts" "$negative_category_filter_toggle_marker_output"
+rm -rf "$negative_category_filter_toggle_marker_fixture"
+rm -f "$negative_category_filter_toggle_marker_output"
 negative_current_task_selection_marker_fixture="$(mktemp -d)"
 negative_current_task_selection_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_current_task_selection_marker_fixture"/

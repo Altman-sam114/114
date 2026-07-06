@@ -180,6 +180,7 @@ macOS：
 - `AppModels.swift` 定义跨端模型契约、非持久化分类预设和分类筛选排序 option。
 - v0.78 起，统计最近记录的分类 badge 和整行可访问语义由 `scripts/verify_project.sh` 输出 `Analytics recent session category contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project analytics recent session category contracts`。
 - v0.79 起，当前任务选择行的 selected trait、运行中不可切换提示、任务名和分类名 Voice Control input labels 由 `scripts/verify_project.sh` 输出 `Current task selection accessibility contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project current task selection accessibility contracts`。
+- v0.80 起，分类筛选 chip 再次点击已选分类清除筛选由 `scripts/verify_project.sh` 输出 `Category filter toggle contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project category filter toggle contracts`。
 - 平台服务负责系统能力，不持有核心业务规则。
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。

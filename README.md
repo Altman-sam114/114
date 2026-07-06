@@ -80,6 +80,8 @@ ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
 
 v0.79 起，当前任务选择行的 selected trait、运行中不可切换提示、任务名和分类名 Voice Control input labels 会输出 `Current task selection accessibility contracts verified.`，并由 Agent C artifact validator 复判 `PASS verify_project current task selection accessibility contracts`。
 
+v0.80 起，iOS 日程、iOS 计时和 macOS 日程的分类筛选 chip 再次点击已选分类可清除筛选会输出 `Category filter toggle contracts verified.`，并由 Agent C artifact validator 复判 `PASS verify_project category filter toggle contracts`。
+
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
 ## 协作与云端验证
@@ -98,6 +100,8 @@ ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id> 
 该脚本会核对 manifest 的分支/提交/run/attempt、artifactName、overallOutcome、short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、createdAt、关键路径、project reports allowlist，`ci-run-context.txt` 的精确字段集合、无重复/无额外字段、身份字段和 artifact 名称，artifact index 的身份字段、artifactName、version、createdAt、必需路径、本地文件/目录非空状态、entry 路径集合精确清单、required entry 的本地 byteCount/fileCount/recursiveByteCount 复算和 totals/entries 一致性，artifact 根目录/报告目录/快照目录不存在未声明额外文件，JUnit suite/classname 元数据、四个阶段 testcase、JUnit failures/errors 计数、JUnit outcome 与 manifest outcome、testcase 不含 failure/error 元素，failure summary 的身份字段、总结果、阶段 outcome 和日志入口，static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类 chip 可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge marker、Mac 计划分类上下文 marker、计划面板操作 marker、日程 toolbar 新增 marker、Mac 快速新增 marker、分类输入上下文 marker、Mac 小窗快捷面板 marker、统计分类占比 marker、Mac/iOS build 成功标记、Mac 快照 manifest 的 generatedAt、文件名、尺寸以及每张 PNG 的 byteCount 与下载文件大小一致；`verify_project.sh` 还用旧 process version、run context 额外字段、分类摘要 marker 缺失、日程任务操作 marker 缺失、计时主控 marker 缺失、计划开始 marker 缺失、计划分类 badge marker 缺失、Mac 计划分类 marker 缺失、计划面板操作 marker 缺失、日程 toolbar 新增 marker 缺失、Mac 快速新增 marker 缺失、分类输入上下文 marker 缺失、Mac 小窗快捷面板 marker 缺失、统计分类占比 marker 缺失、错误 JUnit 元数据、错误 JUnit errors 计数、错误 JUnit outcome、JUnit failure/error 元素、错误 artifact 名称、错误 manifest artifactName、错误 manifest overallOutcome、错误 artifact index artifactName、错误 manifest 元数据、错误 artifact index 身份、错误 artifact index totals、artifact index 未预期 entry、额外 artifact 文件、本地文件大小篡改、本地缺失产物、快照 manifest generatedAt 无效和快照 manifest 大小篡改负向 fixture 确认 validator 不会放行旧版本、自洽错包、混入包或残缺下载。
 
 当前任务选择行 marker 缺失时，validator 会输出 `FAIL verify_project current task selection accessibility contracts`，防止缺少该分类语义契约的结果包被放行。
+
+分类筛选反选清除 marker 缺失时，validator 会输出 `FAIL verify_project category filter toggle contracts`，防止不能证明该筛选效率契约的结果包被放行。
 
 可用 `agentx:`、`x:` 或 `X:` 启动主控循环。Agent X 接收总目标并拆分多轮 A/B/C 迭代；它不直接替代 Agent A 的提示词、Agent B 的实现 push，也不替代 Agent C 对最新云端 artifact 的验收。
 
