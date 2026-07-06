@@ -252,6 +252,7 @@ private struct MacMiniTaskPickerView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText(isSelected: isSelected))")
                     .accessibilityHint(selectionHintText(isSelected: isSelected))
+                    .accessibilityInputLabels(selectionInputLabels(for: task))
                     .accessibilityAddTraits(selectionAccessibilityTraits(isSelected: isSelected))
                 }
                 .buttonStyle(.plain)
@@ -271,11 +272,22 @@ private struct MacMiniTaskPickerView: View {
     }
 
     private func selectionHintText(isSelected: Bool) -> String {
+        if engine.isRunning && !isSelected {
+            return "计时运行中不可切换当前待办"
+        }
         isSelected ? "这是当前番茄钟待办" : "选择此待办作为当前番茄钟任务"
     }
 
     private func selectionAccessibilityTraits(isSelected: Bool) -> AccessibilityTraits {
         isSelected ? [.isSelected] : []
+    }
+
+    private func selectionInputLabels(for task: FocusTask) -> [Text] {
+        [
+            Text(task.title),
+            Text("\(task.title)待办"),
+            Text("\(task.category)分类待办")
+        ]
     }
 
     private func taskContextText(for task: FocusTask) -> String {

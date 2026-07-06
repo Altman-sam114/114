@@ -305,7 +305,11 @@ struct TimerView: View {
                                         engine.selectTask(task)
                                     }
                                 } label: {
-                                    TaskRow(task: task, isSelected: engine.selectedTaskID == task.id)
+                                    TaskRow(
+                                        task: task,
+                                        isSelected: engine.selectedTaskID == task.id,
+                                        isTimerRunning: engine.isRunning
+                                    )
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(engine.isRunning)
@@ -351,17 +355,29 @@ private struct MetricPill: View {
 private struct TaskRow: View {
     let task: FocusTask
     let isSelected: Bool
+    let isTimerRunning: Bool
 
     private var selectionStateText: String {
         isSelected ? "已选中当前待办" : "未选中"
     }
 
     private var selectionHintText: String {
+        if isTimerRunning && !isSelected {
+            return "计时运行中不可切换当前待办"
+        }
         isSelected ? "这是当前番茄钟待办" : "选择此待办作为当前番茄钟任务"
     }
 
     private var selectionAccessibilityTraits: AccessibilityTraits {
         isSelected ? [.isSelected] : []
+    }
+
+    private var selectionInputLabels: [Text] {
+        [
+            Text(task.title),
+            Text("\(task.title)待办"),
+            Text("\(task.category)分类待办")
+        ]
     }
 
     var body: some View {
@@ -404,6 +420,7 @@ private struct TaskRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText)")
         .accessibilityHint(selectionHintText)
+        .accessibilityInputLabels(selectionInputLabels)
         .accessibilityAddTraits(selectionAccessibilityTraits)
     }
 }

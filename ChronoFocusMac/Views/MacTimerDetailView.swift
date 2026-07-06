@@ -226,7 +226,11 @@ private struct MacTaskQueueView: View {
                         guard !engine.isRunning else { return }
                         engine.selectTask(task)
                     } label: {
-                        MacTaskRowView(task: task, isSelected: engine.selectedTaskID == task.id)
+                        MacTaskRowView(
+                            task: task,
+                            isSelected: engine.selectedTaskID == task.id,
+                            isTimerRunning: engine.isRunning
+                        )
                     }
                     .buttonStyle(.plain)
                     .disabled(engine.isRunning)
@@ -260,6 +264,7 @@ struct MacMetricView: View {
 struct MacTaskRowView: View {
     let task: FocusTask
     var isSelected = false
+    var isTimerRunning = false
 
     private var categoryPreset: TaskCategoryPreset? {
         TaskCategoryPreset.matching(task.category)
@@ -278,11 +283,22 @@ struct MacTaskRowView: View {
     }
 
     private var selectionHintText: String {
+        if isTimerRunning && !isSelected {
+            return "计时运行中不可切换当前待办"
+        }
         isSelected ? "这是当前番茄钟待办" : "选择此待办作为当前番茄钟任务"
     }
 
     private var selectionAccessibilityTraits: AccessibilityTraits {
         isSelected ? [.isSelected] : []
+    }
+
+    private var selectionInputLabels: [Text] {
+        [
+            Text(task.title),
+            Text("\(task.title)待办"),
+            Text("\(task.category)分类待办")
+        ]
     }
 
     var body: some View {
@@ -322,6 +338,7 @@ struct MacTaskRowView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText)")
         .accessibilityHint(selectionHintText)
+        .accessibilityInputLabels(selectionInputLabels)
         .accessibilityAddTraits(selectionAccessibilityTraits)
     }
 }
