@@ -75,6 +75,8 @@
 - `bash -n scripts/verify_project.sh` 通过。
 - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'` 通过，输出 `yaml ok`。
 - `bash scripts/verify_project.sh` 未能在当前 Linux 容器完成，第一步因缺少 macOS/Xcode 工具 `plutil` 失败；完整项目验证、Mac build 和 iOS generic build 待 push 后由 GitHub Actions `ChronoFocus CI Results` 执行并由 Agent C 下载最新 artifact 复判。
+- GitHub Actions `ChronoFocus CI Results` run `28811711142` attempt `1`（commit `fa1c6fc8c92769d344b23f5c0f68af6da7d57a9c`）通过。
+- Agent C 下载 artifact `chronofocus-ci-v0.10-main-fa1c6fc-run28811711142-attempt1` 至 `/private/tmp/chronofocus-c-review-28811711142/`，运行 `ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-28811711142/chronofocus-ci-v0.10-main-fa1c6fc-run28811711142-attempt1 --commit fa1c6fc8c92769d344b23f5c0f68af6da7d57a9c --run-id 28811711142 --attempt 1` 通过，包含 `PASS verify_project analytics category share session count contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
 
 遗留事项：
 
