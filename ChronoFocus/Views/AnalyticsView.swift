@@ -450,9 +450,13 @@ struct AnalyticsView: View {
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(AppTheme.primaryText)
                                     .lineLimit(1)
-                                Text("\(session.mode.title) · \(session.startedAt.scheduleTimeText)")
-                                    .font(.caption)
-                                    .foregroundStyle(AppTheme.secondaryText)
+                                HStack(spacing: 6) {
+                                    RecentSessionCategoryBadge(category: session.category)
+                                    Text("\(session.mode.title) · \(session.startedAt.scheduleTimeText)")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.secondaryText)
+                                        .lineLimit(1)
+                                }
                             }
                             Spacer()
                             Text(session.actualSeconds.hourMinuteText)
@@ -460,10 +464,23 @@ struct AnalyticsView: View {
                                 .foregroundStyle(AppTheme.primaryText)
                         }
                         .padding(.vertical, 6)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(recentSessionAccessibilityLabel(for: session))
+                        .accessibilityInputLabels([
+                            Text(session.taskTitle),
+                            Text(session.category),
+                            Text("\(session.category)分类"),
+                            Text("\(session.category)分类记录")
+                        ])
                     }
                 }
             }
         }
+    }
+
+    private func recentSessionAccessibilityLabel(for session: FocusSession) -> String {
+        let completionText = session.completed ? "已完成" : "未完成"
+        return "\(session.taskTitle)，\(session.category)分类，\(session.mode.title)，\(session.startedAt.scheduleTimeText)，\(session.actualSeconds.hourMinuteText)，\(completionText)"
     }
 
     private var pressureTint: Color {
@@ -472,6 +489,34 @@ struct AnalyticsView: View {
         case "中": return .orange
         default: return .mint
         }
+    }
+}
+
+private struct RecentSessionCategoryBadge: View {
+    let category: String
+
+    private var categoryPreset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(category)
+    }
+
+    private var categorySymbolName: String {
+        categoryPreset?.symbolName ?? "tag.fill"
+    }
+
+    private var tint: Color {
+        Color(hex: categoryPreset?.accentHex ?? "#7C8CF8")
+    }
+
+    var body: some View {
+        Label(category, systemImage: categorySymbolName)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(tint)
+            .lineLimit(1)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(tint.opacity(0.12), in: Capsule())
+            .accessibilityLabel("\(category)分类")
+            .accessibilityInputLabels([Text(category), Text("\(category)分类")])
     }
 }
 

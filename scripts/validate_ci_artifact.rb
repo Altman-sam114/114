@@ -545,6 +545,9 @@ end
 check(checks, "verify_project analytics category share accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Analytics category share accessibility contracts verified.")
 end
+check(checks, "verify_project analytics recent session category contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Analytics recent session category contracts verified.")
+end
 check(checks, "verify_project timer action accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Timer action accessibility contracts verified.")
 end
