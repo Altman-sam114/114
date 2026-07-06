@@ -506,6 +506,7 @@ grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SUMMARY_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_STATIC_CHECK_MARKERS" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_ARTIFACT_ROOT_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_JUNIT_TESTCASES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_JUNIT_OUTCOMES" scripts/validate_ci_artifact.rb
 grep -q "ci-run-context.txt" scripts/validate_ci_artifact.rb
@@ -517,6 +518,7 @@ grep -q "negative_summary_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
 grep -q "corrupt_index_totals_fixture" scripts/verify_project.sh
+grep -q "unexpected_local_artifact_fixture" scripts/verify_project.sh
 grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
 grep -q "mismatched_local_artifact_fixture" scripts/verify_project.sh
 grep -q "FAIL junit testcase outcomes" scripts/verify_project.sh
@@ -524,6 +526,7 @@ grep -q "FAIL verify_project category summary action contracts" scripts/verify_p
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
 grep -q "FAIL index totals consistency" scripts/verify_project.sh
+grep -q "FAIL unexpected local artifacts" scripts/verify_project.sh
 grep -q "FAIL index required local artifacts" scripts/verify_project.sh
 grep -q "FAIL snapshot byte counts" scripts/verify_project.sh
 grep -q "manifest paths" scripts/validate_ci_artifact.rb
@@ -531,6 +534,7 @@ grep -q "index required paths" scripts/validate_ci_artifact.rb
 grep -q "index required local artifacts" scripts/validate_ci_artifact.rb
 grep -q "index required local metadata" scripts/validate_ci_artifact.rb
 grep -q "index totals consistency" scripts/validate_ci_artifact.rb
+grep -q "unexpected local artifacts" scripts/validate_ci_artifact.rb
 grep -q "failure summary log entries" scripts/validate_ci_artifact.rb
 grep -q "failure summary identity" scripts/validate_ci_artifact.rb
 grep -q "failure summary outcomes" scripts/validate_ci_artifact.rb
@@ -860,6 +864,18 @@ fi
 grep -q "FAIL index totals consistency" "$corrupt_index_totals_output"
 rm -rf "$corrupt_index_totals_fixture"
 rm -f "$corrupt_index_totals_output"
+unexpected_local_artifact_fixture="$(mktemp -d)"
+unexpected_local_artifact_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$unexpected_local_artifact_fixture"/
+printf "extra\n" > "$unexpected_local_artifact_fixture/unexpected-root.log"
+if ruby scripts/validate_ci_artifact.rb "$unexpected_local_artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$unexpected_local_artifact_output" 2>&1; then
+  echo "Expected unexpected local artifact fixture to fail validation" >&2
+  cat "$unexpected_local_artifact_output" >&2
+  exit 1
+fi
+grep -q "FAIL unexpected local artifacts" "$unexpected_local_artifact_output"
+rm -rf "$unexpected_local_artifact_fixture"
+rm -f "$unexpected_local_artifact_output"
 missing_local_artifact_fixture="$(mktemp -d)"
 missing_local_artifact_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$missing_local_artifact_fixture"/

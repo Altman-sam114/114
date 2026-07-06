@@ -72,6 +72,28 @@ EXPECTED_STATIC_CHECK_MARKERS = [
   "yaml ok"
 ].freeze
 
+EXPECTED_ARTIFACT_ROOT_ENTRIES = %w[
+  ci-artifact-manifest.json
+  ci-artifact-index.json
+  ci-failure-summary.md
+  junit.xml
+  static-checks.log
+  verify_project.log
+  xcodebuild.log
+  ios-xcodebuild.log
+  xcode-version.log
+  ci-run-context.txt
+  ChronoFocusMac.xcresult
+  ChronoFocus-iOS.xcresult
+  project-reports
+].freeze
+
+EXPECTED_PROJECT_REPORTS_ENTRIES = %w[
+  mac-snapshots
+].freeze
+
+EXPECTED_MAC_SNAPSHOT_ENTRIES = (["manifest.json"] + EXPECTED_SNAPSHOTS).freeze
+
 EXPECTED_JUNIT_TESTCASES = %w[
   staticChecks
   projectVerification
@@ -202,6 +224,12 @@ def local_artifact_metadata(artifact_dir, entry)
   end
 end
 
+def unexpected_entries(path, expected_names)
+  return ["<missing:#{path}>"] unless File.directory?(path)
+
+  Dir.children(path) - expected_names
+end
+
 begin
 artifact_dir = resolve_artifact_dir(artifact_arg)
 checks = []
@@ -306,6 +334,13 @@ check(checks, "index required local metadata") do
         metadata["recursiveByteCount"] == entry["recursiveByteCount"].to_i
     end
   end
+end
+check(checks, "unexpected local artifacts") do
+  [
+    unexpected_entries(artifact_dir, EXPECTED_ARTIFACT_ROOT_ENTRIES),
+    unexpected_entries(File.join(artifact_dir, "project-reports"), EXPECTED_PROJECT_REPORTS_ENTRIES),
+    unexpected_entries(File.join(artifact_dir, "project-reports", "mac-snapshots"), EXPECTED_MAC_SNAPSHOT_ENTRIES)
+  ].all?(&:empty?)
 end
 
 check(checks, "junit tests") { junit.attributes["tests"] == "4" }
