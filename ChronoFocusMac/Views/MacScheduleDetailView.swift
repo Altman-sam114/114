@@ -395,6 +395,40 @@ private struct MacCalendarDayCell: View {
         "\(Calendar.current.component(.day, from: date))"
     }
 
+    private var accessibilityDateText: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "M月d日 E"
+        return formatter.string(from: date)
+    }
+
+    private var accessibilityStateText: String {
+        var states: [String] = []
+        if isSelected {
+            states.append("已选中")
+        }
+        if isMuted {
+            states.append("非本月")
+        }
+        return states.isEmpty ? "" : "，\(states.joined(separator: "，"))"
+    }
+
+    private var accessibilityHintText: String {
+        isSelected ? "当前正在查看此日期的待办" : "选择此日期查看待办"
+    }
+
+    private var accessibilityTraits: AccessibilityTraits {
+        isSelected ? .isSelected : []
+    }
+
+    private var voiceControlInputLabels: [Text] {
+        [
+            Text(accessibilityDateText),
+            Text("选择\(accessibilityDateText)"),
+            Text("\(dayText)日")
+        ]
+    }
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
@@ -416,6 +450,10 @@ private struct MacCalendarDayCell: View {
             .opacity(isMuted ? 0.48 : 1)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(accessibilityDateText)，\(taskCount)项待办\(accessibilityStateText)")
+        .accessibilityHint(accessibilityHintText)
+        .accessibilityAddTraits(accessibilityTraits)
+        .accessibilityInputLabels(voiceControlInputLabels)
     }
 }
 

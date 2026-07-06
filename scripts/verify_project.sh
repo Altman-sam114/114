@@ -250,6 +250,17 @@ def assert_preset_picker_accessibility(path, picker_name, later)
   raise "#{picker_name} must expose Voice Control input labels" unless segment.include?("voiceControlInputLabels(for preset: TaskCategoryPreset)") && segment.include?("Text(\"\\(preset.title)分类\")") && segment.include?(".accessibilityInputLabels(voiceControlInputLabels(for: preset))")
 end
 
+def assert_calendar_day_accessibility(path, day_name, later)
+  segment = source_slice(path, "private struct #{day_name}", later, "#{day_name} slice missing")
+  raise "#{day_name} must expose date text" unless segment.include?("accessibilityDateText") && segment.include?("M月d日 E")
+  raise "#{day_name} must expose selected and muted state text" unless segment.include?("accessibilityStateText") && segment.include?("已选中") && segment.include?("非本月")
+  raise "#{day_name} must expose date choice hint" unless segment.include?("accessibilityHintText") && segment.include?("当前正在查看此日期的待办") && segment.include?("选择此日期查看待办")
+  raise "#{day_name} must expose selected trait" unless segment.include?("accessibilityTraits: AccessibilityTraits") && segment.include?(".isSelected") && segment.include?(".accessibilityAddTraits(accessibilityTraits)")
+  raise "#{day_name} must expose Voice Control input labels" unless segment.include?("voiceControlInputLabels: [Text]") && segment.include?("Text(accessibilityDateText)") && segment.include?("Text(\"选择\\(accessibilityDateText)\")") && segment.include?("Text(\"\\(dayText)日\")") && segment.include?(".accessibilityInputLabels(voiceControlInputLabels)")
+  raise "#{day_name} must include date, count, and state in label" unless segment.include?(".accessibilityLabel(\"\\(accessibilityDateText)，\\(taskCount)项待办\\(accessibilityStateText)\")")
+  raise "#{day_name} must attach accessibility hint" unless segment.include?(".accessibilityHint(accessibilityHintText)")
+end
+
 assert_slice_contains(
   "ChronoFocus/Views/ScheduleView.swift",
   "SelectedCategorySummaryView(",
@@ -443,6 +454,8 @@ assert_chip_accessibility("ChronoFocus/Views/TimerView.swift", "TimerTaskCategor
 assert_chip_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCategoryFilterChip", "@MainActor\nprivate func syncMacTaskReminder")
 assert_preset_picker_accessibility("ChronoFocus/Views/ScheduleView.swift", "TaskCategoryPresetPicker", "@MainActor\nprivate func syncTaskReminder")
 assert_preset_picker_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCategoryPresetPicker", "private struct MacCategoryFilterBar")
+assert_calendar_day_accessibility("ChronoFocus/Views/ScheduleView.swift", "CalendarDayButton", "private struct TaskCategoryFilterBar")
+assert_calendar_day_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCalendarDayCell", "private struct MacCalendarSyncPanelView")
 puts "Category chip accessibility contracts verified."
 RUBY
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
