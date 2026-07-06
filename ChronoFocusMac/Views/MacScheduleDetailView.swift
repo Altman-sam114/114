@@ -585,23 +585,24 @@ private struct MacPlanPanelView: View {
                             Text(item.taskTitle)
                                 .foregroundStyle(MacTheme.primaryText)
                                 .lineLimit(1)
-                            Text("\(item.timeRangeText) · 第 \(item.roundNumber) 轮")
+                            Text("\(item.timeRangeText) · 第 \(item.roundNumber) 轮 · \(item.category)")
                                 .font(.caption)
                                 .foregroundStyle(MacTheme.secondaryText)
                         }
                         Spacer()
                         if isSnapshotRendering {
-                            MacStaticScheduleActionChipView(title: "开始\(item.taskTitle)计划番茄钟，\(item.timeRangeText)，第 \(item.roundNumber) 轮", symbolName: "play.fill", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
+                            MacStaticScheduleActionChipView(title: "开始\(item.taskTitle)计划番茄钟，\(item.timeRangeText)，第 \(item.roundNumber) 轮，\(item.category)分类", symbolName: "play.fill", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
                         } else {
                             Button("开始", systemImage: "play.fill") {
                                 engine.startPlanItem(item)
                             }
                             .labelStyle(.iconOnly)
                             .disabled(engine.isRunning || item.isCompleted)
-                            .accessibilityLabel("开始\(item.taskTitle)计划番茄钟，\(item.timeRangeText)，第 \(item.roundNumber) 轮")
+                            .accessibilityLabel("开始\(item.taskTitle)计划番茄钟，\(item.timeRangeText)，第 \(item.roundNumber) 轮，\(item.category)分类")
                             .accessibilityInputLabels([
                                 Text("开始\(item.taskTitle)"),
-                                Text("\(item.taskTitle)第 \(item.roundNumber) 轮")
+                                Text("\(item.taskTitle)第 \(item.roundNumber) 轮"),
+                                Text("\(item.category)分类开始")
                             ])
                         }
                     }

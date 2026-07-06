@@ -442,10 +442,13 @@ mac_plan_source = source_slice(
   "private struct MacTaskListPanelView",
   "Mac pomodoro plan source missing"
 )
-raise "Mac plan static start accessibility label missing task, time, and round" unless mac_plan_source.include?("MacStaticScheduleActionChipView(title: \"开始\\(item.taskTitle)计划番茄钟，\\(item.timeRangeText)，第 \\(item.roundNumber) 轮\"")
-raise "Mac plan start accessibility label missing task, time, and round" unless mac_plan_source.include?(".accessibilityLabel(\"开始\\(item.taskTitle)计划番茄钟，\\(item.timeRangeText)，第 \\(item.roundNumber) 轮\")")
+raise "Mac plan static start accessibility label missing task, time, round, and category" unless mac_plan_source.include?("MacStaticScheduleActionChipView(title: \"开始\\(item.taskTitle)计划番茄钟，\\(item.timeRangeText)，第 \\(item.roundNumber) 轮，\\(item.category)分类\"")
+raise "Mac plan start accessibility label missing task, time, round, and category" unless mac_plan_source.include?(".accessibilityLabel(\"开始\\(item.taskTitle)计划番茄钟，\\(item.timeRangeText)，第 \\(item.roundNumber) 轮，\\(item.category)分类\")")
 raise "Mac plan start Voice Control labels missing task context" unless mac_plan_source.include?("Text(\"开始\\(item.taskTitle)\")") && mac_plan_source.include?("Text(\"\\(item.taskTitle)第 \\(item.roundNumber) 轮\")")
 puts "Plan start action accessibility contracts verified."
+raise "Mac plan subtitle category missing" unless mac_plan_source.include?("Text(\"\\(item.timeRangeText) · 第 \\(item.roundNumber) 轮 · \\(item.category)\")")
+raise "Mac plan start Voice Control category label missing" unless mac_plan_source.include?("Text(\"\\(item.category)分类开始\")")
+puts "Mac plan category context contracts verified."
 
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
@@ -576,6 +579,7 @@ grep -q "Category chip accessibility contracts verified." scripts/validate_ci_ar
 grep -q "Category summary action contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Schedule task action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Plan start action accessibility contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Mac plan category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
@@ -593,6 +597,7 @@ grep -q "negative_junit_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_summary_marker_fixture" scripts/verify_project.sh
 grep -q "negative_task_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_plan_start_marker_fixture" scripts/verify_project.sh
+grep -q "negative_mac_plan_category_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
@@ -606,6 +611,7 @@ grep -q "FAIL junit metadata" scripts/verify_project.sh
 grep -q "FAIL verify_project category summary action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project schedule task action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project plan start action accessibility contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project mac plan category context contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
@@ -659,7 +665,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -956,6 +962,31 @@ fi
 grep -q "FAIL verify_project plan start action accessibility contracts" "$negative_plan_start_marker_output"
 rm -rf "$negative_plan_start_marker_fixture"
 rm -f "$negative_plan_start_marker_output"
+negative_mac_plan_category_marker_fixture="$(mktemp -d)"
+negative_mac_plan_category_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_mac_plan_category_marker_fixture"/
+python3 - "$negative_mac_plan_category_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Mac plan category context contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_mac_plan_category_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_mac_plan_category_marker_output" 2>&1; then
+  echo "Expected negative Mac plan category marker fixture to fail validation" >&2
+  cat "$negative_mac_plan_category_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project mac plan category context contracts" "$negative_mac_plan_category_marker_output"
+rm -rf "$negative_mac_plan_category_marker_fixture"
+rm -f "$negative_mac_plan_category_marker_output"
 negative_junit_metadata_fixture="$(mktemp -d)"
 negative_junit_metadata_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_junit_metadata_fixture"/
