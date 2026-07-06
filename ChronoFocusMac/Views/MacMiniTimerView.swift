@@ -278,12 +278,16 @@ private struct MacMiniTaskPickerView: View {
 private struct MacMiniTaskCategoryBadgeView: View {
     let task: FocusTask
 
+    private var categoryPreset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(task.category)
+    }
+
     private var tint: Color {
-        Color(hex: task.accentHex)
+        Color(hex: categoryPreset?.accentHex ?? task.accentHex)
     }
 
     private var symbolName: String {
-        TaskCategoryPreset.matching(task.category)?.symbolName ?? "tag.fill"
+        categoryPreset?.symbolName ?? "tag.fill"
     }
 
     var body: some View {
@@ -299,6 +303,8 @@ private struct MacMiniTaskCategoryBadgeView: View {
         .padding(.horizontal, 7)
         .padding(.vertical, 2)
         .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .accessibilityLabel("\(task.category)分类")
+        .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
     }
 }
 

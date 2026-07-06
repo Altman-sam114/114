@@ -261,12 +261,16 @@ struct MacTaskRowView: View {
     let task: FocusTask
     var isSelected = false
 
+    private var categoryPreset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(task.category)
+    }
+
     private var categoryTint: Color {
-        Color(hex: task.accentHex)
+        Color(hex: categoryPreset?.accentHex ?? task.accentHex)
     }
 
     private var categorySymbolName: String {
-        TaskCategoryPreset.matching(task.category)?.symbolName ?? "tag.fill"
+        categoryPreset?.symbolName ?? "tag.fill"
     }
 
     var body: some View {
@@ -287,6 +291,7 @@ struct MacTaskRowView: View {
                         .padding(.vertical, 2)
                         .background(categoryTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                         .accessibilityLabel("\(task.category)分类")
+                        .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
 
                     if let dueDate = task.dueDate {
                         Text(dueDate.scheduleTimeText)

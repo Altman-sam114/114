@@ -11,7 +11,7 @@ flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
-  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、重复点击已选分类退出、可访问状态/动作提示、selected trait、Voice Control input labels、iOS日程筛选计数、iOS日程任务行分类badge和语音标签、计时页筛选摘要、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、新建预填、筛选摘要/快捷新增/清除按钮分类语义、Mac摘要快捷新增和稳定点击区"]
+  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、重复点击已选分类退出、可访问状态/动作提示、selected trait、Voice Control input labels、iOS日程筛选计数、iOS日程任务行分类badge和语音标签、计时页筛选摘要、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、Mac任务行和小窗分类badge语音标签与预设色、新建预填、筛选摘要/快捷新增/清除按钮分类语义、Mac摘要快捷新增和稳定点击区"]
   CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]
@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、日程摘要按钮分类语义、Mac摘要按钮点击区、预设按钮、点击切换、iOS日程任务行分类badge语音标签、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、Mac 任务行分类 badge、selected trait 和 Voice Control 标签检查<br/>validator 复判 JUnit outcome、index本地元数据、额外artifact拒绝、Mac快照byteCount、static-checks、Xcode 版本、分类摘要动作与分类可访问日志 marker<br/>validator 正向/摘要marker缺失/JUnit错包/错包/index错包/totals错包/额外artifact/本地篡改/缺失产物/快照manifest篡改 fixture"]
+  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、日程摘要按钮分类语义、Mac摘要按钮点击区、预设按钮、点击切换、iOS日程任务行分类badge语音标签、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、Mac任务行和小窗分类badge语音标签与预设色、selected trait 和 Voice Control 标签检查<br/>validator 复判 JUnit outcome、index本地元数据、额外artifact拒绝、Mac快照byteCount、static-checks、Xcode 版本、分类摘要动作与分类可访问日志 marker<br/>validator 正向/摘要marker缺失/JUnit错包/错包/index错包/totals错包/额外artifact/本地篡改/缺失产物/快照manifest篡改 fixture"]
 ```
 
 ## 计时执行流
@@ -62,7 +62,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["用户新增/编辑任务<br/>或系统日历同步事件"] --> P0["分类 UI<br/>iOS日程筛选/总数计数<br/>iOS日程任务行分类badge语音标签<br/>计时页当前待办筛选摘要<br/>计时页摘要清除入口<br/>计时页空态清除入口<br/>计时页任务行分类badge可访问<br/>常用分类快选、手写分类<br/>重复点击已选分类退出<br/>VoiceOver读出已选状态和点击动作<br/>辅助技术识别 selected trait<br/>Voice Control 可说分类名<br/>筛选摘要新增/清除按钮读出分类名<br/>筛选联动新建预填<br/>Mac 摘要快捷新增并聚焦任务名<br/>Mac 摘要按钮稳定点击区<br/>Mac 快速新增已预填提示<br/>Mac 连续新增保留分类"]
+  A["用户新增/编辑任务<br/>或系统日历同步事件"] --> P0["分类 UI<br/>iOS日程筛选/总数计数<br/>iOS日程任务行分类badge语音标签<br/>计时页当前待办筛选摘要<br/>计时页摘要清除入口<br/>计时页空态清除入口<br/>计时页任务行分类badge可访问<br/>Mac任务行和小窗分类badge可说分类名<br/>常用分类快选、手写分类<br/>重复点击已选分类退出<br/>VoiceOver读出已选状态和点击动作<br/>辅助技术识别 selected trait<br/>Voice Control 可说分类名<br/>筛选摘要新增/清除按钮读出分类名<br/>筛选联动新建预填<br/>Mac 摘要快捷新增并聚焦任务名<br/>Mac 摘要按钮稳定点击区<br/>Mac 快速新增已预填提示<br/>Mac 连续新增保留分类"]
   P0 --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
   B --> C["FocusTask<br/>标题、分类、截止时间、轮次、循环、外部日历 ID"]
   C --> C2["FocusStore.taskCategories + TaskCategoryFilterOption<br/>合并预设/已有分类<br/>有任务分类优先显示"]
