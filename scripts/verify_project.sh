@@ -691,6 +691,7 @@ ruby -e 'source = File.read("ChronoFocusMac/Views/MacMiniTimerView.swift"); pick
 ruby -e 'source = File.read("ChronoFocus/Views/TimerView.swift"); row = source[/private struct TaskRow: View[\s\S]*?private struct TimerTaskCategoryFilterBar: View/]; raise "Timer TaskRow missing" unless row; raise "Timer TaskRow running state missing" unless row.include?("let isTimerRunning: Bool") && source.include?("isTimerRunning: engine.isRunning"); raise "Timer TaskRow running disabled hint missing" unless row.include?("计时运行中不可切换当前待办"); raise "Timer TaskRow Voice Control input labels missing" unless row.include?("private var selectionInputLabels: [Text]") && row.include?("Text(task.title)") && row.include?("Text(\"\\(task.title)待办\")") && row.include?("Text(\"\\(task.category)分类待办\")") && row.include?(".accessibilityInputLabels(selectionInputLabels)")'
 ruby -e 'source = File.read("ChronoFocusMac/Views/MacTimerDetailView.swift"); row = source[/struct MacTaskRowView: View[\s\S]*?struct MacPageHeaderView: View/]; raise "MacTaskRowView missing" unless row; raise "Mac task row running state missing" unless row.include?("var isTimerRunning = false") && source.include?("isTimerRunning: engine.isRunning"); raise "Mac task row running disabled hint missing" unless row.include?("计时运行中不可切换当前待办"); raise "Mac task row Voice Control input labels missing" unless row.include?("private var selectionInputLabels: [Text]") && row.include?("Text(task.title)") && row.include?("Text(\"\\(task.title)待办\")") && row.include?("Text(\"\\(task.category)分类待办\")") && row.include?(".accessibilityInputLabels(selectionInputLabels)")'
 ruby -e 'source = File.read("ChronoFocusMac/Views/MacMiniTimerView.swift"); picker = source[/private struct MacMiniTaskPickerView: View[\s\S]*?private struct MacMiniTaskCategoryBadgeView: View/]; raise "MacMiniTaskPickerView missing" unless picker; raise "Mac mini task running disabled hint missing" unless picker.include?("engine.isRunning && !isSelected") && picker.include?("计时运行中不可切换当前待办"); raise "Mac mini task Voice Control input labels missing" unless picker.include?("private func selectionInputLabels(for task: FocusTask) -> [Text]") && picker.include?("Text(task.title)") && picker.include?("Text(\"\\(task.title)待办\")") && picker.include?("Text(\"\\(task.category)分类待办\")") && picker.include?(".accessibilityInputLabels(selectionInputLabels(for: task))")'
+echo "Current task selection accessibility contracts verified."
 ruby <<'RUBY'
 def require_timer_action_contract(path, start_marker, end_marker, name)
   source = File.read(path, encoding: "UTF-8")
@@ -791,6 +792,7 @@ grep -q "Category input context contracts verified." scripts/validate_ci_artifac
 grep -q "Mac mini quick panel accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics category share accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics recent session category contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Current task selection accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Timer action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
@@ -825,6 +827,7 @@ grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.
 grep -q "negative_mac_mini_quick_panel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_category_share_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_recent_session_marker_fixture" scripts/verify_project.sh
+grep -q "negative_current_task_selection_marker_fixture" scripts/verify_project.sh
 grep -q "negative_timer_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_run_context_extra_key_fixture" scripts/verify_project.sh
@@ -854,6 +857,7 @@ grep -q "FAIL verify_project category input context contracts" scripts/verify_pr
 grep -q "FAIL verify_project mac mini quick panel accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics category share accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics recent session category contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project current task selection accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project timer action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL run context exact keys" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
@@ -915,7 +919,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics recent session category contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics recent session category contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1493,6 +1497,31 @@ fi
 grep -q "FAIL verify_project analytics recent session category contracts" "$negative_analytics_recent_session_marker_output"
 rm -rf "$negative_analytics_recent_session_marker_fixture"
 rm -f "$negative_analytics_recent_session_marker_output"
+negative_current_task_selection_marker_fixture="$(mktemp -d)"
+negative_current_task_selection_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_current_task_selection_marker_fixture"/
+python3 - "$negative_current_task_selection_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Current task selection accessibility contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_current_task_selection_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_current_task_selection_marker_output" 2>&1; then
+  echo "Expected negative current task selection marker fixture to fail validation" >&2
+  cat "$negative_current_task_selection_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project current task selection accessibility contracts" "$negative_current_task_selection_marker_output"
+rm -rf "$negative_current_task_selection_marker_fixture"
+rm -f "$negative_current_task_selection_marker_output"
 negative_timer_action_marker_fixture="$(mktemp -d)"
 negative_timer_action_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_timer_action_marker_fixture"/

@@ -4,7 +4,7 @@
 
 ## 核心数据流
 
-读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。重点看 `FocusStore` 与 `TimerEngine` 的职责边界。
+读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。重点看 `FocusStore` 与 `TimerEngine` 的职责边界；当前任务选择行的分类语义有独立 `verify_project` marker 和 artifact validator 复判。
 
 ```mermaid
 flowchart TD
