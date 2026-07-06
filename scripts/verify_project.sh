@@ -313,6 +313,12 @@ raise "Schedule task cell category badge missing" unless schedule_task_cell.incl
 raise "Schedule task cell category accessibility label missing" unless schedule_task_cell.include?(".accessibilityLabel(\"\\(task.category)分类\")")
 raise "Schedule task cell category Voice Control input labels missing" unless schedule_task_cell.include?(".accessibilityInputLabels([Text(task.category), Text(\"\\(task.category)分类\")])")
 raise "Schedule task cell must keep due date as secondary metadata" unless schedule_task_cell.include?("if let dueDate = task.dueDate") && schedule_task_cell.include?("dueDate.scheduleTimeText")
+raise "Schedule task completion action accessibility label missing task title" unless schedule_task_cell.include?(".accessibilityLabel(task.isDone ? \"标记\\(task.title)待办未完成\" : \"完成\\(task.title)待办\")")
+raise "Schedule task completion action Voice Control labels missing task title" unless schedule_task_cell.include?("Text(task.isDone ? \"标记\\(task.title)未完成\" : \"完成\\(task.title)\")") && schedule_task_cell.include?("Text(task.isDone ? \"\\(task.title)未完成\" : \"\\(task.title)完成\")")
+raise "Schedule task enable action accessibility label missing task title" unless schedule_task_cell.include?(".accessibilityLabel(task.isEnabled ? \"停用\\(task.title)待办\" : \"启用\\(task.title)待办\")")
+raise "Schedule task enable action Voice Control labels missing task title" unless schedule_task_cell.include?("Text(task.isEnabled ? \"停用\\(task.title)\" : \"启用\\(task.title)\")") && schedule_task_cell.include?("Text(task.isEnabled ? \"\\(task.title)停用\" : \"\\(task.title)启用\")")
+raise "Schedule task edit action accessibility label missing task title" unless schedule_task_cell.include?(".accessibilityLabel(\"编辑\\(task.title)待办\")")
+raise "Schedule task edit action Voice Control labels missing task title" unless schedule_task_cell.include?("Text(\"编辑\\(task.title)\")") && schedule_task_cell.include?("Text(\"\\(task.title)编辑\")")
 
 assert_slice_contains(
   "ChronoFocus/Views/TimerView.swift",
@@ -400,6 +406,30 @@ mac_summary_static_action_source = source_slice(
 )
 raise "Mac summary static action tap target missing" unless mac_summary_static_action_source.include?(".frame(minWidth: isProminent ? 104 : 72, minHeight: 36)")
 puts "Category summary action contracts verified."
+
+mac_task_list_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private struct MacTaskListPanelView",
+  "private struct MacSelectedCategorySummaryView",
+  "Mac task list panel source missing"
+)
+raise "Mac task completion static accessibility label missing task title" unless mac_task_list_source.include?("title: task.isDone ? \"标记\\(task.title)待办未完成\" : \"完成\\(task.title)待办\"")
+raise "Mac task completion action accessibility label missing task title" unless mac_task_list_source.include?(".accessibilityLabel(task.isDone ? \"标记\\(task.title)待办未完成\" : \"完成\\(task.title)待办\")")
+raise "Mac task completion action Voice Control labels missing task title" unless mac_task_list_source.include?("Text(task.isDone ? \"标记\\(task.title)未完成\" : \"完成\\(task.title)\")") && mac_task_list_source.include?("Text(task.isDone ? \"\\(task.title)未完成\" : \"\\(task.title)完成\")")
+raise "Mac task enable static accessibility label missing task title" unless mac_task_list_source.include?("MacStaticTaskEnablePillView(isEnabled: task.isEnabled, taskTitle: task.title)")
+raise "Mac task enable action accessibility label missing task title" unless mac_task_list_source.include?(".accessibilityLabel(task.isEnabled ? \"停用\\(task.title)待办\" : \"启用\\(task.title)待办\")")
+raise "Mac task enable action Voice Control labels missing task title" unless mac_task_list_source.include?("Text(task.isEnabled ? \"停用\\(task.title)\" : \"启用\\(task.title)\")") && mac_task_list_source.include?("Text(task.isEnabled ? \"\\(task.title)停用\" : \"\\(task.title)启用\")")
+raise "Mac task delete static accessibility label missing task title" unless mac_task_list_source.include?("MacStaticScheduleActionChipView(title: \"删除\\(task.title)待办\"")
+raise "Mac task delete action accessibility label missing task title" unless mac_task_list_source.include?(".accessibilityLabel(\"删除\\(task.title)待办\")")
+raise "Mac task delete action Voice Control labels missing task title" unless mac_task_list_source.include?("Text(\"删除\\(task.title)\")") && mac_task_list_source.include?("Text(\"\\(task.title)删除\")")
+mac_static_enable_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private struct MacStaticTaskEnablePillView",
+  "private struct MacCalendarPanelView",
+  "Mac static task enable pill source missing"
+)
+raise "Mac static task enable pill task title semantics missing" unless mac_static_enable_source.include?("var taskTitle: String?") && mac_static_enable_source.include?("return isEnabled ? \"\\(taskTitle)待办已启用\" : \"\\(taskTitle)待办已停用\"")
+puts "Schedule task action accessibility contracts verified."
 
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
@@ -528,6 +558,7 @@ grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
 grep -q "Project structure verified." scripts/validate_ci_artifact.rb
 grep -q "Category chip accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category summary action contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Schedule task action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
@@ -542,6 +573,7 @@ grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_junit_fixture" scripts/verify_project.sh
 grep -q "negative_summary_marker_fixture" scripts/verify_project.sh
+grep -q "negative_task_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
@@ -552,6 +584,7 @@ grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
 grep -q "mismatched_local_artifact_fixture" scripts/verify_project.sh
 grep -q "FAIL junit testcase outcomes" scripts/verify_project.sh
 grep -q "FAIL verify_project category summary action contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project schedule task action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
@@ -604,7 +637,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -851,6 +884,31 @@ fi
 grep -q "FAIL verify_project category summary action contracts" "$negative_summary_marker_output"
 rm -rf "$negative_summary_marker_fixture"
 rm -f "$negative_summary_marker_output"
+negative_task_action_marker_fixture="$(mktemp -d)"
+negative_task_action_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_task_action_marker_fixture"/
+python3 - "$negative_task_action_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Schedule task action accessibility contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_task_action_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_task_action_marker_output" 2>&1; then
+  echo "Expected negative task action marker fixture to fail validation" >&2
+  cat "$negative_task_action_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project schedule task action accessibility contracts" "$negative_task_action_marker_output"
+rm -rf "$negative_task_action_marker_fixture"
+rm -f "$negative_task_action_marker_output"
 negative_junit_fixture="$(mktemp -d)"
 negative_junit_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_junit_fixture"/

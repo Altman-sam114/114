@@ -693,7 +693,12 @@ private struct ScheduleTaskCell: View {
                     .frame(width: 36, height: 36)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(task.isDone ? "标记待办未完成" : "完成待办")
+            .accessibilityLabel(task.isDone ? "标记\(task.title)待办未完成" : "完成\(task.title)待办")
+            .accessibilityInputLabels([
+                Text(task.isDone ? "标记\(task.title)未完成" : "完成\(task.title)"),
+                Text(task.isDone ? "\(task.title)未完成" : "\(task.title)完成"),
+                Text(task.title)
+            ])
 
             VStack(alignment: .leading, spacing: 7) {
                 HStack {
@@ -742,7 +747,11 @@ private struct ScheduleTaskCell: View {
                         .foregroundStyle(task.isEnabled ? .cyan : AppTheme.secondaryText)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(task.isEnabled ? "停用待办" : "启用待办")
+                .accessibilityLabel(task.isEnabled ? "停用\(task.title)待办" : "启用\(task.title)待办")
+                .accessibilityInputLabels([
+                    Text(task.isEnabled ? "停用\(task.title)" : "启用\(task.title)"),
+                    Text(task.isEnabled ? "\(task.title)停用" : "\(task.title)启用")
+                ])
 
                 Button(action: onEdit) {
                     Image(systemName: "pencil")
@@ -750,7 +759,11 @@ private struct ScheduleTaskCell: View {
                         .foregroundStyle(AppTheme.secondaryText)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("编辑待办")
+                .accessibilityLabel("编辑\(task.title)待办")
+                .accessibilityInputLabels([
+                    Text("编辑\(task.title)"),
+                    Text("\(task.title)编辑")
+                ])
             }
             .frame(width: 34)
         }

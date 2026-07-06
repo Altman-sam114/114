@@ -202,6 +202,7 @@ private struct MacStaticScheduleActionChipView: View {
 
 private struct MacStaticTaskEnablePillView: View {
     let isEnabled: Bool
+    var taskTitle: String?
 
     var body: some View {
         Capsule()
@@ -213,7 +214,14 @@ private struct MacStaticTaskEnablePillView: View {
                     .frame(width: 16, height: 16)
                     .padding(3)
             }
-            .accessibilityLabel(isEnabled ? "已启用" : "已停用")
+            .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        guard let taskTitle else {
+            return isEnabled ? "已启用" : "已停用"
+        }
+        return isEnabled ? "\(taskTitle)待办已启用" : "\(taskTitle)待办已停用"
     }
 }
 
@@ -668,7 +676,7 @@ private struct MacTaskListPanelView: View {
                     HStack(spacing: 12) {
                         if isSnapshotRendering {
                             MacStaticScheduleActionChipView(
-                                title: task.isDone ? "标记未完成" : "完成",
+                                title: task.isDone ? "标记\(task.title)待办未完成" : "完成\(task.title)待办",
                                 symbolName: task.isDone ? "arrow.uturn.backward.circle" : "checkmark.circle",
                                 tint: MacTheme.secondaryText,
                                 isProminent: false,
@@ -679,25 +687,41 @@ private struct MacTaskListPanelView: View {
                                 toggleTask(task)
                             }
                             .labelStyle(.iconOnly)
+                            .accessibilityLabel(task.isDone ? "标记\(task.title)待办未完成" : "完成\(task.title)待办")
+                            .accessibilityInputLabels([
+                                Text(task.isDone ? "标记\(task.title)未完成" : "完成\(task.title)"),
+                                Text(task.isDone ? "\(task.title)未完成" : "\(task.title)完成"),
+                                Text(task.title)
+                            ])
                         }
 
                         MacTaskRowView(task: task)
 
                         if isSnapshotRendering {
-                            MacStaticTaskEnablePillView(isEnabled: task.isEnabled)
-                            MacStaticScheduleActionChipView(title: "删除", symbolName: "trash", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
+                            MacStaticTaskEnablePillView(isEnabled: task.isEnabled, taskTitle: task.title)
+                            MacStaticScheduleActionChipView(title: "删除\(task.title)待办", symbolName: "trash", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
                         } else {
                             Toggle("启用", isOn: Binding(
                                 get: { task.isEnabled },
                                 set: { setTask(task, enabled: $0) }
                             ))
                             .labelsHidden()
+                            .accessibilityLabel(task.isEnabled ? "停用\(task.title)待办" : "启用\(task.title)待办")
+                            .accessibilityInputLabels([
+                                Text(task.isEnabled ? "停用\(task.title)" : "启用\(task.title)"),
+                                Text(task.isEnabled ? "\(task.title)停用" : "\(task.title)启用")
+                            ])
 
                             Button("删除", systemImage: "trash") {
                                 notifications.cancelTaskReminder(taskID: task.id)
                                 store.deleteTasks(ids: [task.id])
                             }
                             .labelStyle(.iconOnly)
+                            .accessibilityLabel("删除\(task.title)待办")
+                            .accessibilityInputLabels([
+                                Text("删除\(task.title)"),
+                                Text("\(task.title)删除")
+                            ])
                         }
                     }
                 }
