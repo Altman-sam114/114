@@ -5,6 +5,7 @@ require "json"
 require "find"
 require "optparse"
 require "rexml/document"
+require "time"
 
 EXPECTED_SNAPSHOTS = %w[
   mini-timer.png
@@ -46,6 +47,27 @@ EXPECTED_MANIFEST_PATHS = {
   "iosBuildLogPath" => "ci-results/ios-xcodebuild.log",
   "failureSummaryPath" => "ci-results/ci-failure-summary.md",
   "artifactIndexPath" => "ci-results/ci-artifact-index.json"
+}.freeze
+
+EXPECTED_MANIFEST_METADATA = {
+  "workflowName" => "ChronoFocus CI Results",
+  "projectName" => "ChronoFocus",
+  "scheme" => "ChronoFocusMac",
+  "destination" => "generic/platform=macOS",
+  "macScheme" => "ChronoFocusMac",
+  "macDestination" => "generic/platform=macOS",
+  "iosScheme" => "ChronoFocus",
+  "iosDestination" => "generic/platform=iOS"
+}.freeze
+
+EXPECTED_PROJECT_REPORTS = {
+  "artifact_index" => "ci-results/ci-artifact-index.json",
+  "verify_project_log" => "ci-results/verify_project.log",
+  "mac_snapshots" => "ci-results/project-reports/mac-snapshots",
+  "mac_snapshot_manifest" => "ci-results/project-reports/mac-snapshots/manifest.json",
+  "ios_xcodebuild_log" => "ci-results/ios-xcodebuild.log",
+  "ios_xcode_result" => "ci-results/ChronoFocus-iOS.xcresult",
+  "xcode_version" => "ci-results/xcode-version.log"
 }.freeze
 
 EXPECTED_SUMMARY_ENTRIES = [
@@ -230,6 +252,15 @@ def unexpected_entries(path, expected_names)
   Dir.children(path) - expected_names
 end
 
+def iso8601_timestamp?(value)
+  return false if value.to_s.empty?
+
+  Time.iso8601(value)
+  true
+rescue ArgumentError
+  false
+end
+
 begin
 artifact_dir = resolve_artifact_dir(artifact_arg)
 checks = []
@@ -260,6 +291,11 @@ check(checks, "manifest branch") { manifest["branch"] == options["branch"] }
 check(checks, "manifest commit") { manifest["commitSha"] == options["commit"] }
 check(checks, "manifest run") { manifest["runId"] == options["run_id"] }
 check(checks, "manifest attempt") { manifest["runAttempt"] == options["attempt"].to_s }
+check(checks, "manifest short sha") { manifest["shortSha"] == short_sha }
+check(checks, "manifest metadata") do
+  EXPECTED_MANIFEST_METADATA.all? { |key, expected_value| manifest[key] == expected_value }
+end
+check(checks, "manifest created at") { iso8601_timestamp?(manifest["createdAt"]) }
 check(checks, "manifest paths") do
   EXPECTED_MANIFEST_PATHS.all? { |key, expected_path| manifest[key] == expected_path }
 end
@@ -288,9 +324,11 @@ expected_index_totals = {
 }
 
 check(checks, "index branch") { index["branch"] == options["branch"] }
+check(checks, "index version") { index["version"] == manifest["version"] }
 check(checks, "index commit") { index["commitSha"] == options["commit"] }
 check(checks, "index run") { index["runId"] == options["run_id"] }
 check(checks, "index attempt") { index["runAttempt"] == options["attempt"].to_s }
+check(checks, "index created at") { iso8601_timestamp?(index["createdAt"]) }
 check(checks, "index totals consistency") do
   expected_index_totals.all? { |key, value| index.dig("totals", key).to_i == value }
 end
@@ -333,6 +371,24 @@ check(checks, "index required local metadata") do
       metadata["fileCount"] == entry["fileCount"].to_i &&
         metadata["recursiveByteCount"] == entry["recursiveByteCount"].to_i
     end
+  end
+end
+check(checks, "manifest project reports") do
+  reports = manifest["projectSpecificReports"]
+  next false unless reports.is_a?(Array) && reports.length == EXPECTED_PROJECT_REPORTS.length
+
+  actual_reports = reports.each_with_object({}) { |report, lookup| lookup[report["name"]] = report["path"] }
+  next false unless actual_reports == EXPECTED_PROJECT_REPORTS
+
+  reports.all? do |report|
+    name = report["name"]
+    path = report["path"]
+    entry = entries_by_path[path]
+
+    EXPECTED_PROJECT_REPORTS[name] == path &&
+      !report["description"].to_s.empty? &&
+      entry &&
+      positive_local_artifact?(artifact_dir, entry)
   end
 end
 check(checks, "unexpected local artifacts") do
