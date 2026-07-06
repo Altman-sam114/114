@@ -903,6 +903,34 @@ private struct TaskEditorView: View {
         ]
     }
 
+    private var taskTitleDisplayName: String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedTitle.isEmpty ? "未命名" : trimmedTitle
+    }
+
+    private var saveActionText: String {
+        task == nil ? "新增" : "保存"
+    }
+
+    private var savePlanDescription: String {
+        startMode == .plannedRounds ? "预计 \(estimatedRounds) 轮" : "只设开始"
+    }
+
+    private var saveButtonAccessibilityLabel: String {
+        "\(saveActionText)\(taskTitleDisplayName)待办，\(categoryDisplayName)分类，\(savePlanDescription)"
+    }
+
+    private var saveButtonInputLabels: [Text] {
+        [
+            Text("保存"),
+            Text(saveActionText),
+            Text(taskTitleDisplayName),
+            Text(categoryDisplayName),
+            Text("\(categoryDisplayName)分类"),
+            Text("\(categoryDisplayName)分类保存")
+        ]
+    }
+
     init(task: FocusTask? = nil, initialDueDate: Date, initialCategory: String? = nil) {
         self.task = task
         let startingCategory = task?.category ?? initialCategory ?? "工作"
@@ -992,6 +1020,8 @@ private struct TaskEditorView: View {
                         dismiss()
                     }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityLabel(saveButtonAccessibilityLabel)
+                    .accessibilityInputLabels(saveButtonInputLabels)
                 }
             }
         }
