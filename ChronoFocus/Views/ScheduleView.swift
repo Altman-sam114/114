@@ -1090,6 +1090,18 @@ private struct PomodoroPlanRow: View {
     let isRunning: Bool
     let onStart: () -> Void
 
+    private var categoryPreset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(item.category)
+    }
+
+    private var categoryTint: Color {
+        Color(hex: categoryPreset?.accentHex ?? item.accentHex)
+    }
+
+    private var categorySymbolName: String {
+        categoryPreset?.symbolName ?? "tag.fill"
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "timer")
@@ -1103,10 +1115,26 @@ private struct PomodoroPlanRow: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(item.isCompleted ? AppTheme.secondaryText : AppTheme.primaryText)
                     .lineLimit(1)
-                Text("\(item.timeRangeText) · 第 \(item.roundNumber) 轮 · \(item.category)")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text("\(item.timeRangeText) · 第 \(item.roundNumber) 轮")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .lineLimit(1)
+
+                    Label(item.category, systemImage: categorySymbolName)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(categoryTint)
+                        .lineLimit(1)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(categoryTint.opacity(0.12), in: Capsule())
+                        .overlay {
+                            Capsule()
+                                .stroke(categoryTint.opacity(0.32), lineWidth: 1)
+                        }
+                        .accessibilityLabel("\(item.category)分类")
+                        .accessibilityInputLabels([Text(item.category), Text("\(item.category)分类")])
+                }
             }
 
             Spacer()

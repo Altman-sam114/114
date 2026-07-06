@@ -499,6 +499,9 @@ end
 check(checks, "verify_project plan start action accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Plan start action accessibility contracts verified.")
 end
+check(checks, "verify_project plan category badge contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Plan category badge contracts verified.")
+end
 check(checks, "verify_project mac plan category context contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Mac plan category context contracts verified.")
 end

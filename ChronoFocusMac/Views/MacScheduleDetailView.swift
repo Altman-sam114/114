@@ -667,9 +667,13 @@ private struct MacPlanPanelView: View {
                             Text(item.taskTitle)
                                 .foregroundStyle(MacTheme.primaryText)
                                 .lineLimit(1)
-                            Text("\(item.timeRangeText) · 第 \(item.roundNumber) 轮 · \(item.category)")
-                                .font(.caption)
-                                .foregroundStyle(MacTheme.secondaryText)
+                            HStack(spacing: 6) {
+                                Text("\(item.timeRangeText) · 第 \(item.roundNumber) 轮")
+                                    .font(.caption)
+                                    .foregroundStyle(MacTheme.secondaryText)
+                                    .lineLimit(1)
+                                MacPlanCategoryBadgeView(item: item)
+                            }
                         }
                         Spacer()
                         if isSnapshotRendering {
@@ -693,6 +697,38 @@ private struct MacPlanPanelView: View {
                 }
             }
         }
+    }
+}
+
+private struct MacPlanCategoryBadgeView: View {
+    let item: PomodoroPlanItem
+
+    private var categoryPreset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(item.category)
+    }
+
+    private var categoryTint: Color {
+        Color(hex: categoryPreset?.accentHex ?? item.accentHex)
+    }
+
+    private var categorySymbolName: String {
+        categoryPreset?.symbolName ?? "tag.fill"
+    }
+
+    var body: some View {
+        Label(item.category, systemImage: categorySymbolName)
+            .font(.caption2.bold())
+            .foregroundStyle(categoryTint)
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(categoryTint.opacity(0.14), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(categoryTint.opacity(0.36), lineWidth: 1)
+            }
+            .accessibilityLabel("\(item.category)分类")
+            .accessibilityInputLabels([Text(item.category), Text("\(item.category)分类")])
     }
 }
 
