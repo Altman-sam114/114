@@ -80,7 +80,7 @@ macOS：
 
 1. 用户创建、编辑、启用/停用、完成或删除 `FocusTask`。
 2. 新增/编辑 UI 可用 `TaskCategoryPreset` 快速填入分类和代表色，预设按钮会暴露已选中状态、选择提示和分类名 Voice Control input labels，也可继续手写分类。
-3. 选中分类筛选后新增待办会预填该分类；再次点击已选分类、点击“全部”或摘要清除会退出筛选；分类 chip 的可访问标签会读出数量、已选中状态和点击后的筛选/清除动作；iOS 待办标题显示筛选数/总数，日程任务行以带分类名 Voice Control input labels 的分类 badge 保留分类上下文，列表摘要可直接新增此分类待办或清除筛选，摘要和按钮可访问标签也会说明新增/清除动作及分类名；macOS 选中分类摘要可把左侧快速新增表单切回当前分类并聚焦任务名称，摘要新增/清除按钮也暴露分类名 Voice Control input labels，快速新增面板显示该分类已预填；编辑已有待办仍保留原任务分类。
+3. 选中分类筛选后新增待办会预填该分类；再次点击已选分类、点击“全部”或摘要清除会退出筛选；分类 chip 的可访问标签会读出数量、已选中状态和点击后的筛选/清除动作；iOS 待办标题显示筛选数/总数，日程任务行以带分类名 Voice Control input labels 的分类 badge 保留分类上下文，列表摘要可直接新增此分类待办或清除筛选，摘要和按钮可访问标签也会说明新增/清除动作及分类名；macOS 选中分类摘要可把左侧快速新增表单切回当前分类并聚焦任务名称，摘要新增/清除按钮也暴露分类名 Voice Control input labels，快速新增面板显示该分类已预填，连续新增时保留刚创建任务的分类；编辑已有待办仍保留原任务分类。
 4. `FocusStore` 清洗空白分类、合并常用分类和已有分类为 `taskCategories`，供 iOS/macOS 筛选 UI 使用。
 5. `TaskCategoryPreset.prioritizedFilterOptions` 按当前范围内任务数量把有任务的分类排在空分类前面。
 6. `FocusStore` 保存任务，并在 `autoGeneratePomodoroPlan` 启用时调用 `generatePomodoroPlanFromSchedule()`。
@@ -170,7 +170,7 @@ macOS：
 - 菜单栏时间胶囊：显示剩余时间。
 - 左键 popover：极简计时器、动态进度条、当前待办分类 badge/时间上下文、快捷面板，并可直接打开日程、统计或设置详情页。
 - 右键菜单：开始/暂停、打开详细界面、退出。
-- 详细窗口：计时、日程、任务行常驻分类 badge、分类筛选、再次点击已选分类退出筛选、分类 chip 可访问状态/动作提示、selected trait 和 Voice Control input labels、筛选/总数计数、选中分类摘要快捷新增、摘要新增/清除按钮分类语义和稳定点击区、快速新增分类预填提示、统计、设置。
+- 详细窗口：计时、日程、任务行常驻分类 badge、分类筛选、再次点击已选分类退出筛选、分类 chip 可访问状态/动作提示、selected trait 和 Voice Control input labels、筛选/总数计数、选中分类摘要快捷新增、摘要新增/清除按钮分类语义和稳定点击区、快速新增分类预填提示、连续新增保留分类、统计、设置。
 
 ## 6. 前端 / 数据层 / 模型层 / 测试层关系
 
@@ -181,7 +181,7 @@ macOS：
 - 平台服务负责系统能力，不持有核心业务规则。
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。
-- `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选摘要、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程任务行分类 badge 与 Voice Control 输入标签、Mac 待办筛选计数、Mac 任务行分类 badge、Mac 分类摘要快捷新增、分类摘要插入点/动作接线、分类快捷新增/预填提示、validator 正向、分类摘要 marker 缺失负向、JUnit outcome 负向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、额外 artifact 文件负向、本地文件大小篡改负向、本地缺失产物负向 fixture、分类摘要动作和分类 chip 可访问 contract 日志 marker、核心测试和快照的本地/云端项目专属验证入口。
+- `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选摘要、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程任务行分类 badge 与 Voice Control 输入标签、Mac 待办筛选计数、Mac 任务行分类 badge、Mac 分类摘要快捷新增、Mac 连续快速新增保留分类、分类摘要插入点/动作接线、分类快捷新增/预填提示、validator 正向、分类摘要 marker 缺失负向、JUnit outcome 负向、artifactName mismatch 负向、artifact index 身份错包负向、artifact index totals 篡改负向、额外 artifact 文件负向、本地文件大小篡改负向、本地缺失产物负向 fixture、分类摘要动作和分类 chip 可访问 contract 日志 marker、核心测试和快照的本地/云端项目专属验证入口。
 - `scripts/validate_ci_artifact.rb` 是 Agent C 下载结果包后的结构化复判脚本，覆盖 manifest 身份和路径字段、run context 身份与 artifact 名称、artifact index 身份、必需路径与本地文件/目录非空状态、required entry 本地元数据复算、index totals 与 entries 聚合一致性、artifact 根目录/报告目录/快照目录额外文件拒绝、JUnit testcase/outcome、failure summary 身份/outcome/日志入口、`static-checks.log` 静态检查 marker、`xcode-version.log` 版本内容、`verify_project.log` 分类摘要动作 contract marker 和分类 chip 可访问 contract marker、主日志成功标记、快照 manifest 和快照 manifest 中 PNG byteCount 与下载文件大小一致性。
 - `.github/workflows/ci-results.yml` 是默认云端重验证入口，负责在 `main` push 和手动触发时运行静态检查、项目验证、Mac build 和 iOS generic build，并生成带 artifact index 的未加密 CI 结果包；失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录。
 

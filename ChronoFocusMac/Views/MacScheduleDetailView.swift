@@ -83,6 +83,8 @@ struct MacScheduleDetailView: View {
     }
 
     private func addTask() {
+        let submittedCategory = category
+        let submittedAccentHex = accentHex
         let task = store.addTask(
             title: taskTitle,
             category: category,
@@ -92,11 +94,14 @@ struct MacScheduleDetailView: View {
         )
         if let task {
             syncMacTaskReminder(for: task, store: store, notifications: notifications)
+            category = selectedCategory ?? task.category
+            accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? task.accentHex
+        } else {
+            category = selectedCategory ?? submittedCategory
+            accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? submittedAccentHex
         }
         taskTitle = ""
         estimatedRounds = 2
-        category = selectedCategory ?? "工作"
-        accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? "#3DE8C5"
     }
 
     private func prepareQuickAdd(_ category: String) {

@@ -400,6 +400,14 @@ assert_slice_contains(
 
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private func addTask()",
+  "private func prepareQuickAdd(_ category: String)",
+  /let submittedCategory = category[\s\S]*?let submittedAccentHex = accentHex[\s\S]*?category = selectedCategory \?\? task\.category[\s\S]*?accentHex = TaskCategoryPreset\.matching\(category\)\?\.accentHex \?\? task\.accentHex[\s\S]*?category = selectedCategory \?\? submittedCategory[\s\S]*?accentHex = TaskCategoryPreset\.matching\(category\)\?\.accentHex \?\? submittedAccentHex/,
+  "Mac quick add must retain submitted category after add"
+)
+
+assert_slice_contains(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "private func prepareQuickAdd(_ category: String)",
   "private struct MacQuickAddCategoryContextView",
   /self\.category = category[\s\S]*?accentHex = TaskCategoryPreset\.matching\(category\)\?\.accentHex \?\? "#3DE8C5"[\s\S]*?isTaskTitleFocused = true/,
