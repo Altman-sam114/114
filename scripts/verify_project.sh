@@ -559,6 +559,7 @@ grep -q "FAIL index totals consistency" scripts/verify_project.sh
 grep -q "FAIL index unexpected entries" scripts/verify_project.sh
 grep -q "FAIL unexpected local artifacts" scripts/verify_project.sh
 grep -q "FAIL index required local artifacts" scripts/verify_project.sh
+grep -q "FAIL snapshot manifest generated at" scripts/verify_project.sh
 grep -q "FAIL snapshot byte counts" scripts/verify_project.sh
 grep -q "manifest paths" scripts/validate_ci_artifact.rb
 grep -q "manifest short sha" scripts/validate_ci_artifact.rb
@@ -578,6 +579,7 @@ grep -q "failure summary identity" scripts/validate_ci_artifact.rb
 grep -q "failure summary outcomes" scripts/validate_ci_artifact.rb
 grep -q "junit testcase names" scripts/validate_ci_artifact.rb
 grep -q "junit testcase outcomes" scripts/validate_ci_artifact.rb
+grep -q "snapshot manifest generated at" scripts/validate_ci_artifact.rb
 grep -q "snapshot byte counts" scripts/validate_ci_artifact.rb
 grep -q "xcrun.*simctl" scripts/resolve_ios_simulator_destination.rb
 grep -q "platform=iOS Simulator,id=" scripts/resolve_ios_simulator_destination.rb
@@ -1052,6 +1054,31 @@ fi
 grep -q "FAIL index required local metadata" "$mismatched_local_artifact_output"
 rm -rf "$mismatched_local_artifact_fixture"
 rm -f "$mismatched_local_artifact_output"
+invalid_snapshot_generated_at_fixture="$(mktemp -d)"
+invalid_snapshot_generated_at_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$invalid_snapshot_generated_at_fixture"/
+python3 - "$invalid_snapshot_generated_at_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+manifest_path = root / "project-reports" / "mac-snapshots" / "manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+manifest["generatedAt"] = "not-a-timestamp"
+manifest_path.write_text(
+    json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$invalid_snapshot_generated_at_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$invalid_snapshot_generated_at_output" 2>&1; then
+  echo "Expected invalid snapshot generatedAt fixture to fail validation" >&2
+  cat "$invalid_snapshot_generated_at_output" >&2
+  exit 1
+fi
+grep -q "FAIL snapshot manifest generated at" "$invalid_snapshot_generated_at_output"
+rm -rf "$invalid_snapshot_generated_at_fixture"
+rm -f "$invalid_snapshot_generated_at_output"
 mismatched_snapshot_manifest_fixture="$(mktemp -d)"
 mismatched_snapshot_manifest_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$mismatched_snapshot_manifest_fixture"/

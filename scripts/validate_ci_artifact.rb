@@ -458,6 +458,7 @@ check(checks, "ios build succeeded") { File.read(ios_build_log_path, encoding: "
 
 snapshots = snapshot_manifest.fetch("snapshots")
 snapshot_names = snapshots.map { |snapshot| snapshot["fileName"] }
+check(checks, "snapshot manifest generated at") { iso8601_timestamp?(snapshot_manifest["generatedAt"]) }
 check(checks, "snapshot names") { (EXPECTED_SNAPSHOTS - snapshot_names).empty? && snapshots.length == EXPECTED_SNAPSHOTS.length }
 check(checks, "snapshot dimensions") do
   snapshots.all? do |snapshot|
