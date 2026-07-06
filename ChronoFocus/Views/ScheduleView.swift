@@ -931,6 +931,25 @@ private struct TaskEditorView: View {
         ]
     }
 
+    private var cancelActionText: String {
+        task == nil ? "取消新增" : "取消编辑"
+    }
+
+    private var cancelButtonAccessibilityLabel: String {
+        "\(cancelActionText)\(taskTitleDisplayName)待办，\(categoryDisplayName)分类"
+    }
+
+    private var cancelButtonInputLabels: [Text] {
+        [
+            Text("取消"),
+            Text(cancelActionText),
+            Text(taskTitleDisplayName),
+            Text(categoryDisplayName),
+            Text("\(categoryDisplayName)分类"),
+            Text("\(categoryDisplayName)分类取消")
+        ]
+    }
+
     init(task: FocusTask? = nil, initialDueDate: Date, initialCategory: String? = nil) {
         self.task = task
         let startingCategory = task?.category ?? initialCategory ?? "工作"
@@ -1013,6 +1032,8 @@ private struct TaskEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
+                        .accessibilityLabel(cancelButtonAccessibilityLabel)
+                        .accessibilityInputLabels(cancelButtonInputLabels)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {

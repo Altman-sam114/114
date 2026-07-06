@@ -4,14 +4,14 @@
 
 ## 核心数据流
 
-读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。重点看 `FocusStore` 与 `TimerEngine` 的职责边界；当前任务选择行分类语义、分类筛选反选清除、统计计划回顾分类语义和待办保存按钮分类语义都有独立 `verify_project` marker 和 artifact validator 复判。
+读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。重点看 `FocusStore` 与 `TimerEngine` 的职责边界；当前任务选择行分类语义、分类筛选反选清除、统计计划回顾分类语义和待办保存/取消按钮分类语义都有独立 `verify_project` marker 和 artifact validator 复判。
 
 ```mermaid
 flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
-  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、重复点击已选分类退出、分类输入上下文、待办保存按钮任务/分类/预计轮次或只设开始语义、可访问状态/动作提示、selected trait、Voice Control input labels、iOS/Mac日程日期格状态和语音标签、iOS日程筛选计数、iOS日程toolbar新增入口分类语义、iOS日程任务行分类badge和语音标签、iOS/Mac日程任务操作任务名和分类语义、iOS/Mac计时主控任务名和分类语义、iOS/Mac计划开始任务/时间/轮次语义、iOS/Mac计划项分类badge、iOS/Mac计划面板生成/清空当前轮数语义、Mac快速新增提交分类/轮次语义、Mac小窗快捷面板按钮动作和选中状态语义、Mac计划项可见分类上下文、iOS统计计划回顾分类badge和语音语义、计时页筛选摘要、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、当前任务选择selected trait/运行中提示/任务名和分类语音标签、Mac任务行和小窗分类badge语音标签与预设色、新建预填、筛选摘要/快捷新增/清除按钮分类语义、Mac摘要快捷新增和稳定点击区"]
+  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、重复点击已选分类退出、分类输入上下文、待办保存按钮任务/分类/预计轮次或只设开始语义、待办取消按钮动作/任务/分类语义、可访问状态/动作提示、selected trait、Voice Control input labels、iOS/Mac日程日期格状态和语音标签、iOS日程筛选计数、iOS日程toolbar新增入口分类语义、iOS日程任务行分类badge和语音标签、iOS/Mac日程任务操作任务名和分类语义、iOS/Mac计时主控任务名和分类语义、iOS/Mac计划开始任务/时间/轮次语义、iOS/Mac计划项分类badge、iOS/Mac计划面板生成/清空当前轮数语义、Mac快速新增提交分类/轮次语义、Mac小窗快捷面板按钮动作和选中状态语义、Mac计划项可见分类上下文、iOS统计计划回顾分类badge和语音语义、计时页筛选摘要、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、当前任务选择selected trait/运行中提示/任务名和分类语音标签、Mac任务行和小窗分类badge语音标签与预设色、新建预填、筛选摘要/快捷新增/清除按钮分类语义、Mac摘要快捷新增和稳定点击区"]
   CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]
@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、日程日期格状态和语音标签、日程摘要按钮分类语义、Mac摘要按钮点击区、分类输入上下文、待办保存按钮分类语义、预设按钮、点击切换、统计分类投入占比语义、统计计划回顾分类语义、iOS日程toolbar新增入口分类语义、iOS日程任务行分类badge语音标签、iOS/Mac日程任务操作任务名和分类语义、iOS/Mac计时主控任务名和分类语义、iOS/Mac计划开始任务/时间/轮次语义、iOS/Mac计划项分类badge、iOS/Mac计划面板生成/清空当前轮数语义、Mac快速新增提交分类/轮次语义、Mac小窗快捷面板按钮语义、Mac计划项分类上下文、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、当前任务选择selected trait/提示/运行中不可切换提示/Voice Control标签、Mac任务行和小窗分类badge语音标签与预设色、selected trait 和 Voice Control 标签检查<br/>validator 复判 manifest元数据/artifactName/overallOutcome/project reports、固定CI process version、JUnit元数据/errors/outcome/failure元素、index精确清单/本地元数据/version/artifactName、额外artifact拒绝、Mac快照generatedAt和byteCount、static-checks、Xcode 版本、分类摘要动作/分类可访问/日程任务操作/计时主控/计划开始/计划分类badge/Mac计划分类/计划面板操作/日程toolbar新增/Mac快速新增/分类输入上下文/待办保存分类语义/Mac小窗快捷面板/统计分类占比/统计计划回顾分类日志 marker<br/>validator 正向/旧process version/摘要marker缺失/任务操作marker缺失/计时主控marker缺失/计划开始marker缺失/计划分类badge marker缺失/Mac计划分类marker缺失/计划面板操作marker缺失/日程toolbar新增marker缺失/Mac快速新增marker缺失/分类输入上下文marker缺失/待办保存分类marker缺失/Mac小窗快捷面板marker缺失/统计分类占比marker缺失/统计计划回顾分类marker缺失/JUnit元数据/JUnit errors/JUnit错包/JUnit failure元素/错包/manifest artifactName/manifest overallOutcome/index artifactName/manifest元数据/index错包/totals错包/index未预期entry/额外artifact/本地篡改/缺失产物/快照manifest generatedAt和byteCount篡改 fixture"]
+  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、日程日期格状态和语音标签、日程摘要按钮分类语义、Mac摘要按钮点击区、分类输入上下文、待办保存/取消按钮分类语义、预设按钮、点击切换、统计分类投入占比语义、统计计划回顾分类语义、iOS日程toolbar新增入口分类语义、iOS日程任务行分类badge语音标签、iOS/Mac日程任务操作任务名和分类语义、iOS/Mac计时主控任务名和分类语义、iOS/Mac计划开始任务/时间/轮次语义、iOS/Mac计划项分类badge、iOS/Mac计划面板生成/清空当前轮数语义、Mac快速新增提交分类/轮次语义、Mac小窗快捷面板按钮语义、Mac计划项分类上下文、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、当前任务选择selected trait/提示/运行中不可切换提示/Voice Control标签、Mac任务行和小窗分类badge语音标签与预设色、selected trait 和 Voice Control 标签检查<br/>validator 复判 manifest元数据/artifactName/overallOutcome/project reports、固定CI process version、JUnit元数据/errors/outcome/failure元素、index精确清单/本地元数据/version/artifactName、额外artifact拒绝、Mac快照generatedAt和byteCount、static-checks、Xcode 版本、分类摘要动作/分类可访问/日程任务操作/计时主控/计划开始/计划分类badge/Mac计划分类/计划面板操作/日程toolbar新增/Mac快速新增/分类输入上下文/待办保存分类语义/待办取消分类语义/Mac小窗快捷面板/统计分类占比/统计计划回顾分类日志 marker<br/>validator 正向/旧process version/摘要marker缺失/任务操作marker缺失/计时主控marker缺失/计划开始marker缺失/计划分类badge marker缺失/Mac计划分类marker缺失/计划面板操作marker缺失/日程toolbar新增marker缺失/Mac快速新增marker缺失/分类输入上下文marker缺失/待办保存分类marker缺失/待办取消分类marker缺失/Mac小窗快捷面板marker缺失/统计分类占比marker缺失/统计计划回顾分类marker缺失/JUnit元数据/JUnit errors/JUnit错包/JUnit failure元素/错包/manifest artifactName/manifest overallOutcome/index artifactName/manifest元数据/index错包/totals错包/index未预期entry/额外artifact/本地篡改/缺失产物/快照manifest generatedAt和byteCount篡改 fixture"]
 ```
 
 ## 计时执行流
@@ -58,11 +58,11 @@ flowchart TD
 
 ## 日程、计划和统计流
 
-读图说明：这张图展示任务如何变成番茄钟计划，计时完成后又如何反向更新任务和统计。日历同步进来的事件也必须先进入 `FocusStore`，不能绕过核心数据仓库；待办新增/编辑保存按钮会在提交前读出任务、分类和计划方式，统计最近记录会继续使用 `FocusSession.category` 显示分类 badge，统计计划回顾会使用 `PomodoroPlanItem.category` 显示分类 badge，并把任务、分类、时间和轮次写入可访问语义。
+读图说明：这张图展示任务如何变成番茄钟计划，计时完成后又如何反向更新任务和统计。日历同步进来的事件也必须先进入 `FocusStore`，不能绕过核心数据仓库；待办新增/编辑保存按钮会在提交前读出任务、分类和计划方式，取消按钮会读出取消动作、任务和分类，统计最近记录会继续使用 `FocusSession.category` 显示分类 badge，统计计划回顾会使用 `PomodoroPlanItem.category` 显示分类 badge，并把任务、分类、时间和轮次写入可访问语义。
 
 ```mermaid
 flowchart TD
-  A["用户新增/编辑任务<br/>或系统日历同步事件"] --> P0["分类 UI<br/>iOS/Mac日程日期格读出日期、待办数、选中和非本月状态<br/>iOS日程筛选/总数计数<br/>iOS日程toolbar新增入口读出当前分类<br/>iOS日程任务行分类badge语音标签<br/>iOS/Mac日程任务操作读出任务名和分类<br/>iOS待办保存按钮读出任务、分类、预计轮次或只设开始<br/>iOS/Mac计时主控读出任务名和分类<br/>iOS/Mac计划开始读出任务/时间/轮次<br/>iOS/Mac计划项分类badge可见<br/>iOS/Mac计划面板生成/清空读出当前未完成轮数<br/>Mac快速新增提交读出分类和预计轮次<br/>Mac小窗快捷面板读出按钮动作和选中状态<br/>Mac计划项直接显示分类<br/>计时页当前待办筛选摘要<br/>计时页摘要清除入口<br/>计时页空态清除入口<br/>计时页任务行分类badge可访问<br/>当前任务选择读出已选中状态、运行中提示和任务/分类语音标签<br/>Mac任务行和小窗分类badge可说分类名<br/>常用分类快选、手写分类和输入上下文<br/>重复点击已选分类退出<br/>VoiceOver读出已选状态和点击动作<br/>辅助技术识别 selected trait<br/>Voice Control 可说日期、任务和分类名<br/>筛选摘要新增/清除按钮读出分类名<br/>筛选联动新建预填<br/>Mac 摘要快捷新增并聚焦任务名<br/>Mac 快速新增当前分类/已预填提示<br/>Mac 摘要按钮稳定点击区<br/>Mac 连续新增保留分类"]
+  A["用户新增/编辑任务<br/>或系统日历同步事件"] --> P0["分类 UI<br/>iOS/Mac日程日期格读出日期、待办数、选中和非本月状态<br/>iOS日程筛选/总数计数<br/>iOS日程toolbar新增入口读出当前分类<br/>iOS日程任务行分类badge语音标签<br/>iOS/Mac日程任务操作读出任务名和分类<br/>iOS待办保存按钮读出任务、分类、预计轮次或只设开始，取消按钮读出取消新增/取消编辑、任务和分类<br/>iOS/Mac计时主控读出任务名和分类<br/>iOS/Mac计划开始读出任务/时间/轮次<br/>iOS/Mac计划项分类badge可见<br/>iOS/Mac计划面板生成/清空读出当前未完成轮数<br/>Mac快速新增提交读出分类和预计轮次<br/>Mac小窗快捷面板读出按钮动作和选中状态<br/>Mac计划项直接显示分类<br/>计时页当前待办筛选摘要<br/>计时页摘要清除入口<br/>计时页空态清除入口<br/>计时页任务行分类badge可访问<br/>当前任务选择读出已选中状态、运行中提示和任务/分类语音标签<br/>Mac任务行和小窗分类badge可说分类名<br/>常用分类快选、手写分类和输入上下文<br/>重复点击已选分类退出<br/>VoiceOver读出已选状态和点击动作<br/>辅助技术识别 selected trait<br/>Voice Control 可说日期、任务和分类名<br/>筛选摘要新增/清除按钮读出分类名<br/>筛选联动新建预填<br/>Mac 摘要快捷新增并聚焦任务名<br/>Mac 快速新增当前分类/已预填提示<br/>Mac 摘要按钮稳定点击区<br/>Mac 连续新增保留分类"]
   P0 --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
   B --> C["FocusTask<br/>标题、分类、截止时间、轮次、循环、外部日历 ID"]
   C --> C2["FocusStore.taskCategories + TaskCategoryFilterOption<br/>合并预设/已有分类<br/>有任务分类优先显示"]
@@ -109,8 +109,8 @@ flowchart TD
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
   PUSH --> CI["GitHub Actions<br/>ci-results.yml<br/>静态检查、verify_project、Mac build、iOS build"]
-  CI --> ART["未加密 CI 结果包<br/>manifest元数据/artifactName/overallOutcome/project reports、固定CI process version、artifact index artifactName/version、精确清单和本地元数据复算、额外artifact拒绝、run context精确键集、failure summary 身份/总结果/outcome/错误摘录、JUnit 元数据/errors/outcome/failure元素、static-checks marker、Xcode 版本、verify_project 分类摘要动作/分类可访问/日程任务操作/计时主控/计划开始/计划分类badge/Mac计划分类/计划面板操作/日程toolbar新增/Mac快速新增/分类输入上下文/待办保存分类语义/Mac小窗快捷面板/统计分类占比/统计计划回顾分类 marker、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
-  ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id<br/>核对 manifest artifactName、overallOutcome、index artifactName、artifact index、index totals、run context精确键集、artifact 名称、计时主控/计划分类badge/计划面板操作/日程toolbar新增/Mac快速新增/分类输入上下文/待办保存分类语义/Mac小窗快捷面板/统计分类占比/统计计划回顾分类 marker 和快照 manifest"]
+  CI --> ART["未加密 CI 结果包<br/>manifest元数据/artifactName/overallOutcome/project reports、固定CI process version、artifact index artifactName/version、精确清单和本地元数据复算、额外artifact拒绝、run context精确键集、failure summary 身份/总结果/outcome/错误摘录、JUnit 元数据/errors/outcome/failure元素、static-checks marker、Xcode 版本、verify_project 分类摘要动作/分类可访问/日程任务操作/计时主控/计划开始/计划分类badge/Mac计划分类/计划面板操作/日程toolbar新增/Mac快速新增/分类输入上下文/待办保存分类语义/待办取消分类语义/Mac小窗快捷面板/统计分类占比/统计计划回顾分类 marker、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
+  ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id<br/>核对 manifest artifactName、overallOutcome、index artifactName、artifact index、index totals、run context精确键集、artifact 名称、计时主控/计划分类badge/计划面板操作/日程toolbar新增/Mac快速新增/分类输入上下文/待办保存分类语义/待办取消分类语义/Mac小窗快捷面板/统计分类占比/统计计划回顾分类 marker 和快照 manifest"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>run context无重复/无额外字段<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}
   PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]

@@ -547,6 +547,10 @@ raise "Task editor save plan helper missing" unless task_editor_category_source.
 raise "Task editor save accessibility label missing" unless task_editor_category_source.include?("private var saveButtonAccessibilityLabel: String") && task_editor_category_source.include?("\\(saveActionText)\\(taskTitleDisplayName)待办，\\(categoryDisplayName)分类，\\(savePlanDescription)") && task_editor_category_source.include?(".accessibilityLabel(saveButtonAccessibilityLabel)")
 raise "Task editor save Voice Control labels missing" unless task_editor_category_source.include?("private var saveButtonInputLabels: [Text]") && task_editor_category_source.include?("Text(taskTitleDisplayName)") && task_editor_category_source.include?("Text(categoryDisplayName)") && task_editor_category_source.include?("Text(\"\\(categoryDisplayName)分类\")") && task_editor_category_source.include?("Text(\"\\(categoryDisplayName)分类保存\")") && task_editor_category_source.include?(".accessibilityInputLabels(saveButtonInputLabels)")
 puts "Task editor save category accessibility contracts verified."
+raise "Task editor cancel action helper missing" unless task_editor_category_source.include?("private var cancelActionText: String") && task_editor_category_source.include?("task == nil ? \"取消新增\" : \"取消编辑\"")
+raise "Task editor cancel accessibility label missing" unless task_editor_category_source.include?("private var cancelButtonAccessibilityLabel: String") && task_editor_category_source.include?("\\(cancelActionText)\\(taskTitleDisplayName)待办，\\(categoryDisplayName)分类") && task_editor_category_source.include?(".accessibilityLabel(cancelButtonAccessibilityLabel)")
+raise "Task editor cancel Voice Control labels missing" unless task_editor_category_source.include?("private var cancelButtonInputLabels: [Text]") && task_editor_category_source.include?("Text(cancelActionText)") && task_editor_category_source.include?("Text(taskTitleDisplayName)") && task_editor_category_source.include?("Text(categoryDisplayName)") && task_editor_category_source.include?("Text(\"\\(categoryDisplayName)分类\")") && task_editor_category_source.include?("Text(\"\\(categoryDisplayName)分类取消\")") && task_editor_category_source.include?(".accessibilityInputLabels(cancelButtonInputLabels)")
+puts "Task editor cancel category accessibility contracts verified."
 
 mac_quick_add_category_context_source = source_slice(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
@@ -805,6 +809,7 @@ grep -q "Schedule toolbar add category context contracts verified." scripts/vali
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category input context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Task editor save category accessibility contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Task editor cancel category accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac mini quick panel accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics category share accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics recent session category contracts verified." scripts/validate_ci_artifact.rb
@@ -843,6 +848,7 @@ grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.sh
 grep -q "negative_task_editor_save_marker_fixture" scripts/verify_project.sh
+grep -q "negative_task_editor_cancel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_mini_quick_panel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_category_share_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_recent_session_marker_fixture" scripts/verify_project.sh
@@ -876,6 +882,7 @@ grep -q "FAIL verify_project schedule toolbar add category context contracts" sc
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project task editor save category accessibility contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project task editor cancel category accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac mini quick panel accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics category share accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics recent session category contracts" scripts/verify_project.sh
@@ -943,7 +950,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1471,6 +1478,31 @@ fi
 grep -q "FAIL verify_project task editor save category accessibility contracts" "$negative_task_editor_save_marker_output"
 rm -rf "$negative_task_editor_save_marker_fixture"
 rm -f "$negative_task_editor_save_marker_output"
+negative_task_editor_cancel_marker_fixture="$(mktemp -d)"
+negative_task_editor_cancel_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_task_editor_cancel_marker_fixture"/
+python3 - "$negative_task_editor_cancel_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Task editor cancel category accessibility contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_task_editor_cancel_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_task_editor_cancel_marker_output" 2>&1; then
+  echo "Expected negative task editor cancel marker fixture to fail validation" >&2
+  cat "$negative_task_editor_cancel_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project task editor cancel category accessibility contracts" "$negative_task_editor_cancel_marker_output"
+rm -rf "$negative_task_editor_cancel_marker_fixture"
+rm -f "$negative_task_editor_cancel_marker_output"
 negative_mac_mini_quick_panel_marker_fixture="$(mktemp -d)"
 negative_mac_mini_quick_panel_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_mini_quick_panel_marker_fixture"/

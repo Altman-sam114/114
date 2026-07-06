@@ -542,6 +542,9 @@ end
 check(checks, "verify_project task editor save category accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Task editor save category accessibility contracts verified.")
 end
+check(checks, "verify_project task editor cancel category accessibility contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Task editor cancel category accessibility contracts verified.")
+end
 check(checks, "verify_project mac mini quick panel accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Mac mini quick panel accessibility contracts verified.")
 end
