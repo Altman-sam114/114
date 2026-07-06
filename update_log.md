@@ -62,7 +62,7 @@
 验证结果：
 
 - 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
-- 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
+- 云端 GitHub Actions run `28800167506` attempt `1` 通过；artifact `chronofocus-ci-v0.10-main-926737f-run28800167506-attempt1` 已由 Agent C 下载复判，validator 全 PASS，包含 `PASS verify_project analytics recent session category contracts`、`PASS manifest overall outcome` 和 `PASS index artifact name`。
 
 遗留事项：
 
