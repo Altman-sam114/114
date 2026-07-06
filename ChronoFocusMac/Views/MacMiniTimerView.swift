@@ -361,7 +361,11 @@ private struct MacMiniQuickPanelView: View {
                         value: mode == engine.mode ? "当前" : "",
                         systemImage: mode.symbolName,
                         tint: Color(hex: mode.tintHex),
-                        isSelected: mode == engine.mode
+                        isSelected: mode == engine.mode,
+                        accessibilityLabelText: modeAccessibilityLabel(for: mode),
+                        accessibilityHintText: modeAccessibilityHint(for: mode),
+                        accessibilityInputLabels: modeAccessibilityInputLabels(for: mode),
+                        accessibilityTraits: modeAccessibilityTraits(for: mode)
                     ) {
                         engine.selectMode(mode)
                     }
@@ -382,7 +386,10 @@ private struct MacMiniQuickPanelView: View {
                     }
                     .buttonStyle(MacMiniPillButtonStyle(isSelected: store.settings.focusMinutes == minute, tint: currentTint))
                     .disabled(engine.isRunning)
-                    .accessibilityLabel("\(minute) 分钟")
+                    .accessibilityLabel(focusDurationAccessibilityLabel(for: minute))
+                    .accessibilityHint(focusDurationAccessibilityHint(for: minute))
+                    .accessibilityInputLabels(focusDurationAccessibilityInputLabels(for: minute))
+                    .accessibilityAddTraits(focusDurationAccessibilityTraits(for: minute))
                 }
             }
 
@@ -394,7 +401,14 @@ private struct MacMiniQuickPanelView: View {
                     value: store.settings.completionSound.title,
                     systemImage: "bell.and.waves.left.and.right.fill",
                     tint: .orange,
-                    isSelected: false
+                    isSelected: false,
+                    accessibilityLabelText: "切换到点铃声，当前\(store.settings.completionSound.title)",
+                    accessibilityHintText: "切换番茄钟结束时播放的提示音",
+                    accessibilityInputLabels: [
+                        Text("切换铃声"),
+                        Text("到点铃声"),
+                        Text(store.settings.completionSound.title)
+                    ]
                 ) {
                     cycleCompletionSound()
                 }
@@ -404,7 +418,14 @@ private struct MacMiniQuickPanelView: View {
                     value: premium.isProUnlocked ? "" : "Pro",
                     systemImage: "speaker.wave.2.fill",
                     tint: .cyan,
-                    isSelected: false
+                    isSelected: false,
+                    accessibilityLabelText: "试听\(store.settings.completionSound.title)到点铃声",
+                    accessibilityHintText: premium.isProUnlocked || !store.settings.completionSound.isPro ? "播放当前到点提示音" : "当前 Pro 音色未解锁，暂不可试听",
+                    accessibilityInputLabels: [
+                        Text("试听"),
+                        Text("试听铃声"),
+                        Text("试听\(store.settings.completionSound.title)")
+                    ]
                 ) {
                     notifications.playCompletionAlert(
                         soundVolume: store.settings.soundVolume,
@@ -417,13 +438,40 @@ private struct MacMiniQuickPanelView: View {
 
             Divider().opacity(0.28)
 
-            MacMiniQuickButton(title: "日程", value: "", systemImage: "calendar", tint: .blue, isSelected: false) {
+            MacMiniQuickButton(
+                title: "日程",
+                value: "",
+                systemImage: "calendar",
+                tint: .blue,
+                isSelected: false,
+                accessibilityLabelText: "打开日程详情",
+                accessibilityHintText: "打开详细窗口并切换到日程",
+                accessibilityInputLabels: [Text("日程"), Text("打开日程"), Text("打开日程详情")]
+            ) {
                 openDetails(.schedule)
             }
-            MacMiniQuickButton(title: "统计", value: "", systemImage: "chart.xyaxis.line", tint: .mint, isSelected: false) {
+            MacMiniQuickButton(
+                title: "统计",
+                value: "",
+                systemImage: "chart.xyaxis.line",
+                tint: .mint,
+                isSelected: false,
+                accessibilityLabelText: "打开统计详情",
+                accessibilityHintText: "打开详细窗口并切换到统计",
+                accessibilityInputLabels: [Text("统计"), Text("打开统计"), Text("打开统计详情")]
+            ) {
                 openDetails(.analytics)
             }
-            MacMiniQuickButton(title: "设置", value: "更多", systemImage: "slider.horizontal.3", tint: .purple, isSelected: false) {
+            MacMiniQuickButton(
+                title: "设置",
+                value: "更多",
+                systemImage: "slider.horizontal.3",
+                tint: .purple,
+                isSelected: false,
+                accessibilityLabelText: "打开设置详情",
+                accessibilityHintText: "打开详细窗口并切换到设置",
+                accessibilityInputLabels: [Text("设置"), Text("打开设置"), Text("打开设置详情")]
+            ) {
                 openDetails(.settings)
             }
         }
@@ -450,6 +498,52 @@ private struct MacMiniQuickPanelView: View {
         }
         store.settings.completionSound = sounds[(index + 1) % sounds.count]
     }
+
+    private func modeAccessibilityLabel(for mode: TimerMode) -> String {
+        mode == engine.mode ? "\(mode.title)模式，当前模式" : "切换到\(mode.title)模式"
+    }
+
+    private func modeAccessibilityHint(for mode: TimerMode) -> String {
+        if engine.isRunning && mode != engine.mode {
+            return "计时运行中不可切换模式"
+        }
+        return mode == engine.mode ? "当前番茄钟模式" : "切换番茄钟模式"
+    }
+
+    private func modeAccessibilityInputLabels(for mode: TimerMode) -> [Text] {
+        [
+            Text(mode.title),
+            Text("\(mode.title)模式"),
+            Text("切换到\(mode.title)模式")
+        ]
+    }
+
+    private func modeAccessibilityTraits(for mode: TimerMode) -> AccessibilityTraits {
+        mode == engine.mode ? [.isSelected] : []
+    }
+
+    private func focusDurationAccessibilityLabel(for minute: Int) -> String {
+        store.settings.focusMinutes == minute ? "\(minute) 分钟专注时长，当前已选" : "设置专注时长为 \(minute) 分钟"
+    }
+
+    private func focusDurationAccessibilityHint(for minute: Int) -> String {
+        if engine.isRunning && store.settings.focusMinutes != minute {
+            return "计时运行中不可调整专注时长"
+        }
+        return store.settings.focusMinutes == minute ? "当前专注时长" : "调整下一次专注时长"
+    }
+
+    private func focusDurationAccessibilityInputLabels(for minute: Int) -> [Text] {
+        [
+            Text("\(minute) 分钟"),
+            Text("设置\(minute)分钟"),
+            Text("专注\(minute)分钟")
+        ]
+    }
+
+    private func focusDurationAccessibilityTraits(for minute: Int) -> AccessibilityTraits {
+        store.settings.focusMinutes == minute ? [.isSelected] : []
+    }
 }
 
 private struct MacMiniQuickButton: View {
@@ -458,6 +552,10 @@ private struct MacMiniQuickButton: View {
     let systemImage: String
     let tint: Color
     let isSelected: Bool
+    var accessibilityLabelText: String? = nil
+    var accessibilityHintText: String? = nil
+    var accessibilityInputLabels: [Text] = []
+    var accessibilityTraits: AccessibilityTraits = []
     let action: () -> Void
 
     var body: some View {
@@ -482,6 +580,10 @@ private struct MacMiniQuickButton: View {
             .background(isSelected ? tint : Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabelText ?? title)
+        .accessibilityHint(accessibilityHintText ?? "")
+        .accessibilityInputLabels(accessibilityInputLabels)
+        .accessibilityAddTraits(accessibilityTraits)
     }
 }
 

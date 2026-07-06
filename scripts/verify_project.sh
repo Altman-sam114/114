@@ -504,6 +504,29 @@ raise "Mac quick add button accessibility label missing" unless mac_quick_add_so
 raise "Mac quick add button Voice Control labels missing" unless mac_quick_add_source.include?(".accessibilityInputLabels(quickAddInputLabels)")
 puts "Mac quick add action accessibility contracts verified."
 
+mac_mini_quick_panel_source = source_slice(
+  "ChronoFocusMac/Views/MacMiniTimerView.swift",
+  "private struct MacMiniQuickPanelView",
+  "private struct MacMiniQuickButton",
+  "Mac mini quick panel source missing"
+)
+mac_mini_quick_button_source = source_slice(
+  "ChronoFocusMac/Views/MacMiniTimerView.swift",
+  "private struct MacMiniQuickButton",
+  "private struct MacMiniPillButtonStyle",
+  "Mac mini quick button source missing"
+)
+raise "Mac mini quick button accessibility parameters missing" unless mac_mini_quick_button_source.include?("var accessibilityLabelText: String?") && mac_mini_quick_button_source.include?("var accessibilityHintText: String?") && mac_mini_quick_button_source.include?("var accessibilityInputLabels: [Text]") && mac_mini_quick_button_source.include?("var accessibilityTraits: AccessibilityTraits")
+raise "Mac mini quick button accessibility modifiers missing" unless mac_mini_quick_button_source.include?(".accessibilityLabel(accessibilityLabelText ?? title)") && mac_mini_quick_button_source.include?(".accessibilityHint(accessibilityHintText ?? \"\")") && mac_mini_quick_button_source.include?(".accessibilityInputLabels(accessibilityInputLabels)") && mac_mini_quick_button_source.include?(".accessibilityAddTraits(accessibilityTraits)")
+raise "Mac mini mode quick button accessibility missing" unless mac_mini_quick_panel_source.include?("accessibilityLabelText: modeAccessibilityLabel(for: mode)") && mac_mini_quick_panel_source.include?("accessibilityHintText: modeAccessibilityHint(for: mode)") && mac_mini_quick_panel_source.include?("accessibilityInputLabels: modeAccessibilityInputLabels(for: mode)") && mac_mini_quick_panel_source.include?("accessibilityTraits: modeAccessibilityTraits(for: mode)")
+raise "Mac mini mode accessibility helpers missing" unless mac_mini_quick_panel_source.include?("private func modeAccessibilityLabel(for mode: TimerMode) -> String") && mac_mini_quick_panel_source.include?("\"\\(mode.title)模式，当前模式\"") && mac_mini_quick_panel_source.include?("\"切换到\\(mode.title)模式\"") && mac_mini_quick_panel_source.include?("计时运行中不可切换模式") && mac_mini_quick_panel_source.include?("mode == engine.mode ? [.isSelected] : []")
+raise "Mac mini focus duration accessibility missing" unless mac_mini_quick_panel_source.include?(".accessibilityLabel(focusDurationAccessibilityLabel(for: minute))") && mac_mini_quick_panel_source.include?(".accessibilityHint(focusDurationAccessibilityHint(for: minute))") && mac_mini_quick_panel_source.include?(".accessibilityInputLabels(focusDurationAccessibilityInputLabels(for: minute))") && mac_mini_quick_panel_source.include?(".accessibilityAddTraits(focusDurationAccessibilityTraits(for: minute))")
+raise "Mac mini focus duration helpers missing" unless mac_mini_quick_panel_source.include?("private func focusDurationAccessibilityLabel(for minute: Int) -> String") && mac_mini_quick_panel_source.include?("\"设置专注时长为 \\(minute) 分钟\"") && mac_mini_quick_panel_source.include?("当前已选") && mac_mini_quick_panel_source.include?("计时运行中不可调整专注时长") && mac_mini_quick_panel_source.include?("store.settings.focusMinutes == minute ? [.isSelected] : []")
+raise "Mac mini sound quick button accessibility missing" unless mac_mini_quick_panel_source.include?("accessibilityLabelText: \"切换到点铃声，当前\\(store.settings.completionSound.title)\"") && mac_mini_quick_panel_source.include?("Text(\"切换铃声\")") && mac_mini_quick_panel_source.include?("Text(\"到点铃声\")")
+raise "Mac mini preview quick button accessibility missing" unless mac_mini_quick_panel_source.include?("accessibilityLabelText: \"试听\\(store.settings.completionSound.title)到点铃声\"") && mac_mini_quick_panel_source.include?("当前 Pro 音色未解锁，暂不可试听") && mac_mini_quick_panel_source.include?("Text(\"试听铃声\")")
+raise "Mac mini detail quick button accessibility missing" unless mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开日程详情\"") && mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开统计详情\"") && mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开设置详情\"") && mac_mini_quick_panel_source.include?("Text(\"打开日程详情\")") && mac_mini_quick_panel_source.include?("Text(\"打开统计详情\")") && mac_mini_quick_panel_source.include?("Text(\"打开设置详情\")")
+puts "Mac mini quick panel accessibility contracts verified."
+
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "MacTaskListPanelView(",
@@ -639,6 +662,7 @@ grep -q "Mac plan category context contracts verified." scripts/validate_ci_arti
 grep -q "Plan panel action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Schedule toolbar add category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Mac mini quick panel accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
@@ -661,6 +685,7 @@ grep -q "negative_mac_plan_category_marker_fixture" scripts/verify_project.sh
 grep -q "negative_plan_panel_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
+grep -q "negative_mac_mini_quick_panel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
@@ -679,6 +704,7 @@ grep -q "FAIL verify_project mac plan category context contracts" scripts/verify
 grep -q "FAIL verify_project plan panel action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project schedule toolbar add category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project mac mini quick panel accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
@@ -732,7 +758,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1181,6 +1207,31 @@ fi
 grep -q "FAIL verify_project mac quick add action accessibility contracts" "$negative_mac_quick_add_action_marker_output"
 rm -rf "$negative_mac_quick_add_action_marker_fixture"
 rm -f "$negative_mac_quick_add_action_marker_output"
+negative_mac_mini_quick_panel_marker_fixture="$(mktemp -d)"
+negative_mac_mini_quick_panel_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_mac_mini_quick_panel_marker_fixture"/
+python3 - "$negative_mac_mini_quick_panel_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Mac mini quick panel accessibility contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_mac_mini_quick_panel_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_mac_mini_quick_panel_marker_output" 2>&1; then
+  echo "Expected negative Mac mini quick panel marker fixture to fail validation" >&2
+  cat "$negative_mac_mini_quick_panel_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project mac mini quick panel accessibility contracts" "$negative_mac_mini_quick_panel_marker_output"
+rm -rf "$negative_mac_mini_quick_panel_marker_fixture"
+rm -f "$negative_mac_mini_quick_panel_marker_output"
 negative_junit_metadata_fixture="$(mktemp -d)"
 negative_junit_metadata_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_junit_metadata_fixture"/

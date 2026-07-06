@@ -483,6 +483,9 @@ end
 check(checks, "verify_project mac quick add action accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Mac quick add action accessibility contracts verified.")
 end
+check(checks, "verify_project mac mini quick panel accessibility contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Mac mini quick panel accessibility contracts verified.")
+end
 check(checks, "verify_project success") { File.read(verify_log_path, encoding: "UTF-8").include?("Project structure verified.") }
 check(checks, "mac build succeeded") { File.read(mac_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }
 check(checks, "ios build succeeded") { File.read(ios_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }
