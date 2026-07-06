@@ -533,6 +533,7 @@ grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
 grep -q "corrupt_index_totals_fixture" scripts/verify_project.sh
+grep -q "unexpected_index_entry_fixture" scripts/verify_project.sh
 grep -q "unexpected_local_artifact_fixture" scripts/verify_project.sh
 grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
 grep -q "mismatched_local_artifact_fixture" scripts/verify_project.sh
@@ -542,6 +543,7 @@ grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
 grep -q "FAIL index totals consistency" scripts/verify_project.sh
+grep -q "FAIL index unexpected entries" scripts/verify_project.sh
 grep -q "FAIL unexpected local artifacts" scripts/verify_project.sh
 grep -q "FAIL index required local artifacts" scripts/verify_project.sh
 grep -q "FAIL snapshot byte counts" scripts/verify_project.sh
@@ -556,6 +558,7 @@ grep -q "index required paths" scripts/validate_ci_artifact.rb
 grep -q "index required local artifacts" scripts/validate_ci_artifact.rb
 grep -q "index required local metadata" scripts/validate_ci_artifact.rb
 grep -q "index totals consistency" scripts/validate_ci_artifact.rb
+grep -q "index unexpected entries" scripts/validate_ci_artifact.rb
 grep -q "unexpected local artifacts" scripts/validate_ci_artifact.rb
 grep -q "failure summary log entries" scripts/validate_ci_artifact.rb
 grep -q "failure summary identity" scripts/validate_ci_artifact.rb
@@ -958,6 +961,47 @@ fi
 grep -q "FAIL index totals consistency" "$corrupt_index_totals_output"
 rm -rf "$corrupt_index_totals_fixture"
 rm -f "$corrupt_index_totals_output"
+unexpected_index_entry_fixture="$(mktemp -d)"
+unexpected_index_entry_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$unexpected_index_entry_fixture"/
+python3 - "$unexpected_index_entry_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+index["entries"].append({
+    "path": "ci-results/unexpected-index-only.log",
+    "required": False,
+    "exists": False,
+    "kind": "missing",
+})
+index["totals"] = {
+    "entryCount": len(index["entries"]),
+    "missingRequiredCount": sum(
+        1 for entry in index["entries"]
+        if entry["required"] and not entry["exists"]
+    ),
+    "fileByteCount": sum(entry.get("byteCount", 0) for entry in index["entries"]),
+    "directoryRecursiveByteCount": sum(
+        entry.get("recursiveByteCount", 0) for entry in index["entries"]
+    ),
+}
+index_path.write_text(
+    json.dumps(index, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$unexpected_index_entry_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$unexpected_index_entry_output" 2>&1; then
+  echo "Expected unexpected index entry fixture to fail validation" >&2
+  cat "$unexpected_index_entry_output" >&2
+  exit 1
+fi
+grep -q "FAIL index unexpected entries" "$unexpected_index_entry_output"
+rm -rf "$unexpected_index_entry_fixture"
+rm -f "$unexpected_index_entry_output"
 unexpected_local_artifact_fixture="$(mktemp -d)"
 unexpected_local_artifact_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$unexpected_local_artifact_fixture"/

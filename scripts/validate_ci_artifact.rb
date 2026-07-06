@@ -334,6 +334,9 @@ check(checks, "index totals consistency") do
 end
 check(checks, "index missing required") { index.dig("totals", "missingRequiredCount").to_i.zero? }
 check(checks, "index entry count") { index.dig("totals", "entryCount").to_i >= EXPECTED_INDEX_ENTRIES.length }
+check(checks, "index unexpected entries") do
+  index.fetch("entries").map { |entry| entry.fetch("path") }.sort == EXPECTED_INDEX_ENTRIES.keys.sort
+end
 check(checks, "index required paths") do
   EXPECTED_INDEX_ENTRIES.all? do |path, expected_kind|
     entry = entries_by_path[path]
