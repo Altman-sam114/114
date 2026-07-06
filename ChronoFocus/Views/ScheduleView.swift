@@ -44,6 +44,32 @@ struct ScheduleView: View {
         store.pomodoroPlan.filter { !$0.isCompleted }.count
     }
 
+    private var addTaskAccessibilityLabel: String {
+        guard let selectedCategory else {
+            return "新增待办"
+        }
+        return "新增\(selectedCategory)分类待办"
+    }
+
+    private var addTaskAccessibilityHint: String {
+        guard let selectedCategory else {
+            return "打开新增待办表单"
+        }
+        return "打开新增待办表单，并预填\(selectedCategory)分类"
+    }
+
+    private var addTaskInputLabels: [Text] {
+        guard let selectedCategory else {
+            return [Text("新增待办")]
+        }
+        return [
+            Text("新增待办"),
+            Text("新增此分类"),
+            Text("新增\(selectedCategory)分类待办"),
+            Text("新增\(selectedCategory)分类")
+        ]
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
@@ -65,7 +91,9 @@ struct ScheduleView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    .accessibilityLabel("新增待办")
+                    .accessibilityLabel(addTaskAccessibilityLabel)
+                    .accessibilityHint(addTaskAccessibilityHint)
+                    .accessibilityInputLabels(addTaskInputLabels)
                 }
             }
             .sheet(isPresented: $showingEditor) {

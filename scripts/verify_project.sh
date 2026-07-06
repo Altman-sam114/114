@@ -300,6 +300,19 @@ schedule_count_property = schedule_source[/private var taskListCountText: String
 raise "Schedule task list count text missing" unless schedule_count_property
 raise "Schedule task list count text must handle zero total" unless schedule_count_property.include?("totalCount > 0") && schedule_count_property.include?("0 项")
 raise "Schedule task list count text must include filtered and total counts" unless schedule_count_property.include?("visibleTasks.count") && schedule_count_property.include?("totalCount") && schedule_count_property.include?("项")
+schedule_add_toolbar_source = source_slice(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "private var addTaskAccessibilityLabel",
+  "private var calendarPanel",
+  "Schedule toolbar add source missing"
+)
+raise "Schedule toolbar add accessibility label helper missing category context" unless schedule_add_toolbar_source.include?("private var addTaskAccessibilityLabel: String") && schedule_add_toolbar_source.include?("return \"新增\\(selectedCategory)分类待办\"")
+raise "Schedule toolbar add accessibility hint helper missing category prefill" unless schedule_add_toolbar_source.include?("private var addTaskAccessibilityHint: String") && schedule_add_toolbar_source.include?("预填\\(selectedCategory)分类")
+raise "Schedule toolbar add Voice Control labels helper missing category context" unless schedule_add_toolbar_source.include?("private var addTaskInputLabels: [Text]") && schedule_add_toolbar_source.include?("Text(\"新增此分类\")") && schedule_add_toolbar_source.include?("Text(\"新增\\(selectedCategory)分类待办\")") && schedule_add_toolbar_source.include?("Text(\"新增\\(selectedCategory)分类\")")
+raise "Schedule toolbar add button missing accessibility label helper" unless schedule_add_toolbar_source.include?(".accessibilityLabel(addTaskAccessibilityLabel)")
+raise "Schedule toolbar add button missing accessibility hint helper" unless schedule_add_toolbar_source.include?(".accessibilityHint(addTaskAccessibilityHint)")
+raise "Schedule toolbar add button missing Voice Control labels helper" unless schedule_add_toolbar_source.include?(".accessibilityInputLabels(addTaskInputLabels)")
+puts "Schedule toolbar add category context contracts verified."
 
 schedule_task_cell = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
@@ -608,6 +621,7 @@ grep -q "Schedule task action accessibility contracts verified." scripts/validat
 grep -q "Plan start action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac plan category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Plan panel action accessibility contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Schedule toolbar add category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "BUILD SUCCEEDED" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SNAPSHOTS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
@@ -627,6 +641,7 @@ grep -q "negative_task_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_plan_start_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_plan_category_marker_fixture" scripts/verify_project.sh
 grep -q "negative_plan_panel_action_marker_fixture" scripts/verify_project.sh
+grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
@@ -642,6 +657,7 @@ grep -q "FAIL verify_project schedule task action accessibility contracts" scrip
 grep -q "FAIL verify_project plan start action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac plan category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project plan panel action accessibility contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project schedule toolbar add category context contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
@@ -695,7 +711,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1042,6 +1058,31 @@ fi
 grep -q "FAIL verify_project plan panel action accessibility contracts" "$negative_plan_panel_action_marker_output"
 rm -rf "$negative_plan_panel_action_marker_fixture"
 rm -f "$negative_plan_panel_action_marker_output"
+negative_schedule_toolbar_add_marker_fixture="$(mktemp -d)"
+negative_schedule_toolbar_add_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_schedule_toolbar_add_marker_fixture"/
+python3 - "$negative_schedule_toolbar_add_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Schedule toolbar add category context contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_schedule_toolbar_add_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_schedule_toolbar_add_marker_output" 2>&1; then
+  echo "Expected negative schedule toolbar add marker fixture to fail validation" >&2
+  cat "$negative_schedule_toolbar_add_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project schedule toolbar add category context contracts" "$negative_schedule_toolbar_add_marker_output"
+rm -rf "$negative_schedule_toolbar_add_marker_fixture"
+rm -f "$negative_schedule_toolbar_add_marker_output"
 negative_junit_metadata_fixture="$(mktemp -d)"
 negative_junit_metadata_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_junit_metadata_fixture"/
