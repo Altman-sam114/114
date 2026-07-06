@@ -675,6 +675,7 @@ grep -q "ci-run-context.txt" scripts/validate_ci_artifact.rb
 grep -q "xcode version log" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
+grep -q "manifest artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_junit_fixture" scripts/verify_project.sh
 grep -q "stale_process_version_fixture" scripts/verify_project.sh
 grep -q "negative_junit_metadata_fixture" scripts/verify_project.sh
@@ -687,6 +688,7 @@ grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_mini_quick_panel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
+grep -q "negative_manifest_artifact_name_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
 grep -q "corrupt_index_totals_fixture" scripts/verify_project.sh
@@ -706,6 +708,7 @@ grep -q "FAIL verify_project schedule toolbar add category context contracts" sc
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac mini quick panel accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL run context artifact name" scripts/verify_project.sh
+grep -q "FAIL manifest artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
 grep -q "FAIL index totals consistency" scripts/verify_project.sh
@@ -832,6 +835,7 @@ ET.ElementTree(suite).write(root / "junit.xml", encoding="utf-8", xml_declaratio
 
 manifest = {
     "version": "v0.10",
+    "artifactName": f"chronofocus-ci-v0.10-main-fixture-run{run_id}-attempt{attempt}",
     "branch": "main",
     "commitSha": commit,
     "shortSha": commit[:7],
@@ -1309,6 +1313,31 @@ fi
 grep -q "FAIL run context artifact name" "$negative_artifact_output"
 rm -rf "$negative_artifact_fixture"
 rm -f "$negative_artifact_output"
+negative_manifest_artifact_name_fixture="$(mktemp -d)"
+negative_manifest_artifact_name_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_manifest_artifact_name_fixture"/
+python3 - "$negative_manifest_artifact_name_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+manifest_path = root / "ci-artifact-manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+manifest["artifactName"] = "chronofocus-ci-v0.10-main-wrong-run12345-attempt1"
+manifest_path.write_text(
+    json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_manifest_artifact_name_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_manifest_artifact_name_output" 2>&1; then
+  echo "Expected negative manifest artifact name fixture to fail validation" >&2
+  cat "$negative_manifest_artifact_name_output" >&2
+  exit 1
+fi
+grep -q "FAIL manifest artifact name" "$negative_manifest_artifact_name_output"
+rm -rf "$negative_manifest_artifact_name_fixture"
+rm -f "$negative_manifest_artifact_name_output"
 negative_manifest_metadata_fixture="$(mktemp -d)"
 negative_manifest_metadata_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_manifest_metadata_fixture"/
@@ -1554,6 +1583,7 @@ ruby scripts/resolve_ios_simulator_destination.rb --simctl-json "$simctl_fixture
 rm -f "$simctl_fixture"
 grep -q "IOS_SCHEME: ChronoFocus" .github/workflows/ci-results.yml
 grep -q "generic/platform=iOS" .github/workflows/ci-results.yml
+grep -q "\"artifactName\": os.environ\[\"ARTIFACT_NAME\"\]" .github/workflows/ci-results.yml
 grep -q "iosBuildOutcome" .github/workflows/ci-results.yml
 grep -q "ChronoFocus-iOS.xcresult" .github/workflows/ci-results.yml
 grep -q "ios-xcodebuild.log" .github/workflows/ci-results.yml

@@ -321,6 +321,10 @@ check(checks, "run context identity") do
     run_context["runAttempt"] == options["attempt"].to_s
 end
 check(checks, "run context artifact name") { run_context["artifactName"] == expected_artifact_name }
+check(checks, "manifest artifact name") do
+  manifest["artifactName"] == expected_artifact_name &&
+    manifest["artifactName"] == run_context["artifactName"]
+end
 
 entries_by_path = index.fetch("entries").each_with_object({}) do |entry, lookup|
   lookup[entry.fetch("path")] = entry

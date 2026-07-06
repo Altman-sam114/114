@@ -271,6 +271,7 @@ jobs:
 
           manifest = {
               "version": os.environ["CI_PROCESS_VERSION"],
+              "artifactName": os.environ["ARTIFACT_NAME"],
               "branch": os.environ["GITHUB_REF_NAME"],
               "commitSha": os.environ["GITHUB_SHA"],
               "shortSha": os.environ["SHORT_SHA"],
