@@ -62,6 +62,7 @@
 验证结果：
 
 - 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
+- 首个云端 run `28783215492` 的 Mac/iOS build 已通过，但 `Project verification` 因 `verify_project.sh` 中 heredoc 内误用 `ruby -e` 语法失败；已在后续 v0.70 修复 commit 中改为原生 Ruby 代码块。
 - 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
 
 遗留事项：

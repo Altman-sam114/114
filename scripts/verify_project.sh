@@ -527,7 +527,17 @@ raise "Mac mini preview quick button accessibility missing" unless mac_mini_quic
 raise "Mac mini detail quick button accessibility missing" unless mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开日程详情\"") && mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开统计详情\"") && mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开设置详情\"") && mac_mini_quick_panel_source.include?("Text(\"打开日程详情\")") && mac_mini_quick_panel_source.include?("Text(\"打开统计详情\")") && mac_mini_quick_panel_source.include?("Text(\"打开设置详情\")")
 puts "Mac mini quick panel accessibility contracts verified."
 
-ruby -e 'ios = File.read("ChronoFocus/Views/AnalyticsView.swift"); mac = File.read("ChronoFocusMac/Views/MacAnalyticsDetailView.swift"); [ios, mac].each do |source|; raise "analytics category share total missing" unless source.include?("private var categoryShareTotalSeconds: Int") && source.include?("store.categoryBreakdown().reduce(0) { $0 + $1.seconds }"); raise "analytics category share percent helper missing" unless source.include?("private func categorySharePercent(for seconds: Int) -> Int") && source.include?("Double(categoryShareTotalSeconds)") && source.include?(".rounded()"); raise "analytics category share visible percent missing" unless source.include?("Text(\"\\(categorySharePercent(for: item.seconds))%\")") && source.include?(".monospacedDigit()"); raise "analytics category share progress total missing" unless source.include?("total: Double(categoryShareTotalSeconds)"); raise "analytics category share accessibility label missing" unless source.include?("private func categoryShareAccessibilityLabel(for item: CategoryFocus) -> String") && source.include?("占分类投入 \\(categorySharePercent(for: item.seconds))%") && source.include?(".accessibilityLabel(categoryShareAccessibilityLabel(for: item))"); raise "analytics category share Voice Control labels missing" unless source.include?(".accessibilityElement(children: .ignore)") && source.include?("Text(\"\\(item.category)分类投入\")") && source.include?(".accessibilityInputLabels(["); end'
+[
+  File.read("ChronoFocus/Views/AnalyticsView.swift"),
+  File.read("ChronoFocusMac/Views/MacAnalyticsDetailView.swift")
+].each do |source|
+  raise "analytics category share total missing" unless source.include?("private var categoryShareTotalSeconds: Int") && source.include?("store.categoryBreakdown().reduce(0) { $0 + $1.seconds }")
+  raise "analytics category share percent helper missing" unless source.include?("private func categorySharePercent(for seconds: Int) -> Int") && source.include?("Double(categoryShareTotalSeconds)") && source.include?(".rounded()")
+  raise "analytics category share visible percent missing" unless source.include?("Text(\"\\(categorySharePercent(for: item.seconds))%\")") && source.include?(".monospacedDigit()")
+  raise "analytics category share progress total missing" unless source.include?("total: Double(categoryShareTotalSeconds)")
+  raise "analytics category share accessibility label missing" unless source.include?("private func categoryShareAccessibilityLabel(for item: CategoryFocus) -> String") && source.include?("占分类投入 \\(categorySharePercent(for: item.seconds))%") && source.include?(".accessibilityLabel(categoryShareAccessibilityLabel(for: item))")
+  raise "analytics category share Voice Control labels missing" unless source.include?(".accessibilityElement(children: .ignore)") && source.include?("Text(\"\\(item.category)分类投入\")") && source.include?(".accessibilityInputLabels([")
+end
 puts "Analytics category share accessibility contracts verified."
 
 assert_slice_contains(
