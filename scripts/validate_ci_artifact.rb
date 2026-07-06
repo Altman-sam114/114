@@ -7,6 +7,8 @@ require "optparse"
 require "rexml/document"
 require "time"
 
+EXPECTED_CI_PROCESS_VERSION = "v0.10"
+
 EXPECTED_SNAPSHOTS = %w[
   mini-timer.png
   detail-timer.png
@@ -287,7 +289,7 @@ snapshot_manifest = read_json(snapshot_manifest_path)
 junit = REXML::Document.new(File.read(junit_path, encoding: "UTF-8")).root
 branch_slug = options["branch"].gsub("/", "-")
 short_sha = options["commit"][0, 7]
-expected_artifact_name = "chronofocus-ci-#{manifest["version"]}-#{branch_slug}-#{short_sha}-run#{options["run_id"]}-attempt#{options["attempt"]}"
+expected_artifact_name = "chronofocus-ci-#{EXPECTED_CI_PROCESS_VERSION}-#{branch_slug}-#{short_sha}-run#{options["run_id"]}-attempt#{options["attempt"]}"
 
 check(checks, "artifact dir exists") { File.directory?(artifact_dir) }
 check(checks, "manifest branch") { manifest["branch"] == options["branch"] }
@@ -295,6 +297,10 @@ check(checks, "manifest commit") { manifest["commitSha"] == options["commit"] }
 check(checks, "manifest run") { manifest["runId"] == options["run_id"] }
 check(checks, "manifest attempt") { manifest["runAttempt"] == options["attempt"].to_s }
 check(checks, "manifest short sha") { manifest["shortSha"] == short_sha }
+check(checks, "ci process version") do
+  manifest["version"] == EXPECTED_CI_PROCESS_VERSION &&
+    index["version"] == EXPECTED_CI_PROCESS_VERSION
+end
 check(checks, "manifest metadata") do
   EXPECTED_MANIFEST_METADATA.all? { |key, expected_value| manifest[key] == expected_value }
 end

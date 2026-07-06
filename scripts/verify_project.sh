@@ -611,6 +611,8 @@ echo "Checking CI result package markers..."
 ruby -c scripts/validate_ci_artifact.rb >/dev/null
 ruby -c scripts/resolve_ios_simulator_destination.rb >/dev/null
 grep -q "ci-artifact-manifest.json" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_CI_PROCESS_VERSION = \"v0.10\"" scripts/validate_ci_artifact.rb
+grep -q "ci process version" scripts/validate_ci_artifact.rb
 grep -q "missingRequiredCount" scripts/validate_ci_artifact.rb
 grep -q "require \"find\"" scripts/validate_ci_artifact.rb
 grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
@@ -635,6 +637,7 @@ grep -q "xcode version log" scripts/validate_ci_artifact.rb
 grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_junit_fixture" scripts/verify_project.sh
+grep -q "stale_process_version_fixture" scripts/verify_project.sh
 grep -q "negative_junit_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_summary_marker_fixture" scripts/verify_project.sh
 grep -q "negative_task_action_marker_fixture" scripts/verify_project.sh
@@ -651,6 +654,7 @@ grep -q "unexpected_local_artifact_fixture" scripts/verify_project.sh
 grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
 grep -q "mismatched_local_artifact_fixture" scripts/verify_project.sh
 grep -q "FAIL junit testcase outcomes" scripts/verify_project.sh
+grep -q "FAIL ci process version" scripts/verify_project.sh
 grep -q "FAIL junit metadata" scripts/verify_project.sh
 grep -q "FAIL verify_project category summary action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project schedule task action accessibility contracts" scripts/verify_project.sh
@@ -933,6 +937,58 @@ for _ in range(5):
     last_size = new_size
 PY
 ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >/dev/null
+stale_process_version_fixture="$(mktemp -d)"
+stale_process_version_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$stale_process_version_fixture"/
+python3 - "$stale_process_version_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+
+manifest_path = root / "ci-artifact-manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+manifest["version"] = "v0.09"
+manifest_path.write_text(
+    json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+index["version"] = "v0.09"
+index_path.write_text(
+    json.dumps(index, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+
+summary_path = root / "ci-failure-summary.md"
+summary_path.write_text(
+    summary_path.read_text(encoding="utf-8").replace(
+        "Version: `v0.10`",
+        "Version: `v0.09`",
+    ),
+    encoding="utf-8",
+)
+
+context_path = root / "ci-run-context.txt"
+context_path.write_text(
+    context_path.read_text(encoding="utf-8").replace(
+        "chronofocus-ci-v0.10-main-fixture-run12345-attempt1",
+        "chronofocus-ci-v0.09-main-fixture-run12345-attempt1",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$stale_process_version_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$stale_process_version_output" 2>&1; then
+  echo "Expected stale process version fixture to fail validation" >&2
+  cat "$stale_process_version_output" >&2
+  exit 1
+fi
+grep -q "FAIL ci process version" "$stale_process_version_output"
+rm -rf "$stale_process_version_fixture"
+rm -f "$stale_process_version_output"
 negative_summary_marker_fixture="$(mktemp -d)"
 negative_summary_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_summary_marker_fixture"/
