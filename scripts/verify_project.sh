@@ -677,8 +677,10 @@ grep -q "run context identity" scripts/validate_ci_artifact.rb
 grep -q "run context artifact name" scripts/validate_ci_artifact.rb
 grep -q "manifest artifact name" scripts/validate_ci_artifact.rb
 grep -q "negative_junit_fixture" scripts/verify_project.sh
+grep -q "negative_junit_errors_fixture" scripts/verify_project.sh
 grep -q "stale_process_version_fixture" scripts/verify_project.sh
 grep -q "negative_junit_metadata_fixture" scripts/verify_project.sh
+grep -q "negative_junit_failure_element_fixture" scripts/verify_project.sh
 grep -q "negative_summary_marker_fixture" scripts/verify_project.sh
 grep -q "negative_task_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_plan_start_marker_fixture" scripts/verify_project.sh
@@ -696,7 +698,9 @@ grep -q "unexpected_index_entry_fixture" scripts/verify_project.sh
 grep -q "unexpected_local_artifact_fixture" scripts/verify_project.sh
 grep -q "missing_local_artifact_fixture" scripts/verify_project.sh
 grep -q "mismatched_local_artifact_fixture" scripts/verify_project.sh
+grep -q "FAIL junit errors" scripts/verify_project.sh
 grep -q "FAIL junit testcase outcomes" scripts/verify_project.sh
+grep -q "FAIL junit failure elements" scripts/verify_project.sh
 grep -q "FAIL ci process version" scripts/verify_project.sh
 grep -q "FAIL junit metadata" scripts/verify_project.sh
 grep -q "FAIL verify_project category summary action contracts" scripts/verify_project.sh
@@ -735,7 +739,9 @@ grep -q "failure summary identity" scripts/validate_ci_artifact.rb
 grep -q "failure summary outcomes" scripts/validate_ci_artifact.rb
 grep -q "junit metadata" scripts/validate_ci_artifact.rb
 grep -q "junit testcase names" scripts/validate_ci_artifact.rb
+grep -q "junit errors" scripts/validate_ci_artifact.rb
 grep -q "junit testcase outcomes" scripts/validate_ci_artifact.rb
+grep -q "junit failure elements" scripts/validate_ci_artifact.rb
 grep -q "snapshot manifest generated at" scripts/validate_ci_artifact.rb
 grep -q "snapshot byte counts" scripts/validate_ci_artifact.rb
 grep -q "xcrun.*simctl" scripts/resolve_ios_simulator_destination.rb
@@ -827,7 +833,7 @@ tests = [
     ("macBuild", "ci-results/xcodebuild.log"),
     ("iosBuild", "ci-results/ios-xcodebuild.log"),
 ]
-suite = ET.Element("testsuite", name="ChronoFocus CI Results", tests="4", failures="0")
+suite = ET.Element("testsuite", name="ChronoFocus CI Results", tests="4", failures="0", errors="0")
 for name, log_path in tests:
     case = ET.SubElement(suite, "testcase", name=name, classname="ChronoFocusCI")
     ET.SubElement(case, "system-out").text = f"outcome=success; log={log_path}"
@@ -1263,6 +1269,28 @@ fi
 grep -q "FAIL junit metadata" "$negative_junit_metadata_output"
 rm -rf "$negative_junit_metadata_fixture"
 rm -f "$negative_junit_metadata_output"
+negative_junit_errors_fixture="$(mktemp -d)"
+negative_junit_errors_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_junit_errors_fixture"/
+python3 - "$negative_junit_errors_fixture" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+root = Path(sys.argv[1])
+junit_path = root / "junit.xml"
+tree = ET.parse(junit_path)
+tree.getroot().set("errors", "1")
+tree.write(junit_path, encoding="utf-8", xml_declaration=True)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_junit_errors_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_junit_errors_output" 2>&1; then
+  echo "Expected negative JUnit errors fixture to fail validation" >&2
+  cat "$negative_junit_errors_output" >&2
+  exit 1
+fi
+grep -q "FAIL junit errors" "$negative_junit_errors_output"
+rm -rf "$negative_junit_errors_fixture"
+rm -f "$negative_junit_errors_output"
 negative_junit_fixture="$(mktemp -d)"
 negative_junit_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_junit_fixture"/
@@ -1288,6 +1316,31 @@ fi
 grep -q "FAIL junit testcase outcomes" "$negative_junit_output"
 rm -rf "$negative_junit_fixture"
 rm -f "$negative_junit_output"
+negative_junit_failure_element_fixture="$(mktemp -d)"
+negative_junit_failure_element_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_junit_failure_element_fixture"/
+python3 - "$negative_junit_failure_element_fixture" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+root = Path(sys.argv[1])
+junit_path = root / "junit.xml"
+tree = ET.parse(junit_path)
+for testcase in tree.getroot().findall("testcase"):
+    if testcase.get("name") == "projectVerification":
+        ET.SubElement(testcase, "failure", message="projectVerification failure").text = "unexpected failure element"
+        break
+tree.write(junit_path, encoding="utf-8", xml_declaration=True)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_junit_failure_element_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_junit_failure_element_output" 2>&1; then
+  echo "Expected negative JUnit failure element fixture to fail validation" >&2
+  cat "$negative_junit_failure_element_output" >&2
+  exit 1
+fi
+grep -q "FAIL junit failure elements" "$negative_junit_failure_element_output"
+rm -rf "$negative_junit_failure_element_fixture"
+rm -f "$negative_junit_failure_element_output"
 negative_artifact_fixture="$(mktemp -d)"
 negative_artifact_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_artifact_fixture"/
@@ -1584,6 +1637,7 @@ rm -f "$simctl_fixture"
 grep -q "IOS_SCHEME: ChronoFocus" .github/workflows/ci-results.yml
 grep -q "generic/platform=iOS" .github/workflows/ci-results.yml
 grep -q "\"artifactName\": os.environ\[\"ARTIFACT_NAME\"\]" .github/workflows/ci-results.yml
+grep -q "errors=\"0\"" .github/workflows/ci-results.yml
 grep -q "iosBuildOutcome" .github/workflows/ci-results.yml
 grep -q "ChronoFocus-iOS.xcresult" .github/workflows/ci-results.yml
 grep -q "ios-xcodebuild.log" .github/workflows/ci-results.yml

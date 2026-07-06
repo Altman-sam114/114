@@ -349,6 +349,7 @@ jobs:
               name="ChronoFocus CI Results",
               tests=str(len(tests)),
               failures=str(sum(1 for _, outcome, _ in tests if outcome != "success")),
+              errors="0",
           )
           for name, outcome, log_path in tests:
               case = ET.SubElement(suite, "testcase", name=name, classname="ChronoFocusCI")

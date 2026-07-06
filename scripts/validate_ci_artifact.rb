@@ -417,6 +417,7 @@ end
 
 check(checks, "junit tests") { junit.attributes["tests"] == "4" }
 check(checks, "junit failures") { junit.attributes["failures"] == "0" }
+check(checks, "junit errors") { junit.attributes["errors"] == "0" }
 testcases = junit.get_elements("testcase")
 testcase_names = testcases.map { |testcase| testcase.attributes["name"] }
 check(checks, "junit metadata") do
@@ -434,6 +435,11 @@ check(checks, "junit testcase outcomes") do
   testcases.all? do |testcase|
     expected_key = EXPECTED_JUNIT_OUTCOMES[testcase.attributes["name"]]
     expected_key && testcase.get_text("system-out").to_s.include?("outcome=#{manifest[expected_key]};")
+  end
+end
+check(checks, "junit failure elements") do
+  testcases.all? do |testcase|
+    testcase.get_elements("failure").empty? && testcase.get_elements("error").empty?
   end
 end
 summary = File.read(summary_path, encoding: "UTF-8")
