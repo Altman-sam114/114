@@ -275,7 +275,7 @@ private struct MacMiniTaskPickerView: View {
         if engine.isRunning && !isSelected {
             return "计时运行中不可切换当前待办"
         }
-        isSelected ? "这是当前番茄钟待办" : "选择此待办作为当前番茄钟任务"
+        return isSelected ? "这是当前番茄钟待办" : "选择此待办作为当前番茄钟任务"
     }
 
     private func selectionAccessibilityTraits(isSelected: Bool) -> AccessibilityTraits {
