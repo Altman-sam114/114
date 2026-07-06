@@ -14,13 +14,13 @@
 - 分类筛选会优先展示当前范围内有待办的分类，选中分类后待办标题显示筛选数/总数；再次点击已选分类、点击“全部”或从筛选摘要清除都能退出筛选，VoiceOver 会读出已选状态和点击后的筛选/清除动作，分类 chip 也会暴露 selected trait，并提供分类名 Voice Control 指令标签；筛选摘要会读出可新增或清除动作，摘要新增/清除按钮也提供分类名可访问标签和 Voice Control 输入标签，减少在空分类间来回查找。
 - 计时页的当前日程也可按分类筛选，选中分类后显示当前筛选摘要、可启动待办数和清除入口，摘要和空分类清除入口具备 44pt 点击区、分类名可访问标签和 Voice Control 输入标签，任务行会显示带可访问标签和 Voice Control 分类名输入标签的分类 badge，当前任务选择行会读出已选中状态、选择提示、运行中不可切换提示，并支持任务名和分类名 Voice Control 输入标签，方便从待办直接进入专注。
 - 待办支持“按轮次”和“只设开始”两种模式；只设开始的任务由用户手动完成，实际用时会计入统计。
-- 根据日程任务按截止时间自动生成可执行的番茄钟计划，可从计划项直接开始专注。
+- 根据日程任务按截止时间自动生成可执行的番茄钟计划，可从计划项直接开始专注；计划项开始按钮会读出任务名、时间段和轮次，并支持按任务名 Voice Control 启动。
 - 统计页作为 Pro 内购功能：普通用户可体验今日概览和 Pro 预览，Pro 用户解锁近 7 日、分类投入、最近记录、工作压力、任务安排分析，以及日/周/月工作复盘报表。
 - Pro 可同步 iPhone 日历，Siri 语音创建的系统日程可在同步后自动转为 ChronoFocus 待办。
 - 使用 StoreKit 2 购买/恢复 Pro 权益，内购商品 ID 为 `com.example.ChronoFocus.pro.analytics`。
 - 使用本地通知在番茄钟结束和日程到期时提醒，并按设置播放系统铃声。
 - 使用 ActivityKit Live Activity 在锁屏、通知栏和灵动岛显示后台倒计时。
-- macOS 版提供状态栏剩余时间、弹出式极简计时器、带分类和时间上下文的当前待办、可直达日程/统计/设置的快捷面板、详细功能窗口、任务行常驻分类 badge、日历日期格状态和 Voice Control 输入标签、任务行完成/启用/删除操作任务名语义、分类筛选快速新增预填提示、连续快速新增时保留刚使用的分类、任务行和小窗分类 badge 支持分类名 Voice Control 输入标签并优先使用预设色，当前任务选择行会读出已选中状态、选择提示、运行中不可切换提示，并支持任务名和分类名 Voice Control 输入标签，带分类名可访问语义和稳定点击区的筛选摘要新增/清除按钮和筛选/总数计数、桌面通知、触觉反馈、Pro 统计和 Mac 日历同步。
+- macOS 版提供状态栏剩余时间、弹出式极简计时器、带分类和时间上下文的当前待办、可直达日程/统计/设置的快捷面板、详细功能窗口、任务行常驻分类 badge、日历日期格状态和 Voice Control 输入标签、任务行完成/启用/删除操作任务名语义、计划项开始按钮任务名/时间段/轮次语义、分类筛选快速新增预填提示、连续快速新增时保留刚使用的分类、任务行和小窗分类 badge 支持分类名 Voice Control 输入标签并优先使用预设色，当前任务选择行会读出已选中状态、选择提示、运行中不可切换提示，并支持任务名和分类名 Voice Control 输入标签，带分类名可访问语义和稳定点击区的筛选摘要新增/清除按钮和筛选/总数计数、桌面通知、触觉反馈、Pro 统计和 Mac 日历同步。
 - 通知权限未授权时可在 App 内请求；用户拒绝后会引导到系统设置。
 - 所有核心数据使用 `UserDefaults` JSON 持久化，重启后可恢复。
 
@@ -76,7 +76,7 @@ ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
 
 该脚本会在 `DEVELOPER_DIR` 未设置且本机存在 `/Applications/Xcode.app/Contents/Developer` 时自动使用完整 Xcode，避免 `xcode-select` 指向 Command Line Tools 时找不到 `simctl`；如果你已设置 `DEVELOPER_DIR`，打印的 build 命令会沿用该路径。
 
-验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、筛选摘要动作提示、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区和分类快捷新增、iOS 日程筛选计数、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名语义、计时页分类筛选摘要、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、分类摘要插入点和动作接线检查、Mac 待办筛选计数、Mac 分类摘要快捷新增、Mac 快速新增分类预填和连续新增保留分类、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 分类预填提示、Mac 日历权限说明、CI validator 正向、分类摘要 marker 缺失负向 fixture、日程任务操作 marker 缺失负向 fixture、JUnit 元数据负向 fixture、artifactName mismatch 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向 fixture、本地缺失产物负向 fixture、额外 artifact 文件负向 fixture、static-checks 日志 marker、分类摘要动作 contract 日志复判、分类 chip 可访问 contract 日志复判和日程任务操作 contract 日志复判、Mac 快照 manifest generatedAt 与 byteCount 复判，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
+验证内容包括工程文件和 plist 语法、Swift 文件 target 引用、iOS Live Activity 配置、本地通知/铃声/音色/振动、Pro 内购、EventKit 日历同步、统计分析报表、分类筛选、分类 chip 点击切换、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、筛选摘要动作提示、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区和分类快捷新增、iOS 日程筛选计数、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、计时页分类筛选摘要、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、分类摘要插入点和动作接线检查、Mac 待办筛选计数、Mac 分类摘要快捷新增、Mac 快速新增分类预填和连续新增保留分类、自动番茄钟计划、日历式日程核心实现标记、macOS 状态栏应用配置、Mac 小窗快捷入口、Mac 分类预填提示、Mac 日历权限说明、CI validator 正向、分类摘要 marker 缺失负向 fixture、日程任务操作 marker 缺失负向 fixture、计划开始 marker 缺失负向 fixture、JUnit 元数据负向 fixture、artifactName mismatch 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向 fixture、本地缺失产物负向 fixture、额外 artifact 文件负向 fixture、static-checks 日志 marker、分类摘要动作 contract 日志复判、分类 chip 可访问 contract 日志复判、日程任务操作 contract 日志复判和计划开始 contract 日志复判、Mac 快照 manifest generatedAt 与 byteCount 复判，以及 AppIcon PNG 资源存在性。App 图标可通过 `python3 scripts/generate_app_icon.py` 重新生成。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 

@@ -1014,7 +1014,12 @@ private struct PomodoroPlanRow: View {
             .buttonStyle(.borderedProminent)
             .tint(Color(hex: item.accentHex))
             .disabled(item.isCompleted || isRunning)
-            .accessibilityLabel("开始计划番茄钟")
+            .accessibilityLabel("开始\(item.taskTitle)计划番茄钟，\(item.timeRangeText)，第 \(item.roundNumber) 轮，\(item.category)分类")
+            .accessibilityInputLabels([
+                Text("开始\(item.taskTitle)"),
+                Text("\(item.taskTitle)第 \(item.roundNumber) 轮"),
+                Text("\(item.category)分类开始")
+            ])
         }
         .padding(12)
         .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
