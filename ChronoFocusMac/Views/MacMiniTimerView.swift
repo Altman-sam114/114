@@ -222,6 +222,7 @@ private struct MacMiniTaskPickerView: View {
             }
 
             ForEach(store.upcomingTasks().prefix(3)) { task in
+                let isSelected = engine.selectedTaskID == task.id
                 Button {
                     guard !engine.isRunning else { return }
                     engine.selectTask(task)
@@ -248,6 +249,10 @@ private struct MacMiniTaskPickerView: View {
                     .padding(.vertical, 6)
                     .padding(.horizontal, 10)
                     .background(rowBackground(for: task), in: RoundedRectangle(cornerRadius: 8))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText(isSelected: isSelected))")
+                    .accessibilityHint(selectionHintText(isSelected: isSelected))
+                    .accessibilityAddTraits(selectionAccessibilityTraits(isSelected: isSelected))
                 }
                 .buttonStyle(.plain)
                 .disabled(engine.isRunning)
@@ -259,6 +264,18 @@ private struct MacMiniTaskPickerView: View {
 
     private func rowBackground(for task: FocusTask) -> Color {
         engine.selectedTaskID == task.id ? currentTint.opacity(0.18) : Color.white.opacity(0.05)
+    }
+
+    private func selectionStateText(isSelected: Bool) -> String {
+        isSelected ? "已选中当前待办" : "未选中"
+    }
+
+    private func selectionHintText(isSelected: Bool) -> String {
+        isSelected ? "这是当前番茄钟待办" : "选择此待办作为当前番茄钟任务"
+    }
+
+    private func selectionAccessibilityTraits(isSelected: Bool) -> AccessibilityTraits {
+        isSelected ? [.isSelected] : []
     }
 
     private func taskContextText(for task: FocusTask) -> String {

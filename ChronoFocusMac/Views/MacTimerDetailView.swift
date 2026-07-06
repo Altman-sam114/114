@@ -273,6 +273,18 @@ struct MacTaskRowView: View {
         categoryPreset?.symbolName ?? "tag.fill"
     }
 
+    private var selectionStateText: String {
+        isSelected ? "已选中当前待办" : "未选中"
+    }
+
+    private var selectionHintText: String {
+        isSelected ? "这是当前番茄钟待办" : "选择此待办作为当前番茄钟任务"
+    }
+
+    private var selectionAccessibilityTraits: AccessibilityTraits {
+        isSelected ? [.isSelected] : []
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle.fill")
@@ -307,6 +319,10 @@ struct MacTaskRowView: View {
         }
         .padding(10)
         .background(isSelected ? categoryTint.opacity(0.16) : Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText)")
+        .accessibilityHint(selectionHintText)
+        .accessibilityAddTraits(selectionAccessibilityTraits)
     }
 }
 

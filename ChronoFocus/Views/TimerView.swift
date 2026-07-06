@@ -352,6 +352,18 @@ private struct TaskRow: View {
     let task: FocusTask
     let isSelected: Bool
 
+    private var selectionStateText: String {
+        isSelected ? "已选中当前待办" : "未选中"
+    }
+
+    private var selectionHintText: String {
+        isSelected ? "这是当前番茄钟待办" : "选择此待办作为当前番茄钟任务"
+    }
+
+    private var selectionAccessibilityTraits: AccessibilityTraits {
+        isSelected ? [.isSelected] : []
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Circle()
@@ -389,6 +401,10 @@ private struct TaskRow: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(isSelected ? Color(hex: task.accentHex).opacity(0.7) : AppTheme.border, lineWidth: 1)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText)")
+        .accessibilityHint(selectionHintText)
+        .accessibilityAddTraits(selectionAccessibilityTraits)
     }
 }
 
