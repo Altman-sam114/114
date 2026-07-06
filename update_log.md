@@ -60,7 +60,8 @@
 验证结果：
 
 - 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
-- 云端结论以本轮 push 后 Agent C 下载的最新 `origin/main` artifact 为准。
+- GitHub Actions `ChronoFocus CI Results` run `28804310685` attempt `1`（commit `79ea6b04311f2d9cc9f7f0f417466a6ba3519772`）通过。
+- Agent C 下载 artifact `chronofocus-ci-v0.10-main-79ea6b0-run28804310685-attempt1` 至 `/private/tmp/chronofocus-c-review-28804310685/`，运行 `ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-28804310685 --commit 79ea6b04311f2d9cc9f7f0f417466a6ba3519772 --run-id 28804310685 --attempt 1` 通过，包含 `PASS verify_project category filter toggle contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
 
 遗留事项：
 
