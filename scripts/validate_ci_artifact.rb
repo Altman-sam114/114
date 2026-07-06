@@ -548,6 +548,9 @@ end
 check(checks, "verify_project analytics recent session category contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Analytics recent session category contracts verified.")
 end
+check(checks, "verify_project analytics plan review category accessibility contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Analytics plan review category accessibility contracts verified.")
+end
 check(checks, "verify_project category filter toggle contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Category filter toggle contracts verified.")
 end

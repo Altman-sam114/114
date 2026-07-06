@@ -603,6 +603,14 @@ raise "iOS analytics recent session accessibility label missing" unless ios_anal
 raise "iOS analytics recent session Voice Control labels missing" unless ios_analytics_source.include?(".accessibilityInputLabels([") && ios_analytics_source.include?("Text(session.category)") && ios_analytics_source.include?("Text(\"\\(session.category)分类\")") && ios_analytics_source.include?("Text(\"\\(session.category)分类记录\")")
 raise "iOS analytics recent session category badge accessibility missing" unless ios_analytics_source.include?(".accessibilityLabel(\"\\(category)分类\")") && ios_analytics_source.include?(".accessibilityInputLabels([Text(category), Text(\"\\(category)分类\")])")
 
+raise "iOS analytics plan review category badge missing" unless ios_analytics_source.include?("AnalyticsPlanReviewCategoryBadge(item: item)") && ios_analytics_source.include?("private struct AnalyticsPlanReviewCategoryBadge")
+raise "iOS analytics plan review category preset missing" unless ios_analytics_source.include?("TaskCategoryPreset.matching(item.category)") && ios_analytics_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"") && ios_analytics_source.include?("Color(hex: categoryPreset?.accentHex ?? item.accentHex)")
+raise "iOS analytics plan review category badge visible label missing" unless ios_analytics_source.include?("Label(item.category, systemImage: categorySymbolName)")
+raise "iOS analytics plan review accessibility label missing" unless ios_analytics_source.include?("private func planReviewAccessibilityLabel(for item: PomodoroPlanItem) -> String") && ios_analytics_source.include?("\\(item.taskTitle)，\\(item.category)分类，计划开始 \\(item.scheduledStart.scheduleTimeText)，第 \\(item.roundNumber) 轮") && ios_analytics_source.include?(".accessibilityLabel(planReviewAccessibilityLabel(for: item))")
+raise "iOS analytics plan review Voice Control labels missing" unless ios_analytics_source.include?("Text(item.taskTitle)") && ios_analytics_source.include?("Text(item.category)") && ios_analytics_source.include?("Text(\"\\(item.category)分类\")") && ios_analytics_source.include?("Text(\"\\(item.category)分类计划\")")
+raise "iOS analytics plan review category badge accessibility missing" unless ios_analytics_source.include?(".accessibilityLabel(\"\\(item.category)分类\")") && ios_analytics_source.include?(".accessibilityInputLabels([Text(item.category), Text(\"\\(item.category)分类\")])")
+puts "Analytics plan review category accessibility contracts verified."
+
 mac_analytics_source = File.read("ChronoFocusMac/Views/MacAnalyticsDetailView.swift")
 raise "Mac analytics recent session category badge missing" unless mac_analytics_source.include?("MacRecentSessionCategoryBadgeView(category: session.category)") && mac_analytics_source.include?("private struct MacRecentSessionCategoryBadgeView")
 raise "Mac analytics recent session category preset missing" unless mac_analytics_source.include?("TaskCategoryPreset.matching(category)") && mac_analytics_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"") && mac_analytics_source.include?("Color(hex: categoryPreset?.accentHex ?? \"#7C8CF8\")")
@@ -793,6 +801,7 @@ grep -q "Category input context contracts verified." scripts/validate_ci_artifac
 grep -q "Mac mini quick panel accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics category share accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics recent session category contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Analytics plan review category accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category filter toggle contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Current task selection accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Timer action accessibility contracts verified." scripts/validate_ci_artifact.rb
@@ -829,6 +838,7 @@ grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.
 grep -q "negative_mac_mini_quick_panel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_category_share_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_recent_session_marker_fixture" scripts/verify_project.sh
+grep -q "negative_analytics_plan_review_marker_fixture" scripts/verify_project.sh
 grep -q "negative_category_filter_toggle_marker_fixture" scripts/verify_project.sh
 grep -q "negative_current_task_selection_marker_fixture" scripts/verify_project.sh
 grep -q "negative_timer_action_marker_fixture" scripts/verify_project.sh
@@ -860,6 +870,7 @@ grep -q "FAIL verify_project category input context contracts" scripts/verify_pr
 grep -q "FAIL verify_project mac mini quick panel accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics category share accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics recent session category contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project analytics plan review category accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category filter toggle contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project current task selection accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project timer action accessibility contracts" scripts/verify_project.sh
@@ -923,7 +934,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics recent session category contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1501,6 +1512,31 @@ fi
 grep -q "FAIL verify_project analytics recent session category contracts" "$negative_analytics_recent_session_marker_output"
 rm -rf "$negative_analytics_recent_session_marker_fixture"
 rm -f "$negative_analytics_recent_session_marker_output"
+negative_analytics_plan_review_marker_fixture="$(mktemp -d)"
+negative_analytics_plan_review_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_analytics_plan_review_marker_fixture"/
+python3 - "$negative_analytics_plan_review_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Analytics plan review category accessibility contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_analytics_plan_review_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_analytics_plan_review_marker_output" 2>&1; then
+  echo "Expected negative analytics plan review marker fixture to fail validation" >&2
+  cat "$negative_analytics_plan_review_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project analytics plan review category accessibility contracts" "$negative_analytics_plan_review_marker_output"
+rm -rf "$negative_analytics_plan_review_marker_fixture"
+rm -f "$negative_analytics_plan_review_marker_output"
 negative_category_filter_toggle_marker_fixture="$(mktemp -d)"
 negative_category_filter_toggle_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_category_filter_toggle_marker_fixture"/

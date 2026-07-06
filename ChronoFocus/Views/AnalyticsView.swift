@@ -284,19 +284,37 @@ struct AnalyticsView: View {
                             .foregroundStyle(AppTheme.secondaryText)
                     } else {
                         ForEach(store.pomodoroPlan.sorted(by: { $0.scheduledStart > $1.scheduledStart }).prefix(8)) { item in
-                            HStack {
+                            HStack(alignment: .top, spacing: 10) {
                                 Circle()
                                     .fill(Color(hex: item.accentHex))
                                     .frame(width: 8, height: 8)
-                                Text(item.taskTitle)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppTheme.primaryText)
-                                    .lineLimit(1)
+                                    .padding(.top, 6)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(item.taskTitle)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.primaryText)
+                                        .lineLimit(1)
+                                    HStack(spacing: 6) {
+                                        AnalyticsPlanReviewCategoryBadge(item: item)
+                                        Text("第 \(item.roundNumber) 轮")
+                                            .font(.caption2)
+                                            .foregroundStyle(AppTheme.secondaryText)
+                                            .lineLimit(1)
+                                    }
+                                }
                                 Spacer()
                                 Text(item.scheduledStart.scheduleTimeText)
                                     .font(.caption2)
                                     .foregroundStyle(AppTheme.secondaryText)
                             }
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(planReviewAccessibilityLabel(for: item))
+                            .accessibilityInputLabels([
+                                Text(item.taskTitle),
+                                Text(item.category),
+                                Text("\(item.category)分类"),
+                                Text("\(item.category)分类计划")
+                            ])
                         }
                     }
                 }
@@ -483,12 +501,44 @@ struct AnalyticsView: View {
         return "\(session.taskTitle)，\(session.category)分类，\(session.mode.title)，\(session.startedAt.scheduleTimeText)，\(session.actualSeconds.hourMinuteText)，\(completionText)"
     }
 
+    private func planReviewAccessibilityLabel(for item: PomodoroPlanItem) -> String {
+        "\(item.taskTitle)，\(item.category)分类，计划开始 \(item.scheduledStart.scheduleTimeText)，第 \(item.roundNumber) 轮"
+    }
+
     private var pressureTint: Color {
         switch analysis.pressureLevel {
         case "高": return .red
         case "中": return .orange
         default: return .mint
         }
+    }
+}
+
+private struct AnalyticsPlanReviewCategoryBadge: View {
+    let item: PomodoroPlanItem
+
+    private var categoryPreset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(item.category)
+    }
+
+    private var categorySymbolName: String {
+        categoryPreset?.symbolName ?? "tag.fill"
+    }
+
+    private var tint: Color {
+        Color(hex: categoryPreset?.accentHex ?? item.accentHex)
+    }
+
+    var body: some View {
+        Label(item.category, systemImage: categorySymbolName)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(tint)
+            .lineLimit(1)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(tint.opacity(0.12), in: Capsule())
+            .accessibilityLabel("\(item.category)分类")
+            .accessibilityInputLabels([Text(item.category), Text("\(item.category)分类")])
     }
 }
 
