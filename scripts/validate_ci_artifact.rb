@@ -554,6 +554,9 @@ end
 check(checks, "verify_project analytics category share session count contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Analytics category share session count contracts verified.")
 end
+check(checks, "verify_project analytics category share ranking contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Analytics category share ranking contracts verified.")
+end
 check(checks, "verify_project analytics recent session category contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Analytics recent session category contracts verified.")
 end

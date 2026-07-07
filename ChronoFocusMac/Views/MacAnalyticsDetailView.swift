@@ -417,15 +417,19 @@ private struct MacCategoryChartPanelView: View {
                         .foregroundStyle(MacTheme.secondaryText)
                         .frame(minHeight: 170)
                 } else {
-                    ForEach(store.categoryBreakdown()) { item in
+                    ForEach(Array(store.categoryBreakdown().enumerated()), id: \.element.id) { index, item in
+                        let rank = index + 1
                         VStack(alignment: .leading, spacing: 7) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Label(item.category, systemImage: "circle.fill")
                                         .foregroundStyle(Color(hex: item.accentHex))
-                                    Text(categoryShareSessionCountText(for: item))
-                                        .font(.caption2.weight(.medium))
-                                        .foregroundStyle(MacTheme.secondaryText)
+                                    HStack(spacing: 6) {
+                                        Text(categoryShareSessionCountText(for: item))
+                                        Text(categoryShareRankText(for: rank))
+                                    }
+                                    .font(.caption2.weight(.medium))
+                                    .foregroundStyle(MacTheme.secondaryText)
                                 }
                                 Spacer()
                                 Text(item.seconds.hourMinuteText)
@@ -447,12 +451,14 @@ private struct MacCategoryChartPanelView: View {
                             )
                         }
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(categoryShareAccessibilityLabel(for: item))
+                        .accessibilityLabel(categoryShareAccessibilityLabel(for: item, rank: rank))
                         .accessibilityInputLabels([
                             Text(item.category),
                             Text("\(item.category)分类"),
                             Text("\(item.category)分类投入"),
-                            Text("\(item.category)分类\(item.sessionCount)次专注")
+                            Text("\(item.category)分类\(item.sessionCount)次专注"),
+                            Text("第\(rank)位分类"),
+                            Text("\(item.category)第\(rank)位")
                         ])
                     }
                 }
@@ -469,8 +475,12 @@ private struct MacCategoryChartPanelView: View {
         "\(item.sessionCount) 次专注"
     }
 
-    private func categoryShareAccessibilityLabel(for item: CategoryFocus) -> String {
-        "\(item.category)分类投入，\(item.seconds.hourMinuteText)，\(item.sessionCount)次专注，占分类投入 \(categorySharePercent(for: item.seconds))%"
+    private func categoryShareRankText(for rank: Int) -> String {
+        "第 \(rank) 位"
+    }
+
+    private func categoryShareAccessibilityLabel(for item: CategoryFocus, rank: Int) -> String {
+        "\(item.category)分类投入，第\(rank)位，\(item.seconds.hourMinuteText)，\(item.sessionCount)次专注，占分类投入 \(categorySharePercent(for: item.seconds))%"
     }
 
     private var categoryShareTotalSeconds: Int {

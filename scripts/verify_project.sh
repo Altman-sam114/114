@@ -601,7 +601,7 @@ puts "Mac mini quick panel accessibility contracts verified."
   raise "analytics category share percent helper missing" unless source.include?("private func categorySharePercent(for seconds: Int) -> Int") && source.include?("Double(categoryShareTotalSeconds)") && source.include?(".rounded()")
   raise "analytics category share visible percent missing" unless source.include?("Text(\"\\(categorySharePercent(for: item.seconds))%\")") && source.include?(".monospacedDigit()")
   raise "analytics category share progress total missing" unless source.include?("total: Double(categoryShareTotalSeconds)")
-  raise "analytics category share accessibility label missing" unless source.include?("private func categoryShareAccessibilityLabel(for item: CategoryFocus) -> String") && source.include?("占分类投入 \\(categorySharePercent(for: item.seconds))%") && source.include?(".accessibilityLabel(categoryShareAccessibilityLabel(for: item))")
+  raise "analytics category share accessibility label missing" unless source.include?("private func categoryShareAccessibilityLabel(for item: CategoryFocus, rank: Int) -> String") && source.include?("占分类投入 \\(categorySharePercent(for: item.seconds))%") && source.include?(".accessibilityLabel(categoryShareAccessibilityLabel(for: item, rank: rank))")
   raise "analytics category share Voice Control labels missing" unless source.include?(".accessibilityElement(children: .ignore)") && source.include?("Text(\"\\(item.category)分类投入\")") && source.include?(".accessibilityInputLabels([")
 end
 puts "Analytics category share accessibility contracts verified."
@@ -619,6 +619,17 @@ raise "Mac core category session count test missing" unless File.read("scripts/t
   raise "analytics category share Voice Control session count missing" unless source.include?("Text(\"\\(item.category)分类\\(item.sessionCount)次专注\")")
 end
 puts "Analytics category share session count contracts verified."
+[
+  File.read("ChronoFocus/Views/AnalyticsView.swift"),
+  File.read("ChronoFocusMac/Views/MacAnalyticsDetailView.swift")
+].each do |source|
+  raise "analytics category share ranking enumeration missing" unless source.include?("ForEach(Array(store.categoryBreakdown().enumerated()), id: \\.element.id)") && source.include?("let rank = index + 1")
+  raise "analytics category share rank helper missing" unless source.include?("private func categoryShareRankText(for rank: Int) -> String") && source.include?("\"第 \\(rank) 位\"")
+  raise "analytics category share visible rank missing" unless source.include?("Text(categoryShareRankText(for: rank))")
+  raise "analytics category share ranking accessibility missing" unless source.include?("private func categoryShareAccessibilityLabel(for item: CategoryFocus, rank: Int) -> String") && source.include?("\\(item.category)分类投入，第\\(rank)位") && source.include?(".accessibilityLabel(categoryShareAccessibilityLabel(for: item, rank: rank))")
+  raise "analytics category share ranking Voice Control missing" unless source.include?("Text(\"第\\(rank)位分类\")") && source.include?("Text(\"\\(item.category)第\\(rank)位\")")
+end
+puts "Analytics category share ranking contracts verified."
 
 ios_analytics_source = File.read("ChronoFocus/Views/AnalyticsView.swift")
 raise "iOS analytics recent session category badge missing" unless ios_analytics_source.include?("RecentSessionCategoryBadge(category: session.category)") && ios_analytics_source.include?("private struct RecentSessionCategoryBadge")
@@ -827,6 +838,7 @@ grep -q "Task editor cancel category accessibility contracts verified." scripts/
 grep -q "Mac mini quick panel accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics category share accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics category share session count contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Analytics category share ranking contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics recent session category contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Analytics plan review category accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category filter toggle contracts verified." scripts/validate_ci_artifact.rb
@@ -866,6 +878,7 @@ grep -q "negative_task_editor_save_marker_fixture" scripts/verify_project.sh
 grep -q "negative_task_editor_cancel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_mini_quick_panel_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_category_share_marker_fixture" scripts/verify_project.sh
+grep -q "negative_analytics_category_share_ranking_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_recent_session_marker_fixture" scripts/verify_project.sh
 grep -q "negative_analytics_plan_review_marker_fixture" scripts/verify_project.sh
 grep -q "negative_category_filter_toggle_marker_fixture" scripts/verify_project.sh
@@ -900,6 +913,7 @@ grep -q "FAIL verify_project task editor save category accessibility contracts" 
 grep -q "FAIL verify_project task editor cancel category accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac mini quick panel accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics category share accessibility contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project analytics category share ranking contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics recent session category contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project analytics plan review category accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category filter toggle contracts" scripts/verify_project.sh
@@ -965,7 +979,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1593,6 +1607,31 @@ fi
 grep -q "FAIL verify_project analytics category share session count contracts" "$negative_analytics_category_share_session_count_marker_output"
 rm -rf "$negative_analytics_category_share_session_count_marker_fixture"
 rm -f "$negative_analytics_category_share_session_count_marker_output"
+negative_analytics_category_share_ranking_marker_fixture="$(mktemp -d)"
+negative_analytics_category_share_ranking_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_analytics_category_share_ranking_marker_fixture"/
+python3 - "$negative_analytics_category_share_ranking_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Analytics category share ranking contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_analytics_category_share_ranking_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_analytics_category_share_ranking_marker_output" 2>&1; then
+  echo "Expected negative analytics category share ranking marker fixture to fail validation" >&2
+  cat "$negative_analytics_category_share_ranking_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project analytics category share ranking contracts" "$negative_analytics_category_share_ranking_marker_output"
+rm -rf "$negative_analytics_category_share_ranking_marker_fixture"
+rm -f "$negative_analytics_category_share_ranking_marker_output"
 negative_analytics_recent_session_marker_fixture="$(mktemp -d)"
 negative_analytics_recent_session_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_analytics_recent_session_marker_fixture"/
