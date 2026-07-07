@@ -331,7 +331,7 @@ schedule_empty_add_button = segment_slice(
 )
 raise "Schedule category empty state add button tap target missing" unless schedule_empty_add_button.include?(".frame(maxWidth: .infinity)") && schedule_empty_add_button.include?(".frame(minHeight: 44)")
 raise "Schedule category empty state add accessibility label missing" unless schedule_empty_add_button.include?(".accessibilityLabel(\"新增\\(category)分类待办\")")
-raise "Schedule category empty state add Voice Control labels missing" unless schedule_empty_add_button.include?("Text(\"新增此分类\")") && schedule_empty_add_button.include?("Text(\"新增\\(category)分类待办\")") && schedule_empty_add_button.include?("Text(\"新增\\(category)分类\")") && schedule_empty_add_button.include?(".accessibilityInputLabels(addButtonInputLabels)")
+raise "Schedule category empty state add Voice Control labels missing" unless schedule_empty_source.include?("Text(\"新增此分类\")") && schedule_empty_source.include?("Text(\"新增\\(category)分类待办\")") && schedule_empty_source.include?("Text(\"新增\\(category)分类\")") && schedule_empty_add_button.include?(".accessibilityInputLabels(addButtonInputLabels)")
 schedule_empty_clear_button = segment_slice(
   schedule_empty_source,
   "Button(\"清除筛选\", systemImage: \"xmark.circle.fill\", action: onClear)",
@@ -340,7 +340,7 @@ schedule_empty_clear_button = segment_slice(
 )
 raise "Schedule category empty state clear button tap target missing" unless schedule_empty_clear_button.include?(".frame(maxWidth: .infinity)") && schedule_empty_clear_button.include?(".frame(minHeight: 44)")
 raise "Schedule category empty state clear accessibility label missing" unless schedule_empty_clear_button.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
-raise "Schedule category empty state clear Voice Control labels missing" unless schedule_empty_clear_button.include?("Text(\"清除筛选\")") && schedule_empty_clear_button.include?("Text(\"清除\\(category)分类\")") && schedule_empty_clear_button.include?("Text(\"查看全部分类\")") && schedule_empty_clear_button.include?(".accessibilityInputLabels(clearButtonInputLabels)")
+raise "Schedule category empty state clear Voice Control labels missing" unless schedule_empty_source.include?("Text(\"清除筛选\")") && schedule_empty_source.include?("Text(\"清除\\(category)分类\")") && schedule_empty_source.include?("Text(\"查看全部分类\")") && schedule_empty_clear_button.include?(".accessibilityInputLabels(clearButtonInputLabels)")
 raise "Schedule category empty state accessibility summary missing" unless schedule_empty_source.include?(".accessibilityLabel(\"\\(category)分类暂无待办，可新增此分类待办或清除筛选\")")
 schedule_task_list_empty_source = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
