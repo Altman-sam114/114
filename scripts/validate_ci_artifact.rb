@@ -563,6 +563,9 @@ end
 check(checks, "verify_project analytics category share empty state contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Analytics category share empty state contracts verified.")
 end
+check(checks, "verify_project analytics category share metadata readability contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Analytics category share metadata readability contracts verified.")
+end
 check(checks, "verify_project analytics recent session category contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Analytics recent session category contracts verified.")
 end

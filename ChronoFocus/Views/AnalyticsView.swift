@@ -430,7 +430,7 @@ struct AnalyticsView: View {
                                         Text(categoryShareSessionCountText(for: item))
                                         Text(categoryShareRankText(for: rank))
                                     }
-                                    .font(.caption2.weight(.medium))
+                                    .font(categoryShareMetadataFont())
                                     .foregroundStyle(AppTheme.secondaryText)
                                 }
                                 Spacer()
@@ -480,6 +480,10 @@ struct AnalyticsView: View {
 
     private func categoryShareSortDescriptionText() -> String {
         "按投入时长排序"
+    }
+
+    private func categoryShareMetadataFont() -> Font {
+        .caption
     }
 
     private func categoryShareEmptyTitle() -> String {
