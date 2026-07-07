@@ -314,6 +314,44 @@ raise "Schedule toolbar add button missing accessibility hint helper" unless sch
 raise "Schedule toolbar add button missing Voice Control labels helper" unless schedule_add_toolbar_source.include?(".accessibilityInputLabels(addTaskInputLabels)")
 puts "Schedule toolbar add category context contracts verified."
 
+schedule_empty_source = source_slice(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "private struct ScheduleCategoryEmptyStateView",
+  "private struct CalendarDayButton",
+  "Schedule category empty state source missing"
+)
+raise "Schedule category empty state must use ContentUnavailableView" unless schedule_empty_source.include?("ContentUnavailableView")
+raise "Schedule category empty state title missing category" unless schedule_empty_source.include?("Label(\"暂无\\(category)分类待办\", systemImage: symbolName)")
+raise "Schedule category empty state description missing actions" unless schedule_empty_source.include?("可新增此分类待办，或清除筛选查看全部。")
+schedule_empty_add_button = segment_slice(
+  schedule_empty_source,
+  "Button(\"新增此分类\", systemImage: \"plus.circle.fill\", action: onAddTask)",
+  "Button(\"清除筛选\", systemImage: \"xmark.circle.fill\", action: onClear)",
+  "Schedule category empty state add button source missing"
+)
+raise "Schedule category empty state add button tap target missing" unless schedule_empty_add_button.include?(".frame(maxWidth: .infinity)") && schedule_empty_add_button.include?(".frame(minHeight: 44)")
+raise "Schedule category empty state add accessibility label missing" unless schedule_empty_add_button.include?(".accessibilityLabel(\"新增\\(category)分类待办\")")
+raise "Schedule category empty state add Voice Control labels missing" unless schedule_empty_add_button.include?("Text(\"新增此分类\")") && schedule_empty_add_button.include?("Text(\"新增\\(category)分类待办\")") && schedule_empty_add_button.include?("Text(\"新增\\(category)分类\")") && schedule_empty_add_button.include?(".accessibilityInputLabels(addButtonInputLabels)")
+schedule_empty_clear_button = segment_slice(
+  schedule_empty_source,
+  "Button(\"清除筛选\", systemImage: \"xmark.circle.fill\", action: onClear)",
+  ".accessibilityLabel(\"\\(category)分类暂无待办，可新增此分类待办或清除筛选\")",
+  "Schedule category empty state clear button source missing"
+)
+raise "Schedule category empty state clear button tap target missing" unless schedule_empty_clear_button.include?(".frame(maxWidth: .infinity)") && schedule_empty_clear_button.include?(".frame(minHeight: 44)")
+raise "Schedule category empty state clear accessibility label missing" unless schedule_empty_clear_button.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
+raise "Schedule category empty state clear Voice Control labels missing" unless schedule_empty_clear_button.include?("Text(\"清除筛选\")") && schedule_empty_clear_button.include?("Text(\"清除\\(category)分类\")") && schedule_empty_clear_button.include?("Text(\"查看全部分类\")") && schedule_empty_clear_button.include?(".accessibilityInputLabels(clearButtonInputLabels)")
+raise "Schedule category empty state accessibility summary missing" unless schedule_empty_source.include?(".accessibilityLabel(\"\\(category)分类暂无待办，可新增此分类待办或清除筛选\")")
+schedule_task_list_empty_source = source_slice(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "if visibleTasks.isEmpty",
+  "VStack(spacing: 10)",
+  "Schedule task empty branch source missing"
+)
+raise "Schedule category empty state must render only with selected category" unless schedule_task_list_empty_source.include?("if let selectedCategory") && schedule_task_list_empty_source.include?("ScheduleCategoryEmptyStateView(")
+raise "Schedule category empty state must wire category and actions" unless schedule_task_list_empty_source.include?("category: selectedCategory") && schedule_task_list_empty_source.include?("showingEditor = true") && schedule_task_list_empty_source.include?("self.selectedCategory = nil")
+puts "Schedule category empty state action contracts verified."
+
 schedule_task_cell = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
   "private struct ScheduleTaskCell",
@@ -876,6 +914,7 @@ grep -q "Plan category badge contracts verified." scripts/validate_ci_artifact.r
 grep -q "Mac plan category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Plan panel action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Schedule toolbar add category context contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Schedule category empty state action contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add title field category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category input context contracts verified." scripts/validate_ci_artifact.rb
@@ -922,6 +961,7 @@ grep -q "negative_plan_category_badge_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_plan_category_marker_fixture" scripts/verify_project.sh
 grep -q "negative_plan_panel_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
+grep -q "negative_schedule_category_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_title_context_marker_fixture" scripts/verify_project.sh
 grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.sh
@@ -962,6 +1002,7 @@ grep -q "FAIL verify_project plan category badge contracts" scripts/verify_proje
 grep -q "FAIL verify_project mac plan category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project plan panel action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project schedule toolbar add category context contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project schedule category empty state action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add title field category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
@@ -1039,7 +1080,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1492,6 +1533,31 @@ fi
 grep -q "FAIL verify_project schedule toolbar add category context contracts" "$negative_schedule_toolbar_add_marker_output"
 rm -rf "$negative_schedule_toolbar_add_marker_fixture"
 rm -f "$negative_schedule_toolbar_add_marker_output"
+negative_schedule_category_empty_state_marker_fixture="$(mktemp -d)"
+negative_schedule_category_empty_state_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_schedule_category_empty_state_marker_fixture"/
+python3 - "$negative_schedule_category_empty_state_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Schedule category empty state action contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_schedule_category_empty_state_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_schedule_category_empty_state_marker_output" 2>&1; then
+  echo "Expected negative schedule category empty state marker fixture to fail validation" >&2
+  cat "$negative_schedule_category_empty_state_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project schedule category empty state action contracts" "$negative_schedule_category_empty_state_marker_output"
+rm -rf "$negative_schedule_category_empty_state_marker_fixture"
+rm -f "$negative_schedule_category_empty_state_marker_output"
 negative_mac_quick_add_action_marker_fixture="$(mktemp -d)"
 negative_mac_quick_add_action_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_quick_add_action_marker_fixture"/

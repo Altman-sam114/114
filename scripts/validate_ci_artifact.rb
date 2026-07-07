@@ -533,6 +533,9 @@ end
 check(checks, "verify_project schedule toolbar add category context contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Schedule toolbar add category context contracts verified.")
 end
+check(checks, "verify_project schedule category empty state action contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Schedule category empty state action contracts verified.")
+end
 check(checks, "verify_project mac quick add action accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Mac quick add action accessibility contracts verified.")
 end

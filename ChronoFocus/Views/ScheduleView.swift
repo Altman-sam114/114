@@ -309,9 +309,21 @@ struct ScheduleView: View {
                 }
 
                 if visibleTasks.isEmpty {
-                    Text(emptyTaskListText)
-                        .foregroundStyle(AppTheme.secondaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if let selectedCategory {
+                        ScheduleCategoryEmptyStateView(
+                            category: selectedCategory,
+                            onAddTask: {
+                                showingEditor = true
+                            },
+                            onClear: {
+                                self.selectedCategory = nil
+                            }
+                        )
+                    } else {
+                        Text(emptyTaskListText)
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 } else {
                     VStack(spacing: 10) {
                         ForEach(visibleTasks) { task in
@@ -539,6 +551,62 @@ private struct SelectedCategorySummaryView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("当前筛选\(category)分类，\(count)项，可新增此分类待办或清除筛选")
+    }
+}
+
+private struct ScheduleCategoryEmptyStateView: View {
+    let category: String
+    let onAddTask: () -> Void
+    let onClear: () -> Void
+
+    private var preset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(category)
+    }
+
+    private var symbolName: String {
+        preset?.symbolName ?? "tag.fill"
+    }
+
+    private var addButtonInputLabels: [Text] {
+        [
+            Text("新增此分类"),
+            Text("新增\(category)分类待办"),
+            Text("新增\(category)分类")
+        ]
+    }
+
+    private var clearButtonInputLabels: [Text] {
+        [
+            Text("清除筛选"),
+            Text("清除\(category)分类"),
+            Text("查看全部分类")
+        ]
+    }
+
+    var body: some View {
+        ContentUnavailableView {
+            Label("暂无\(category)分类待办", systemImage: symbolName)
+        } description: {
+            Text("可新增此分类待办，或清除筛选查看全部。")
+        } actions: {
+            VStack(spacing: 8) {
+                Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.cyan)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("新增\(category)分类待办")
+                    .accessibilityInputLabels(addButtonInputLabels)
+
+                Button("清除筛选", systemImage: "xmark.circle.fill", action: onClear)
+                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("清除\(category)分类筛选")
+                    .accessibilityInputLabels(clearButtonInputLabels)
+            }
+        }
+        .accessibilityLabel("\(category)分类暂无待办，可新增此分类待办或清除筛选")
     }
 }
 
