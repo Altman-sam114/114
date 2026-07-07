@@ -70,11 +70,12 @@
 验证结果：
 
 - 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
-- GitHub Actions `ChronoFocus CI Results` 待本轮 commit push 后执行，Agent C 将下载最新 `origin/main` artifact 并复判 `PASS verify_project analytics category share empty state contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
+- 实现提交 `efd4dc3224faa4709d38a11347e8fcc2391e6ed3` 已 push 到 `origin/main`；GitHub Actions `ChronoFocus CI Results` run `28842425987` attempt `1` 通过。
+- Agent C 下载 artifact `chronofocus-ci-v0.10-main-efd4dc3-run28842425987-attempt1` 到 `/private/tmp/chronofocus-c-review-28842425987-v087/`，运行 `ruby scripts/validate_ci_artifact.rb ... --commit efd4dc3224faa4709d38a11347e8fcc2391e6ed3 --run-id 28842425987 --attempt 1` 全 PASS，包含 `PASS verify_project analytics category share empty state contracts`、`PASS verify_project analytics category share sort context contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
 
 遗留事项：
 
-- 总目标仍未完成；v0.87 云端通过后可继续评估统计页分类筛选入口、分类投入有数据行的紧凑文案或更多 CI artifact 负向路径。
+- 总目标仍未完成；后续可继续评估统计页分类筛选入口、分类投入有数据行的紧凑文案或更多 CI artifact 负向路径。
 
 ### v0.86 / 统计分类投入排序依据语义
 
