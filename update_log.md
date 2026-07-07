@@ -73,7 +73,10 @@
 验证结果：
 
 - 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
-- 云端验证待本轮提交 push 后由 GitHub Actions 和 Agent C artifact validator 复判。
+- 实现提交 `ebc889ad5a3d50285841c85c23cdf6bddcc85c3c` 已 push 到 `origin/main`；GitHub Actions `ChronoFocus CI Results` run `28850427559` attempt `1` 中 Mac/iOS build 成功，但项目验证失败于新空态契约切片过窄。
+- 追加修复提交 `a94c2116d4265d7cb894c9f663af7bff0046ee0b` 修正 `scripts/verify_project.sh` 中 input labels 的源码契约复判范围，并已 push 到 `origin/main`。
+- GitHub Actions `ChronoFocus CI Results` run `28851503306` attempt `1`（commit `a94c2116d4265d7cb894c9f663af7bff0046ee0b`）通过。
+- Agent C 下载 artifact `chronofocus-ci-v0.10-main-a94c211-run28851503306-attempt1` 到 `/private/tmp/chronofocus-c-review-28851503306-v091/`，运行 `ruby scripts/validate_ci_artifact.rb ... --commit a94c2116d4265d7cb894c9f663af7bff0046ee0b --run-id 28851503306 --attempt 1` 全 PASS，包含 `PASS verify_project schedule category empty state action contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
 
 遗留事项：
 
