@@ -811,9 +811,22 @@ private struct MacTaskListPanelView: View {
                 }
 
                 if visibleTasks.isEmpty {
-                    Text(emptyText)
-                        .font(.caption)
-                        .foregroundStyle(MacTheme.secondaryText)
+                    if let selectedCategoryName = selectedCategory {
+                        MacScheduleCategoryEmptyStateView(
+                            category: selectedCategoryName,
+                            isSnapshotRendering: isSnapshotRendering,
+                            onAddTask: {
+                                onAddTaskInCategory(selectedCategoryName)
+                            },
+                            onClear: {
+                                selectedCategory = nil
+                            }
+                        )
+                    } else {
+                        Text(emptyText)
+                            .font(.caption)
+                            .foregroundStyle(MacTheme.secondaryText)
+                    }
                 }
 
                 ForEach(visibleTasks) { task in
@@ -901,6 +914,96 @@ private struct MacTaskListPanelView: View {
         if let updatedTask = store.setTaskEnabled(task, enabled: enabled) {
             syncMacTaskReminder(for: updatedTask, store: store, notifications: notifications)
         }
+    }
+}
+
+private struct MacScheduleCategoryEmptyStateView: View {
+    let category: String
+    let isSnapshotRendering: Bool
+    let onAddTask: () -> Void
+    let onClear: () -> Void
+
+    private var preset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(category)
+    }
+
+    private var tint: Color {
+        Color(hex: preset?.accentHex ?? "#3DE8C5")
+    }
+
+    private var symbolName: String {
+        preset?.symbolName ?? "tag.fill"
+    }
+
+    private var addButtonInputLabels: [Text] {
+        [
+            Text("新增此分类"),
+            Text("新增\(category)分类待办"),
+            Text("新增\(category)分类")
+        ]
+    }
+
+    private var clearButtonInputLabels: [Text] {
+        [
+            Text("清除筛选"),
+            Text("清除\(category)分类"),
+            Text("查看全部分类")
+        ]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("暂无\(category)分类待办", systemImage: symbolName)
+                .font(.subheadline.bold())
+                .foregroundStyle(MacTheme.primaryText)
+
+            Text("可在左侧快速新增此分类待办，或清除筛选查看全部。")
+                .font(.caption)
+                .foregroundStyle(MacTheme.secondaryText)
+
+            if isSnapshotRendering {
+                HStack(spacing: 8) {
+                    MacSummaryStaticActionView(title: "新增此分类", tint: tint, isProminent: true)
+                    MacSummaryStaticActionView(title: "清除筛选", tint: tint, isProminent: false)
+                }
+            } else {
+                HStack(spacing: 8) {
+                    Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
+                        .font(.caption.bold())
+                        .foregroundStyle(Color.black.opacity(0.82))
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 10)
+                        .frame(minWidth: 104, minHeight: 36)
+                        .background(tint, in: Capsule())
+                        .accessibilityLabel("新增\(category)分类待办")
+                        .accessibilityInputLabels(addButtonInputLabels)
+
+                    Button("清除筛选", systemImage: "xmark.circle.fill", action: onClear)
+                        .font(.caption.bold())
+                        .foregroundStyle(tint)
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 10)
+                        .frame(minWidth: 88, minHeight: 36)
+                        .background(Color.white.opacity(0.07), in: Capsule())
+                        .overlay {
+                            Capsule()
+                                .stroke(tint.opacity(0.36), lineWidth: 1)
+                        }
+                        .accessibilityLabel("清除\(category)分类筛选")
+                        .accessibilityInputLabels(clearButtonInputLabels)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(tint.opacity(0.32), lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(category)分类暂无待办，可新增此分类待办或清除筛选")
     }
 }
 
