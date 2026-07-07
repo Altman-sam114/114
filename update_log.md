@@ -72,7 +72,9 @@
 验证结果：
 
 - 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
-- 待 push 到 `origin/main` 后由 GitHub Actions `ChronoFocus CI Results` 执行，并由 Agent C 下载最新 artifact 复判。
+- 实现提交 `a057103da6e336beea94944261a1f1a6a8d6baa9` 已 push 到 `origin/main`；reviewer 指出占比 helper 契约需要绑定 helper 本体后，追加修复提交 `4c76bd0370afc0e44a6251b2712eb013c519a7b8` 并重新 push。
+- GitHub Actions `ChronoFocus CI Results` run `28845366161` attempt `1`（commit `4c76bd0370afc0e44a6251b2712eb013c519a7b8`）通过。
+- Agent C 下载 artifact `chronofocus-ci-v0.10-main-4c76bd0-run28845366161-attempt1` 到 `/private/tmp/chronofocus-c-review-28845366161-v089/`，运行 `ruby scripts/validate_ci_artifact.rb ... --commit 4c76bd0370afc0e44a6251b2712eb013c519a7b8 --run-id 28845366161 --attempt 1` 全 PASS，包含 `PASS verify_project analytics category share percent readability contracts`、`PASS verify_project analytics category share metadata readability contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
 
 遗留事项：
 
