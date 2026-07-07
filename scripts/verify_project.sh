@@ -665,7 +665,7 @@ puts "Analytics category share metadata readability contracts verified."
   File.read("ChronoFocus/Views/AnalyticsView.swift"),
   File.read("ChronoFocusMac/Views/MacAnalyticsDetailView.swift")
 ].each do |source|
-  raise "analytics category share percent font helper missing" unless source.include?("private func categorySharePercentFont() -> Font") && source.include?(".subheadline.bold()")
+  raise "analytics category share percent font helper missing" unless source.match?(/private func categorySharePercentFont\(\) -> Font\s*\{\s*\.subheadline\.bold\(\)\s*\}/)
   raise "analytics category share percent font not applied" unless source.include?("Text(\"\\(categorySharePercent(for: item.seconds))%\")") && source.include?(".font(categorySharePercentFont())")
   raise "analytics category share percent iOS caption font still used" if source.include?("Text(\"\\(categorySharePercent(for: item.seconds))%\")\n                                    .font(.caption.weight(.bold))")
   raise "analytics category share percent Mac caption font still used" if source.include?("Text(\"\\(categorySharePercent(for: item.seconds))%\")\n                                    .font(.caption.bold())")
