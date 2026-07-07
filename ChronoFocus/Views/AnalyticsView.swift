@@ -399,6 +399,10 @@ struct AnalyticsView: View {
                     .font(.headline)
                     .foregroundStyle(AppTheme.primaryText)
 
+                Text(categoryShareSortDescriptionText())
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryText)
+
                 if store.categoryBreakdown().isEmpty {
                     Text("完成番茄钟后会自动生成分类统计。")
                         .foregroundStyle(AppTheme.secondaryText)
@@ -438,6 +442,8 @@ struct AnalyticsView: View {
                             Text(item.category),
                             Text("\(item.category)分类"),
                             Text("\(item.category)分类投入"),
+                            Text("按投入时长排序"),
+                            Text("\(item.category)按投入时长排序"),
                             Text("\(item.category)分类\(item.sessionCount)次专注"),
                             Text("第\(rank)位分类"),
                             Text("\(item.category)第\(rank)位")
@@ -460,8 +466,12 @@ struct AnalyticsView: View {
         "第 \(rank) 位"
     }
 
+    private func categoryShareSortDescriptionText() -> String {
+        "按投入时长排序"
+    }
+
     private func categoryShareAccessibilityLabel(for item: CategoryFocus, rank: Int) -> String {
-        "\(item.category)分类投入，第\(rank)位，\(item.seconds.hourMinuteText)，\(item.sessionCount)次专注，占分类投入 \(categorySharePercent(for: item.seconds))%"
+        "\(item.category)分类投入，按投入时长排序第\(rank)位，\(item.seconds.hourMinuteText)，\(item.sessionCount)次专注，占分类投入 \(categorySharePercent(for: item.seconds))%"
     }
 
     private var categoryShareTotalSeconds: Int {
