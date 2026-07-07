@@ -438,7 +438,7 @@ struct AnalyticsView: View {
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(AppTheme.primaryText)
                                 Text("\(categorySharePercent(for: item.seconds))%")
-                                    .font(.caption.weight(.bold))
+                                    .font(categorySharePercentFont())
                                     .monospacedDigit()
                                     .foregroundStyle(Color(hex: item.accentHex))
                                     .padding(.horizontal, 7)
@@ -484,6 +484,10 @@ struct AnalyticsView: View {
 
     private func categoryShareMetadataFont() -> Font {
         .caption
+    }
+
+    private func categorySharePercentFont() -> Font {
+        .subheadline.bold()
     }
 
     private func categoryShareEmptyTitle() -> String {

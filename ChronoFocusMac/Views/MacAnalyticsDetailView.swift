@@ -451,7 +451,7 @@ private struct MacCategoryChartPanelView: View {
                                     .font(.caption.bold())
                                     .foregroundStyle(MacTheme.primaryText)
                                 Text("\(categorySharePercent(for: item.seconds))%")
-                                    .font(.caption.bold())
+                                    .font(categorySharePercentFont())
                                     .monospacedDigit()
                                     .foregroundStyle(Color(hex: item.accentHex))
                                     .padding(.horizontal, 7)
@@ -502,6 +502,10 @@ private struct MacCategoryChartPanelView: View {
 
     private func categoryShareMetadataFont() -> Font {
         .caption
+    }
+
+    private func categorySharePercentFont() -> Font {
+        .subheadline.bold()
     }
 
     private func categoryShareEmptyTitle() -> String {
