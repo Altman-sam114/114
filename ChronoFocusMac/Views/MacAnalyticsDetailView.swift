@@ -417,9 +417,20 @@ private struct MacCategoryChartPanelView: View {
                     .foregroundStyle(MacTheme.secondaryText)
 
                 if store.categoryBreakdown().isEmpty {
-                    ContentUnavailableView("暂无分类统计", systemImage: "chart.pie", description: Text("完成番茄钟后会自动生成分类统计。"))
+                    ContentUnavailableView(
+                        categoryShareEmptyTitle(),
+                        systemImage: "chart.pie",
+                        description: Text(categoryShareEmptyDescriptionText())
+                    )
                         .foregroundStyle(MacTheme.secondaryText)
                         .frame(minHeight: 170)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(categoryShareEmptyAccessibilityLabel())
+                        .accessibilityInputLabels([
+                            Text("分类统计"),
+                            Text("暂无分类统计"),
+                            Text("分类投入空态")
+                        ])
                 } else {
                     ForEach(Array(store.categoryBreakdown().enumerated()), id: \.element.id) { index, item in
                         let rank = index + 1
@@ -487,6 +498,18 @@ private struct MacCategoryChartPanelView: View {
 
     private func categoryShareSortDescriptionText() -> String {
         "按投入时长排序"
+    }
+
+    private func categoryShareEmptyTitle() -> String {
+        "暂无分类统计"
+    }
+
+    private func categoryShareEmptyDescriptionText() -> String {
+        "完成带分类的番茄钟后，会按投入时长生成分类统计。"
+    }
+
+    private func categoryShareEmptyAccessibilityLabel() -> String {
+        "\(categoryShareEmptyTitle())，\(categoryShareEmptyDescriptionText())"
     }
 
     private func categoryShareAccessibilityLabel(for item: CategoryFocus, rank: Int) -> String {
