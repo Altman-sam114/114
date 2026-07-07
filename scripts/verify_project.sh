@@ -524,6 +524,10 @@ raise "Mac quick add static button accessibility override missing" unless mac_qu
 raise "Mac quick add button accessibility label missing" unless mac_quick_add_source.include?(".accessibilityLabel(quickAddAccessibilityLabel)")
 raise "Mac quick add button Voice Control labels missing" unless mac_quick_add_source.include?(".accessibilityInputLabels(quickAddInputLabels)")
 puts "Mac quick add action accessibility contracts verified."
+raise "Mac quick add title field accessibility label missing category context" unless mac_quick_add_source.include?("private var quickAddTitleAccessibilityLabel: String") && mac_quick_add_source.include?("\"任务名称，当前将新增到\\(quickAddCategoryName)分类\"")
+raise "Mac quick add title field Voice Control labels missing category context" unless mac_quick_add_source.include?("private var quickAddTitleInputLabels: [Text]") && mac_quick_add_source.include?("Text(\"任务名称\")") && mac_quick_add_source.include?("Text(\"新增\\(quickAddCategoryName)分类待办\")") && mac_quick_add_source.include?("Text(\"\\(quickAddCategoryName)分类任务名称\")")
+raise "Mac quick add title text field accessibility missing" unless mac_quick_add_source.include?("TextField(\"任务名称\", text: $taskTitle)") && mac_quick_add_source.include?(".accessibilityLabel(quickAddTitleAccessibilityLabel)") && mac_quick_add_source.include?(".accessibilityHint(\"输入待办标题，保存后会归入当前分类\")") && mac_quick_add_source.include?(".accessibilityInputLabels(quickAddTitleInputLabels)")
+puts "Mac quick add title field category context contracts verified."
 
 task_editor_category_source = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
@@ -873,6 +877,7 @@ grep -q "Mac plan category context contracts verified." scripts/validate_ci_arti
 grep -q "Plan panel action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Schedule toolbar add category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Mac quick add title field category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category input context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Task editor save category accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Task editor cancel category accessibility contracts verified." scripts/validate_ci_artifact.rb
@@ -918,6 +923,7 @@ grep -q "negative_mac_plan_category_marker_fixture" scripts/verify_project.sh
 grep -q "negative_plan_panel_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
+grep -q "negative_mac_quick_add_title_context_marker_fixture" scripts/verify_project.sh
 grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.sh
 grep -q "negative_task_editor_save_marker_fixture" scripts/verify_project.sh
 grep -q "negative_task_editor_cancel_marker_fixture" scripts/verify_project.sh
@@ -957,6 +963,7 @@ grep -q "FAIL verify_project mac plan category context contracts" scripts/verify
 grep -q "FAIL verify_project plan panel action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project schedule toolbar add category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project mac quick add title field category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project task editor save category accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project task editor cancel category accessibility contracts" scripts/verify_project.sh
@@ -1032,7 +1039,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1510,6 +1517,31 @@ fi
 grep -q "FAIL verify_project mac quick add action accessibility contracts" "$negative_mac_quick_add_action_marker_output"
 rm -rf "$negative_mac_quick_add_action_marker_fixture"
 rm -f "$negative_mac_quick_add_action_marker_output"
+negative_mac_quick_add_title_context_marker_fixture="$(mktemp -d)"
+negative_mac_quick_add_title_context_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_mac_quick_add_title_context_marker_fixture"/
+python3 - "$negative_mac_quick_add_title_context_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Mac quick add title field category context contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_mac_quick_add_title_context_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_mac_quick_add_title_context_marker_output" 2>&1; then
+  echo "Expected negative Mac quick add title field category context marker fixture to fail validation" >&2
+  cat "$negative_mac_quick_add_title_context_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project mac quick add title field category context contracts" "$negative_mac_quick_add_title_context_marker_output"
+rm -rf "$negative_mac_quick_add_title_context_marker_fixture"
+rm -f "$negative_mac_quick_add_title_context_marker_output"
 negative_category_input_context_marker_fixture="$(mktemp -d)"
 negative_category_input_context_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_category_input_context_marker_fixture"/

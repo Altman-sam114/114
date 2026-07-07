@@ -48,6 +48,18 @@ struct MacScheduleDetailView: View {
         ]
     }
 
+    private var quickAddTitleAccessibilityLabel: String {
+        "任务名称，当前将新增到\(quickAddCategoryName)分类"
+    }
+
+    private var quickAddTitleInputLabels: [Text] {
+        [
+            Text("任务名称"),
+            Text("新增\(quickAddCategoryName)分类待办"),
+            Text("\(quickAddCategoryName)分类任务名称")
+        ]
+    }
+
     private var quickAddAccessibilityLabel: String {
         "新增\(quickAddCategoryName)分类待办，预计 \(estimatedRounds) 轮"
     }
@@ -91,6 +103,9 @@ struct MacScheduleDetailView: View {
                             TextField("任务名称", text: $taskTitle)
                                 .textFieldStyle(.roundedBorder)
                                 .focused($isTaskTitleFocused)
+                                .accessibilityLabel(quickAddTitleAccessibilityLabel)
+                                .accessibilityHint("输入待办标题，保存后会归入当前分类")
+                                .accessibilityInputLabels(quickAddTitleInputLabels)
                             TextField("分类", text: $category)
                                 .textFieldStyle(.roundedBorder)
                                 .accessibilityLabel(quickAddCategoryInputAccessibilityLabel)
