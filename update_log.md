@@ -77,11 +77,13 @@
 验证结果：
 
 - 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
-- 云端验证待本轮提交 push 后由 GitHub Actions 和 Agent C artifact validator 复判。
+- commit `2a4a598a5c4d867879a3614dbe2d89145a310dcc` 已 push 到 `origin/main`，GitHub Actions run `29138489338` attempt `1` 成功。
+- 已下载 artifact `chronofocus-ci-v0.10-main-2a4a598-run29138489338-attempt1` 到 `/private/tmp/chronofocus-c-review-29138489338-v093/`。
+- Agent C artifact validator 输出全 PASS，包含 `PASS verify_project mac calendar range empty state quick add contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
 
 遗留事项：
 
-- 总目标仍未完成；v0.93 云端通过后可继续评估计时页分类空态新增入口、Mac 日程面板信息密度或 CI artifact 身份契约。
+- 总目标仍未完成；下一轮可继续评估计时页分类空态新增入口、Mac 日程面板信息密度或 CI artifact 身份契约。
 
 ### v0.92 / Mac 日程分类空态操作
 
