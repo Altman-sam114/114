@@ -195,6 +195,7 @@ macOS：
 - v0.91 起，iOS 日程分类筛选无结果空态的新增/清除动作由 `scripts/verify_project.sh` 输出 `Schedule category empty state action contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project schedule category empty state action contracts`。
 - v0.92 起，macOS 日程分类筛选无结果空态的新增/清除动作由 `scripts/verify_project.sh` 输出 `Mac schedule category empty state action contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project mac schedule category empty state action contracts`。
 - v0.93 起，macOS 日历范围空态按当前选中日期准备快速新增、保留时分并聚焦标题的接线由 `scripts/verify_project.sh` 输出 `Mac calendar range empty state quick add contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project mac calendar range empty state quick add contracts`。
+- v0.94 起，iOS 计时页分类筛选无可启动待办时的新增/清除动作，以及预填分类打开待办编辑 sheet 的接线，由 `scripts/verify_project.sh` 输出 `Timer category empty state action contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project timer category empty state action contracts`。
 - 平台服务负责系统能力，不持有核心业务规则。
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。

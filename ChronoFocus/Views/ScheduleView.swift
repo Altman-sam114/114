@@ -924,7 +924,7 @@ private struct ScheduleTaskCell: View {
     }
 }
 
-private struct TaskEditorView: View {
+struct TaskEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var notifications: NotificationService

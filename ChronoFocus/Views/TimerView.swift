@@ -3,7 +3,9 @@ import SwiftUI
 struct TimerView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
+    @EnvironmentObject private var notifications: NotificationService
     @State private var selectedTaskCategory: String?
+    @State private var showingCategoryEditor = false
 
     private var currentTint: Color {
         if let task = store.task(for: engine.selectedTaskID) {
@@ -103,6 +105,15 @@ struct TimerView: View {
                     }
                     .accessibilityLabel("切换亮暗主题")
                 }
+            }
+            .sheet(isPresented: $showingCategoryEditor) {
+                TaskEditorView(
+                    initialDueDate: Date().addingTimeInterval(3600),
+                    initialCategory: selectedTaskCategory
+                )
+                .environmentObject(store)
+                .environmentObject(notifications)
+                .presentationDetents([.medium, .large])
             }
         }
     }
@@ -336,9 +347,13 @@ struct TimerView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     if filteredUpcomingTasks.isEmpty, let selectedTaskCategory {
-                        TimerTaskCategoryEmptyView(category: selectedTaskCategory) {
-                            clearTaskCategoryFilter()
-                        }
+                        TimerTaskCategoryEmptyView(
+                            category: selectedTaskCategory,
+                            onAddTask: {
+                                showingCategoryEditor = true
+                            },
+                            onClear: clearTaskCategoryFilter
+                        )
                     } else {
                         VStack(spacing: 10) {
                             ForEach(filteredUpcomingTasks.prefix(4)) { task in
@@ -625,6 +640,7 @@ private struct TimerSelectedTaskCategorySummaryView: View {
 
 private struct TimerTaskCategoryEmptyView: View {
     let category: String
+    let onAddTask: () -> Void
     let onClear: () -> Void
 
     private var preset: TaskCategoryPreset? {
@@ -635,28 +651,64 @@ private struct TimerTaskCategoryEmptyView: View {
         Color(hex: preset?.accentHex ?? "#3DE8C5")
     }
 
+    private var addButtonInputLabels: [Text] {
+        [
+            Text("新增此分类"),
+            Text("新增\(category)分类待办"),
+            Text("新增\(category)分类")
+        ]
+    }
+
+    private var clearButtonInputLabels: [Text] {
+        [
+            Text("清除筛选"),
+            Text("清除\(category)分类"),
+            Text("查看全部分类")
+        ]
+    }
+
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "tag.slash")
-                .foregroundStyle(tint)
-            Text("\(category) 分类暂无可启动待办")
-                .font(.subheadline)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "tag.slash")
+                    .foregroundStyle(tint)
+                Text("\(category) 分类暂无可启动待办")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+            }
+
+            Text("可新增此分类待办，或清除筛选查看全部。")
+                .font(.caption)
                 .foregroundStyle(AppTheme.secondaryText)
-                .lineLimit(2)
-            Spacer()
-            Button("清除", systemImage: "xmark.circle.fill", action: onClear)
-                .font(.caption.weight(.bold))
-                .buttonStyle(.plain)
-                .foregroundStyle(tint)
-                .frame(minWidth: 72)
-                .frame(minHeight: 44)
-                .accessibilityLabel("清除\(category)分类筛选")
-                .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
+
+            HStack(spacing: 8) {
+                Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.black.opacity(0.82))
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 44)
+                    .padding(.horizontal, 10)
+                    .background(tint, in: Capsule())
+                    .accessibilityLabel("新增\(category)分类待办")
+                    .accessibilityInputLabels(addButtonInputLabels)
+
+                Button("清除", systemImage: "xmark.circle.fill", action: onClear)
+                    .font(.caption.weight(.bold))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(tint)
+                    .frame(minWidth: 72)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("清除\(category)分类筛选")
+                    .accessibilityInputLabels(clearButtonInputLabels)
+            }
         }
         .padding(12)
         .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(category)分类暂无可启动待办，可清除筛选")
+        .accessibilityLabel("\(category)分类暂无可启动待办，可新增此分类待办或清除筛选")
     }
 }
 

@@ -515,11 +515,36 @@ timer_empty_source = source_slice(
   "Timer category empty view source missing"
 )
 raise "Timer category empty view preset missing" unless timer_empty_source.include?("TaskCategoryPreset.matching(category)")
-raise "Timer category empty clear button missing" unless timer_empty_source.include?("Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)")
-raise "Timer category empty clear button tap target missing" unless timer_empty_source.include?(".frame(minWidth: 72)") && timer_empty_source.include?(".frame(minHeight: 44)")
-raise "Timer category empty clear accessibility label missing" unless timer_empty_source.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
-raise "Timer category empty clear Voice Control input labels missing" unless timer_empty_source.include?(".accessibilityInputLabels([Text(\"清除筛选\"), Text(\"清除\\(category)分类\")])")
-raise "Timer category empty state accessibility label missing" unless timer_empty_source.include?(".accessibilityLabel(\"\\(category)分类暂无可启动待办，可清除筛选\")")
+raise "Timer category empty description missing actions" unless timer_empty_source.include?("可新增此分类待办，或清除筛选查看全部。")
+timer_empty_add_button = segment_slice(
+  timer_empty_source,
+  "Button(\"新增此分类\", systemImage: \"plus.circle.fill\", action: onAddTask)",
+  "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
+  "Timer category empty add button source missing"
+)
+raise "Timer category empty add button tap target missing" unless timer_empty_add_button.include?(".frame(maxWidth: .infinity)") && timer_empty_add_button.include?(".frame(minHeight: 44)")
+raise "Timer category empty add accessibility label missing" unless timer_empty_add_button.include?(".accessibilityLabel(\"新增\\(category)分类待办\")")
+raise "Timer category empty add Voice Control labels missing" unless timer_empty_source.include?("Text(\"新增此分类\")") && timer_empty_source.include?("Text(\"新增\\(category)分类待办\")") && timer_empty_source.include?("Text(\"新增\\(category)分类\")") && timer_empty_add_button.include?(".accessibilityInputLabels(addButtonInputLabels)")
+timer_empty_clear_button = segment_slice(
+  timer_empty_source,
+  "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
+  ".accessibilityLabel(\"\\(category)分类暂无可启动待办，可新增此分类待办或清除筛选\")",
+  "Timer category empty clear button source missing"
+)
+raise "Timer category empty clear button tap target missing" unless timer_empty_clear_button.include?(".frame(minWidth: 72)") && timer_empty_clear_button.include?(".frame(minHeight: 44)")
+raise "Timer category empty clear accessibility label missing" unless timer_empty_clear_button.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
+raise "Timer category empty clear Voice Control labels missing" unless timer_empty_source.include?("Text(\"清除筛选\")") && timer_empty_source.include?("Text(\"清除\\(category)分类\")") && timer_empty_source.include?("Text(\"查看全部分类\")") && timer_empty_clear_button.include?(".accessibilityInputLabels(clearButtonInputLabels)")
+raise "Timer category empty state accessibility label missing" unless timer_empty_source.include?(".accessibilityLabel(\"\\(category)分类暂无可启动待办，可新增此分类待办或清除筛选\")")
+timer_empty_branch_source = source_slice(
+  "ChronoFocus/Views/TimerView.swift",
+  "if filteredUpcomingTasks.isEmpty, let selectedTaskCategory",
+  "VStack(spacing: 10)",
+  "Timer category empty branch source missing"
+)
+raise "Timer category empty branch must render only with selected category" unless timer_empty_branch_source.include?("TimerTaskCategoryEmptyView(") && timer_empty_branch_source.include?("category: selectedTaskCategory")
+raise "Timer category empty branch must wire add and clear actions" unless timer_empty_branch_source.include?("showingCategoryEditor = true") && timer_empty_branch_source.include?("onClear: clearTaskCategoryFilter")
+raise "Timer category empty sheet must open TaskEditorView with selected category" unless File.read("ChronoFocus/Views/TimerView.swift").include?(".sheet(isPresented: $showingCategoryEditor)") && File.read("ChronoFocus/Views/TimerView.swift").include?("TaskEditorView(") && File.read("ChronoFocus/Views/TimerView.swift").include?("initialCategory: selectedTaskCategory")
+puts "Timer category empty state action contracts verified."
 
 timer_task_badge = source_slice(
   "ChronoFocus/Views/TimerView.swift",
@@ -1002,6 +1027,7 @@ grep -q "Schedule toolbar add category context contracts verified." scripts/vali
 grep -q "Schedule category empty state action contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac schedule category empty state action contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac calendar range empty state quick add contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Timer category empty state action contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add title field category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category input context contracts verified." scripts/validate_ci_artifact.rb
@@ -1051,6 +1077,7 @@ grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
 grep -q "negative_schedule_category_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_schedule_category_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_calendar_range_empty_state_marker_fixture" scripts/verify_project.sh
+grep -q "negative_timer_category_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_title_context_marker_fixture" scripts/verify_project.sh
 grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.sh
@@ -1094,6 +1121,7 @@ grep -q "FAIL verify_project schedule toolbar add category context contracts" sc
 grep -q "FAIL verify_project schedule category empty state action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac schedule category empty state action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac calendar range empty state quick add contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project timer category empty state action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add title field category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
@@ -1171,7 +1199,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1699,6 +1727,31 @@ fi
 grep -q "FAIL verify_project mac calendar range empty state quick add contracts" "$negative_mac_calendar_range_empty_state_marker_output"
 rm -rf "$negative_mac_calendar_range_empty_state_marker_fixture"
 rm -f "$negative_mac_calendar_range_empty_state_marker_output"
+negative_timer_category_empty_state_marker_fixture="$(mktemp -d)"
+negative_timer_category_empty_state_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_timer_category_empty_state_marker_fixture"/
+python3 - "$negative_timer_category_empty_state_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Timer category empty state action contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_timer_category_empty_state_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_timer_category_empty_state_marker_output" 2>&1; then
+  echo "Expected negative timer category empty state marker fixture to fail validation" >&2
+  cat "$negative_timer_category_empty_state_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project timer category empty state action contracts" "$negative_timer_category_empty_state_marker_output"
+rm -rf "$negative_timer_category_empty_state_marker_fixture"
+rm -f "$negative_timer_category_empty_state_marker_output"
 negative_mac_quick_add_action_marker_fixture="$(mktemp -d)"
 negative_mac_quick_add_action_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_quick_add_action_marker_fixture"/
