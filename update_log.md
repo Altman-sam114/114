@@ -29,8 +29,10 @@
 - v0.90 起，macOS 日程快速新增任务名称输入框分类上下文新增独立云端结果包复判：`Mac quick add title field category context contracts verified.` 与 `PASS verify_project mac quick add title field category context contracts`。
 - v0.91 起，iOS 日程分类筛选无结果空态操作新增独立云端结果包复判：`Schedule category empty state action contracts verified.` 与 `PASS verify_project schedule category empty state action contracts`。
 - v0.92 起，macOS 日程分类筛选无结果空态操作新增独立云端结果包复判：`Mac schedule category empty state action contracts verified.` 与 `PASS verify_project mac schedule category empty state action contracts`。
+- v0.93 起，macOS 日历范围空态按当前选中日期准备快速新增、保留时分并聚焦标题新增独立云端结果包复判：`Mac calendar range empty state quick add contracts verified.` 与 `PASS verify_project mac calendar range empty state quick add contracts`。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest overallOutcome、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index artifactName、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context 精确键集、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/总结果/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、日程分类空态操作 contract marker、Mac 日程分类空态操作 contract marker、Mac 快速新增和标题分类上下文 contract marker、分类输入上下文 contract marker、待办保存分类 contract marker、待办取消分类 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、统计分类投入次数 contract marker、统计分类投入排行 contract marker、统计分类投入排序依据 contract marker、统计分类投入空态 contract marker、统计分类投入元信息可读性 contract marker、统计分类投入占比可读性 contract marker、统计最近记录分类 contract marker、统计计划回顾分类 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
+- v0.93 的当前云端覆盖还包括 `Mac calendar range empty state quick add contracts verified.` marker、`PASS verify_project mac calendar range empty state quick add contracts` 复判和 `negative_mac_calendar_range_empty_state_marker_fixture` 拒绝路径。
 
 ## 关键决策
 
@@ -46,6 +48,40 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.93 / Mac 日历范围空态快速新增
+
+日期：2026-07-11
+
+核心变更：
+
+- macOS 日历面板当前范围没有待办时，空态显示当前选中日期并提供“新增到此日期”动作。
+- 动作把当前选中日期传回左侧快速新增表单，保留原截止时间的时分，只替换年月日并聚焦任务名称。
+- 快照路径复用静态 action view；真实按钮补充稳定点击区、日期可访问标签、操作提示和 Voice Control input labels。
+- `scripts/verify_project.sh` 新增 `Mac calendar range empty state quick add contracts verified.` 源码契约、成功 fixture marker 和 `negative_mac_calendar_range_empty_state_marker_fixture`。
+- `scripts/validate_ci_artifact.rb` 新增 `verify_project mac calendar range empty state quick add contracts` 复判。
+- README、测试规范、核心流程、流程图和 Agent A 提示词同步 Mac 日历范围空态快速新增与 artifact 复判。
+
+关键文件：
+
+- `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `scripts/verify_project.sh`
+- `scripts/validate_ci_artifact.rb`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（持续优化）/v0.93（Mac日历范围空态快速新增artifact复判）.md`
+- `update_log.md`
+
+验证结果：
+
+- 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
+- 云端验证待本轮提交 push 后由 GitHub Actions 和 Agent C artifact validator 复判。
+
+遗留事项：
+
+- 总目标仍未完成；v0.93 云端通过后可继续评估计时页分类空态新增入口、Mac 日程面板信息密度或 CI artifact 身份契约。
 
 ### v0.92 / Mac 日程分类空态操作
 

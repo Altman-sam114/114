@@ -539,6 +539,9 @@ end
 check(checks, "verify_project mac schedule category empty state action contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Mac schedule category empty state action contracts verified.")
 end
+check(checks, "verify_project mac calendar range empty state quick add contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Mac calendar range empty state quick add contracts verified.")
+end
 check(checks, "verify_project mac quick add action accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Mac quick add action accessibility contracts verified.")
 end

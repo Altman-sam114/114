@@ -81,13 +81,14 @@ macOS：
 1. 用户创建、编辑、启用/停用、完成或删除 `FocusTask`。
 2. 新增/编辑 UI 可用 `TaskCategoryPreset` 快速填入分类和代表色，分类输入区域会显示当前分类上下文；输入框和预设按钮会暴露当前分类、提示、已选中状态、选择提示和分类名 Voice Control input labels，也可继续手写分类；保存按钮会读出待办、分类、预计轮次或只设开始模式，取消按钮会读出取消新增/取消编辑、待办和分类。
 3. 选中分类筛选后 toolbar 新增入口会读出当前分类并支持按分类 Voice Control 新增，新增待办会预填该分类；再次点击已选分类、点击“全部”或摘要清除会退出筛选；分类 chip 的可访问标签会读出数量、已选中状态和点击后的筛选/清除动作；iOS 待办标题显示筛选数/总数，日程任务行以带分类名 Voice Control input labels 的分类 badge 保留分类上下文，完成/启用/编辑操作会读出任务名；iOS 当前范围没有该分类待办时，分类空态会直接提供新增此分类和清除筛选操作；macOS 完成/启用/删除操作也读出任务名，避免长列表中误操作；列表摘要可直接新增此分类待办或清除筛选，摘要和按钮可访问标签也会说明新增/清除动作及分类名；macOS 选中分类且无未完成待办时，空态本身也可新增此分类或清除筛选；macOS 选中分类摘要可把左侧快速新增表单切回当前分类并聚焦任务名称，任务名称输入框会读出当前将新增到的分类并支持按分类 Voice Control 输入，摘要新增/清除按钮也暴露分类名 Voice Control input labels，快速新增面板显示当前分类，筛选预填时保留“已预填”语义，提交按钮会读出当前分类和预计轮次，连续新增时保留刚创建任务的分类；编辑已有待办仍保留原任务分类。
-4. `FocusStore` 清洗空白分类、合并常用分类和已有分类为 `taskCategories`，供 iOS/macOS 筛选 UI 使用。
-5. `TaskCategoryPreset.prioritizedFilterOptions` 按当前范围内任务数量把有任务的分类排在空分类前面。
-6. `FocusStore` 保存任务，并在 `autoGeneratePomodoroPlan` 启用时调用 `generatePomodoroPlanFromSchedule()`。
-7. 计划按未完成任务、截止时间、剩余轮次和休息规则生成 `PomodoroPlanItem`。
-8. 用户可从计划面板按日程生成或清空计划，操作语义会读出当前未完成轮数；用户也可从计划项直接开始专注，计划项会以分类 badge 显示分类上下文，计划开始按钮会读出任务名、时间段、轮次和分类，`TimerEngine.startPlanItem(_:)` 会标记计划开始并启动计时。
-9. 循环任务完成后，`FocusStore.createNextRecurrenceIfNeeded(from:)` 创建下一周期任务。
-10. 外部日历同步通过 `upsertExternalTask(...)` 合并到任务列表。
+4. macOS 日历面板当前范围没有待办时，空态可把当前选中日期传回父视图；父视图保留快速新增截止时间的时分，只替换年月日并聚焦任务名称，任务仍通过现有 `addTask()` 写入 `FocusStore`。
+5. `FocusStore` 清洗空白分类、合并常用分类和已有分类为 `taskCategories`，供 iOS/macOS 筛选 UI 使用。
+6. `TaskCategoryPreset.prioritizedFilterOptions` 按当前范围内任务数量把有任务的分类排在空分类前面。
+7. `FocusStore` 保存任务，并在 `autoGeneratePomodoroPlan` 启用时调用 `generatePomodoroPlanFromSchedule()`。
+8. 计划按未完成任务、截止时间、剩余轮次和休息规则生成 `PomodoroPlanItem`。
+9. 用户可从计划面板按日程生成或清空计划，操作语义会读出当前未完成轮数；用户也可从计划项直接开始专注，计划项会以分类 badge 显示分类上下文，计划开始按钮会读出任务名、时间段、轮次和分类，`TimerEngine.startPlanItem(_:)` 会标记计划开始并启动计时。
+10. 循环任务完成后，`FocusStore.createNextRecurrenceIfNeeded(from:)` 创建下一周期任务。
+11. 外部日历同步通过 `upsertExternalTask(...)` 合并到任务列表。
 
 ### 2.6 统计与 Pro
 
@@ -170,7 +171,7 @@ macOS：
 - 菜单栏时间胶囊：显示剩余时间。
 - 左键 popover：极简计时器、动态进度条、带分类名可访问标签、Voice Control input labels、已选中状态、选择提示、运行中不可切换提示和任务名/分类名语音标签的当前待办分类 badge/时间上下文、可读出按钮动作和当前选中状态的快捷面板，并可直接打开日程、统计或设置详情页。
 - 右键菜单：开始/暂停、打开详细界面、退出。
-- 详细窗口：计时、日程、日期格读出日期、待办数、已选中和非本月状态并支持 Voice Control input labels、任务行常驻分类 badge、分类名 Voice Control input labels、任务行完成/启用/删除操作任务名和分类语义、计时主控按钮读出当前任务名和分类，计划面板生成/清空操作读出当前未完成轮数，计划项显示分类 badge 并在开始按钮读出任务名/时间段/轮次/分类、预设色兜底、当前任务 selected trait、选择/运行中提示和任务名/分类名语音标签、分类筛选、再次点击已选分类退出筛选、分类 chip 可访问状态/动作提示、selected trait 和 Voice Control input labels、筛选/总数计数、选中分类摘要快捷新增、分类无结果空态新增/清除操作、摘要新增/清除按钮分类语义和稳定点击区、快速新增任务名称输入框分类上下文、分类输入上下文、快速新增分类预填提示、快速新增提交按钮分类/轮次语义、连续新增保留分类、统计最近记录分类 badge 和整行语义、统计、设置。
+- 详细窗口：计时、日程、日期格读出日期、待办数、已选中和非本月状态并支持 Voice Control input labels、日历范围空态按当前选中日期准备快速新增并聚焦标题、任务行常驻分类 badge、分类名 Voice Control input labels、任务行完成/启用/删除操作任务名和分类语义、计时主控按钮读出当前任务名和分类，计划面板生成/清空操作读出当前未完成轮数，计划项显示分类 badge 并在开始按钮读出任务名/时间段/轮次/分类、预设色兜底、当前任务 selected trait、选择/运行中提示和任务名/分类名语音标签、分类筛选、再次点击已选分类退出筛选、分类 chip 可访问状态/动作提示、selected trait 和 Voice Control input labels、筛选/总数计数、选中分类摘要快捷新增、分类无结果空态新增/清除操作、摘要新增/清除按钮分类语义和稳定点击区、快速新增任务名称输入框分类上下文、分类输入上下文、快速新增分类预填提示、快速新增提交按钮分类/轮次语义、连续新增保留分类、统计最近记录分类 badge 和整行语义、统计、设置。
 
 ## 6. 前端 / 数据层 / 模型层 / 测试层关系
 
@@ -193,6 +194,7 @@ macOS：
 - v0.90 起，macOS 日程快速新增任务名称输入框的当前分类上下文由 `scripts/verify_project.sh` 输出 `Mac quick add title field category context contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project mac quick add title field category context contracts`。
 - v0.91 起，iOS 日程分类筛选无结果空态的新增/清除动作由 `scripts/verify_project.sh` 输出 `Schedule category empty state action contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project schedule category empty state action contracts`。
 - v0.92 起，macOS 日程分类筛选无结果空态的新增/清除动作由 `scripts/verify_project.sh` 输出 `Mac schedule category empty state action contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project mac schedule category empty state action contracts`。
+- v0.93 起，macOS 日历范围空态按当前选中日期准备快速新增、保留时分并聚焦标题的接线由 `scripts/verify_project.sh` 输出 `Mac calendar range empty state quick add contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project mac calendar range empty state quick add contracts`。
 - 平台服务负责系统能力，不持有核心业务规则。
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。

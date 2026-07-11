@@ -137,7 +137,7 @@ struct MacScheduleDetailView: View {
                 .frame(width: 320)
 
                 VStack(spacing: 18) {
-                    MacCalendarPanelView()
+                    MacCalendarPanelView(onAddTaskAtDate: prepareQuickAdd(at:))
                     MacCalendarSyncPanelView()
                     MacPlanPanelView()
                     MacTaskListPanelView(
@@ -180,6 +180,16 @@ struct MacScheduleDetailView: View {
     private func prepareQuickAdd(_ category: String) {
         self.category = category
         accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? "#3DE8C5"
+        isTaskTitleFocused = true
+    }
+
+    private func prepareQuickAdd(at date: Date) {
+        let calendar = Calendar.current
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: dueDate)
+        var dateComponents = calendar.dateComponents([.year, .month, .day], from: date)
+        dateComponents.hour = timeComponents.hour
+        dateComponents.minute = timeComponents.minute
+        dueDate = calendar.date(from: dateComponents) ?? date
         isTaskTitleFocused = true
     }
 }
@@ -317,6 +327,7 @@ private struct MacCalendarPanelView: View {
     @State private var selectedDate = Date()
     @State private var calendarMode: CalendarDisplayMode = .week
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
+    let onAddTaskAtDate: (Date) -> Void
 
     private let calendar = Calendar.current
 
@@ -446,9 +457,13 @@ private struct MacCalendarPanelView: View {
                 }
 
                 if visibleTasks.isEmpty {
-                    Text("当前范围暂无待办。")
-                        .font(.caption)
-                        .foregroundStyle(MacTheme.secondaryText)
+                    MacCalendarRangeEmptyStateView(
+                        selectedDate: selectedDate,
+                        isSnapshotRendering: isSnapshotRendering,
+                        onAddTask: {
+                            onAddTaskAtDate(selectedDate)
+                        }
+                    )
                 } else {
                     ForEach(visibleTasks.prefix(4)) { task in
                         MacTaskRowView(task: task)
@@ -476,6 +491,64 @@ private struct MacCalendarPanelView: View {
             component = .month
         }
         selectedDate = calendar.date(byAdding: component, value: value, to: selectedDate) ?? selectedDate
+    }
+}
+
+private struct MacCalendarRangeEmptyStateView: View {
+    let selectedDate: Date
+    let isSnapshotRendering: Bool
+    let onAddTask: () -> Void
+
+    private var selectedDateText: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "M月d日 E"
+        return formatter.string(from: selectedDate)
+    }
+
+    private var addButtonInputLabels: [Text] {
+        [
+            Text("新增到此日期"),
+            Text("新增\(selectedDateText)待办"),
+            Text("\(selectedDateText)新增待办")
+        ]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("当前范围暂无待办", systemImage: "calendar.badge.plus")
+                .font(.subheadline.bold())
+                .foregroundStyle(MacTheme.primaryText)
+
+            Text("可直接为\(selectedDateText)准备快速新增。")
+                .font(.caption)
+                .foregroundStyle(MacTheme.secondaryText)
+
+            if isSnapshotRendering {
+                MacStaticScheduleActionChipView(
+                    title: "新增到此日期",
+                    symbolName: "plus.circle.fill",
+                    tint: .cyan,
+                    isProminent: true,
+                    accessibilityLabelText: "新增\(selectedDateText)待办"
+                )
+            } else {
+                Button("新增到此日期", systemImage: "plus.circle.fill", action: onAddTask)
+                    .font(.caption.bold())
+                    .foregroundStyle(Color.black.opacity(0.82))
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 12)
+                    .frame(minWidth: 132, minHeight: 36)
+                    .background(Color.cyan, in: Capsule())
+                    .accessibilityLabel("新增\(selectedDateText)待办")
+                    .accessibilityHint("将左侧快速新增截止日期设为\(selectedDateText)，并聚焦任务名称")
+                    .accessibilityInputLabels(addButtonInputLabels)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("当前范围暂无待办，可新增到\(selectedDateText)")
     }
 }
 

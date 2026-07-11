@@ -390,6 +390,53 @@ raise "Mac schedule category empty state must render only with selected category
 raise "Mac schedule category empty state must wire category and actions" unless mac_task_list_empty_source.include?("category: selectedCategoryName") && mac_task_list_empty_source.include?("onAddTaskInCategory(selectedCategoryName)") && mac_task_list_empty_source.include?("selectedCategory = nil")
 puts "Mac schedule category empty state action contracts verified."
 
+mac_calendar_root_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "struct MacScheduleDetailView: View",
+  "private struct MacQuickAddCategoryContextView",
+  "Mac schedule root source missing"
+)
+raise "Mac calendar panel must wire selected date quick add" unless mac_calendar_root_source.include?("MacCalendarPanelView(onAddTaskAtDate: prepareQuickAdd(at:))")
+mac_calendar_quick_add_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private func prepareQuickAdd(at date: Date)",
+  "private struct MacQuickAddCategoryContextView",
+  "Mac calendar quick add date helper missing"
+)
+raise "Mac calendar quick add must preserve hour and minute" unless mac_calendar_quick_add_source.include?("calendar.dateComponents([.hour, .minute], from: dueDate)") && mac_calendar_quick_add_source.include?("calendar.dateComponents([.year, .month, .day], from: date)") && mac_calendar_quick_add_source.include?("dateComponents.hour = timeComponents.hour") && mac_calendar_quick_add_source.include?("dateComponents.minute = timeComponents.minute")
+raise "Mac calendar quick add must update due date and focus title" unless mac_calendar_quick_add_source.include?("dueDate = calendar.date(from: dateComponents) ?? date") && mac_calendar_quick_add_source.include?("isTaskTitleFocused = true")
+mac_calendar_panel_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private struct MacCalendarPanelView",
+  "private struct MacCalendarRangeEmptyStateView",
+  "Mac calendar panel source missing"
+)
+raise "Mac calendar panel quick add closure missing" unless mac_calendar_panel_source.include?("let onAddTaskAtDate: (Date) -> Void")
+raise "Mac calendar empty branch missing actionable view" unless mac_calendar_panel_source.include?("if visibleTasks.isEmpty") && mac_calendar_panel_source.include?("MacCalendarRangeEmptyStateView(")
+raise "Mac calendar empty branch must pass selected date" unless mac_calendar_panel_source.include?("selectedDate: selectedDate") && mac_calendar_panel_source.include?("onAddTaskAtDate(selectedDate)")
+mac_calendar_empty_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "private struct MacCalendarRangeEmptyStateView",
+  "private struct MacCalendarDayCell",
+  "Mac calendar range empty state source missing"
+)
+raise "Mac calendar range empty state title missing" unless mac_calendar_empty_source.include?("Label(\"当前范围暂无待办\", systemImage: \"calendar.badge.plus\")")
+raise "Mac calendar range empty state date formatting missing" unless mac_calendar_empty_source.include?("formatter.dateFormat = \"M月d日 E\"")
+raise "Mac calendar range empty state description missing selected date" unless mac_calendar_empty_source.include?("可直接为\\(selectedDateText)准备快速新增。")
+raise "Mac calendar range empty state snapshot action missing" unless mac_calendar_empty_source.include?("MacStaticScheduleActionChipView(") && mac_calendar_empty_source.include?("title: \"新增到此日期\"") && mac_calendar_empty_source.include?("accessibilityLabelText: \"新增\\(selectedDateText)待办\"")
+mac_calendar_empty_button = segment_slice(
+  mac_calendar_empty_source,
+  "Button(\"新增到此日期\", systemImage: \"plus.circle.fill\", action: onAddTask)",
+  ".accessibilityElement(children: .contain)",
+  "Mac calendar range empty state button source missing"
+)
+raise "Mac calendar range empty state button tap target missing" unless mac_calendar_empty_button.include?(".frame(minWidth: 132, minHeight: 36)")
+raise "Mac calendar range empty state accessibility label missing" unless mac_calendar_empty_button.include?(".accessibilityLabel(\"新增\\(selectedDateText)待办\")")
+raise "Mac calendar range empty state accessibility hint missing" unless mac_calendar_empty_button.include?("将左侧快速新增截止日期设为\\(selectedDateText)，并聚焦任务名称")
+raise "Mac calendar range empty state Voice Control labels missing" unless mac_calendar_empty_source.include?("Text(\"新增到此日期\")") && mac_calendar_empty_source.include?("Text(\"新增\\(selectedDateText)待办\")") && mac_calendar_empty_source.include?("Text(\"\\(selectedDateText)新增待办\")") && mac_calendar_empty_button.include?(".accessibilityInputLabels(addButtonInputLabels)")
+raise "Mac calendar range empty state accessibility summary missing" unless mac_calendar_empty_source.include?(".accessibilityLabel(\"当前范围暂无待办，可新增到\\(selectedDateText)\")")
+puts "Mac calendar range empty state quick add contracts verified."
+
 schedule_task_cell = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
   "private struct ScheduleTaskCell",
@@ -954,6 +1001,7 @@ grep -q "Plan panel action accessibility contracts verified." scripts/validate_c
 grep -q "Schedule toolbar add category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Schedule category empty state action contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac schedule category empty state action contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Mac calendar range empty state quick add contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add title field category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category input context contracts verified." scripts/validate_ci_artifact.rb
@@ -1002,6 +1050,7 @@ grep -q "negative_plan_panel_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_schedule_toolbar_add_marker_fixture" scripts/verify_project.sh
 grep -q "negative_schedule_category_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_schedule_category_empty_state_marker_fixture" scripts/verify_project.sh
+grep -q "negative_mac_calendar_range_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_title_context_marker_fixture" scripts/verify_project.sh
 grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.sh
@@ -1044,6 +1093,7 @@ grep -q "FAIL verify_project plan panel action accessibility contracts" scripts/
 grep -q "FAIL verify_project schedule toolbar add category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project schedule category empty state action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac schedule category empty state action contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project mac calendar range empty state quick add contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add title field category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
@@ -1121,7 +1171,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1624,6 +1674,31 @@ fi
 grep -q "FAIL verify_project mac schedule category empty state action contracts" "$negative_mac_schedule_category_empty_state_marker_output"
 rm -rf "$negative_mac_schedule_category_empty_state_marker_fixture"
 rm -f "$negative_mac_schedule_category_empty_state_marker_output"
+negative_mac_calendar_range_empty_state_marker_fixture="$(mktemp -d)"
+negative_mac_calendar_range_empty_state_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_mac_calendar_range_empty_state_marker_fixture"/
+python3 - "$negative_mac_calendar_range_empty_state_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Mac calendar range empty state quick add contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_mac_calendar_range_empty_state_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_mac_calendar_range_empty_state_marker_output" 2>&1; then
+  echo "Expected negative Mac calendar range empty state marker fixture to fail validation" >&2
+  cat "$negative_mac_calendar_range_empty_state_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project mac calendar range empty state quick add contracts" "$negative_mac_calendar_range_empty_state_marker_output"
+rm -rf "$negative_mac_calendar_range_empty_state_marker_fixture"
+rm -f "$negative_mac_calendar_range_empty_state_marker_output"
 negative_mac_quick_add_action_marker_fixture="$(mktemp -d)"
 negative_mac_quick_add_action_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_quick_add_action_marker_fixture"/
