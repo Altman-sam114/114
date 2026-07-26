@@ -928,6 +928,7 @@ struct TaskEditorView: View {
     private struct ExistingCategoryOption: Identifiable {
         let name: String
         let comparisonKey: String
+        let taskCount: Int
 
         var id: String { comparisonKey }
     }
@@ -952,6 +953,9 @@ struct TaskEditorView: View {
 
     private var existingCategoryOptions: [ExistingCategoryOption] {
         let presetKeys = Set(TaskCategoryPreset.defaults.map { categoryComparisonKey(for: $0.title) })
+        let taskCounts = store.tasks.reduce(into: [String: Int]()) { counts, task in
+            counts[categoryComparisonKey(for: task.category), default: 0] += 1
+        }
         var seenKeys = Set<String>()
 
         return store.taskCategories.compactMap { rawCategory in
@@ -960,7 +964,11 @@ struct TaskEditorView: View {
             guard !presetKeys.contains(comparisonKey), seenKeys.insert(comparisonKey).inserted else {
                 return nil
             }
-            return ExistingCategoryOption(name: name, comparisonKey: comparisonKey)
+            return ExistingCategoryOption(
+                name: name,
+                comparisonKey: comparisonKey,
+                taskCount: taskCounts[comparisonKey, default: 0]
+            )
         }
     }
 
@@ -1167,22 +1175,29 @@ struct TaskEditorView: View {
             selectExistingCategory(option)
         } label: {
             HStack(spacing: 6) {
-                Label {
-                    Text(option.name)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                } icon: {
-                    Image(systemName: "tag.fill")
-                }
+                Image(systemName: "tag.fill")
+                    .accessibilityHidden(true)
+
+                Text(option.name)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
+
+                Text(option.taskCount > 0 ? "\(option.taskCount)" : "历史")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(isSelected ? tint : AppTheme.secondaryText)
+                    .fixedSize()
+                    .accessibilityHidden(true)
 
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
+                        .fixedSize()
                         .accessibilityHidden(true)
                 }
             }
             .font(.caption.weight(.semibold))
             .foregroundStyle(isSelected ? tint : AppTheme.primaryText)
-            .frame(maxWidth: 180, minHeight: 44, alignment: .leading)
+            .frame(maxWidth: 220, minHeight: 44, alignment: .leading)
             .padding(.horizontal, 10)
             .background(isSelected ? tint.opacity(0.18) : AppTheme.panel, in: Capsule())
             .overlay {
@@ -1192,7 +1207,9 @@ struct TaskEditorView: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(option.name)分类\(isSelected ? "，已选中" : "")")
+        .accessibilityLabel(
+            "\(option.name)分类，\(option.taskCount > 0 ? "\(option.taskCount)项任务" : "仅历史专注记录")\(isSelected ? "，已选中" : "")"
+        )
         .accessibilityHint(
             isSelected
                 ? "当前使用该分类，再次点击保持当前分类"

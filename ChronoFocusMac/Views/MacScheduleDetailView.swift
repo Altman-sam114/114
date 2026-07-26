@@ -252,8 +252,17 @@ private struct MacExistingCategoryOption: Identifiable {
     let displayName: String
     let comparisonKey: String
     let representativeAccentHex: String?
+    let taskCount: Int
 
     var id: String { comparisonKey }
+
+    var usageText: String {
+        taskCount > 0 ? "\(taskCount)" : "历史"
+    }
+
+    var accessibilityUsageText: String {
+        taskCount > 0 ? "\(taskCount)项任务" : "仅历史专注记录"
+    }
 }
 
 private func macCategoryDisplayName(_ category: String) -> String {
@@ -286,11 +295,15 @@ private func macExistingCategoryOptions(
         let representativeAccentHex = tasks.first {
             macCategoryComparisonKey($0.category) == comparisonKey
         }?.accentHex
+        let taskCount = tasks.count {
+            macCategoryComparisonKey($0.category) == comparisonKey
+        }
         options.append(
             MacExistingCategoryOption(
                 displayName: displayName,
                 comparisonKey: comparisonKey,
-                representativeAccentHex: representativeAccentHex
+                representativeAccentHex: representativeAccentHex,
+                taskCount: taskCount
             )
         )
     }
@@ -417,7 +430,7 @@ private struct MacExistingCategoryPicker: View {
         for option: MacExistingCategoryOption,
         isSelected: Bool
     ) -> String {
-        "\(option.displayName)分类\(isSelected ? "，已选中" : "")"
+        "\(option.displayName)分类，\(option.accessibilityUsageText)\(isSelected ? "，已选中" : "")"
     }
 
     private func accessibilityHint(
@@ -445,18 +458,24 @@ private struct MacStaticExistingCategoryStrip: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(options) { option in
+                        let isSelected = macCategoryComparisonKey(selectedCategory) == option.comparisonKey
                         MacExistingCategoryChipContent(
                             option: option,
-                            isSelected: macCategoryComparisonKey(selectedCategory) == option.comparisonKey,
+                            isSelected: isSelected,
                             fallbackAccentHex: fallbackAccentHex
                         )
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(
+                            "\(option.displayName)分类，\(option.accessibilityUsageText)\(isSelected ? "，已选中" : "")"
+                        )
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
                 }
                 .padding(.vertical, 1)
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("已有分类，当前已选中\(selectedCategory)分类")
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("已有分类")
     }
 }
 
@@ -474,7 +493,19 @@ private struct MacExistingCategoryChipContent: View {
             Image(systemName: "tag.fill")
                 .accessibilityHidden(true)
             Text(option.displayName)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 140, alignment: .leading)
+            Text(option.usageText)
+                .font(.caption2.bold())
+                .monospacedDigit()
                 .fixedSize(horizontal: true, vertical: true)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(
+                    (isSelected ? Color.black : tint).opacity(0.12),
+                    in: Capsule()
+                )
             if isSelected {
                 Image(systemName: "checkmark")
                     .accessibilityHidden(true)

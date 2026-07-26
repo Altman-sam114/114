@@ -199,11 +199,14 @@ struct MacSnapshotRenderer {
 
         for offset in 0..<5 {
             let start = Calendar.current.date(byAdding: .day, value: -offset, to: now) ?? now
+            let sessionCategory = offset == 4
+                ? "历史归档"
+                : (offset.isMultiple(of: 2) ? "产品" : "工程")
             store.recordSession(
                 FocusSession(
                     taskID: nil,
                     taskTitle: offset == 0 ? "整理 Mac 版番茄钟界面" : "专注记录 \(offset)",
-                    category: offset.isMultiple(of: 2) ? "产品" : "工程",
+                    category: sessionCategory,
                     mode: .focus,
                     startedAt: start,
                     endedAt: start.addingTimeInterval(1500),

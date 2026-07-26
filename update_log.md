@@ -37,6 +37,7 @@
 - v0.98 已实现 iOS/macOS 日程分类非空摘要与分类空态互斥，并让 `Final CI status` 通过 `tee` 将既有 failure summary 同时输出到步骤 stdout 与 Step Summary；新增独立 marker/PASS、`cat` 回退 fixture 和 marker 缺失 fixture。实现 commit `9f26f865ab84c7874763bb3eef59a6a5c513a7c4` 的 GitHub Actions run `30189412591`（attempt `1`）及 Agent C 原始 artifact 复判已通过，validator 为 `99 PASS / 0 FAIL`。
 - v0.99 已实现 iOS 计时队列默认 4 项、展开/收起、分类与数量变化重置及运行中只读浏览边界；artifact validator 已增加原始 API JSON 的参数安全、结构化唯一 artifact 复判、八项 metadata PASS、UI/API marker 和含独立零计数在内的负向 fixture。修复 commit `c65693fe49e0c6ade7ff9751c5dda00103a9c37b` 的 run `30191096124` 与原始 artifact 已由 Agent C 复判通过，validator 为 `109 PASS / 0 FAIL`。
 - v1.0 已让 iOS 待办新增/编辑与 macOS 快速新增接入非预设“已有分类”复用，分类只更新 View 草稿并按任务首次出现复用代表色，不新增持久化；artifact validator 已增加 `--run-metadata` 第四模式和十项 workflow run API 独立复判。实现 commit `7ccf408b82ce2ead457e5bce679f5cee1ac9ae33` 的 run `30192906663` 与原始 artifact 已由 Agent C 复判通过，validator 为 `121 PASS / 0 FAIL`。
+- v1.1 当前实现中：iOS/macOS 已有分类将按规范化 key 显示当前任务数量，session-only 分类显示“历史”；新增独立云端 marker/PASS 和负向 fixture，不新增持久化。当前 commit、run、artifact 和 Agent C 结论为 `pending`。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest overallOutcome、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index artifactName、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context 精确键集、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/总结果/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、日程分类空态操作 contract marker、Mac 日程分类空态操作 contract marker、Mac 快速新增和标题分类上下文 contract marker、分类输入上下文 contract marker、待办保存分类 contract marker、待办取消分类 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、统计分类投入次数 contract marker、统计分类投入排行 contract marker、统计分类投入排序依据 contract marker、统计分类投入空态 contract marker、统计分类投入元信息可读性 contract marker、统计分类投入占比可读性 contract marker、统计最近记录分类 contract marker、统计计划回顾分类 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
 - v0.93 的当前云端覆盖还包括 `Mac calendar range empty state quick add contracts verified.` marker、`PASS verify_project mac calendar range empty state quick add contracts` 复判和 `negative_mac_calendar_range_empty_state_marker_fixture` 拒绝路径。
@@ -55,6 +56,34 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v1.1 / 已有分类使用量上下文
+
+日期：2026-07-26
+
+核心变更：
+
+- iOS 待办新增/编辑和 macOS 快速新增的已有分类 option 增加非持久化 `taskCount`，按 v1.0 的 POSIX folding key 聚合全部当前任务。
+- 有任务显示数量，零任务的 session-only 分类显示“历史”；保持首次出现顺序、代表色、草稿更新、selected、VoiceOver/Voice Control 和 iOS 44pt 边界。
+- 云端验证新增 `Existing category usage context contracts verified.`、validator PASS 与 marker 缺失负向 fixture，Mac 实际/静态渲染共享同一 option。
+
+关键文件：
+
+- `ChronoFocus/Views/ScheduleView.swift`
+- `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `scripts/render_mac_snapshots.swift`
+- `scripts/verify_project.sh`
+- `scripts/validate_ci_artifact.rb`
+- `md/prompt/v1（持续优化）/v1.1（已有分类使用量上下文）.md`
+
+验证结果：
+
+- 主线程未运行任何本地测试、检查、验证脚本、`git diff --check`、Xcode、`xcodebuild`、`simctl` 或 Simulator；CI 子 Agent 误运行过一次 `git diff --check`，该流程违规已记录，其输出不得作为验收证据。未运行项目验证脚本、Xcode 构建或模拟器。
+- 当前状态为 `pending`：尚无 v1.1 commit、GitHub Actions run、artifact 或 Agent C 云端复判结论。
+
+遗留事项：
+
+- Agent B 完成实现并 push 后，Agent C 必须只验收最新 `origin/main` 对应的 Run API、Artifacts API 和原始 ZIP；不得复用 v1.0 证据。
 
 ### v1.0 / 已有分类复用与 Run API 复判
 
@@ -93,7 +122,7 @@
 
 遗留事项：
 
-- 本证据记录需作为独立 commit push 到 `origin/main`，并由 Agent C 对该最新 HEAD 的精确 run API、artifacts API 和原始 ZIP 再次执行 validator 第四模式复判；通过前不得把证据记录提交本身声明为闭环。
+- 最终证据 commit `a76d1dbb2926297cbb05578b6b9cf781e08a1285` 的 GitHub Actions run `30193171049`（attempt `1`）成功，job `89769934710` 全步骤通过。Agent C 在 `/private/tmp/chronofocus-c-review-30193171049-QdKAhY/` 复判 artifact `chronofocus-ci-v0.10-main-a76d1db-run30193171049-attempt1`（id `8629271447`，size `14396212`，digest `sha256:e1baa096398e0016f708b6c86dcb8caf52d57a897c08c459dd2bee7e4f55760d`，`expired=false`）为 `121 PASS / 0 FAIL`，annotations 为 0；完整日志仅有两条 AppIntents metadata 跳过的已知良性警告，v1.0 闭环。
 - v1.0 不改真实 StoreKit/EventKit 失败路径测试，也不新增分类管理、重命名、合并或删除能力；这些仍是后续独立轮次候选。
 
 ### v0.99 / iOS 计时队列展开与 Artifact API 元数据复判

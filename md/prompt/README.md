@@ -93,4 +93,8 @@ Agent A 写给 Agent B 的提示词必须明确：
 - v1.0：`md/prompt/v1（持续优化）/v1.0（已有分类复用与Run API复判）.md`。
 - UI 范围：iOS 新增/编辑和 macOS 快速新增从 `store.taskCategories` 派生非预设已有分类，按固定 locale 规范化、首次出现去重和稳定顺序展示；点击只更新草稿并复用首个同分类任务代表色，session-only 分类保留当前颜色，不新增持久化。
 - CI 范围：validator 新增 archive + artifact metadata + run metadata 第四模式，并对精确 run API 输出 response shape、id、attempt、SHA、branch、name、path、status、conclusion、repository 十项独立结果；Agent C 使用 `run-api.json.part -> run-api.json`、artifacts JSON 和原始 ZIP 完成包外证据链。
-- 状态：未运行任何本地测试或检查；实现 commit `7ccf408b82ce2ead457e5bce679f5cee1ac9ae33` 的 GitHub Actions run `30192906663`（attempt `1`）已成功，job `89769233620` 全步骤通过。Agent C 已复判 artifact `chronofocus-ci-v0.10-main-7ccf408-run30192906663-attempt1`（id `8629193568`，size `14394202`，digest `sha256:5d9a13ee2995960da6e9b6cd928ccc0f39e18b07bb42aae8f55184b4d44d8c94`，`expired=false`），validator 为 `121 PASS / 0 FAIL`；三项 archive、八项 artifact metadata、十项 workflow run metadata、已有分类复用、Run API marker、manifest overall 与 Mac/iOS build 均 PASS。v1.0 实现验收通过；本证据记录提交仍须完成自身最新云端复判。
+- 状态：未运行任何本地测试或检查；实现 commit `7ccf408b82ce2ead457e5bce679f5cee1ac9ae33` 的 run `30192906663` 已通过。最终证据 commit `a76d1dbb2926297cbb05578b6b9cf781e08a1285` 的 GitHub Actions run `30193171049`（attempt `1`）成功，Agent C 复判 artifact `chronofocus-ci-v0.10-main-a76d1db-run30193171049-attempt1`（id `8629271447`，size `14396212`，digest `sha256:e1baa096398e0016f708b6c86dcb8caf52d57a897c08c459dd2bee7e4f55760d`，`expired=false`）为 `121 PASS / 0 FAIL`；annotations 为 0，v1.0 已闭环。
+- v1.1：`md/prompt/v1（持续优化）/v1.1（已有分类使用量上下文）.md`。
+- UI 范围：iOS/macOS 已有分类按同一规范化 key 派生全部当前任务数量，有任务显示数量，session-only 显示“历史”；不持久化、不按数量排序，并保留 v1.0 的代表色、草稿和辅助功能边界。
+- CI 范围：新增 `Existing category usage context contracts verified.`、validator PASS 和 marker 缺失负向 fixture，继续由最新 run 的 Run API、Artifacts API 和 ZIP 第四模式复判。
+- 状态：`pending`。Agent A 提示词已写入，Agent B 实现已进入静态审查；主线程未运行本地测试或检查，但 CI 子 Agent 误运行过一次 `git diff --check`，其结果不作为验收证据。尚无 v1.1 commit、run、artifact 或 PASS 结论。
