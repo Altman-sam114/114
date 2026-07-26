@@ -66,9 +66,10 @@ flowchart TD
   P0 --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
   B --> C["FocusTask<br/>标题、分类、截止时间、轮次、循环、外部日历 ID"]
   C --> C2["FocusStore.taskCategories + TaskCategoryFilterOption<br/>合并预设/已有分类<br/>有任务分类优先显示"]
-  C2 --> MT["Mac 计时待办队列<br/>全部/分类筛选、结果数/总数<br/>分类空态新增或清除"]
-  MT --> C3["选中分类摘要/预填提示<br/>iOS/Mac 筛选/总数计数<br/>iOS/Mac 新增此分类、一键清除按钮分类语义<br/>Mac 摘要和空态按钮稳定点击区<br/>Mac 已预填提示、空态提示"]
-  MT -->|空态新增此分类| MS["MacDetailSelection<br/>写入唯一 MacQuickAddRequest<br/>切换到日程"]
+  C2 --> MT["Mac 计时待办队列<br/>全部/分类筛选、结果数/总数<br/>非空筛选上下文或分类空态"]
+  MT --> C3["非空分类上下文条<br/>分类名、筛选数/总数<br/>自适应新增/清除动作<br/>隐藏重复视觉badge但保留整行语义"]
+  MT -->|新增此分类| MS["MacDetailSelection<br/>写入唯一 MacQuickAddRequest<br/>切换到日程"]
+  MT -->|清除筛选| C2
   MS --> MQ["MacScheduleDetailView<br/>消费并清空请求<br/>复用 prepareQuickAdd 预填分类并聚焦标题"]
   MQ --> B
   C3 --> D{"autoGeneratePomodoroPlan 开启?"}
@@ -112,9 +113,9 @@ flowchart TD
   B1 --> L["本地轻量检查<br/>git diff --check<br/>YAML/plist/脚本语法检查"]
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
-  PUSH --> CI["GitHub Actions<br/>ci-results.yml<br/>静态检查、verify_project、Mac build、iOS build"]
-  CI --> ART["未加密 CI 结果包<br/>manifest元数据/artifactName/overallOutcome/project reports、固定CI process version、artifact index artifactName/version、精确清单和本地元数据复算、额外artifact拒绝、run context精确键集、failure summary 身份/总结果/outcome/错误摘录、JUnit 元数据/errors/outcome/failure元素、static-checks marker、Xcode 版本、verify_project 分类摘要动作/分类可访问/日程任务操作/计时主控/计划开始/计划分类badge/Mac计划分类/计划面板操作/日程toolbar新增/iOS和Mac日程分类空态/Mac快速新增/分类输入上下文/待办保存分类语义/待办取消分类语义/Mac小窗快捷面板/统计分类占比/统计分类投入次数/统计分类投入排行/统计分类投入排序依据/统计分类投入空态/统计分类投入元信息可读性/统计分类投入占比可读性/统计最近记录分类/统计计划回顾分类 marker、Mac/iOS 日志、Mac/iOS xcresult、快照、快照 manifest"]
-  ART --> C["Agent C<br/>gh auth login<br/>下载 artifact 到 /private/tmp/chronofocus-c-review-run_id<br/>核对 manifest artifactName、overallOutcome、index artifactName、artifact index、index totals、run context精确键集、artifact 名称、计时主控/计划分类badge/计划面板操作/日程toolbar新增/iOS和Mac日程分类空态/Mac快速新增/分类输入上下文/待办保存分类语义/待办取消分类语义/Mac小窗快捷面板/统计分类占比/统计分类投入次数/统计分类投入排行/统计分类投入排序依据/统计分类投入空态/统计分类投入元信息可读性/统计分类投入占比可读性/统计最近记录分类/统计计划回顾分类 marker 和快照 manifest"]
+  PUSH --> CI["GitHub Actions<br/>checkout@v5 / upload-artifact@v6<br/>静态检查、verify_project、Mac build、iOS build"]
+  CI --> ART["未加密 CI 结果包<br/>manifest、index、run context、JUnit、failure summary<br/>Mac/iOS日志与xcresult、5张正式快照和manifest<br/>Mac分类队列与CI Action Node.js 24 contract marker"]
+  ART --> C["Agent C<br/>gh auth login并下载最新artifact<br/>复判身份、结构、marker/PASS和构建结果<br/>检查完整job日志无Node 20、DEP0040/punycode、DEP0169/url.parse"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>run context无重复/无额外字段<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}
   PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]

@@ -113,6 +113,48 @@ struct MacSnapshotRenderer {
         print(timerCategoryEmptyURL.path)
         print(timerCategoryEmptyNarrowURL.path)
 
+        guard store.upcomingTasks().contains(where: { $0.category == "产品" }) else {
+            throw SnapshotError("Mac timer category context fixture requires 产品 tasks")
+        }
+
+        let timerCategoryFilteredURL = URL(fileURLWithPath: "/tmp/chronofocus-mac-timer-category-filtered.png")
+        let timerCategoryFilteredView = SnapshotDetailView(
+            selectedSection: .timer,
+            content: AnyView(MacTimerDetailView(initialTaskCategory: "产品"))
+        )
+        .environmentObject(store)
+        .environmentObject(engine)
+        .environmentObject(notifications)
+        .environmentObject(premium)
+        .environmentObject(calendarSync)
+        .environment(\.macSnapshotRendering, true)
+        .frame(width: 1100, height: 720)
+        try render(timerCategoryFilteredView, to: timerCategoryFilteredURL)
+        try assertNonBlankImage(at: timerCategoryFilteredURL)
+        try assertForegroundContent(at: timerCategoryFilteredURL, minimumXRatio: 0.22)
+        try assertNoMissingControlPlaceholders(at: timerCategoryFilteredURL)
+
+        let timerCategoryContextNarrowURL = URL(fileURLWithPath: "/tmp/chronofocus-mac-timer-category-context-narrow.png")
+        let timerCategoryContextNarrowView = MacTimerCategoryContextView(
+            category: "跨团队产品体验优化",
+            filteredCount: 128,
+            totalCount: 1024,
+            isSnapshotRendering: true,
+            onAddTask: {},
+            onClear: {}
+        )
+        .frame(width: 220)
+        try render(timerCategoryContextNarrowView, to: timerCategoryContextNarrowURL)
+        try assertNonBlankImage(at: timerCategoryContextNarrowURL)
+        try assertNoMissingControlPlaceholders(at: timerCategoryContextNarrowURL)
+        try assertMinimumPixelSize(
+            at: timerCategoryContextNarrowURL,
+            width: 400,
+            height: 220
+        )
+        print(timerCategoryFilteredURL.path)
+        print(timerCategoryContextNarrowURL.path)
+
         let manifestURL = outputDirectory.appendingPathComponent("manifest.json")
         try writeManifest(snapshotMetadata, to: manifestURL)
         try assertSnapshotManifest(at: manifestURL)
@@ -284,6 +326,23 @@ struct MacSnapshotRenderer {
 
         if warningSamples > 2 {
             throw SnapshotError("Rendered image contains missing-control placeholders: \(url.path)")
+        }
+    }
+
+    private static func assertMinimumPixelSize(at url: URL, width: Int, height: Int) throws {
+        guard
+            let image = NSImage(contentsOf: url),
+            let tiffData = image.tiffRepresentation,
+            let bitmap = NSBitmapImageRep(data: tiffData)
+        else {
+            throw SnapshotError("Could not read rendered image dimensions at \(url.path)")
+        }
+
+        guard bitmap.pixelsWide >= width, bitmap.pixelsHigh >= height else {
+            throw SnapshotError(
+                "Rendered image is smaller than \(width)x\(height) pixels: "
+                    + "\(bitmap.pixelsWide)x\(bitmap.pixelsHigh) at \(url.path)"
+            )
         }
     }
 

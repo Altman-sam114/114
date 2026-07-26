@@ -32,6 +32,7 @@
 - v0.93 起，macOS 日历范围空态按当前选中日期准备快速新增、保留时分并聚焦标题新增独立云端结果包复判：`Mac calendar range empty state quick add contracts verified.` 与 `PASS verify_project mac calendar range empty state quick add contracts`。
 - v0.94 起，iOS 计时页分类筛选无可启动待办时新增/清除操作新增独立云端结果包复判：`Timer category empty state action contracts verified.` 与 `PASS verify_project timer category empty state action contracts`。
 - v0.95 起，macOS 计时待办队列分类筛选/计数/空态跨页新增与声明边界韧性新增独立云端结果包复判：`Mac timer category queue contracts verified.`、`Declaration boundary resilience contracts verified.` 及两个对应 PASS。
+- v0.96 当前实现已增加 macOS 计时非空分类筛选上下文条、视觉 badge/可访问语义分离、正常和 220pt 云端快照覆盖，并将 CI Action 升级到 `actions/checkout@v5`、`actions/upload-artifact@v6`；新 marker、validator PASS、两个旧 Action 负向 fixture 和 marker 缺失 fixture 已接线，最新 `origin/main` 云端 run、artifact 与完整日志仍待验收。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest overallOutcome、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index artifactName、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context 精确键集、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/总结果/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、日程分类空态操作 contract marker、Mac 日程分类空态操作 contract marker、Mac 快速新增和标题分类上下文 contract marker、分类输入上下文 contract marker、待办保存分类 contract marker、待办取消分类 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、统计分类投入次数 contract marker、统计分类投入排行 contract marker、统计分类投入排序依据 contract marker、统计分类投入空态 contract marker、统计分类投入元信息可读性 contract marker、统计分类投入占比可读性 contract marker、统计最近记录分类 contract marker、统计计划回顾分类 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
 - v0.93 的当前云端覆盖还包括 `Mac calendar range empty state quick add contracts verified.` marker、`PASS verify_project mac calendar range empty state quick add contracts` 复判和 `negative_mac_calendar_range_empty_state_marker_fixture` 拒绝路径。
@@ -50,6 +51,46 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.96 / Mac 计时筛选上下文与 CI Action 运行时升级
+
+日期：2026-07-26
+
+核心变更：
+
+- macOS 计时待办队列在已选分类且结果非空时显示常驻上下文条，展示分类名和筛选数/总数，并提供“新增此分类”和“清除筛选”动作。
+- 上下文条使用宽度自适应横排/纵排布局；新增动作复用既有 `onAddTaskInCategory` 和唯一 `MacQuickAddRequest`，清除动作只重置本地分类筛选。
+- `MacTaskRowView.showsCategoryBadge` 默认保持显示；计时分类筛选态隐藏重复视觉 badge，未筛选态和其他调用端不变，整行仍保留任务名、分类名、选中/运行状态、提示和 Voice Control 输入标签。
+- Mac 快照脚本额外渲染正常非空分类筛选态和 220pt 窄宽上下文条，检查非空、前景内容和缺失控件占位；两张检查图不加入正式 artifact manifest，既有 5 张快照精确清单不变。
+- `.github/workflows/ci-results.yml` 将 `actions/checkout@v4` 升级为 `actions/checkout@v5`，将 `actions/upload-artifact@v4` 升级为 `actions/upload-artifact@v6`，其余 checkout 参数、artifact 内容、名称、失败时上传、保留期和最终状态行为保持不变。
+- `scripts/verify_project.sh` 增加 `CI action Node.js 24 contracts verified.`，并加入 `checkout_v4_workflow_fixture`、`upload_v4_workflow_fixture` 与 `negative_ci_action_node24_marker_fixture`；`scripts/validate_ci_artifact.rb` 增加 `PASS verify_project ci action Node.js 24 contracts`。
+- README、测试规范、核心流程、流程图和 Agent A 提示词同步 v0.96 当前真实实现与云端验收要求。
+
+关键文件：
+
+- `ChronoFocusMac/Views/MacTimerDetailView.swift`
+- `.github/workflows/ci-results.yml`
+- `scripts/render_mac_snapshots.swift`
+- `scripts/verify_project.sh`
+- `scripts/validate_ci_artifact.rb`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v0（持续优化）/v0.96（Mac计时筛选上下文与CI Action运行时升级）.md`
+- `update_log.md`
+
+验证结果：
+
+- 未运行任何本地测试或检查；人工明确要求全部测试/验收只走 GitHub Actions/CI。
+- 当前仅记录实现状态；实现提交 push 后再补写真实 v0.96 commit、run id 和 artifact，在此之前不得据此宣称通过。
+- 云端待验收：最新 `origin/main` run 必须成功，最新 artifact validator 必须包含 `PASS verify_project ci action Node.js 24 contracts`、`PASS verify_project mac timer category queue contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
+- 云端待验收：完整 job 日志不得出现 Node.js 20、`DEP0040`/`punycode`、`DEP0169`/`url.parse` 弃用项；不能只依据裁剪日志或 marker 判断。
+
+遗留事项：
+
+- Agent B 仍需提交并直推 `origin/main` 触发 GitHub Actions；Agent C 必须下载与最新 commit 完全一致的 artifact，并核对 manifest、run context、run id、run attempt、完整日志和项目专属产物。
+- v0.96 在最新云端 artifact 与完整日志验收完成前保持“云端待验收”，不得记录虚构的 commit、run 或 artifact 信息。
 
 ### v0.95 / Mac 计时分类队列与声明边界韧性
 
@@ -86,6 +127,7 @@
 - 实现提交 `4b4b246d5618ba34ec9a51388c7faf8060d4fa20` 已直推 `origin/main`；GitHub Actions run `30185850571`（attempt `1`）结论为 `success`。
 - Agent C 已下载并复判 artifact `chronofocus-ci-v0.10-main-4b4b246-run30185850571-attempt1`（artifact id `8627016196`，`14382073` bytes）；manifest 的 `branch=main`、commit SHA、run id、run attempt 和 artifact 名称均与最新提交一致。
 - `scripts/validate_ci_artifact.rb` 对该云端结果包完整通过，包含 `PASS verify_project mac timer category queue contracts`、`PASS verify_project declaration boundary resilience contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
+- 验收记录提交 `0afa5cd841222348e61b94d257c86c0f0e0e430a` 对应最终 run `30186142749`（attempt `1`）同样为 `success`；Agent C 已复判 artifact `chronofocus-ci-v0.10-main-0afa5cd-run30186142749-attempt1`（artifact id `8627109980`，`14383424` bytes），全部身份、marker、Mac/iOS build 和快照检查继续 PASS。
 
 遗留事项：
 

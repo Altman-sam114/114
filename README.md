@@ -20,7 +20,7 @@
 - 使用 StoreKit 2 购买/恢复 Pro 权益，内购商品 ID 为 `com.example.ChronoFocus.pro.analytics`。
 - 使用本地通知在番茄钟结束和日程到期时提醒，并按设置播放系统铃声。
 - 使用 ActivityKit Live Activity 在锁屏、通知栏和灵动岛显示后台倒计时。
-- macOS 版提供状态栏剩余时间、弹出式极简计时器、带分类和时间上下文的当前待办、可直达日程/统计/设置且按钮会读出动作和当前选中状态的快捷面板、详细功能窗口、任务行常驻分类 badge、日历日期格状态和 Voice Control 输入标签、任务行完成/启用/删除操作任务名和分类语义、计划生成/清空操作会读出当前未完成轮数，计划项显示分类 badge 且开始按钮读出任务名/时间段/轮次/分类、分类筛选快速新增预填提示，快速新增任务名称输入框会读出当前将新增到的分类并支持按分类 Voice Control 输入，分类输入框显示当前分类上下文并支持分类名 Voice Control 输入标签，快速新增提交按钮会读出当前分类和预计轮次，连续快速新增时保留刚使用的分类、任务行和小窗分类 badge 支持分类名 Voice Control 输入标签并优先使用预设色，当前任务选择行和计时主控按钮会读出当前任务、分类和运行中状态，并支持任务名和分类名 Voice Control 输入标签，统计最近记录显示分类 badge 并读出任务/分类/模式/时间/时长，带分类名可访问语义和稳定点击区的筛选摘要新增/清除按钮和筛选/总数计数、桌面通知、触觉反馈、Pro 统计和 Mac 日历同步。
+- macOS 版提供状态栏剩余时间、弹出式极简计时器、带分类和时间上下文的当前待办、可直达日程/统计/设置且按钮会读出动作和当前选中状态的快捷面板、详细功能窗口、日历日期格状态和 Voice Control 输入标签、任务行完成/启用/删除操作任务名和分类语义、计划生成/清空操作会读出当前未完成轮数，计划项显示分类 badge 且开始按钮读出任务名/时间段/轮次/分类、分类筛选快速新增预填提示，快速新增任务名称输入框会读出当前将新增到的分类并支持按分类 Voice Control 输入，分类输入框显示当前分类上下文并支持分类名 Voice Control 输入标签，快速新增提交按钮会读出当前分类和预计轮次，连续快速新增时保留刚使用的分类、未筛选任务行和小窗分类 badge 支持分类名 Voice Control 输入标签并优先使用预设色，计时队列的非空分类筛选态常驻显示分类名与筛选数/总数，可就地新增此分类或清除筛选；该状态隐藏任务行重复分类 badge，但整行仍保留任务名、分类名、选中/运行状态和 Voice Control 语义，当前任务选择行和计时主控按钮会读出当前任务、分类和运行中状态，并支持任务名和分类名 Voice Control 输入标签，统计最近记录显示分类 badge 并读出任务/分类/模式/时间/时长，带分类名可访问语义和稳定点击区的筛选摘要新增/清除按钮和筛选/总数计数、桌面通知、触觉反馈、Pro 统计和 Mac 日历同步。
 - macOS 日历面板当前范围没有待办时，可直接把当前选中日期带入左侧快速新增；原有时分会保留，并自动聚焦任务名称。
 - 通知权限未授权时可在 App 内请求；用户拒绝后会引导到系统设置。
 - 所有核心数据使用 `UserDefaults` JSON 持久化，重启后可恢复。
@@ -112,6 +112,8 @@ v0.93 起，macOS 日历范围空态会直接为当前选中日期准备快速�
 v0.94 起，iOS 计时页分类筛选无可启动待办时会直接提供新增此分类和清除筛选操作；操作区会按可用宽度在横排与纵排之间自适应，避免窄屏或大号动态字体压缩标签。云端输出 `Timer category empty state action contracts verified.`，并由 Agent C artifact validator 复判 `PASS verify_project timer category empty state action contracts`。
 
 v0.95 起，macOS 计时详情的待办队列支持按分类筛选并显示筛选数/总数；分类无结果时可清除筛选，或转到日程页预填该分类并聚焦快速新增标题。云端输出 `Mac timer category queue contracts verified.` 和 `Declaration boundary resilience contracts verified.`，Agent C artifact validator 分别复判对应 PASS。
+
+v0.96 起，macOS 计时详情的非空分类筛选态增加常驻上下文条、自适应新增/清除动作，并将任务行分类 badge 的视觉显示与完整可访问语义分离；云端快照脚本额外渲染正常分类筛选态和 220pt 窄宽上下文条，但正式 artifact manifest 仍保持既有 5 张快照精确清单。CI workflow 使用 `actions/checkout@v5` 和 `actions/upload-artifact@v6`，项目验证输出 `CI action Node.js 24 contracts verified.`，Agent C artifact validator 需复判 `PASS verify_project ci action Node.js 24 contracts`。v0.96 仍待最新 `origin/main` 云端 run、artifact 和完整 job 日志验收；日志不得出现 Node.js 20、`DEP0040`/`punycode` 或 `DEP0169`/`url.parse` 弃用项。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 

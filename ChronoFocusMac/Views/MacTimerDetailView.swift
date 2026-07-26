@@ -408,6 +408,21 @@ private struct MacTaskQueueView: View {
                         }
                     )
                 } else {
+                    if let selectedCategory {
+                        MacTimerCategoryContextView(
+                            category: selectedCategory,
+                            filteredCount: visibleTasks.count,
+                            totalCount: upcomingTasks.count,
+                            isSnapshotRendering: isSnapshotRendering,
+                            onAddTask: {
+                                onAddTaskInCategory(selectedCategory)
+                            },
+                            onClear: {
+                                self.selectedCategory = nil
+                            }
+                        )
+                    }
+
                     ForEach(visibleTasks.prefix(7)) { task in
                         Button {
                             guard !engine.isRunning else { return }
@@ -416,7 +431,8 @@ private struct MacTaskQueueView: View {
                             MacTaskRowView(
                                 task: task,
                                 isSelected: engine.selectedTaskID == task.id,
-                                isTimerRunning: engine.isRunning
+                                isTimerRunning: engine.isRunning,
+                                showsCategoryBadge: selectedCategory == nil
                             )
                         }
                         .buttonStyle(.plain)
@@ -435,6 +451,167 @@ private struct MacTaskQueueView: View {
     private func taskCount(in category: String?) -> Int {
         guard let category else { return upcomingTasks.count }
         return upcomingTasks.filter { $0.category == category }.count
+    }
+}
+
+struct MacTimerCategoryContextView: View {
+    let category: String
+    let filteredCount: Int
+    let totalCount: Int
+    let isSnapshotRendering: Bool
+    let onAddTask: () -> Void
+    let onClear: () -> Void
+
+    private var preset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(category)
+    }
+
+    private var tint: Color {
+        Color(hex: preset?.accentHex ?? "#3DE8C5")
+    }
+
+    private var countText: String {
+        "\(filteredCount)/\(totalCount) 项待办"
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            contextLayout(axis: .horizontal)
+            contextLayout(axis: .vertical)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(tint.opacity(0.32), lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("当前筛选为\(category)分类，显示\(filteredCount)项，共\(totalCount)项待办")
+        .accessibilityHint("可新增\(category)分类待办或清除筛选查看全部待办")
+    }
+
+    private func contextLayout(axis: Axis) -> some View {
+        let layout = axis == .horizontal
+            ? AnyLayout(HStackLayout(alignment: .center, spacing: 8))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+
+        return layout {
+            categorySummary
+                .frame(maxWidth: axis == .vertical ? .infinity : nil, alignment: .leading)
+
+            if axis == .horizontal {
+                Spacer(minLength: 0)
+            }
+
+            MacTimerCategoryContextActions(
+                category: category,
+                tint: tint,
+                isSnapshotRendering: isSnapshotRendering,
+                axis: axis,
+                onAddTask: onAddTask,
+                onClear: onClear
+            )
+        }
+    }
+
+    private var categorySummary: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Label(category, systemImage: preset?.symbolName ?? "tag.fill")
+                .font(.caption.bold())
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+
+            Text(countText)
+                .font(.caption)
+                .foregroundStyle(MacTheme.secondaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("已选择\(category)分类，显示\(filteredCount)项，共\(totalCount)项待办")
+    }
+}
+
+private struct MacTimerCategoryContextActions: View {
+    let category: String
+    let tint: Color
+    let isSnapshotRendering: Bool
+    let axis: Axis
+    let onAddTask: () -> Void
+    let onClear: () -> Void
+
+    var body: some View {
+        let layout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 6))
+            : AnyLayout(VStackLayout(spacing: 6))
+
+        layout {
+            action(
+                title: "新增此分类",
+                symbolName: "plus.circle.fill",
+                isProminent: true,
+                minWidth: 100,
+                action: onAddTask,
+                accessibilityLabel: "新增\(category)分类待办",
+                accessibilityHint: "转到日程并预填\(category)分类",
+                inputLabels: ["新增此分类", "新增\(category)分类待办", "新增\(category)分类"]
+            )
+
+            action(
+                title: "清除筛选",
+                symbolName: "xmark.circle.fill",
+                isProminent: false,
+                minWidth: 88,
+                action: onClear,
+                accessibilityLabel: "清除\(category)分类筛选",
+                accessibilityHint: "显示全部分类的待办",
+                inputLabels: ["清除筛选", "清除\(category)分类筛选", "查看全部分类"]
+            )
+        }
+        .frame(maxWidth: axis == .vertical ? .infinity : nil)
+    }
+
+    @ViewBuilder
+    private func action(
+        title: String,
+        symbolName: String,
+        isProminent: Bool,
+        minWidth: CGFloat,
+        action: @escaping () -> Void,
+        accessibilityLabel: String,
+        accessibilityHint: String,
+        inputLabels: [String]
+    ) -> some View {
+        let label = Label(title, systemImage: symbolName)
+            .font(.caption.bold())
+            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .padding(.horizontal, 9)
+            .frame(minWidth: minWidth, maxWidth: axis == .vertical ? .infinity : nil, minHeight: 36)
+            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(tint.opacity(isProminent ? 0.9 : 0.36), lineWidth: 1)
+            }
+
+        if isSnapshotRendering {
+            label
+                .accessibilityLabel(accessibilityLabel)
+                .accessibilityHint(accessibilityHint)
+                .accessibilityInputLabels(inputLabels.map { Text($0) })
+                .accessibilityAddTraits(.isButton)
+        } else {
+            Button(action: action) {
+                label
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityHint(accessibilityHint)
+            .accessibilityInputLabels(inputLabels.map { Text($0) })
+        }
     }
 }
 
@@ -594,6 +771,7 @@ struct MacTaskRowView: View {
     let task: FocusTask
     var isSelected = false
     var isTimerRunning = false
+    var showsCategoryBadge = true
 
     private var categoryPreset: TaskCategoryPreset? {
         TaskCategoryPreset.matching(task.category)
@@ -640,15 +818,17 @@ struct MacTaskRowView: View {
                     .foregroundStyle(MacTheme.primaryText)
                     .lineLimit(1)
                 HStack(spacing: 6) {
-                    Label(task.category, systemImage: categorySymbolName)
-                        .font(.caption.bold())
-                        .foregroundStyle(categoryTint)
-                        .lineLimit(1)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(categoryTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                        .accessibilityLabel("\(task.category)分类")
-                        .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
+                    if showsCategoryBadge {
+                        Label(task.category, systemImage: categorySymbolName)
+                            .font(.caption.bold())
+                            .foregroundStyle(categoryTint)
+                            .lineLimit(1)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(categoryTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            .accessibilityLabel("\(task.category)分类")
+                            .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
+                    }
 
                     if let dueDate = task.dueDate {
                         Text(dueDate.scheduleTimeText)

@@ -7,6 +7,24 @@ fi
 
 project="ChronoFocus.xcodeproj/project.pbxproj"
 
+verify_ci_action_versions() {
+  local workflow_path="$1"
+  local checkout_count
+  local upload_count
+
+  checkout_count="$(grep -Ec '^[[:space:]]*uses:[[:space:]]*actions/checkout@' "$workflow_path" || true)"
+  upload_count="$(grep -Ec '^[[:space:]]*uses:[[:space:]]*actions/upload-artifact@' "$workflow_path" || true)"
+
+  if [[ "$checkout_count" != "1" ]] || ! grep -Eq '^[[:space:]]*uses:[[:space:]]*actions/checkout@v5[[:space:]]*$' "$workflow_path"; then
+    echo "Expected exactly one actions/checkout@v5 declaration in $workflow_path" >&2
+    return 1
+  fi
+  if [[ "$upload_count" != "1" ]] || ! grep -Eq '^[[:space:]]*uses:[[:space:]]*actions/upload-artifact@v6[[:space:]]*$' "$workflow_path"; then
+    echo "Expected exactly one actions/upload-artifact@v6 declaration in $workflow_path" >&2
+    return 1
+  fi
+}
+
 echo "Checking project and property lists..."
 plutil -lint "$project" >/dev/null
 plutil -lint \
@@ -935,6 +953,8 @@ mac_selection_source = segment_slice(mac_detail_source, "class MacDetailSelectio
 mac_detail_content_source = segment_slice(mac_detail_source, "struct MacDetailContentView", "enum MacDetailSection", "MacDetailContentView source missing")
 mac_timer_view_source = segment_slice(mac_timer_source, "struct MacTimerDetailView", "struct MacModePickerView", "MacTimerDetailView source missing")
 mac_task_queue_source = segment_slice(mac_timer_source, "struct MacTaskQueueView", "struct MacMetricView", "MacTaskQueueView source missing")
+mac_timer_category_context_source = segment_slice(mac_timer_source, "struct MacTimerCategoryContextView", "struct MacTimerCategoryEmptyStateView", "MacTimerCategoryContextView source missing")
+mac_task_row_source = segment_slice(mac_timer_source, "struct MacTaskRowView", "struct MacPageHeaderView", "MacTaskRowView source missing")
 mac_schedule_view_source = segment_slice(mac_schedule_source, "struct MacScheduleDetailView", "struct MacQuickAddCategoryContextView", "MacScheduleDetailView source missing")
 raise "Mac detail quick-add request state missing" unless mac_selection_source.include?("quickAddRequest")
 raise "Mac detail requestQuickAdd action missing" unless mac_selection_source.match?(/func\s+requestQuickAdd\s*\([^)]*category:/)
@@ -952,6 +972,18 @@ raise "Mac timer category count must expose filtered and total counts" unless ma
 raise "Mac timer category empty state missing" unless mac_task_queue_source.include?("MacTimerCategoryEmptyStateView(") && mac_timer_source.include?("struct MacTimerCategoryEmptyStateView")
 raise "Mac timer category empty state add action missing" unless mac_task_queue_source.include?("onAddTaskInCategory") && mac_timer_source.include?("新增此分类")
 raise "Mac timer category empty state clear action missing" unless mac_task_queue_source.match?(/selectedCategory\s*=\s*nil/) && mac_timer_source.include?("清除筛选")
+raise "Mac timer non-empty category context view missing" unless mac_timer_source.include?("struct MacTimerCategoryContextView") && mac_task_queue_source.include?("MacTimerCategoryContextView(")
+raise "Mac timer non-empty category context must remain exclusive from empty state" unless mac_task_queue_source.match?(/else\s+if\s+visibleTasks\.isEmpty,\s*let\s+selectedCategory\s*\{[\s\S]*?MacTimerCategoryEmptyStateView\([\s\S]*?\}\s+else\s+\{\s*if\s+let\s+selectedCategory\s*\{\s*MacTimerCategoryContextView\(/) && mac_task_queue_source.scan(/MacTimerCategoryContextView\(/).length == 1
+raise "Mac timer non-empty category context counts missing" unless mac_task_queue_source.match?(/MacTimerCategoryContextView\([\s\S]*?filteredCount:\s*visibleTasks\.count,[\s\S]*?totalCount:\s*upcomingTasks\.count/)
+raise "Mac timer non-empty category context add action missing" unless mac_task_queue_source.include?("onAddTaskInCategory(selectedCategory)")
+raise "Mac timer non-empty category context clear action missing" unless mac_task_queue_source.match?(/MacTimerCategoryContextView\([\s\S]*?self\.selectedCategory\s*=\s*nil/)
+raise "Mac timer category context adaptive action layout missing" unless mac_timer_category_context_source.include?("ViewThatFits(in: .horizontal)")
+raise "Mac timer category context stable action target missing" unless mac_timer_category_context_source.match?(/\.frame\(minWidth:[^\n]*minHeight:\s*36\)/)
+raise "Mac timer category context accessibility labels missing" unless mac_timer_category_context_source.match?(/\.accessibilityLabel\([^\n]*category/) && mac_timer_category_context_source.include?(".accessibilityHint(") && mac_timer_category_context_source.include?(".accessibilityInputLabels(")
+raise "Mac task row category badge compatibility default missing" unless mac_task_row_source.match?(/var\s+showsCategoryBadge\s*=\s*true/)
+raise "Mac task row visual category badge condition missing" unless mac_task_row_source.match?(/if\s+showsCategoryBadge\s*\{[\s\S]*?Label\(task\.category,/)
+raise "Mac timer filtered task rows must hide repeated category badges" unless mac_task_queue_source.include?("showsCategoryBadge: selectedCategory == nil")
+raise "Mac task row accessibility category semantics missing" unless mac_task_row_source.include?("\\(task.title)，\\(task.category)分类") && mac_task_row_source.include?("Text(\"\\(task.category)分类待办\")") && mac_task_row_source.include?(".accessibilityHint(selectionHintText)") && mac_task_row_source.include?(".accessibilityAddTraits(selectionAccessibilityTraits)")
 raise "Mac timer category filter must use prioritized options" unless mac_schedule_source.include?("TaskCategoryPreset.prioritizedFilterOptions")
 raise "Mac schedule snapshot-compatible request default missing" unless mac_schedule_view_source.match?(/quickAddRequest:[^\n=]*\?\s*=\s*nil/)
 raise "Mac schedule snapshot-compatible consume default missing" unless mac_schedule_view_source.match?(/onConsumeQuickAddRequest:\s*@escaping\s*\(UUID\)\s*->\s*Void\s*=\s*\{\s*_\s+in\s*\}/)
@@ -959,9 +991,19 @@ raise "Mac schedule quick-add request identity consumption missing" unless mac_s
 raise "Mac schedule quick-add category preparation missing" unless mac_schedule_view_source.match?(/prepareQuickAdd\s*\(\s*quickAddRequest\.category\s*\)/)
 raise "Mac schedule quick-add request consumption missing" unless mac_schedule_view_source.include?("onConsumeQuickAddRequest(quickAddRequest.id)")
 mac_snapshot_source = File.read("scripts/render_mac_snapshots.swift")
+mac_timer_category_context_narrow_snapshot_source = segment_slice(
+  mac_snapshot_source,
+  "let timerCategoryContextNarrowURL",
+  "print(timerCategoryFilteredURL.path)",
+  "Mac timer category context narrow snapshot source missing"
+)
 raise "Mac timer normal queue snapshot coverage missing" unless mac_snapshot_source.include?("(\"detail-timer.png\", .timer, AnyView(MacTimerDetailView()))")
 raise "Mac timer category empty snapshot fixture missing" unless mac_snapshot_source.include?("MacTimerDetailView(initialTaskCategory: \"工作\")") && mac_snapshot_source.include?("allSatisfy({ $0.category != \"工作\" })")
 raise "Mac timer category empty narrow snapshot fixture missing" unless mac_snapshot_source.include?("MacTimerCategoryEmptyStateView(") && mac_snapshot_source.include?(".frame(width: 220)")
+raise "Mac timer non-empty category snapshot fixture missing" unless mac_snapshot_source.include?("MacTimerDetailView(initialTaskCategory: \"产品\")") && mac_snapshot_source.include?("chronofocus-mac-timer-category-filtered.png")
+raise "Mac timer category context narrow snapshot fixture missing" unless mac_timer_category_context_narrow_snapshot_source.include?("MacTimerCategoryContextView(") && mac_timer_category_context_narrow_snapshot_source.include?("chronofocus-mac-timer-category-context-narrow.png") && mac_timer_category_context_narrow_snapshot_source.include?(".frame(width: 220)")
+raise "Mac timer category context narrow snapshot long category fixture missing" unless mac_timer_category_context_narrow_snapshot_source.include?("category: \"跨团队产品体验优化\"")
+raise "Mac timer category context narrow snapshot minimum pixel size assertion missing" unless mac_timer_category_context_narrow_snapshot_source.include?("try assertMinimumPixelSize(") && mac_timer_category_context_narrow_snapshot_source.include?("at: timerCategoryContextNarrowURL") && mac_timer_category_context_narrow_snapshot_source.include?("width: 400") && mac_timer_category_context_narrow_snapshot_source.include?("height: 220")
 puts "Mac timer category queue contracts verified."
 RUBY
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
@@ -1089,6 +1131,7 @@ grep -q "Mac calendar range empty state quick add contracts verified." scripts/v
 grep -q "Timer category empty state action contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Declaration boundary resilience contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac timer category queue contracts verified." scripts/validate_ci_artifact.rb
+grep -q "CI action Node.js 24 contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add title field category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category input context contracts verified." scripts/validate_ci_artifact.rb
@@ -1141,6 +1184,9 @@ grep -q "negative_mac_calendar_range_empty_state_marker_fixture" scripts/verify_
 grep -q "negative_timer_category_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_declaration_boundary_resilience_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_timer_category_queue_marker_fixture" scripts/verify_project.sh
+grep -q "negative_ci_action_node24_marker_fixture" scripts/verify_project.sh
+grep -q "checkout_v4_workflow_fixture" scripts/verify_project.sh
+grep -q "upload_v4_workflow_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_title_context_marker_fixture" scripts/verify_project.sh
 grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.sh
@@ -1187,6 +1233,7 @@ grep -q "FAIL verify_project mac calendar range empty state quick add contracts"
 grep -q "FAIL verify_project timer category empty state action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project declaration boundary resilience contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac timer category queue contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project ci action Node.js 24 contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add title field category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
@@ -1264,7 +1311,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1867,6 +1914,31 @@ fi
 grep -q "FAIL verify_project mac timer category queue contracts" "$negative_mac_timer_category_queue_marker_output"
 rm -rf "$negative_mac_timer_category_queue_marker_fixture"
 rm -f "$negative_mac_timer_category_queue_marker_output"
+negative_ci_action_node24_marker_fixture="$(mktemp -d)"
+negative_ci_action_node24_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_ci_action_node24_marker_fixture"/
+python3 - "$negative_ci_action_node24_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "CI action Node.js 24 contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_ci_action_node24_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_ci_action_node24_marker_output" 2>&1; then
+  echo "Expected negative CI action Node.js 24 marker fixture to fail validation" >&2
+  cat "$negative_ci_action_node24_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project ci action Node.js 24 contracts" "$negative_ci_action_node24_marker_output"
+rm -rf "$negative_ci_action_node24_marker_fixture"
+rm -f "$negative_ci_action_node24_marker_output"
 negative_mac_quick_add_action_marker_fixture="$(mktemp -d)"
 negative_mac_quick_add_action_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_quick_add_action_marker_fixture"/
@@ -2798,6 +2870,32 @@ grep -q "ci-artifact-index.json" .github/workflows/ci-results.yml
 grep -q "artifactIndexPath" .github/workflows/ci-results.yml
 grep -q "path_metadata" .github/workflows/ci-results.yml
 grep -q "recursiveByteCount" .github/workflows/ci-results.yml
+
+verify_ci_action_versions .github/workflows/ci-results.yml
+
+checkout_v4_workflow_fixture="$(mktemp)"
+checkout_v4_workflow_output="$(mktemp)"
+cp .github/workflows/ci-results.yml "$checkout_v4_workflow_fixture"
+ruby -e 'path = ARGV.fetch(0); source = File.read(path); updated = source.sub("actions/checkout@v5", "actions/checkout@v4"); raise "checkout fixture replacement missing" if updated == source; File.write(path, updated)' "$checkout_v4_workflow_fixture"
+if verify_ci_action_versions "$checkout_v4_workflow_fixture" >"$checkout_v4_workflow_output" 2>&1; then
+  echo "Expected actions/checkout@v4 workflow fixture to fail validation" >&2
+  exit 1
+fi
+grep -q "Expected exactly one actions/checkout@v5 declaration" "$checkout_v4_workflow_output"
+rm -f "$checkout_v4_workflow_fixture" "$checkout_v4_workflow_output"
+
+upload_v4_workflow_fixture="$(mktemp)"
+upload_v4_workflow_output="$(mktemp)"
+cp .github/workflows/ci-results.yml "$upload_v4_workflow_fixture"
+ruby -e 'path = ARGV.fetch(0); source = File.read(path); updated = source.sub("actions/upload-artifact@v6", "actions/upload-artifact@v4"); raise "upload fixture replacement missing" if updated == source; File.write(path, updated)' "$upload_v4_workflow_fixture"
+if verify_ci_action_versions "$upload_v4_workflow_fixture" >"$upload_v4_workflow_output" 2>&1; then
+  echo "Expected actions/upload-artifact@v4 workflow fixture to fail validation" >&2
+  exit 1
+fi
+grep -q "Expected exactly one actions/upload-artifact@v6 declaration" "$upload_v4_workflow_output"
+rm -f "$upload_v4_workflow_fixture" "$upload_v4_workflow_output"
+
+echo "CI action Node.js 24 contracts verified."
 
 echo "Running Mac core tests..."
 xcrun --sdk macosx swiftc \
