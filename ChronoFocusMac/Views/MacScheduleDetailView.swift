@@ -6,6 +6,8 @@ struct MacScheduleDetailView: View {
     @EnvironmentObject private var premium: MacPremiumAccessService
     @EnvironmentObject private var calendarSync: MacCalendarSyncService
     @EnvironmentObject private var notifications: MacNotificationService
+    let quickAddRequest: MacQuickAddRequest?
+    let onConsumeQuickAddRequest: (UUID) -> Void
     @State private var taskTitle = ""
     @State private var category = "工作"
     @State private var dueDate = Date().addingTimeInterval(3600)
@@ -14,6 +16,14 @@ struct MacScheduleDetailView: View {
     @State private var selectedCategory: String?
     @FocusState private var isTaskTitleFocused: Bool
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
+
+    init(
+        quickAddRequest: MacQuickAddRequest? = nil,
+        onConsumeQuickAddRequest: @escaping (UUID) -> Void = { _ in }
+    ) {
+        self.quickAddRequest = quickAddRequest
+        self.onConsumeQuickAddRequest = onConsumeQuickAddRequest
+    }
 
     private var quickAddCategoryName: String {
         let trimmedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -152,6 +162,12 @@ struct MacScheduleDetailView: View {
             guard let newCategory else { return }
             category = newCategory
             accentHex = TaskCategoryPreset.matching(newCategory)?.accentHex ?? "#3DE8C5"
+        }
+        .task(id: quickAddRequest?.id) {
+            guard let quickAddRequest else { return }
+            selectedCategory = quickAddRequest.category
+            prepareQuickAdd(quickAddRequest.category)
+            onConsumeQuickAddRequest(quickAddRequest.id)
         }
     }
 
@@ -1222,7 +1238,7 @@ private struct MacCategoryPresetPicker: View {
     }
 }
 
-private struct MacCategoryFilterBar: View {
+struct MacCategoryFilterBar: View {
     let categories: [String]
     @Binding var selectedCategory: String?
     let countProvider: (String?) -> Int

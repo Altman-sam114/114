@@ -599,6 +599,12 @@ end
 check(checks, "verify_project timer category empty state action contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Timer category empty state action contracts verified.")
 end
+check(checks, "verify_project declaration boundary resilience contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Declaration boundary resilience contracts verified.")
+end
+check(checks, "verify_project mac timer category queue contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Mac timer category queue contracts verified.")
+end
 check(checks, "verify_project success") { File.read(verify_log_path, encoding: "UTF-8").include?("Project structure verified.") }
 check(checks, "mac build succeeded") { File.read(mac_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }
 check(checks, "ios build succeeded") { File.read(ios_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }

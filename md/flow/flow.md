@@ -171,7 +171,7 @@ macOS：
 - 菜单栏时间胶囊：显示剩余时间。
 - 左键 popover：极简计时器、动态进度条、带分类名可访问标签、Voice Control input labels、已选中状态、选择提示、运行中不可切换提示和任务名/分类名语音标签的当前待办分类 badge/时间上下文、可读出按钮动作和当前选中状态的快捷面板，并可直接打开日程、统计或设置详情页。
 - 右键菜单：开始/暂停、打开详细界面、退出。
-- 详细窗口：计时、日程、日期格读出日期、待办数、已选中和非本月状态并支持 Voice Control input labels、日历范围空态按当前选中日期准备快速新增并聚焦标题、任务行常驻分类 badge、分类名 Voice Control input labels、任务行完成/启用/删除操作任务名和分类语义、计时主控按钮读出当前任务名和分类，计划面板生成/清空操作读出当前未完成轮数，计划项显示分类 badge 并在开始按钮读出任务名/时间段/轮次/分类、预设色兜底、当前任务 selected trait、选择/运行中提示和任务名/分类名语音标签、分类筛选、再次点击已选分类退出筛选、分类 chip 可访问状态/动作提示、selected trait 和 Voice Control input labels、筛选/总数计数、选中分类摘要快捷新增、分类无结果空态新增/清除操作、摘要新增/清除按钮分类语义和稳定点击区、快速新增任务名称输入框分类上下文、分类输入上下文、快速新增分类预填提示、快速新增提交按钮分类/轮次语义、连续新增保留分类、统计最近记录分类 badge 和整行语义、统计、设置。
+- 详细窗口：计时、日程、日期格读出日期、待办数、已选中和非本月状态并支持 Voice Control input labels、日历范围空态按当前选中日期准备快速新增并聚焦标题、任务行常驻分类 badge、分类名 Voice Control input labels、任务行完成/启用/删除操作任务名和分类语义、计时主控按钮读出当前任务名和分类，计时待办队列按分类筛选并显示筛选数/总数，分类空态可清除或通过一次性 `MacQuickAddRequest` 转到日程预填分类并聚焦标题；计划面板生成/清空操作读出当前未完成轮数，计划项显示分类 badge 并在开始按钮读出任务名/时间段/轮次/分类、预设色兜底、当前任务 selected trait、选择/运行中提示和任务名/分类名语音标签、分类筛选、再次点击已选分类退出筛选、分类 chip 可访问状态/动作提示、selected trait 和 Voice Control input labels、筛选/总数计数、选中分类摘要快捷新增、分类无结果空态新增/清除操作、摘要新增/清除按钮分类语义和稳定点击区、快速新增任务名称输入框分类上下文、分类输入上下文、快速新增分类预填提示、快速新增提交按钮分类/轮次语义、连续新增保留分类、统计最近记录分类 badge 和整行语义、统计、设置。
 
 ## 6. 前端 / 数据层 / 模型层 / 测试层关系
 
@@ -196,6 +196,7 @@ macOS：
 - v0.92 起，macOS 日程分类筛选无结果空态的新增/清除动作由 `scripts/verify_project.sh` 输出 `Mac schedule category empty state action contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project mac schedule category empty state action contracts`。
 - v0.93 起，macOS 日历范围空态按当前选中日期准备快速新增、保留时分并聚焦标题的接线由 `scripts/verify_project.sh` 输出 `Mac calendar range empty state quick add contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project mac calendar range empty state quick add contracts`。
 - v0.94 起，iOS 计时页分类筛选无可启动待办时的新增/清除动作、宽度自适应横排/纵排操作区，以及预填分类打开待办编辑 sheet 的接线，由 `scripts/verify_project.sh` 输出 `Timer category empty state action contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project timer category empty state action contracts`。
+- v0.95 起，macOS 计时待办队列的分类筛选、筛选数/总数、分类空态新增/清除、一次性跨页预填请求和快照兼容接线，由 `scripts/verify_project.sh` 输出 `Mac timer category queue contracts verified.`；通用 accessibility 源码切片 helper 与调用边界去除访问级别耦合后输出 `Declaration boundary resilience contracts verified.`。`scripts/validate_ci_artifact.rb` 在云端 artifact 中复判两个对应 contract。
 - 平台服务负责系统能力，不持有核心业务规则。
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。

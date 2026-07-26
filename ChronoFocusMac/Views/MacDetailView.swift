@@ -3,10 +3,26 @@ import SwiftUI
 @MainActor
 final class MacDetailSelection: ObservableObject {
     @Published var selectedSection: MacDetailSection?
+    @Published private(set) var quickAddRequest: MacQuickAddRequest?
 
     init(selectedSection: MacDetailSection = .timer) {
         self.selectedSection = selectedSection
     }
+
+    func requestQuickAdd(category: String) {
+        quickAddRequest = MacQuickAddRequest(category: category)
+        selectedSection = .schedule
+    }
+
+    func consumeQuickAddRequest(id: UUID) {
+        guard quickAddRequest?.id == id else { return }
+        quickAddRequest = nil
+    }
+}
+
+struct MacQuickAddRequest: Identifiable, Equatable {
+    let id = UUID()
+    let category: String
 }
 
 struct MacDetailView: View {
@@ -23,7 +39,7 @@ struct MacDetailView: View {
             .background(Color.black.opacity(0.18))
             .frame(minWidth: 190)
         } detail: {
-            MacDetailContentView(section: selection.selectedSection ?? .timer)
+            MacDetailContentView(selection: selection)
         }
         .background(MacTheme.background)
         .preferredColorScheme(.dark)
@@ -31,15 +47,18 @@ struct MacDetailView: View {
 }
 
 private struct MacDetailContentView: View {
-    let section: MacDetailSection
+    @ObservedObject var selection: MacDetailSelection
 
     var body: some View {
         ScrollView {
-            switch section {
+            switch selection.selectedSection ?? .timer {
             case .timer:
-                MacTimerDetailView()
+                MacTimerDetailView(onAddTaskInCategory: selection.requestQuickAdd)
             case .schedule:
-                MacScheduleDetailView()
+                MacScheduleDetailView(
+                    quickAddRequest: selection.quickAddRequest,
+                    onConsumeQuickAddRequest: selection.consumeQuickAddRequest
+                )
             case .analytics:
                 MacAnalyticsDetailView()
             case .settings:

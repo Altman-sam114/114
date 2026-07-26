@@ -111,6 +111,8 @@ v0.93 起，macOS 日历范围空态会直接为当前选中日期准备快速�
 
 v0.94 起，iOS 计时页分类筛选无可启动待办时会直接提供新增此分类和清除筛选操作；操作区会按可用宽度在横排与纵排之间自适应，避免窄屏或大号动态字体压缩标签。云端输出 `Timer category empty state action contracts verified.`，并由 Agent C artifact validator 复判 `PASS verify_project timer category empty state action contracts`。
 
+v0.95 起，macOS 计时详情的待办队列支持按分类筛选并显示筛选数/总数；分类无结果时可清除筛选，或转到日程页预填该分类并聚焦快速新增标题。云端输出 `Mac timer category queue contracts verified.` 和 `Declaration boundary resilience contracts verified.`，Agent C artifact validator 分别复判对应 PASS。
+
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
 ## 协作与云端验证

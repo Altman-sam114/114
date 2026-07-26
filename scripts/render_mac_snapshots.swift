@@ -79,6 +79,40 @@ struct MacSnapshotRenderer {
             print(detailURL.path)
         }
 
+        guard store.upcomingTasks().allSatisfy({ $0.category != "工作" }) else {
+            throw SnapshotError("Mac timer category empty fixture requires zero 工作 tasks")
+        }
+
+        let timerCategoryEmptyURL = URL(fileURLWithPath: "/tmp/chronofocus-mac-timer-category-empty.png")
+        let timerCategoryEmptyView = SnapshotDetailView(
+            selectedSection: .timer,
+            content: AnyView(MacTimerDetailView(initialTaskCategory: "工作"))
+        )
+        .environmentObject(store)
+        .environmentObject(engine)
+        .environmentObject(notifications)
+        .environmentObject(premium)
+        .environmentObject(calendarSync)
+        .environment(\.macSnapshotRendering, true)
+        .frame(width: 1100, height: 720)
+        try render(timerCategoryEmptyView, to: timerCategoryEmptyURL)
+        try assertNonBlankImage(at: timerCategoryEmptyURL)
+        try assertNoMissingControlPlaceholders(at: timerCategoryEmptyURL)
+
+        let timerCategoryEmptyNarrowURL = URL(fileURLWithPath: "/tmp/chronofocus-mac-timer-category-empty-narrow.png")
+        let timerCategoryEmptyNarrowView = MacTimerCategoryEmptyStateView(
+            category: "工作",
+            isSnapshotRendering: true,
+            onAddTask: {},
+            onClear: {}
+        )
+        .frame(width: 220)
+        try render(timerCategoryEmptyNarrowView, to: timerCategoryEmptyNarrowURL)
+        try assertNonBlankImage(at: timerCategoryEmptyNarrowURL)
+        try assertNoMissingControlPlaceholders(at: timerCategoryEmptyNarrowURL)
+        print(timerCategoryEmptyURL.path)
+        print(timerCategoryEmptyNarrowURL.path)
+
         let manifestURL = outputDirectory.appendingPathComponent("manifest.json")
         try writeManifest(snapshotMetadata, to: manifestURL)
         try assertSnapshotManifest(at: manifestURL)

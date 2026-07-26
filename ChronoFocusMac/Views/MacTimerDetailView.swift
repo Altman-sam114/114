@@ -3,6 +3,16 @@ import SwiftUI
 struct MacTimerDetailView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
+    let onAddTaskInCategory: (String) -> Void
+    let initialTaskCategory: String?
+
+    init(
+        onAddTaskInCategory: @escaping (String) -> Void = { _ in },
+        initialTaskCategory: String? = nil
+    ) {
+        self.onAddTaskInCategory = onAddTaskInCategory
+        self.initialTaskCategory = initialTaskCategory
+    }
 
     private var currentTint: Color {
         if let task = store.task(for: engine.selectedTaskID) {
@@ -31,7 +41,11 @@ struct MacTimerDetailView: View {
 
                 VStack(spacing: 18) {
                     MacTodaySummaryView()
-                    MacTaskQueueView(currentTint: currentTint)
+                    MacTaskQueueView(
+                        currentTint: currentTint,
+                        initialTaskCategory: initialTaskCategory,
+                        onAddTaskInCategory: onAddTaskInCategory
+                    )
                 }
                 .frame(minWidth: 320)
             }
@@ -323,8 +337,36 @@ private struct MacTodaySummaryView: View {
 private struct MacTaskQueueView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
+    @State private var selectedCategory: String?
 
     let currentTint: Color
+    let onAddTaskInCategory: (String) -> Void
+
+    init(
+        currentTint: Color,
+        initialTaskCategory: String?,
+        onAddTaskInCategory: @escaping (String) -> Void
+    ) {
+        self.currentTint = currentTint
+        self.onAddTaskInCategory = onAddTaskInCategory
+        _selectedCategory = State(initialValue: initialTaskCategory)
+    }
+
+    private var upcomingTasks: [FocusTask] {
+        store.upcomingTasks()
+    }
+
+    private var visibleTasks: [FocusTask] {
+        guard let selectedCategory else { return upcomingTasks }
+        return upcomingTasks.filter { $0.category == selectedCategory }
+    }
+
+    private var taskQueueCountText: String {
+        guard !upcomingTasks.isEmpty else { return "0 项待办" }
+        guard selectedCategory != nil else { return "\(upcomingTasks.count) 项待办" }
+        return "\(visibleTasks.count)/\(upcomingTasks.count) 项待办"
+    }
 
     var body: some View {
         MacGlassPanel {
@@ -334,26 +376,196 @@ private struct MacTaskQueueView: View {
                         .font(.headline)
                         .foregroundStyle(MacTheme.primaryText)
                     Spacer()
-                    Text("\(store.upcomingTasks().count)")
+                    Text(taskQueueCountText)
+                        .font(.caption)
                         .foregroundStyle(MacTheme.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
                 }
 
-                ForEach(store.upcomingTasks().prefix(7)) { task in
-                    Button {
-                        guard !engine.isRunning else { return }
-                        engine.selectTask(task)
-                    } label: {
-                        MacTaskRowView(
-                            task: task,
-                            isSelected: engine.selectedTaskID == task.id,
-                            isTimerRunning: engine.isRunning
-                        )
+                if !upcomingTasks.isEmpty {
+                    MacCategoryFilterBar(
+                        categories: store.taskCategories,
+                        selectedCategory: $selectedCategory,
+                        countProvider: taskCount(in:)
+                    )
+                }
+
+                if upcomingTasks.isEmpty {
+                    Text("暂无待办，仍可启动自由专注。")
+                        .font(.caption)
+                        .foregroundStyle(MacTheme.secondaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else if visibleTasks.isEmpty, let selectedCategory {
+                    MacTimerCategoryEmptyStateView(
+                        category: selectedCategory,
+                        isSnapshotRendering: isSnapshotRendering,
+                        onAddTask: {
+                            onAddTaskInCategory(selectedCategory)
+                        },
+                        onClear: {
+                            self.selectedCategory = nil
+                        }
+                    )
+                } else {
+                    ForEach(visibleTasks.prefix(7)) { task in
+                        Button {
+                            guard !engine.isRunning else { return }
+                            engine.selectTask(task)
+                        } label: {
+                            MacTaskRowView(
+                                task: task,
+                                isSelected: engine.selectedTaskID == task.id,
+                                isTimerRunning: engine.isRunning
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(engine.isRunning)
+                        .accessibilityInputLabels([
+                            Text(task.title),
+                            Text("\(task.title)待办"),
+                            Text("\(task.category)分类待办")
+                        ])
                     }
-                    .buttonStyle(.plain)
-                    .disabled(engine.isRunning)
                 }
             }
         }
+    }
+
+    private func taskCount(in category: String?) -> Int {
+        guard let category else { return upcomingTasks.count }
+        return upcomingTasks.filter { $0.category == category }.count
+    }
+}
+
+struct MacTimerCategoryEmptyStateView: View {
+    let category: String
+    let isSnapshotRendering: Bool
+    let onAddTask: () -> Void
+    let onClear: () -> Void
+
+    private var preset: TaskCategoryPreset? {
+        TaskCategoryPreset.matching(category)
+    }
+
+    private var tint: Color {
+        Color(hex: preset?.accentHex ?? "#3DE8C5")
+    }
+
+    private var addButtonInputLabels: [Text] {
+        [Text("新增此分类"), Text("新增\(category)分类待办"), Text("新增\(category)分类")]
+    }
+
+    private var clearButtonInputLabels: [Text] {
+        [Text("清除筛选"), Text("清除\(category)分类"), Text("查看全部分类")]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("暂无\(category)分类待办", systemImage: preset?.symbolName ?? "tag.slash")
+                .font(.subheadline.bold())
+                .foregroundStyle(MacTheme.primaryText)
+
+            Text("可转到日程快速新增此分类待办，或清除筛选查看全部。")
+                .font(.caption)
+                .foregroundStyle(MacTheme.secondaryText)
+
+            ViewThatFits(in: .horizontal) {
+                MacTimerCategoryEmptyActions(
+                    category: category,
+                    tint: tint,
+                    addButtonInputLabels: addButtonInputLabels,
+                    clearButtonInputLabels: clearButtonInputLabels,
+                    isSnapshotRendering: isSnapshotRendering,
+                    axis: .horizontal,
+                    onAddTask: onAddTask,
+                    onClear: onClear
+                )
+
+                MacTimerCategoryEmptyActions(
+                    category: category,
+                    tint: tint,
+                    addButtonInputLabels: addButtonInputLabels,
+                    clearButtonInputLabels: clearButtonInputLabels,
+                    isSnapshotRendering: isSnapshotRendering,
+                    axis: .vertical,
+                    onAddTask: onAddTask,
+                    onClear: onClear
+                )
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(tint.opacity(0.32), lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(category)分类暂无待办，可转到日程新增此分类待办或清除筛选")
+    }
+}
+
+private struct MacTimerCategoryEmptyActions: View {
+    let category: String
+    let tint: Color
+    let addButtonInputLabels: [Text]
+    let clearButtonInputLabels: [Text]
+    let isSnapshotRendering: Bool
+    let axis: Axis
+    let onAddTask: () -> Void
+    let onClear: () -> Void
+
+    var body: some View {
+        let layout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 8))
+            : AnyLayout(VStackLayout(spacing: 8))
+
+        layout {
+            if isSnapshotRendering {
+                staticAction(title: "新增此分类", isProminent: true)
+                staticAction(title: "清除筛选", isProminent: false)
+            } else {
+                Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
+                    .font(.caption.bold())
+                    .foregroundStyle(Color.black.opacity(0.82))
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .frame(minWidth: 104, maxWidth: .infinity, minHeight: 36)
+                    .background(tint, in: Capsule())
+                    .accessibilityLabel("新增\(category)分类待办")
+                    .accessibilityInputLabels(addButtonInputLabels)
+
+                Button("清除筛选", systemImage: "xmark.circle.fill", action: onClear)
+                    .font(.caption.bold())
+                    .foregroundStyle(tint)
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .frame(minWidth: 88, maxWidth: .infinity, minHeight: 36)
+                    .background(Color.white.opacity(0.07), in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(tint.opacity(0.36), lineWidth: 1)
+                    }
+                    .accessibilityLabel("清除\(category)分类筛选")
+                    .accessibilityInputLabels(clearButtonInputLabels)
+            }
+        }
+        .fixedSize(horizontal: axis == .horizontal, vertical: false)
+    }
+
+    private func staticAction(title: String, isProminent: Bool) -> some View {
+        Text(title)
+            .font(.caption.bold())
+            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
+            .frame(minWidth: isProminent ? 104 : 88, maxWidth: .infinity, minHeight: 36)
+            .padding(.horizontal, 10)
+            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(tint.opacity(isProminent ? 0.9 : 0.36), lineWidth: 1)
+            }
+            .accessibilityLabel(title)
     }
 }
 

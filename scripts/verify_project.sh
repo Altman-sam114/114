@@ -230,7 +230,7 @@ def assert_slice_contains(path, earlier, later, pattern, message)
 end
 
 def assert_chip_accessibility(path, chip_name, later)
-  segment = source_slice(path, "private struct #{chip_name}", later, "#{chip_name} slice missing")
+  segment = source_slice(path, "struct #{chip_name}", later, "#{chip_name} slice missing")
   raise "#{chip_name} must expose selected state text" unless segment.include?("accessibilityStateText") && segment.include?("已选中")
   raise "#{chip_name} must expose filter hint text" unless segment.include?("accessibilityHintText") && segment.include?("筛选\\(title)分类")
   raise "#{chip_name} must expose selected clear hint" unless segment.include?("再次点击清除筛选")
@@ -241,7 +241,7 @@ def assert_chip_accessibility(path, chip_name, later)
 end
 
 def assert_preset_picker_accessibility(path, picker_name, later)
-  segment = source_slice(path, "private struct #{picker_name}", later, "#{picker_name} slice missing")
+  segment = source_slice(path, "struct #{picker_name}", later, "#{picker_name} slice missing")
   raise "#{picker_name} must expose selected state text" unless segment.include?("accessibilityStateText(for preset: TaskCategoryPreset)") && segment.include?("已选中")
   raise "#{picker_name} must expose preset choice hint" unless segment.include?("accessibilityHintText(for preset: TaskCategoryPreset)") && segment.include?("选择\\(preset.title)分类")
   raise "#{picker_name} must attach accessibility hint" unless segment.include?(".accessibilityHint(accessibilityHintText(for: preset))")
@@ -251,7 +251,7 @@ def assert_preset_picker_accessibility(path, picker_name, later)
 end
 
 def assert_calendar_day_accessibility(path, day_name, later)
-  segment = source_slice(path, "private struct #{day_name}", later, "#{day_name} slice missing")
+  segment = source_slice(path, "struct #{day_name}", later, "#{day_name} slice missing")
   raise "#{day_name} must expose date text" unless segment.include?("accessibilityDateText") && segment.include?("M月d日 E")
   raise "#{day_name} must expose selected and muted state text" unless segment.include?("accessibilityStateText") && segment.include?("已选中") && segment.include?("非本月")
   raise "#{day_name} must expose date choice hint" unless segment.include?("accessibilityHintText") && segment.include?("当前正在查看此日期的待办") && segment.include?("选择此日期查看待办")
@@ -890,21 +890,79 @@ assert_slice_contains(
 
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
-  "private struct MacCategoryFilterBar",
+  "struct MacCategoryFilterBar",
   "private struct MacCategoryFilterChip",
   /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory == category \? nil : category/,
   "Mac category filter chip must toggle off the selected category"
 )
 puts "Category filter toggle contracts verified."
 
-assert_chip_accessibility("ChronoFocus/Views/ScheduleView.swift", "TaskCategoryFilterChip", "private struct ScheduleTaskCell")
-assert_chip_accessibility("ChronoFocus/Views/TimerView.swift", "TimerTaskCategoryFilterChip", "private struct TimerSelectedTaskCategorySummaryView")
-assert_chip_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCategoryFilterChip", "@MainActor\nprivate func syncMacTaskReminder")
-assert_preset_picker_accessibility("ChronoFocus/Views/ScheduleView.swift", "TaskCategoryPresetPicker", "@MainActor\nprivate func syncTaskReminder")
-assert_preset_picker_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCategoryPresetPicker", "private struct MacCategoryFilterBar")
-assert_calendar_day_accessibility("ChronoFocus/Views/ScheduleView.swift", "CalendarDayButton", "private struct TaskCategoryFilterBar")
-assert_calendar_day_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCalendarDayCell", "private struct MacCalendarSyncPanelView")
+assert_chip_accessibility("ChronoFocus/Views/ScheduleView.swift", "TaskCategoryFilterChip", "struct ScheduleTaskCell")
+assert_chip_accessibility("ChronoFocus/Views/TimerView.swift", "TimerTaskCategoryFilterChip", "struct TimerSelectedTaskCategorySummaryView")
+assert_chip_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCategoryFilterChip", "func syncMacTaskReminder")
+assert_preset_picker_accessibility("ChronoFocus/Views/ScheduleView.swift", "TaskCategoryPresetPicker", "func syncTaskReminder")
+assert_preset_picker_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCategoryPresetPicker", "struct MacCategoryFilterBar")
+assert_calendar_day_accessibility("ChronoFocus/Views/ScheduleView.swift", "CalendarDayButton", "struct TaskCategoryFilterBar")
+assert_calendar_day_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCalendarDayCell", "struct MacCalendarSyncPanelView")
 puts "Category chip accessibility contracts verified."
+
+verifier_path = "scripts/verify_project.sh"
+chip_helper_source = source_slice(verifier_path, "def assert_chip_accessibility", "def assert_preset_picker_accessibility", "Chip accessibility helper source missing")
+preset_helper_source = source_slice(verifier_path, "def assert_preset_picker_accessibility", "def assert_calendar_day_accessibility", "Preset picker accessibility helper source missing")
+calendar_helper_source = source_slice(verifier_path, "def assert_calendar_day_accessibility", "assert_slice_contains(", "Calendar day accessibility helper source missing")
+accessibility_calls_source = source_slice(verifier_path, "assert_chip_accessibility(\"ChronoFocus/Views/ScheduleView.swift\"", "puts \"Category chip accessibility contracts verified.\"", "Accessibility helper calls source missing")
+raise "Chip accessibility helper declaration marker depends on private access" unless chip_helper_source.include?('"struct #{chip_name}"') && !chip_helper_source.include?('"private struct #{chip_name}"')
+raise "Preset picker accessibility helper declaration marker depends on private access" unless preset_helper_source.include?('"struct #{picker_name}"') && !preset_helper_source.include?('"private struct #{picker_name}"')
+raise "Calendar day accessibility helper declaration marker depends on private access" unless calendar_helper_source.include?('"struct #{day_name}"') && !calendar_helper_source.include?('"private struct #{day_name}"')
+raise "Accessibility helper call boundaries depend on private access" if accessibility_calls_source.include?('"private struct ') || accessibility_calls_source.include?('"@MainActor\\nprivate func ')
+[
+  '"struct ScheduleTaskCell"',
+  '"struct TimerSelectedTaskCategorySummaryView"',
+  '"func syncMacTaskReminder"',
+  '"func syncTaskReminder"',
+  '"struct MacCategoryFilterBar"',
+  '"struct TaskCategoryFilterBar"',
+  '"struct MacCalendarSyncPanelView"'
+].each do |marker|
+  raise "Accessibility helper call boundary missing #{marker}" unless accessibility_calls_source.include?(marker)
+end
+puts "Declaration boundary resilience contracts verified."
+
+mac_detail_source = File.read("ChronoFocusMac/Views/MacDetailView.swift")
+mac_timer_source = File.read("ChronoFocusMac/Views/MacTimerDetailView.swift")
+mac_schedule_source = File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift")
+mac_selection_source = segment_slice(mac_detail_source, "class MacDetailSelection", "struct MacDetailView", "MacDetailSelection source missing")
+mac_detail_content_source = segment_slice(mac_detail_source, "struct MacDetailContentView", "enum MacDetailSection", "MacDetailContentView source missing")
+mac_timer_view_source = segment_slice(mac_timer_source, "struct MacTimerDetailView", "struct MacModePickerView", "MacTimerDetailView source missing")
+mac_task_queue_source = segment_slice(mac_timer_source, "struct MacTaskQueueView", "struct MacMetricView", "MacTaskQueueView source missing")
+mac_schedule_view_source = segment_slice(mac_schedule_source, "struct MacScheduleDetailView", "struct MacQuickAddCategoryContextView", "MacScheduleDetailView source missing")
+raise "Mac detail quick-add request state missing" unless mac_selection_source.include?("quickAddRequest")
+raise "Mac detail requestQuickAdd action missing" unless mac_selection_source.match?(/func\s+requestQuickAdd\s*\([^)]*category:/)
+raise "Mac detail quick-add request must switch to schedule" unless mac_selection_source.include?("selectedSection = .schedule")
+raise "Mac detail consumeQuickAddRequest action missing" unless mac_selection_source.match?(/func\s+consumeQuickAddRequest\s*\(/) && mac_selection_source.match?(/quickAddRequest\s*=\s*nil/)
+raise "Mac detail quick-add request identity guard missing" unless mac_selection_source.include?("quickAddRequest?.id == id")
+raise "Mac timer quick-add request wiring missing" unless mac_detail_content_source.include?("MacTimerDetailView(") && mac_detail_content_source.include?("selection.requestQuickAdd")
+raise "Mac schedule quick-add request wiring missing" unless mac_detail_content_source.include?("MacScheduleDetailView(") && mac_detail_content_source.include?("selection.quickAddRequest") && mac_detail_content_source.include?("selection.consumeQuickAddRequest")
+raise "Mac timer snapshot-compatible default action missing" unless mac_timer_view_source.match?(/init\s*\(\s*onAddTaskInCategory:\s*@escaping\s*\(String\)\s*->\s*Void\s*=\s*\{\s*_\s+in\s*\}/)
+raise "Mac timer snapshot category injection missing" unless mac_timer_view_source.include?("initialTaskCategory: String? = nil") && mac_timer_view_source.include?("initialTaskCategory: initialTaskCategory")
+raise "Mac timer category queue action wiring missing" unless mac_timer_view_source.include?("MacTaskQueueView(") && mac_timer_view_source.include?("onAddTaskInCategory: onAddTaskInCategory")
+raise "Mac timer category filter state missing" unless mac_task_queue_source.include?("selectedCategory") && mac_task_queue_source.include?("visibleTasks") && mac_task_queue_source.include?("upcomingTasks")
+raise "Mac timer category filter bar missing" unless mac_task_queue_source.include?("MacCategoryFilterBar(")
+raise "Mac timer category count must expose filtered and total counts" unless mac_task_queue_source.match?(/\\\(visibleTasks\.count\)\/\\\(upcomingTasks\.count\)/) && mac_task_queue_source.include?("Text(taskQueueCountText)")
+raise "Mac timer category empty state missing" unless mac_task_queue_source.include?("MacTimerCategoryEmptyStateView(") && mac_timer_source.include?("struct MacTimerCategoryEmptyStateView")
+raise "Mac timer category empty state add action missing" unless mac_task_queue_source.include?("onAddTaskInCategory") && mac_timer_source.include?("新增此分类")
+raise "Mac timer category empty state clear action missing" unless mac_task_queue_source.match?(/selectedCategory\s*=\s*nil/) && mac_timer_source.include?("清除筛选")
+raise "Mac timer category filter must use prioritized options" unless mac_schedule_source.include?("TaskCategoryPreset.prioritizedFilterOptions")
+raise "Mac schedule snapshot-compatible request default missing" unless mac_schedule_view_source.match?(/quickAddRequest:[^\n=]*\?\s*=\s*nil/)
+raise "Mac schedule snapshot-compatible consume default missing" unless mac_schedule_view_source.match?(/onConsumeQuickAddRequest:\s*@escaping\s*\(UUID\)\s*->\s*Void\s*=\s*\{\s*_\s+in\s*\}/)
+raise "Mac schedule quick-add request identity consumption missing" unless mac_schedule_view_source.include?(".task(id: quickAddRequest?.id)")
+raise "Mac schedule quick-add category preparation missing" unless mac_schedule_view_source.match?(/prepareQuickAdd\s*\(\s*quickAddRequest\.category\s*\)/)
+raise "Mac schedule quick-add request consumption missing" unless mac_schedule_view_source.include?("onConsumeQuickAddRequest(quickAddRequest.id)")
+mac_snapshot_source = File.read("scripts/render_mac_snapshots.swift")
+raise "Mac timer normal queue snapshot coverage missing" unless mac_snapshot_source.include?("(\"detail-timer.png\", .timer, AnyView(MacTimerDetailView()))")
+raise "Mac timer category empty snapshot fixture missing" unless mac_snapshot_source.include?("MacTimerDetailView(initialTaskCategory: \"工作\")") && mac_snapshot_source.include?("allSatisfy({ $0.category != \"工作\" })")
+raise "Mac timer category empty narrow snapshot fixture missing" unless mac_snapshot_source.include?("MacTimerCategoryEmptyStateView(") && mac_snapshot_source.include?(".frame(width: 220)")
+puts "Mac timer category queue contracts verified."
 RUBY
 grep -q "DurationStepper" ChronoFocus/Views/SettingsView.swift
 grep -q "makeToneWavData(for completionSound: CompletionSound)" ChronoFocus/Services/NotificationService.swift
@@ -1029,6 +1087,8 @@ grep -q "Schedule category empty state action contracts verified." scripts/valid
 grep -q "Mac schedule category empty state action contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac calendar range empty state quick add contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Timer category empty state action contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Declaration boundary resilience contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Mac timer category queue contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add title field category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category input context contracts verified." scripts/validate_ci_artifact.rb
@@ -1079,6 +1139,8 @@ grep -q "negative_schedule_category_empty_state_marker_fixture" scripts/verify_p
 grep -q "negative_mac_schedule_category_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_calendar_range_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_timer_category_empty_state_marker_fixture" scripts/verify_project.sh
+grep -q "negative_declaration_boundary_resilience_marker_fixture" scripts/verify_project.sh
+grep -q "negative_mac_timer_category_queue_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_title_context_marker_fixture" scripts/verify_project.sh
 grep -q "negative_category_input_context_marker_fixture" scripts/verify_project.sh
@@ -1123,6 +1185,8 @@ grep -q "FAIL verify_project schedule category empty state action contracts" scr
 grep -q "FAIL verify_project mac schedule category empty state action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac calendar range empty state quick add contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project timer category empty state action contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project declaration boundary resilience contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project mac timer category queue contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add title field category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
@@ -1200,7 +1264,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1753,6 +1817,56 @@ fi
 grep -q "FAIL verify_project timer category empty state action contracts" "$negative_timer_category_empty_state_marker_output"
 rm -rf "$negative_timer_category_empty_state_marker_fixture"
 rm -f "$negative_timer_category_empty_state_marker_output"
+negative_declaration_boundary_resilience_marker_fixture="$(mktemp -d)"
+negative_declaration_boundary_resilience_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_declaration_boundary_resilience_marker_fixture"/
+python3 - "$negative_declaration_boundary_resilience_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Declaration boundary resilience contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_declaration_boundary_resilience_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_declaration_boundary_resilience_marker_output" 2>&1; then
+  echo "Expected negative declaration boundary marker fixture to fail validation" >&2
+  cat "$negative_declaration_boundary_resilience_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project declaration boundary resilience contracts" "$negative_declaration_boundary_resilience_marker_output"
+rm -rf "$negative_declaration_boundary_resilience_marker_fixture"
+rm -f "$negative_declaration_boundary_resilience_marker_output"
+negative_mac_timer_category_queue_marker_fixture="$(mktemp -d)"
+negative_mac_timer_category_queue_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_mac_timer_category_queue_marker_fixture"/
+python3 - "$negative_mac_timer_category_queue_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Mac timer category queue contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_mac_timer_category_queue_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_mac_timer_category_queue_marker_output" 2>&1; then
+  echo "Expected negative Mac timer category queue marker fixture to fail validation" >&2
+  cat "$negative_mac_timer_category_queue_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project mac timer category queue contracts" "$negative_mac_timer_category_queue_marker_output"
+rm -rf "$negative_mac_timer_category_queue_marker_fixture"
+rm -f "$negative_mac_timer_category_queue_marker_output"
 negative_mac_quick_add_action_marker_fixture="$(mktemp -d)"
 negative_mac_quick_add_action_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_quick_add_action_marker_fixture"/
