@@ -83,14 +83,14 @@
 验证结果：
 
 - 未运行任何本地测试或检查；人工明确要求全部测试/验收只走 GitHub Actions/CI。
-- 当前仅记录实现状态；实现提交 push 后再补写真实 v0.96 commit、run id 和 artifact，在此之前不得据此宣称通过。
-- 云端待验收：最新 `origin/main` run 必须成功，最新 artifact validator 必须包含 `PASS verify_project ci action Node.js 24 contracts`、`PASS verify_project mac timer category queue contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
-- 云端待验收：完整 job 日志不得出现 Node.js 20、`DEP0040`/`punycode`、`DEP0169`/`url.parse` 弃用项；不能只依据裁剪日志或 marker 判断。
+- 实现提交 `d09eb9153dfb52554cb186741453f9e233198b41` 已直推 `origin/main`；GitHub Actions run `30187038330`（attempt `1`）结论为 `success`。
+- Agent C 已下载并复判 artifact `chronofocus-ci-v0.10-main-d09eb91-run30187038330-attempt1`（artifact id `8627359824`，`14383544` bytes，API digest `sha256:e17d8bc1016f5efcfe7718d4426ef20af2b43ceaad1af531e6785a46b3172977`）；API 身份与大小、ZIP 完整性以及 manifest、artifact index、run context 的 `branch=main`、完整 commit SHA、run id、run attempt 和 artifact 名称均一致。
+- `scripts/validate_ci_artifact.rb` 对该云端结果包完整通过，包含 `PASS verify_project ci action Node.js 24 contracts`、`PASS verify_project mac timer category queue contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded`、`PASS ios build succeeded` 以及快照 manifest、名称、尺寸和字节数检查。
+- 完整云端日志共 `2384` 行、`487731` bytes，确认下载 `actions/checkout@v5` 与 `actions/upload-artifact@v6`；Node 20/Node.js 20、`DEP0040`、`punycode`、`DEP0169`、`url.parse`、`DeprecationWarning` 均为零匹配。
 
 遗留事项：
 
-- Agent B 仍需提交并直推 `origin/main` 触发 GitHub Actions；Agent C 必须下载与最新 commit 完全一致的 artifact，并核对 manifest、run context、run id、run attempt、完整日志和项目专属产物。
-- v0.96 在最新云端 artifact 与完整日志验收完成前保持“云端待验收”，不得记录虚构的 commit、run 或 artifact 信息。
+- 正常非空分类筛选态和 220pt 窄宽上下文条两张额外状态图仅在云端运行期完成渲染与断言，未进入正式 artifact 的 5 张快照清单，结果包无法供后续人工直接复看这两张临时图。
 
 ### v0.95 / Mac 计时分类队列与声明边界韧性
 
