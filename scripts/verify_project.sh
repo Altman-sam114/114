@@ -528,13 +528,14 @@ raise "Timer category empty add Voice Control labels missing" unless timer_empty
 timer_empty_clear_button = segment_slice(
   timer_empty_source,
   "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
-  ".accessibilityLabel(\"\\(category)分类暂无可启动待办，可新增此分类待办或清除筛选\")",
+  ".fixedSize(horizontal: axis == .horizontal, vertical: false)",
   "Timer category empty clear button source missing"
 )
 raise "Timer category empty clear button tap target missing" unless timer_empty_clear_button.include?(".frame(minWidth: 72)") && timer_empty_clear_button.include?(".frame(minHeight: 44)")
 raise "Timer category empty clear accessibility label missing" unless timer_empty_clear_button.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
 raise "Timer category empty clear Voice Control labels missing" unless timer_empty_source.include?("Text(\"清除筛选\")") && timer_empty_source.include?("Text(\"清除\\(category)分类\")") && timer_empty_source.include?("Text(\"查看全部分类\")") && timer_empty_clear_button.include?(".accessibilityInputLabels(clearButtonInputLabels)")
 raise "Timer category empty state accessibility label missing" unless timer_empty_source.include?(".accessibilityLabel(\"\\(category)分类暂无可启动待办，可新增此分类待办或清除筛选\")")
+raise "Timer category empty actions adaptive layout missing" unless timer_empty_source.include?("ViewThatFits(in: .horizontal)") && timer_empty_source.include?("axis: .horizontal") && timer_empty_source.include?("axis: .vertical")
 timer_empty_branch_source = source_slice(
   "ChronoFocus/Views/TimerView.swift",
   "if filteredUpcomingTasks.isEmpty, let selectedTaskCategory",

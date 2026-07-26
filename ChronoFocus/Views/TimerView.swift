@@ -683,32 +683,72 @@ private struct TimerTaskCategoryEmptyView: View {
                 .font(.caption)
                 .foregroundStyle(AppTheme.secondaryText)
 
-            HStack(spacing: 8) {
-                Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Color.black.opacity(0.82))
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: 44)
-                    .padding(.horizontal, 10)
-                    .background(tint, in: Capsule())
-                    .accessibilityLabel("新增\(category)分类待办")
-                    .accessibilityInputLabels(addButtonInputLabels)
+            ViewThatFits(in: .horizontal) {
+                TimerTaskCategoryEmptyActions(
+                    category: category,
+                    tint: tint,
+                    addButtonInputLabels: addButtonInputLabels,
+                    clearButtonInputLabels: clearButtonInputLabels,
+                    axis: .horizontal,
+                    onAddTask: onAddTask,
+                    onClear: onClear
+                )
 
-                Button("清除", systemImage: "xmark.circle.fill", action: onClear)
-                    .font(.caption.weight(.bold))
-                    .buttonStyle(.plain)
-                    .foregroundStyle(tint)
-                    .frame(minWidth: 72)
-                    .frame(minHeight: 44)
-                    .accessibilityLabel("清除\(category)分类筛选")
-                    .accessibilityInputLabels(clearButtonInputLabels)
+                TimerTaskCategoryEmptyActions(
+                    category: category,
+                    tint: tint,
+                    addButtonInputLabels: addButtonInputLabels,
+                    clearButtonInputLabels: clearButtonInputLabels,
+                    axis: .vertical,
+                    onAddTask: onAddTask,
+                    onClear: onClear
+                )
             }
         }
         .padding(12)
         .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(category)分类暂无可启动待办，可新增此分类待办或清除筛选")
+    }
+}
+
+private struct TimerTaskCategoryEmptyActions: View {
+    let category: String
+    let tint: Color
+    let addButtonInputLabels: [Text]
+    let clearButtonInputLabels: [Text]
+    let axis: Axis
+    let onAddTask: () -> Void
+    let onClear: () -> Void
+
+    var body: some View {
+        let layout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 8))
+            : AnyLayout(VStackLayout(spacing: 8))
+
+        layout {
+            Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Color.black.opacity(0.82))
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 44)
+                .padding(.horizontal, 10)
+                .background(tint, in: Capsule())
+                .accessibilityLabel("新增\(category)分类待办")
+                .accessibilityInputLabels(addButtonInputLabels)
+
+            Button("清除", systemImage: "xmark.circle.fill", action: onClear)
+                .font(.caption.weight(.bold))
+                .buttonStyle(.plain)
+                .foregroundStyle(tint)
+                .frame(minWidth: 72)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 44)
+                .accessibilityLabel("清除\(category)分类筛选")
+                .accessibilityInputLabels(clearButtonInputLabels)
+        }
+        .fixedSize(horizontal: axis == .horizontal, vertical: false)
     }
 }
 

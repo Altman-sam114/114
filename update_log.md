@@ -58,8 +58,10 @@
 
 - iOS 计时页在选中分类且无可启动待办时，空态直接提供“新增此分类”和“清除筛选”。
 - “新增此分类”打开预填当前分类的 `TaskEditorView` sheet；“清除筛选”退出分类筛选。
+- 新增/清除操作使用 `ViewThatFits` 在横排与纵排之间自适应，降低窄屏和大号动态字体下的标签压缩风险。
 - `TaskEditorView` 提升为跨文件可见，供计时页复用。
 - `scripts/verify_project.sh` 新增 `Timer category empty state action contracts verified.` 源码契约、成功 fixture marker 和 `negative_timer_category_empty_state_marker_fixture`。
+- 修正验证脚本中两处仍依赖 `private struct TaskEditorView` 的源码切片边界，并把自适应操作布局纳入同一源码契约。
 - `scripts/validate_ci_artifact.rb` 新增 `verify_project timer category empty state action contracts` 复判。
 - README、测试规范、核心流程和 Agent A 提示词同步计时页分类空态新增入口与 artifact 复判。
 

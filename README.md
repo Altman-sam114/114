@@ -109,7 +109,7 @@ v0.92 起，macOS 日程分类筛选无结果空态会直接提供新增此分�
 
 v0.93 起，macOS 日历范围空态会直接为当前选中日期准备快速新增，输出 `Mac calendar range empty state quick add contracts verified.`，并由 Agent C artifact validator 复判 `PASS verify_project mac calendar range empty state quick add contracts`。
 
-v0.94 起，iOS 计时页分类筛选无可启动待办时会直接提供新增此分类和清除筛选操作，输出 `Timer category empty state action contracts verified.`，并由 Agent C artifact validator 复判 `PASS verify_project timer category empty state action contracts`。
+v0.94 起，iOS 计时页分类筛选无可启动待办时会直接提供新增此分类和清除筛选操作；操作区会按可用宽度在横排与纵排之间自适应，避免窄屏或大号动态字体压缩标签。云端输出 `Timer category empty state action contracts verified.`，并由 Agent C artifact validator 复判 `PASS verify_project timer category empty state action contracts`。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
