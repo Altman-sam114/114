@@ -119,7 +119,7 @@ v0.97 起，iOS 计时页的非空分类筛选摘要与分类空态互斥，摘�
 
 v0.98 起，iOS 与 macOS 日程待办列表统一采用分类摘要/空态互斥规则：筛选结果非空时显示现有分类摘要，筛选结果为空时只保留现有“新增此分类”和“清除筛选”空态，避免重复操作和重复辅助功能上下文。CI 的 `Final CI status` 使用 `tee` 将同一份 `ci-failure-summary.md` 同时输出到步骤 stdout 与 Step Summary；项目验证新增 `CI failure summary output contracts verified.` 及对应 validator PASS，并以 `cat` 回退 fixture 和 marker 缺失 fixture 防止行为或结果包证明回退。v0.98 实现 commit `9f26f865ab84c7874763bb3eef59a6a5c513a7c4` 的 GitHub Actions run `30189412591`（attempt `1`）与 Agent C 原始 artifact 复判已通过：validator 为 `99 PASS / 0 FAIL`，Mac/iOS build、日程互斥及 CI failure summary marker 均通过。
 
-v0.99 起，iOS 计时页待办队列默认展示当前分类筛选结果的前 4 项，超过 4 项时提供“显示其余 N 项”与“收起”；分类变化或筛选结果数量变化会恢复收起。展开/收起只是 `TimerView` 的瞬态浏览状态，运行中仍可浏览全部待办，但任务行继续禁用，不能切换当前任务；控制保持至少 44pt 点击高度并提供动态 VoiceOver 与 Voice Control 语义。CI artifact validator 可额外接收原始 artifacts API JSON，结构化复判唯一 artifact 的八项 metadata 检查，并以 `Timer task queue expansion contracts verified.`、`CI artifact API metadata contracts verified.` 及对应 PASS/负向 fixture 锁定行为。v0.99 必须使用自身最新 `origin/main` 云端 CI 与 Agent C 原始证据复判，不得引用 v0.98 结果作为本轮结论。
+v0.99 起，iOS 计时页待办队列默认展示当前分类筛选结果的前 4 项，超过 4 项时提供“显示其余 N 项”与“收起”；分类变化或筛选结果数量变化会恢复收起。展开/收起只是 `TimerView` 的瞬态浏览状态，运行中仍可浏览全部待办，但任务行继续禁用，不能切换当前任务；控制保持至少 44pt 点击高度并提供动态 VoiceOver 与 Voice Control 语义。CI artifact validator 可额外接收原始 artifacts API JSON，结构化复判唯一 artifact 的八项 metadata 检查，并以 `Timer task queue expansion contracts verified.`、`CI artifact API metadata contracts verified.` 及对应 PASS/负向 fixture 锁定行为。修复 commit `c65693fe49e0c6ade7ff9751c5dda00103a9c37b` 的最新云端 run `30191096124` 与原始 artifact 已由 Agent C 复判为 `109 PASS / 0 FAIL`，包括独立 `total_count=0` 拒绝覆盖、八项 metadata、三项 archive 和 Mac/iOS build。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 

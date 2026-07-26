@@ -35,7 +35,7 @@
 - v0.96 已增加 macOS 计时非空分类筛选上下文条、视觉 badge/可访问语义分离、正常和 220pt 云端快照覆盖，并将 CI Action 升级到 `actions/checkout@v5`、`actions/upload-artifact@v6`；最新 `origin/main` 云端 run、artifact、validator 与完整日志已验收通过。
 - v0.97 已对齐 iOS 计时非空分类筛选摘要与空态互斥、双操作和视觉 badge/可访问语义分离；artifact validator 已支持可选 archive 三参数全有全无、size/SHA-256/ZIP 三项复判和目录-only 兼容，相关 marker/PASS、部分参数及四类负向 fixture 已接线，最新 `origin/main` 云端 run、原始 ZIP、validator 与完整日志已验收通过。
 - v0.98 已实现 iOS/macOS 日程分类非空摘要与分类空态互斥，并让 `Final CI status` 通过 `tee` 将既有 failure summary 同时输出到步骤 stdout 与 Step Summary；新增独立 marker/PASS、`cat` 回退 fixture 和 marker 缺失 fixture。实现 commit `9f26f865ab84c7874763bb3eef59a6a5c513a7c4` 的 GitHub Actions run `30189412591`（attempt `1`）及 Agent C 原始 artifact 复判已通过，validator 为 `99 PASS / 0 FAIL`。
-- v0.99 已实现 iOS 计时队列默认 4 项、展开/收起、分类与数量变化重置及运行中只读浏览边界；artifact validator 已增加原始 API JSON 的参数安全、结构化唯一 artifact 复判、八项 metadata PASS、UI/API marker 和负向 fixture。实现提交并 push 后仅以最新 `origin/main` 云端 CI 与 Agent C 完整验收为准，不记录任何未产生的 commit/run/artifact 结论。
+- v0.99 已实现 iOS 计时队列默认 4 项、展开/收起、分类与数量变化重置及运行中只读浏览边界；artifact validator 已增加原始 API JSON 的参数安全、结构化唯一 artifact 复判、八项 metadata PASS、UI/API marker 和含独立零计数在内的负向 fixture。修复 commit `c65693fe49e0c6ade7ff9751c5dda00103a9c37b` 的 run `30191096124` 与原始 artifact 已由 Agent C 复判通过，validator 为 `109 PASS / 0 FAIL`。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest overallOutcome、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index artifactName、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context 精确键集、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/总结果/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、日程分类空态操作 contract marker、Mac 日程分类空态操作 contract marker、Mac 快速新增和标题分类上下文 contract marker、分类输入上下文 contract marker、待办保存分类 contract marker、待办取消分类 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、统计分类投入次数 contract marker、统计分类投入排行 contract marker、统计分类投入排序依据 contract marker、统计分类投入空态 contract marker、统计分类投入元信息可读性 contract marker、统计分类投入占比可读性 contract marker、统计最近记录分类 contract marker、统计计划回顾分类 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
 - v0.93 的当前云端覆盖还包括 `Mac calendar range empty state quick add contracts verified.` marker、`PASS verify_project mac calendar range empty state quick add contracts` 复判和 `negative_mac_calendar_range_empty_state_marker_fixture` 拒绝路径。
@@ -87,11 +87,12 @@
 
 - 按人工硬性要求未运行任何本地测试、检查、脚本、Xcode、`xcodebuild`、`simctl` 或 Simulator。
 - 实现 commit `b54d11bf0dabf1d1c2a73308001867335f541c67` 对应 GitHub Actions run `30190889908`（attempt `1`）为 `success`，artifact `chronofocus-ci-v0.10-main-b54d11b-run30190889908-attempt1`（id `8628543223`，API size `14382466` bytes，digest `sha256:3629e9a6d2ecc434dd6fa93b57afc17555f3b015abd0aa33666465b74c868f49`，`expired=false`）经原始 API JSON、ZIP 和 validator 复判得到 `109 PASS / 0 FAIL`；Mac/iOS build、八项 metadata、三项 archive、UI/API marker 均通过。
-- Agent C 静态审查发现提示词要求的独立 `total_count=0` 负向 fixture 缺失，因此该 run 不作为 v0.99 最终通过结论；Agent B 已补充零值 fixture，必须由修复 commit 自身及后续最新 `origin/main` 云端结果包重新验收。
+- Agent C 静态审查发现提示词要求的独立 `total_count=0` 负向 fixture 缺失，因此该 run 不作为 v0.99 最终通过结论；Agent B 在修复 commit `c65693fe49e0c6ade7ff9751c5dda00103a9c37b` 补充零值 fixture，并由 run `30191096124`（attempt `1`）重新完成全套云端验证。
+- 修复 run 结论为 `success`；artifact `chronofocus-ci-v0.10-main-c65693f-run30191096124-attempt1`（id `8628621407`，API size `14384904` bytes，digest `sha256:b5a3386abc747ec2577dd85c3cd40e2f049bc664dc6324597ddc85971103a94b`，`expired=false`）保留于 `/private/tmp/chronofocus-c-review-30191096124-xIntDI/`。Agent C validator 为 `109 PASS / 0 FAIL`，八项 metadata、三项 archive、manifest overall、UI/API marker、Mac/iOS build 均 PASS；完整日志无 Node 20 或弃用告警，仅有两端未依赖 AppIntents.framework 时系统元数据提取器的预期跳过告警。
 
 遗留事项：
 
-- 待零值 fixture 修复 commit push 后补写其真实 run/artifact 与 Agent C 最终结论；不得把已明确退回的 `b54d11b` run 或 v0.98 结果作为 v0.99 最终证据。
+- v0.99 实现与修复已完成；本次证据记录提交必须再经自身最新 `origin/main` GitHub Actions 与 artifact 复判后闭环。后续版本不得复用 `b54d11b`、`c65693f` 或 v0.98 结果作为通过证据。
 
 ### v0.98 / 日程分类空态互斥与 CI 失败摘要直出
 

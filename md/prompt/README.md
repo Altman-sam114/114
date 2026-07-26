@@ -89,4 +89,4 @@ Agent A 写给 Agent B 的提示词必须明确：
 - v0.99：`md/prompt/v0（持续优化）/v0.99（iOS计时队列展开与Artifact API元数据复判）.md`。
 - UI 范围：iOS 计时待办默认显示前 4 项并支持展开/收起，在分类或筛选数量变化时重置；运行中仍可只读浏览，任务行继续禁用，并保留 44pt、动态字体、VoiceOver 与 Voice Control 语义。
 - CI 范围：validator 接收原始 artifacts API JSON，按 1 MiB/普通文件/非 symlink 和参数矩阵约束，输出八项 metadata PASS；新增 `Timer task queue expansion contracts verified.`、`CI artifact API metadata contracts verified.`、对应 PASS 及字段/marker 负向 fixtures，API 不直接证明 attempt。
-- 状态：未运行任何本地测试或检查；实现提交并 push 后必须等待 v0.99 自身最新 `origin/main` GitHub Actions 和 Agent C 原始 API JSON/ZIP 完整复判，真实证据产生前不得预填 commit、run、artifact 或通过结论。
+- 状态：未运行任何本地测试或检查；首次实现 commit `b54d11bf0dabf1d1c2a73308001867335f541c67` 的云端结果包内容虽为 `109 PASS / 0 FAIL`，但 Agent C 静态审查发现缺少独立 `total_count=0` fixture，因此退回。修复 commit `c65693fe49e0c6ade7ff9751c5dda00103a9c37b` 的 GitHub Actions run `30191096124`（attempt `1`）已成功，artifact `chronofocus-ci-v0.10-main-c65693f-run30191096124-attempt1`（id `8628621407`，size `14384904`，digest `sha256:b5a3386abc747ec2577dd85c3cd40e2f049bc664dc6324597ddc85971103a94b`，`expired=false`）经原始 API JSON/ZIP 与 validator 复判为 `109 PASS / 0 FAIL`，v0.99 实现验收通过；本证据记录提交仍须完成自身最新云端复判。
