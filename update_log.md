@@ -84,6 +84,7 @@
 
 - 未运行本地项目测试、验证脚本、构建、Xcode、Simulator 或设备命令；人工硬性要求全部测试与验收只走 GitHub Actions/CI。只读 CI reviewer 曾误执行一次无输出的 `git diff --check`，该偏差已如实记录，结果不作为本轮测试或验收证据。
 - 本轮实现提交并 push 后，必须在后续证据记录 commit、run、artifact id/名称、API size/digest、validator 输出和完整日志结论；当前这些字段均待最新 `origin/main` 云端验收后填写。
+- 首次实现提交 `6c814746b52670c4dd0fa15cf9c2289a7feb4ec5` 的 GitHub Actions run `30188477650`（attempt `1`）中静态检查、Mac build 和 iOS generic build 成功，但项目验证因顶层仍匹配旧“项可启动”文案而失败；artifact `8627765962` 的 API size `92074` bytes、digest `sha256:dd9a9021afa5601cc97cbf0366c7c1f61ae8229661c8d46e66b58001123d2b37` 与下载 ZIP 一致且 ZIP 结构完整。修复改为精确匹配新的筛选数/总数文案，必须由后续最新 run 重新验收，不复用该失败结果包。
 
 遗留事项：
 

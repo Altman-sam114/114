@@ -219,7 +219,7 @@ grep -q "frame(minHeight: 44)" ChronoFocus/Views/ScheduleView.swift
 grep -q "selectedTaskCategory" ChronoFocus/Views/TimerView.swift
 grep -q "filteredUpcomingTasks" ChronoFocus/Views/TimerView.swift
 grep -q "TimerSelectedTaskCategorySummaryView" ChronoFocus/Views/TimerView.swift
-grep -q "项可启动" ChronoFocus/Views/TimerView.swift
+grep -Fq 'Text("\(filteredCount)/\(totalCount) 项")' ChronoFocus/Views/TimerView.swift
 grep -q "当前筛选" ChronoFocus/Views/TimerView.swift
 grep -q "clearTaskCategoryFilter" ChronoFocus/Views/TimerView.swift
 grep -q "TimerTaskCategoryFilterBar" ChronoFocus/Views/TimerView.swift
