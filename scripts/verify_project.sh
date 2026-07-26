@@ -506,13 +506,38 @@ raise "iOS plan generate Voice Control labels missing" unless schedule_plan_pane
 raise "iOS plan clear accessibility label missing count" unless schedule_plan_panel.include?(".accessibilityLabel(\"清空番茄钟计划，当前\\(remainingPlanCount)轮未完成\")")
 raise "iOS plan clear Voice Control labels missing" unless schedule_plan_panel.include?("Text(\"清空番茄钟计划\")") && schedule_plan_panel.include?("Text(\"清空\\(remainingPlanCount)轮计划\")")
 
-assert_slice_contains(
+timer_picker_source = source_slice(
   "ChronoFocus/Views/TimerView.swift",
-  "TimerSelectedTaskCategorySummaryView(",
-  "if upcomingTasks.isEmpty",
-  /TimerSelectedTaskCategorySummaryView\([\s\S]*?onClear: clearTaskCategoryFilter/,
-  "Timer category summary must use clearTaskCategoryFilter"
+  "private var taskPicker",
+  "private var todayStrip",
+  "Timer task picker source missing"
 )
+summary_nonempty_branch_start =
+  if timer_picker_source.include?("if let selectedTaskCategory, !filteredUpcomingTasks.isEmpty")
+    "if let selectedTaskCategory, !filteredUpcomingTasks.isEmpty"
+  elsif timer_picker_source.include?("if !filteredUpcomingTasks.isEmpty, let selectedTaskCategory")
+    "if !filteredUpcomingTasks.isEmpty, let selectedTaskCategory"
+  end
+raise "Timer category summary must render only for a nonempty selected category" unless summary_nonempty_branch_start
+timer_summary_nonempty_branch = segment_slice(
+  timer_picker_source,
+  summary_nonempty_branch_start,
+  "if filteredUpcomingTasks.isEmpty, let selectedTaskCategory",
+  "Timer category nonempty summary branch source missing"
+)
+raise "Timer category nonempty branch must contain the summary" unless timer_summary_nonempty_branch.match?(/TimerSelectedTaskCategorySummaryView\([\s\S]*?filteredCount: filteredUpcomingTasks\.count[\s\S]*?totalCount: upcomingTasks\.count[\s\S]*?showingCategoryEditor = true[\s\S]*?onClear: clearTaskCategoryFilter/)
+raise "Timer task picker must render the category summary exactly once" unless timer_picker_source.scan("TimerSelectedTaskCategorySummaryView(").length == 1
+timer_empty_branch_source = segment_slice(
+  timer_picker_source,
+  "if filteredUpcomingTasks.isEmpty, let selectedTaskCategory",
+  "VStack(spacing: 10)",
+  "Timer category empty branch source missing"
+)
+raise "Timer category empty branch must not contain the nonempty summary" if timer_empty_branch_source.include?("TimerSelectedTaskCategorySummaryView(")
+category_empty_branch_offset = timer_picker_source.index("if filteredUpcomingTasks.isEmpty, let selectedTaskCategory")
+global_empty_branch_offset = timer_picker_source.index("else if upcomingTasks.isEmpty")
+raise "Timer selected category empty state must take priority over the global empty state" unless category_empty_branch_offset && global_empty_branch_offset && category_empty_branch_offset < global_empty_branch_offset
+raise "Timer filtered task rows must hide only the repeated visual category badge" unless timer_picker_source.include?("showsCategoryBadge: selectedTaskCategory == nil")
 
 timer_summary_source = source_slice(
   "ChronoFocus/Views/TimerView.swift",
@@ -520,11 +545,23 @@ timer_summary_source = source_slice(
   "private struct TimerTaskCategoryEmptyView",
   "Timer category summary source missing"
 )
-raise "Timer category summary accessibility label must announce clear action" unless timer_summary_source.include?("可清除筛选")
-raise "Timer category summary clear button missing" unless timer_summary_source.include?("Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)")
-raise "Timer category summary clear button tap target missing" unless timer_summary_source.include?(".frame(minWidth: 72)") && timer_summary_source.include?(".frame(minHeight: 44)")
+raise "Timer category summary must accept total count and add action" unless timer_summary_source.include?("let totalCount: Int") && timer_summary_source.include?("let onAddTask: () -> Void")
+timer_summary_content_source = source_slice(
+  "ChronoFocus/Views/TimerView.swift",
+  "private struct TimerSelectedTaskCategorySummaryContent",
+  "private struct TimerTaskCategoryEmptyView",
+  "Timer category summary content source missing"
+)
+raise "Timer category summary content must visibly expose filtered and total counts" unless timer_summary_content_source.include?('Text("\(filteredCount)/\(totalCount) 项")')
+raise "Timer category summary adaptive layout missing" unless timer_summary_source.include?("ViewThatFits(in: .horizontal)") && timer_summary_source.include?("axis: .horizontal") && timer_summary_source.include?("axis: .vertical")
+raise "Timer category summary accessibility label must announce add and clear actions" unless timer_summary_source.include?("可新增此分类待办或清除筛选")
+raise "Timer category summary add button missing" unless timer_summary_source.include?("Button(\"新增此分类\", systemImage: \"plus.circle.fill\", action: onAddTask)")
+raise "Timer category summary clear button missing" unless timer_summary_source.include?("Button(\"清除筛选\", systemImage: \"xmark.circle.fill\", action: onClear)")
+raise "Timer category summary action tap targets missing" unless timer_summary_source.scan(".frame(minHeight: 44)").length >= 2
+raise "Timer category summary add accessibility label missing" unless timer_summary_source.include?(".accessibilityLabel(\"新增\\(category)分类待办\")")
+raise "Timer category summary add Voice Control input labels missing" unless timer_summary_source.include?("Text(\"新增此分类\")") && timer_summary_source.include?("Text(\"新增\\(category)分类待办\")")
 raise "Timer category summary clear accessibility label missing" unless timer_summary_source.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
-raise "Timer category summary clear Voice Control input labels missing" unless timer_summary_source.include?(".accessibilityInputLabels([Text(\"清除筛选\"), Text(\"清除\\(category)分类\")])")
+raise "Timer category summary clear Voice Control input labels missing" unless timer_summary_source.include?("Text(\"清除筛选\")") && timer_summary_source.include?("Text(\"清除\\(category)分类\")")
 
 timer_empty_source = source_slice(
   "ChronoFocus/Views/TimerView.swift",
@@ -554,15 +591,27 @@ raise "Timer category empty clear accessibility label missing" unless timer_empt
 raise "Timer category empty clear Voice Control labels missing" unless timer_empty_source.include?("Text(\"清除筛选\")") && timer_empty_source.include?("Text(\"清除\\(category)分类\")") && timer_empty_source.include?("Text(\"查看全部分类\")") && timer_empty_clear_button.include?(".accessibilityInputLabels(clearButtonInputLabels)")
 raise "Timer category empty state accessibility label missing" unless timer_empty_source.include?(".accessibilityLabel(\"\\(category)分类暂无可启动待办，可新增此分类待办或清除筛选\")")
 raise "Timer category empty actions adaptive layout missing" unless timer_empty_source.include?("ViewThatFits(in: .horizontal)") && timer_empty_source.include?("axis: .horizontal") && timer_empty_source.include?("axis: .vertical")
-timer_empty_branch_source = source_slice(
-  "ChronoFocus/Views/TimerView.swift",
-  "if filteredUpcomingTasks.isEmpty, let selectedTaskCategory",
-  "VStack(spacing: 10)",
-  "Timer category empty branch source missing"
-)
 raise "Timer category empty branch must render only with selected category" unless timer_empty_branch_source.include?("TimerTaskCategoryEmptyView(") && timer_empty_branch_source.include?("category: selectedTaskCategory")
 raise "Timer category empty branch must wire add and clear actions" unless timer_empty_branch_source.include?("showingCategoryEditor = true") && timer_empty_branch_source.include?("onClear: clearTaskCategoryFilter")
 raise "Timer category empty sheet must open TaskEditorView with selected category" unless File.read("ChronoFocus/Views/TimerView.swift").include?(".sheet(isPresented: $showingCategoryEditor)") && File.read("ChronoFocus/Views/TimerView.swift").include?("TaskEditorView(") && File.read("ChronoFocus/Views/TimerView.swift").include?("initialCategory: selectedTaskCategory")
+summary_add_action_source = segment_slice(
+  timer_picker_source,
+  "onAddTask: {",
+  "onClear: clearTaskCategoryFilter",
+  "Timer category summary add action source missing"
+)
+raise "Timer category summary add action must preserve selected filter" unless summary_add_action_source.include?("showingCategoryEditor = true") && !summary_add_action_source.include?("selectedTaskCategory = nil")
+
+timer_task_row_source = source_slice(
+  "ChronoFocus/Views/TimerView.swift",
+  "private struct TaskRow",
+  "private struct TimerTaskCategoryFilterBar",
+  "Timer task row source missing"
+)
+raise "Timer TaskRow visual category badge option must default to true" unless timer_task_row_source.match?(/(?:let|var)\s+showsCategoryBadge(?:\s*:\s*Bool)?\s*=\s*true/)
+raise "Timer TaskRow category badge must be conditionally visual" unless timer_task_row_source.match?(/if\s+showsCategoryBadge\s*\{[\s\S]*?TimerTaskCategoryBadge\(task:\s*task\)[\s\S]*?\}/)
+raise "Timer TaskRow category accessibility semantics must remain independent" unless timer_task_row_source.include?(".accessibilityLabel(\"\\(task.title)，\\(task.category)分类，\\(selectionStateText)\")") && timer_task_row_source.include?(".accessibilityHint(selectionHintText)") && timer_task_row_source.include?(".accessibilityInputLabels(selectionInputLabels)") && timer_task_row_source.include?(".accessibilityAddTraits(selectionAccessibilityTraits)")
+raise "Timer TaskRow running-state accessibility must remain available" unless timer_task_row_source.include?("计时运行中不可切换当前待办") && timer_task_row_source.include?("Text(\"\\(task.category)分类待办\")")
 puts "Timer category empty state action contracts verified."
 
 timer_task_badge = source_slice(
@@ -1115,6 +1164,16 @@ grep -q "EXPECTED_CI_PROCESS_VERSION = \"v0.10\"" scripts/validate_ci_artifact.r
 grep -q "ci process version" scripts/validate_ci_artifact.rb
 grep -q "missingRequiredCount" scripts/validate_ci_artifact.rb
 grep -q "require \"find\"" scripts/validate_ci_artifact.rb
+grep -q "require \"digest\"" scripts/validate_ci_artifact.rb
+grep -q "require \"open3\"" scripts/validate_ci_artifact.rb
+grep -q -- "--archive ZIP" scripts/validate_ci_artifact.rb
+grep -q -- "--archive-size BYTES" scripts/validate_ci_artifact.rb
+grep -q -- "--archive-digest DIGEST" scripts/validate_ci_artifact.rb
+grep -q "Archive arguments must be provided together" scripts/validate_ci_artifact.rb
+grep -q "Open3.capture3(\*\[\"unzip\", \"-t\", archive_path\])" scripts/validate_ci_artifact.rb
+grep -q "artifact archive byte count" scripts/validate_ci_artifact.rb
+grep -q "artifact archive sha256 digest" scripts/validate_ci_artifact.rb
+grep -q "artifact archive zip integrity" scripts/validate_ci_artifact.rb
 grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
 grep -q "Project structure verified." scripts/validate_ci_artifact.rb
 grep -q "Category chip accessibility contracts verified." scripts/validate_ci_artifact.rb
@@ -1132,6 +1191,7 @@ grep -q "Timer category empty state action contracts verified." scripts/validate
 grep -q "Declaration boundary resilience contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac timer category queue contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI action Node.js 24 contracts verified." scripts/validate_ci_artifact.rb
+grep -q "CI artifact archive integrity contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add title field category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category input context contracts verified." scripts/validate_ci_artifact.rb
@@ -1204,6 +1264,10 @@ grep -q "negative_analytics_plan_review_marker_fixture" scripts/verify_project.s
 grep -q "negative_category_filter_toggle_marker_fixture" scripts/verify_project.sh
 grep -q "negative_current_task_selection_marker_fixture" scripts/verify_project.sh
 grep -q "negative_timer_action_marker_fixture" scripts/verify_project.sh
+grep -q "negative_artifact_archive_digest_fixture" scripts/verify_project.sh
+grep -q "negative_artifact_archive_size_fixture" scripts/verify_project.sh
+grep -q "negative_artifact_archive_zip_fixture" scripts/verify_project.sh
+grep -q "negative_ci_artifact_archive_integrity_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_run_context_extra_key_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_artifact_name_fixture" scripts/verify_project.sh
@@ -1234,6 +1298,10 @@ grep -q "FAIL verify_project timer category empty state action contracts" script
 grep -q "FAIL verify_project declaration boundary resilience contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac timer category queue contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project ci action Node.js 24 contracts" scripts/verify_project.sh
+grep -q "FAIL artifact archive sha256 digest" scripts/verify_project.sh
+grep -q "FAIL artifact archive byte count" scripts/verify_project.sh
+grep -q "FAIL artifact archive zip integrity" scripts/verify_project.sh
+grep -q "FAIL verify_project ci artifact archive integrity contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add title field category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
@@ -1311,7 +1379,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI artifact archive integrity contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1537,6 +1605,111 @@ for _ in range(5):
     last_size = new_size
 PY
 ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >/dev/null
+artifact_archive_fixture_dir="$(mktemp -d)"
+artifact_archive_fixture="$artifact_archive_fixture_dir/chronofocus-ci-fixture.zip"
+(
+  cd "$artifact_fixture"
+  zip -qry "$artifact_archive_fixture" .
+)
+ruby - "$artifact_archive_fixture" <<'RUBY'
+path = ARGV.fetch(0)
+data = File.binread(path)
+eocd_offset = data.rindex("PK\x05\x06".b)
+raise "ZIP end-of-central-directory record missing" unless eocd_offset
+
+existing_comment_length = data.byteslice(eocd_offset + 20, 2)&.unpack1("v").to_i
+raise "ZIP fixture end record bounds invalid" unless eocd_offset + 22 + existing_comment_length == data.bytesize
+
+comment = "chronofocus-digest-fixture-comment".b
+data[eocd_offset + 20, 2] = [comment.bytesize].pack("v")
+data = data.byteslice(0, eocd_offset + 22) + comment
+File.binwrite(path, data)
+RUBY
+artifact_archive_size="$(wc -c < "$artifact_archive_fixture" | tr -d '[:space:]')"
+artifact_archive_digest="$(ruby -rdigest -e 'puts "sha256:#{Digest::SHA256.file(ARGV.fetch(0)).hexdigest}"' "$artifact_archive_fixture")"
+artifact_archive_success_output="$(mktemp)"
+ruby scripts/validate_ci_artifact.rb \
+  "$artifact_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  >"$artifact_archive_success_output"
+grep -q "PASS artifact archive byte count" "$artifact_archive_success_output"
+grep -q "PASS artifact archive sha256 digest" "$artifact_archive_success_output"
+grep -q "PASS artifact archive zip integrity" "$artifact_archive_success_output"
+grep -q "PASS verify_project ci artifact archive integrity contracts" "$artifact_archive_success_output"
+rm -f "$artifact_archive_success_output"
+
+negative_artifact_archive_argument_group_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 --archive "$artifact_archive_fixture" >"$negative_artifact_archive_argument_group_output" 2>&1; then
+  echo "Expected partial archive argument group to fail validation" >&2
+  cat "$negative_artifact_archive_argument_group_output" >&2
+  exit 1
+fi
+grep -q "Archive arguments must be provided together" "$negative_artifact_archive_argument_group_output"
+grep -q -- "--archive-size" "$negative_artifact_archive_argument_group_output"
+grep -q -- "--archive-digest" "$negative_artifact_archive_argument_group_output"
+rm -f "$negative_artifact_archive_argument_group_output"
+
+negative_artifact_archive_digest_fixture="$artifact_archive_fixture_dir/negative-equal-length-digest.zip"
+negative_artifact_archive_digest_output="$(mktemp)"
+cp "$artifact_archive_fixture" "$negative_artifact_archive_digest_fixture"
+ruby - "$negative_artifact_archive_digest_fixture" <<'RUBY'
+path = ARGV.fetch(0)
+data = File.binread(path)
+eocd_offset = data.rindex("PK\x05\x06".b)
+raise "ZIP end-of-central-directory record missing" unless eocd_offset
+
+comment_length = data.byteslice(eocd_offset + 20, 2)&.unpack1("v").to_i
+raise "ZIP fixture comment must be nonempty" unless comment_length.positive?
+
+comment_offset = eocd_offset + 22
+raise "ZIP fixture comment bounds invalid" unless comment_offset + comment_length == data.bytesize
+
+comment_byte_offset = comment_offset + (comment_length / 2)
+data.setbyte(comment_byte_offset, data.getbyte(comment_byte_offset) ^ 0x01)
+File.binwrite(path, data)
+RUBY
+if ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 --archive "$negative_artifact_archive_digest_fixture" --archive-size "$artifact_archive_size" --archive-digest "$artifact_archive_digest" >"$negative_artifact_archive_digest_output" 2>&1; then
+  echo "Expected equal-length archive digest fixture to fail validation" >&2
+  cat "$negative_artifact_archive_digest_output" >&2
+  exit 1
+fi
+grep -q "PASS artifact archive byte count" "$negative_artifact_archive_digest_output"
+grep -q "FAIL artifact archive sha256 digest" "$negative_artifact_archive_digest_output"
+grep -q "PASS artifact archive zip integrity" "$negative_artifact_archive_digest_output"
+rm -f "$negative_artifact_archive_digest_fixture" "$negative_artifact_archive_digest_output"
+
+negative_artifact_archive_size_fixture="$artifact_archive_fixture_dir/negative-truncated-size.zip"
+negative_artifact_archive_size_output="$(mktemp)"
+cp "$artifact_archive_fixture" "$negative_artifact_archive_size_fixture"
+ruby -e 'path = ARGV.fetch(0); File.truncate(path, File.size(path) - 1)' "$negative_artifact_archive_size_fixture"
+if ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 --archive "$negative_artifact_archive_size_fixture" --archive-size "$artifact_archive_size" --archive-digest "$artifact_archive_digest" >"$negative_artifact_archive_size_output" 2>&1; then
+  echo "Expected truncated archive size fixture to fail validation" >&2
+  cat "$negative_artifact_archive_size_output" >&2
+  exit 1
+fi
+grep -q "FAIL artifact archive byte count" "$negative_artifact_archive_size_output"
+rm -f "$negative_artifact_archive_size_fixture" "$negative_artifact_archive_size_output"
+
+negative_artifact_archive_zip_fixture="$artifact_archive_fixture_dir/negative-matching-digest-not-zip.zip"
+negative_artifact_archive_zip_output="$(mktemp)"
+printf "this payload is not a zip archive\n" > "$negative_artifact_archive_zip_fixture"
+negative_artifact_archive_zip_size="$(wc -c < "$negative_artifact_archive_zip_fixture" | tr -d '[:space:]')"
+negative_artifact_archive_zip_digest="$(ruby -rdigest -e 'puts "sha256:#{Digest::SHA256.file(ARGV.fetch(0)).hexdigest}"' "$negative_artifact_archive_zip_fixture")"
+if ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 --archive "$negative_artifact_archive_zip_fixture" --archive-size "$negative_artifact_archive_zip_size" --archive-digest "$negative_artifact_archive_zip_digest" >"$negative_artifact_archive_zip_output" 2>&1; then
+  echo "Expected matching digest non-ZIP fixture to fail validation" >&2
+  cat "$negative_artifact_archive_zip_output" >&2
+  exit 1
+fi
+grep -q "PASS artifact archive byte count" "$negative_artifact_archive_zip_output"
+grep -q "PASS artifact archive sha256 digest" "$negative_artifact_archive_zip_output"
+grep -q "FAIL artifact archive zip integrity" "$negative_artifact_archive_zip_output"
+rm -f "$negative_artifact_archive_zip_fixture" "$negative_artifact_archive_zip_output"
+
 stale_process_version_fixture="$(mktemp -d)"
 stale_process_version_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$stale_process_version_fixture"/
@@ -1939,6 +2112,31 @@ fi
 grep -q "FAIL verify_project ci action Node.js 24 contracts" "$negative_ci_action_node24_marker_output"
 rm -rf "$negative_ci_action_node24_marker_fixture"
 rm -f "$negative_ci_action_node24_marker_output"
+negative_ci_artifact_archive_integrity_marker_fixture="$(mktemp -d)"
+negative_ci_artifact_archive_integrity_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_ci_artifact_archive_integrity_marker_fixture"/
+python3 - "$negative_ci_artifact_archive_integrity_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "CI artifact archive integrity contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_ci_artifact_archive_integrity_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_ci_artifact_archive_integrity_marker_output" 2>&1; then
+  echo "Expected negative CI artifact archive integrity marker fixture to fail validation" >&2
+  cat "$negative_ci_artifact_archive_integrity_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project ci artifact archive integrity contracts" "$negative_ci_artifact_archive_integrity_marker_output"
+rm -rf "$negative_ci_artifact_archive_integrity_marker_fixture"
+rm -f "$negative_ci_artifact_archive_integrity_marker_output"
 negative_mac_quick_add_action_marker_fixture="$(mktemp -d)"
 negative_mac_quick_add_action_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_quick_add_action_marker_fixture"/
@@ -2814,6 +3012,7 @@ grep -q "FAIL snapshot byte counts" "$mismatched_snapshot_manifest_output"
 rm -rf "$mismatched_snapshot_manifest_fixture"
 rm -f "$mismatched_snapshot_manifest_output"
 rm -rf "$artifact_fixture"
+rm -rf "$artifact_archive_fixture_dir"
 simctl_fixture="$(mktemp)"
 python3 - "$simctl_fixture" <<'PY'
 import json
@@ -2896,6 +3095,7 @@ grep -q "Expected exactly one actions/upload-artifact@v6 declaration" "$upload_v
 rm -f "$upload_v4_workflow_fixture" "$upload_v4_workflow_output"
 
 echo "CI action Node.js 24 contracts verified."
+echo "CI artifact archive integrity contracts verified."
 
 echo "Running Mac core tests..."
 xcrun --sdk macosx swiftc \

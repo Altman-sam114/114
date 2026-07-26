@@ -85,9 +85,12 @@ macOS 平台层：
 - 本轮不使用 `smalldata_test`、`develop`、`codeb/...` 或 PR 合并流；如后续人工要改流程，必须先更新本文件和 `md/flow/*`。
 - Agent B 完成后在本地提交，并直接 `git push origin main` 触发 GitHub Actions。
 - GitHub Actions 必须上传未加密 CI 结果包，至少包含 manifest、failure summary、JUnit 或等价摘要、主日志和项目专属验证产物。
-- Agent C 必须先 `gh auth login`，再下载 `origin/main` 最新 commit 对应 run 的 artifact；默认缓存目录为 `/private/tmp/chronofocus-c-review-<run_id>/`。
+- Agent C 必须先 `gh auth login`，再通过 GitHub API 获取 `origin/main` 最新 commit 对应 run 的唯一必要 artifact 元数据，至少核对 id、name、`size_in_bytes`、`digest`、`expired=false` 和 run/attempt 关联；API size/digest 是外部信任来源，不能由包内字段自证。
+- 每次验收使用全新的 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 缓存目录。目录、目标 ZIP、`.part` 或解包目录已存在时默认停止并改用新的唯一目录，禁止覆盖、清空或删除已有证据。
+- 原始 artifact 必须下载到同一文件系统内的 `<artifact-name>.zip.part`，使用失败即退出、跟随重定向和有限重试；先核对实际字节数、SHA-256 和 ZIP 结构，全部通过且最终 ZIP 不存在后再原子改名为 `<artifact-name>.zip`，随后解包到全新目录。
+- Agent C 复判时应把解包目录、最新 commit/run/attempt 与原始 ZIP、API size/digest 一并交给 validator；下载或校验失败时保留 `.part` 和相关证据，不自动删除，也不得用自动解包结果代替原始 ZIP 来源核对。
 - Agent C 只验收 manifest 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新 commit 完全一致的结果包。
-- Agent C 下载 artifact 前只选择最新 run 对应的必要结果包，缓存默认放在 `/private/tmp/chronofocus-c-review-<run_id>/`，不得下载历史 artifact、大体积测试数据、模型、DerivedData 或无关缓存。
+- Agent C 下载 artifact 前只选择最新 run 对应的必要结果包，缓存使用上述全新唯一目录，不得下载历史 artifact、大体积测试数据、模型、DerivedData 或无关缓存。
 - push、CI 和 artifact 验收必须基于项目授权的 GitHub 账号 `Altman-sam114`，不得使用其他账号伪装完成。
 - 云端失败时不回滚；Agent C 写退回清单，Agent B 在 `main` 追加修复 commit 后继续 push。
 - Agent C 若必须补齐验收文档，也必须按 `main` 追加 commit/push/云端验收处理，不能只留本地改动。

@@ -2,7 +2,9 @@
 # frozen_string_literal: true
 
 require "json"
+require "digest"
 require "find"
+require "open3"
 require "optparse"
 require "rexml/document"
 require "time"
@@ -172,11 +174,14 @@ options = {
 }
 
 parser = OptionParser.new do |opts|
-  opts.banner = "Usage: ruby scripts/validate_ci_artifact.rb ARTIFACT_DIR --commit SHA --run-id ID --attempt N [--branch main]"
+  opts.banner = "Usage: ruby scripts/validate_ci_artifact.rb ARTIFACT_DIR --commit SHA --run-id ID --attempt N [--branch main] [--archive ZIP --archive-size BYTES --archive-digest sha256:HEX]"
   opts.on("--commit SHA", "Expected commit SHA") { |value| options["commit"] = value }
   opts.on("--run-id ID", "Expected GitHub Actions run id") { |value| options["run_id"] = value }
   opts.on("--attempt N", "Expected GitHub Actions run attempt") { |value| options["attempt"] = value }
   opts.on("--branch NAME", "Expected branch name, default main") { |value| options["branch"] = value }
+  opts.on("--archive ZIP", "Downloaded artifact ZIP to validate") { |value| options["archive"] = value }
+  opts.on("--archive-size BYTES", "Expected artifact ZIP byte count") { |value| options["archive_size"] = value }
+  opts.on("--archive-digest DIGEST", "Expected artifact ZIP digest in sha256:HEX format") { |value| options["archive_digest"] = value }
 end
 
 parser.parse!
@@ -191,6 +196,36 @@ missing_args << "--attempt" unless options["attempt"]
 unless missing_args.empty?
   warn "#{parser}\nMissing required argument(s): #{missing_args.join(", ")}"
   exit 2
+end
+
+archive_option_names = {
+  "archive" => "--archive",
+  "archive_size" => "--archive-size",
+  "archive_digest" => "--archive-digest"
+}.freeze
+provided_archive_options = archive_option_names.keys.select { |key| options.key?(key) }
+unless provided_archive_options.empty? || provided_archive_options.length == archive_option_names.length
+  missing_archive_options = archive_option_names.keys.reject { |key| options.key?(key) }
+  warn "#{parser}\nArchive arguments must be provided together. Missing: #{missing_archive_options.map { |key| archive_option_names.fetch(key) }.join(", ")}"
+  exit 2
+end
+
+archive_path = nil
+if provided_archive_options.length == archive_option_names.length
+  unless options["archive_size"].match?(/\A[1-9]\d*\z/)
+    warn "#{parser}\n--archive-size must be a positive integer"
+    exit 2
+  end
+  unless options["archive_digest"].match?(/\Asha256:[0-9a-fA-F]{64}\z/)
+    warn "#{parser}\n--archive-digest must use sha256: followed by 64 hexadecimal characters"
+    exit 2
+  end
+
+  archive_path = File.expand_path(options["archive"])
+  unless File.file?(archive_path)
+    warn "#{parser}\n--archive must reference a regular file"
+    exit 2
+  end
 end
 
 def resolve_artifact_dir(path)
@@ -289,6 +324,25 @@ end
 begin
 artifact_dir = resolve_artifact_dir(artifact_arg)
 checks = []
+
+if archive_path
+  expected_archive_size = Integer(options["archive_size"], 10)
+  expected_archive_digest = options["archive_digest"].downcase
+
+  check(checks, "artifact archive byte count") { File.size(archive_path) == expected_archive_size }
+  check(checks, "artifact archive sha256 digest") do
+    "sha256:#{Digest::SHA256.file(archive_path).hexdigest}" == expected_archive_digest
+  end
+  check(checks, "artifact archive zip integrity") do
+    stdout, stderr, status = Open3.capture3(*["unzip", "-t", archive_path])
+    unless status.success?
+      detail = [stderr, stdout].map(&:strip).reject(&:empty?).join(" | ")
+      raise(detail.empty? ? "unzip -t exited with status #{status.exitstatus}" : detail[0, 500])
+    end
+
+    true
+  end
+end
 
 manifest_path = File.join(artifact_dir, "ci-artifact-manifest.json")
 index_path = File.join(artifact_dir, "ci-artifact-index.json")
@@ -607,6 +661,9 @@ check(checks, "verify_project mac timer category queue contracts") do
 end
 check(checks, "verify_project ci action Node.js 24 contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("CI action Node.js 24 contracts verified.")
+end
+check(checks, "verify_project ci artifact archive integrity contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("CI artifact archive integrity contracts verified.")
 end
 check(checks, "verify_project success") { File.read(verify_log_path, encoding: "UTF-8").include?("Project structure verified.") }
 check(checks, "mac build succeeded") { File.read(mac_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }

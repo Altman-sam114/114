@@ -65,8 +65,9 @@ Agent A 写给 Agent B 的提示词必须明确：
 - 本地默认只跑 `md/test/test.md` 要求的轻量检查；除非人工明确要求，不默认跑完整本机 Xcode build。
 - 完成后按版本号提交本轮相关文件，并 `git push origin main` 触发 `.github/workflows/ci-results.yml`。
 - Agent B 输出必须包含本地检查命令、结果、commit SHA、push 状态、workflow run 信息和 artifact 名称。
-- Agent C 必须用 `gh auth login` 后下载最新 `origin/main` 对应 artifact 到 `/private/tmp/chronofocus-c-review-<run_id>/`。
-- Agent C 必须核对 `ci-artifact-manifest.json`、`ci-failure-summary.md`、`junit.xml`、主日志、`.xcresult` 和项目专属快照。
+- Agent C 必须用 `gh auth login` 后查询最新 `origin/main` 对应 run 的唯一必要 artifact API 元数据，核对 id、name、`size_in_bytes`、`digest`、`expired=false` 和 run/attempt 关联。
+- Agent C 每次使用全新 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 目录，将原始 ZIP 下载到 `.zip.part` 并进行有限重试；size、SHA-256 和 ZIP 结构全部通过后，才在同一文件系统无覆盖原子改名并解包到全新目录。已有目录或目标文件存在时默认停止并更换唯一目录，禁止删除或覆盖。
+- Agent C 必须将解包目录、原始 ZIP 和 API size/digest 一并交给 validator，并核对 `ci-artifact-manifest.json`、`ci-failure-summary.md`、`junit.xml`、主日志、`.xcresult` 和项目专属快照；目录-only validator 调用仍可用于兼容场景，但不能替代最新原始 ZIP 来源验收。
 - Agent C 发现失败或结果包不一致时，退回 Agent B 在 `main` 追加修复 commit，不做回滚式处理。
 - 本轮不引入 `smalldata_test`、`develop`、`codeb/...`、PR 合并流，也不照搬 AITRANS 的漫画探针、GGUF、模型 Release、`test/1.png` 等项目特例。
 

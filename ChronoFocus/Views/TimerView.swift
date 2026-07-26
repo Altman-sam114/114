@@ -333,44 +333,47 @@ struct TimerView: View {
                     )
                 }
 
-                if let selectedTaskCategory {
+                if let selectedTaskCategory, !filteredUpcomingTasks.isEmpty {
                     TimerSelectedTaskCategorySummaryView(
                         category: selectedTaskCategory,
-                        count: filteredUpcomingTasks.count,
+                        filteredCount: filteredUpcomingTasks.count,
+                        totalCount: upcomingTasks.count,
+                        onAddTask: {
+                            showingCategoryEditor = true
+                        },
                         onClear: clearTaskCategoryFilter
                     )
                 }
 
-                if upcomingTasks.isEmpty {
+                if filteredUpcomingTasks.isEmpty, let selectedTaskCategory {
+                    TimerTaskCategoryEmptyView(
+                        category: selectedTaskCategory,
+                        onAddTask: {
+                            showingCategoryEditor = true
+                        },
+                        onClear: clearTaskCategoryFilter
+                    )
+                } else if upcomingTasks.isEmpty {
                     Text("暂无待办，仍可启动自由专注。")
                         .foregroundStyle(AppTheme.secondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    if filteredUpcomingTasks.isEmpty, let selectedTaskCategory {
-                        TimerTaskCategoryEmptyView(
-                            category: selectedTaskCategory,
-                            onAddTask: {
-                                showingCategoryEditor = true
-                            },
-                            onClear: clearTaskCategoryFilter
-                        )
-                    } else {
-                        VStack(spacing: 10) {
-                            ForEach(filteredUpcomingTasks.prefix(4)) { task in
-                                Button {
-                                    if !engine.isRunning {
-                                        engine.selectTask(task)
-                                    }
-                                } label: {
-                                    TaskRow(
-                                        task: task,
-                                        isSelected: engine.selectedTaskID == task.id,
-                                        isTimerRunning: engine.isRunning
-                                    )
+                    VStack(spacing: 10) {
+                        ForEach(filteredUpcomingTasks.prefix(4)) { task in
+                            Button {
+                                if !engine.isRunning {
+                                    engine.selectTask(task)
                                 }
-                                .buttonStyle(.plain)
-                                .disabled(engine.isRunning)
+                            } label: {
+                                TaskRow(
+                                    task: task,
+                                    isSelected: engine.selectedTaskID == task.id,
+                                    isTimerRunning: engine.isRunning,
+                                    showsCategoryBadge: selectedTaskCategory == nil
+                                )
                             }
+                            .buttonStyle(.plain)
+                            .disabled(engine.isRunning)
                         }
                     }
                 }
@@ -413,6 +416,7 @@ private struct TaskRow: View {
     let task: FocusTask
     let isSelected: Bool
     let isTimerRunning: Bool
+    var showsCategoryBadge = true
 
     private var selectionStateText: String {
         isSelected ? "已选中当前待办" : "未选中"
@@ -448,13 +452,17 @@ private struct TaskRow: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
-                HStack(spacing: 6) {
-                    TimerTaskCategoryBadge(task: task)
-                    if let dueDate = task.dueDate {
-                        Text(dueDate.scheduleTimeText)
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.secondaryText)
-                            .lineLimit(1)
+                if showsCategoryBadge || task.dueDate != nil {
+                    HStack(spacing: 6) {
+                        if showsCategoryBadge {
+                            TimerTaskCategoryBadge(task: task)
+                        }
+                        if let dueDate = task.dueDate {
+                            Text(dueDate.scheduleTimeText)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.secondaryText)
+                                .lineLimit(1)
+                        }
                     }
                 }
             }
@@ -590,7 +598,9 @@ private struct TimerTaskCategoryFilterChip: View {
 
 private struct TimerSelectedTaskCategorySummaryView: View {
     let category: String
-    let count: Int
+    let filteredCount: Int
+    let totalCount: Int
+    let onAddTask: () -> Void
     let onClear: () -> Void
 
     private var preset: TaskCategoryPreset? {
@@ -601,30 +611,49 @@ private struct TimerSelectedTaskCategorySummaryView: View {
         Color(hex: preset?.accentHex ?? "#3DE8C5")
     }
 
+    private var addButtonInputLabels: [Text] {
+        [
+            Text("新增此分类"),
+            Text("新增\(category)分类待办"),
+            Text("新增\(category)分类")
+        ]
+    }
+
+    private var clearButtonInputLabels: [Text] {
+        [
+            Text("清除筛选"),
+            Text("清除\(category)分类"),
+            Text("查看全部分类")
+        ]
+    }
+
     var body: some View {
-        HStack(spacing: 10) {
-            Label(category, systemImage: preset?.symbolName ?? "tag.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppTheme.primaryText)
-                .lineLimit(1)
+        ViewThatFits(in: .horizontal) {
+            TimerSelectedTaskCategorySummaryContent(
+                category: category,
+                symbolName: preset?.symbolName ?? "tag.fill",
+                filteredCount: filteredCount,
+                totalCount: totalCount,
+                tint: tint,
+                addButtonInputLabels: addButtonInputLabels,
+                clearButtonInputLabels: clearButtonInputLabels,
+                axis: .horizontal,
+                onAddTask: onAddTask,
+                onClear: onClear
+            )
 
-            Text("\(count) 项可启动")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(tint)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(tint.opacity(0.14), in: Capsule())
-
-            Spacer()
-
-            Button("清除", systemImage: "xmark.circle.fill", action: onClear)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(tint)
-                .buttonStyle(.plain)
-                .frame(minWidth: 72)
-                .frame(minHeight: 44)
-                .accessibilityLabel("清除\(category)分类筛选")
-                .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
+            TimerSelectedTaskCategorySummaryContent(
+                category: category,
+                symbolName: preset?.symbolName ?? "tag.fill",
+                filteredCount: filteredCount,
+                totalCount: totalCount,
+                tint: tint,
+                addButtonInputLabels: addButtonInputLabels,
+                clearButtonInputLabels: clearButtonInputLabels,
+                axis: .vertical,
+                onAddTask: onAddTask,
+                onClear: onClear
+            )
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -634,7 +663,81 @@ private struct TimerSelectedTaskCategorySummaryView: View {
                 .stroke(tint.opacity(0.36), lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("当前筛选\(category)分类，\(count)项可启动，可清除筛选")
+        .accessibilityLabel("当前筛选\(category)分类，\(filteredCount)/\(totalCount)项待办，可新增此分类待办或清除筛选")
+    }
+}
+
+private struct TimerSelectedTaskCategorySummaryContent: View {
+    let category: String
+    let symbolName: String
+    let filteredCount: Int
+    let totalCount: Int
+    let tint: Color
+    let addButtonInputLabels: [Text]
+    let clearButtonInputLabels: [Text]
+    let axis: Axis
+    let onAddTask: () -> Void
+    let onClear: () -> Void
+
+    var body: some View {
+        let layout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 10))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+        let actionsLayout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 8))
+            : AnyLayout(VStackLayout(spacing: 8))
+        let titleLayout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 8))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+
+        layout {
+            titleLayout {
+                Label(category, systemImage: symbolName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.primaryText)
+                    .lineLimit(axis == .horizontal ? 1 : 2)
+
+                Text("\(filteredCount)/\(totalCount) 项")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(tint)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(tint.opacity(0.14), in: Capsule())
+                    .fixedSize()
+            }
+            .frame(maxWidth: axis == .vertical ? .infinity : nil, alignment: .leading)
+
+            if axis == .horizontal {
+                Spacer(minLength: 0)
+            }
+
+            actionsLayout {
+                Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.black.opacity(0.82))
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: axis == .vertical ? .infinity : nil)
+                    .frame(minHeight: 44)
+                    .padding(.horizontal, 10)
+                    .background(tint, in: Capsule())
+                    .accessibilityLabel("新增\(category)分类待办")
+                    .accessibilityHint("打开待办编辑器并预填\(category)分类")
+                    .accessibilityInputLabels(addButtonInputLabels)
+
+                Button("清除筛选", systemImage: "xmark.circle.fill", action: onClear)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(tint)
+                    .buttonStyle(.plain)
+                    .frame(minWidth: 72)
+                    .frame(maxWidth: axis == .vertical ? .infinity : nil)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("清除\(category)分类筛选")
+                    .accessibilityHint("显示全部分类的待办")
+                    .accessibilityInputLabels(clearButtonInputLabels)
+            }
+            .frame(maxWidth: axis == .vertical ? .infinity : nil, alignment: .trailing)
+        }
+        .fixedSize(horizontal: axis == .horizontal, vertical: false)
     }
 }
 

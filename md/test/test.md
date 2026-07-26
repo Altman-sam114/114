@@ -87,20 +87,27 @@ Agent C 下载结果包前必须完成 GitHub CLI 登录：
 gh auth login
 ```
 
-Agent C 结果包缓存默认目录：
+Agent C 每次验收使用全新的唯一缓存目录：
 
 ```bash
-/private/tmp/chronofocus-c-review-<run_id>/
+/private/tmp/chronofocus-c-review-<run_id>-<unique>/
 ```
 
 下载结果包后可用结构化脚本辅助复判：
 
 ```bash
-ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id> \
+ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id>-<unique>/<artifact-directory> \
   --commit <origin-main-sha> \
   --run-id <run_id> \
-  --attempt <run_attempt>
+  --attempt <run_attempt> \
+  --archive /private/tmp/chronofocus-c-review-<run_id>-<unique>/<artifact-name>.zip \
+  --archive-size <api-size-in-bytes> \
+  --archive-digest <api-sha256-digest>
 ```
+
+`--archive`、`--archive-size`、`--archive-digest` 必须全有或全无。完整参数组会针对同一个原始 ZIP 输出 `PASS artifact archive byte count`、`PASS artifact archive sha256 digest` 和 `PASS artifact archive zip integrity`；省略全部 archive 参数时，既有目录-only 调用和输出语义保持兼容。
+
+Agent C 必须先从 GitHub API 获取最新 run 唯一必要 artifact 的 id、name、`size_in_bytes`、`digest`、`expired` 和 run/attempt 关联。下载目标先写入全新目录的 `<artifact-name>.zip.part`，启用失败即退出、跟随重定向和有限重试；在 `.part` 上核对 size、SHA-256 与 `unzip -t`，全部通过且最终 ZIP 不存在后，才在同一文件系统原子改名。随后解包到全新目录并调用 validator；任何既有目录、`.part`、最终 ZIP 或解包目录默认拒绝覆盖、删除或复用，失败证据必须保留。
 
 该脚本会核对 manifest branch/commit/run/attempt、manifest artifactName、overallOutcome、short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、createdAt、project reports allowlist 和关键路径字段、`ci-run-context.txt` 精确字段集合、无重复/无额外字段、身份字段与 artifact 名称、artifact index 身份字段、artifactName、version、createdAt、必需路径与 kind、entry 路径集合精确清单、下载后本地文件/目录非空状态、required entry 的本地 byteCount/fileCount/recursiveByteCount 复算、index totals 与 entries 聚合一致性、artifact 根目录/报告目录/快照目录不存在未声明额外文件、JUnit suite/classname 元数据、四个 testcase、JUnit failures/errors 计数、JUnit outcome 与 manifest outcome、testcase 不含 failure/error 元素、failure summary 身份字段/总结果/阶段 outcome/日志入口、`static-checks.log` 静态检查 marker、`xcode-version.log` 版本内容、`verify_project.log` 分类摘要动作 contract marker、分类 chip 可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge marker、Mac 计划分类上下文 marker、计划面板操作 marker、日程 toolbar 新增 marker、日程分类空态操作 marker、Mac 日程分类空态操作 marker、Mac 快速新增 marker、Mac 快速新增标题分类上下文 marker、分类输入上下文 marker、待办保存按钮 marker、待办取消按钮 marker、Mac 小窗快捷面板 marker、统计分类占比 marker、统计分类投入次数 marker、统计分类投入排行 marker、统计分类投入排序依据 marker、统计分类投入空态 marker、统计最近记录分类 marker 和统计计划回顾分类 marker、Mac/iOS build 成功标记、Mac 快照 manifest generatedAt 和快照 manifest 中 PNG byteCount 与下载文件大小一致性。`verify_project.sh` 用小型成功 fixture、旧 process version 负向 fixture、run context 额外字段负向 fixture、分类摘要 marker 缺失负向 fixture、日程任务操作 marker 缺失负向 fixture、计时主控 marker 缺失负向 fixture、计划开始 marker 缺失负向 fixture、计划分类 badge marker 缺失负向 fixture、Mac 计划分类 marker 缺失负向 fixture、计划面板操作 marker 缺失负向 fixture、日程 toolbar 新增 marker 缺失负向 fixture、日程分类空态操作 marker 缺失负向 fixture、Mac 日程分类空态操作 marker 缺失负向 fixture、Mac 快速新增 marker 缺失负向 fixture、Mac 快速新增标题分类上下文 marker 缺失负向 fixture、分类输入上下文 marker 缺失负向 fixture、待办保存按钮 marker 缺失负向 fixture、待办取消按钮 marker 缺失负向 fixture、Mac 小窗快捷面板 marker 缺失负向 fixture、统计分类占比 marker 缺失负向 fixture、统计分类投入次数 marker 缺失负向 fixture、统计分类投入排行 marker 缺失负向 fixture、统计分类投入排序依据 marker 缺失负向 fixture、统计分类投入空态 marker 缺失负向 fixture、统计最近记录分类 marker 缺失负向 fixture、统计计划回顾分类 marker 缺失负向 fixture、错误 JUnit 元数据负向 fixture、错误 JUnit errors 计数负向 fixture、错误 JUnit outcome 负向 fixture、JUnit failure/error 元素负向 fixture、错误 artifactName 负向 fixture、错误 manifest artifactName 负向 fixture、错误 manifest overallOutcome 负向 fixture、错误 index artifactName 负向 fixture、错误 manifest 元数据负向 fixture、artifact index 身份错包负向 fixture、artifact index totals 篡改负向 fixture、artifact index 未预期 entry 负向 fixture、额外 artifact 文件负向 fixture、本地文件大小篡改负向 fixture、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture 和快照 manifest 大小篡改负向 fixture 覆盖 validator 的放行/拒绝路径。脚本只能辅助复判，不能替代 Agent C 对最新 `origin/main` run 和 artifact 来源的一致性核对。
 
@@ -139,11 +146,12 @@ bash scripts/verify_project.sh
 - CI artifact 只上传必要文件：manifest、artifact index、JUnit 或测试摘要、关键日志、失败摘要、必要结果包。
 - 不上传大体积 DerivedData、完整 build cache、无关截图、视频、模型文件、历史 artifact 或重复压缩包。
 - Agent C 下载 artifact 前优先确认只下载最新 run 对应的必要结果包。
-- 下载缓存默认放在 `/private/tmp/chronofocus-c-review-<run_id>/`。
+- 下载缓存使用全新的 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/`；下载前先核对 API size，避免获取历史或异常大 artifact。
+- 原始 ZIP 只下载到 `.part`，采用有限重试；实际 byte count、SHA-256 和 ZIP 结构全部通过后才无覆盖原子改名，解包目录也必须全新。
 - 下载后应检查目录大小：
 
 ```bash
-du -sh /private/tmp/chronofocus-c-review-<run_id>/
+du -sh /private/tmp/chronofocus-c-review-<run_id>-<unique>/
 ```
 
 - 禁止默认下载大体积测试数据、模型、历史 artifact 或无关产物，导致本机或 CI 容量被撑爆。
@@ -237,6 +245,9 @@ bash scripts/verify_project.sh
 - v0.95 起，三个通用 accessibility 源码切片 helper 及七个调用边界不得依赖 `private` / `@MainActor private`；`verify_project.log` 必须包含 `Declaration boundary resilience contracts verified.`，validator 必须输出 `PASS verify_project declaration boundary resilience contracts`，并由 `negative_declaration_boundary_resilience_marker_fixture` 覆盖拒绝路径。
 - v0.96 起，macOS 计时非空分类筛选态必须显示分类上下文条、筛选数/总数和新增/清除动作；筛选态任务行隐藏重复视觉 badge，但完整任务/分类/选中/运行状态可访问语义必须保留。云端快照脚本需额外验证正常分类筛选态和 220pt 窄宽上下文条，不扩展正式 5 张快照清单。
 - v0.96 起，workflow 必须精确使用一次 `actions/checkout@v5` 和一次 `actions/upload-artifact@v6`；`verify_project.log` 必须包含 `CI action Node.js 24 contracts verified.`，validator 必须输出 `PASS verify_project ci action Node.js 24 contracts`。`checkout_v4_workflow_fixture`、`upload_v4_workflow_fixture` 和 `negative_ci_action_node24_marker_fixture` 分别覆盖旧 Action 与 marker 缺失拒绝路径。
+- v0.97 起，iOS 计时非空分类筛选摘要必须与分类空态互斥，显示筛选数/总数和新增/清除双操作；筛选态只隐藏重复视觉 badge，完整任务/分类/选中/运行状态可访问语义必须保留。该行为继续由 `Timer category empty state action contracts verified.` 与 `PASS verify_project timer category empty state action contracts` 证明。
+- v0.97 起，validator 的 `--archive`、`--archive-size`、`--archive-digest` 必须全有或全无，目录-only 调用继续通过；完整参数组必须输出 `PASS artifact archive byte count`、`PASS artifact archive sha256 digest`、`PASS artifact archive zip integrity`。`verify_project.log` 必须包含 `CI artifact archive integrity contracts verified.`，validator 必须输出 `PASS verify_project ci artifact archive integrity contracts`。
+- v0.97 归档拒绝路径包括：部分 archive 参数必须报参数组不完整；`negative_artifact_archive_digest_fixture` 等长篡改后必须 `FAIL artifact archive sha256 digest`；`negative_artifact_archive_size_fixture` 截断后必须 `FAIL artifact archive byte count`；`negative_artifact_archive_zip_fixture` 使用匹配 size/digest 的非 ZIP 内容时必须 `FAIL artifact archive zip integrity`；`negative_ci_artifact_archive_integrity_marker_fixture` 必须 `FAIL verify_project ci artifact archive integrity contracts`。
 - 检查分类预设、日程页和计时页分类筛选、统计分类投入占比/次数/排行/排序依据/空态/元信息和占比可读性、统计计划回顾分类语义、分类 chip 点击切换、分类输入上下文、待办保存/取消按钮分类语义、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、新建预填、筛选摘要、筛选摘要动作可访问提示、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名和分类语义、iOS/Mac 计时主控按钮任务名和分类语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划项分类 badge、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增提交按钮分类/轮次语义、Mac 小窗快捷面板按钮语义、Mac 计划项分类上下文、计时页分类筛选摘要、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、分类摘要插入点和新增/清除动作接线、iOS 摘要快捷新增分类待办、Mac 待办筛选计数、Mac 分类摘要快捷新增、Mac 快速新增分类预填提示和连续新增分类保留、筛选优先级、44pt iOS 分类点击区域、iOS 设置页音色选择/试听、根视图非 Pro 音色清洗、Mac 小窗任务分类上下文、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件、CI iOS/错误摘录/artifact index 精确清单/run context/manifest 元数据和 manifest/index artifactName/manifest overallOutcome 结果包实现标记、结果包校验脚本语法、validator 小型成功、固定 CI process version 复判、manifest artifactName 复判、manifest overallOutcome 复判、index artifactName 复判、旧 process version 负向 fixture、分类摘要 marker 缺失负向 fixture、日程任务操作 marker 缺失负向 fixture、计时主控 marker 缺失负向 fixture、计划开始 marker 缺失负向 fixture、计划分类 badge marker 缺失负向 fixture、Mac 计划分类 marker 缺失负向 fixture、计划面板操作 marker 缺失负向 fixture、日程 toolbar 新增 marker 缺失负向 fixture、Mac 快速新增 marker 缺失负向 fixture、分类输入上下文 marker 缺失负向 fixture、待办保存 marker 缺失负向 fixture、待办取消 marker 缺失负向 fixture、Mac 小窗快捷面板 marker 缺失负向 fixture、统计分类占比 marker 缺失负向 fixture、统计分类投入次数 marker 缺失负向 fixture、统计分类投入排行 marker 缺失负向 fixture、统计分类投入排序依据 marker 缺失负向 fixture、统计分类投入空态 marker 缺失负向 fixture、统计分类投入元信息可读性 marker 缺失负向 fixture、统计分类投入占比可读性 marker 缺失负向 fixture、统计最近记录分类 marker 缺失负向 fixture、统计计划回顾分类 marker 缺失负向 fixture、JUnit 元数据负向 fixture、JUnit errors 负向 fixture、JUnit outcome 负向 fixture、JUnit failure/error 元素负向 fixture、artifactName mismatch 负向、manifest artifactName 负向、manifest overallOutcome 负向、index artifactName 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向 fixture、额外 artifact 文件负向 fixture、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture、快照 manifest 大小篡改负向 fixture、static-checks 日志 marker、分类可访问 contract 日志复判、日程任务操作 contract 日志复判、计时主控 contract 日志复判、计划开始 contract 日志复判、计划分类 badge contract 日志复判、Mac 计划分类 contract 日志复判、计划面板操作 contract 日志复判、日程 toolbar 新增 contract 日志复判、Mac 快速新增 contract 日志复判、分类输入上下文 contract 日志复判、待办保存/取消按钮 contract 日志复判、Mac 小窗快捷面板 contract 日志复判、统计分类占比/投入次数/排行/排序依据/空态/元信息和占比可读性 contract 日志复判、统计最近记录分类 contract 日志复判和统计计划回顾分类 contract 日志复判、iOS simulator destination 解析 fixture。
 - v0.93 的完整检查清单还包括 Mac 日历范围空态的选中日期传递、保留时分、标题聚焦、快照动作和可访问语义，`Mac calendar range empty state quick add contracts verified.` 日志复判，以及 `negative_mac_calendar_range_empty_state_marker_fixture` 的拒绝路径。
 - 编译并运行 Mac core tests。

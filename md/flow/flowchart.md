@@ -4,14 +4,14 @@
 
 ## 核心数据流
 
-读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。重点看 `FocusStore` 与 `TimerEngine` 的职责边界；当前任务选择行分类语义、分类筛选反选清除、统计分类投入次数/排行/排序依据/空态上下文/元信息和占比可读性、统计最近记录分类上下文、统计计划回顾分类语义和待办保存/取消按钮分类语义都有独立 `verify_project` marker 和 artifact validator 复判。
+读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。重点看 `FocusStore` 与 `TimerEngine` 的职责边界；iOS 计时分类摘要/空态互斥、视觉 badge 与可访问语义分离，以及 artifact 原始 ZIP 完整性都有独立契约和 validator 复判。
 
 ```mermaid
 flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
-  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>常用分类快选、分类计数、筛选排序、重复点击已选分类退出、分类输入上下文、待办保存按钮任务/分类/预计轮次或只设开始语义、待办取消按钮动作/任务/分类语义、可访问状态/动作提示、selected trait、Voice Control input labels、iOS/Mac日程日期格状态和语音标签、iOS日程筛选计数、iOS日程toolbar新增入口分类语义、iOS/Mac日程分类空态新增/清除操作、iOS日程任务行分类badge和语音标签、iOS/Mac日程任务操作任务名和分类语义、iOS/Mac计时主控任务名和分类语义、iOS/Mac计划开始任务/时间/轮次语义、iOS/Mac计划项分类badge、iOS/Mac计划面板生成/清空当前轮数语义、Mac快速新增任务名称输入框分类上下文、提交分类/轮次语义、Mac小窗快捷面板按钮动作和选中状态语义、Mac计划项可见分类上下文、iOS统计计划回顾分类badge和语音语义、计时页筛选摘要、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、当前任务选择selected trait/运行中提示/任务名和分类语音标签、Mac任务行和小窗分类badge语音标签与预设色、新建预填、筛选摘要/快捷新增/清除按钮分类语义、Mac摘要快捷新增和稳定点击区"]
+  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>分类快选、计数、筛选排序与重复点击清除<br/>iOS计时非空摘要显示筛选数/总数及新增/清除<br/>分类空态与非空摘要互斥<br/>筛选态隐藏重复视觉badge但保留整行分类/选中/运行语义<br/>日程、计划、统计和Mac分类上下文及Voice Control语义"]
   CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]
@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>test_mac_core.swift<br/>render_mac_snapshots.swift<br/>快照 manifest<br/>verify_project.sh<br/>分类摘要接线、动作可访问提示、日程日期格状态和语音标签、日程摘要按钮分类语义、Mac摘要按钮点击区、Mac日历范围空态日期预填/保留时分/聚焦接线、分类输入上下文、待办保存/取消按钮分类语义、预设按钮、点击切换、统计分类投入占比/次数/排行/排序依据/空态语义/元信息和占比可读性、统计最近记录分类上下文、统计计划回顾分类语义、iOS日程toolbar新增入口分类语义、iOS/Mac日程分类空态操作、iOS日程任务行分类badge语音标签、iOS/Mac日程任务操作任务名和分类语义、iOS/Mac计时主控任务名和分类语义、iOS/Mac计划开始任务/时间/轮次语义、iOS/Mac计划项分类badge、iOS/Mac计划面板生成/清空当前轮数语义、Mac快速新增提交分类/轮次语义、Mac小窗快捷面板按钮语义、Mac计划项分类上下文、计时页摘要清除入口、计时页空态清除入口、计时页分类badge可访问标签、当前任务选择selected trait/提示/运行中不可切换提示/Voice Control标签、Mac任务行和小窗分类badge语音标签与预设色、selected trait 和 Voice Control 标签检查<br/>validator 复判 manifest元数据/artifactName/overallOutcome/project reports、固定CI process version、JUnit元数据/errors/outcome/failure元素、index精确清单/本地元数据/version/artifactName、额外artifact拒绝、Mac快照generatedAt和byteCount、static-checks、Xcode 版本、分类摘要动作/分类可访问/日程任务操作/计时主控/计划开始/计划分类badge/Mac计划分类/计划面板操作/日程toolbar新增/iOS和Mac日程分类空态/Mac日历范围空态快速新增/Mac快速新增/分类输入上下文/待办保存分类语义/待办取消分类语义/Mac小窗快捷面板/统计分类占比/统计分类投入次数/统计分类投入排行/统计分类投入排序依据/统计分类投入空态/统计分类投入元信息可读性/统计分类投入占比可读性/统计最近记录分类/统计计划回顾分类日志 marker<br/>validator 正向/旧process version/摘要marker缺失/任务操作marker缺失/计时主控marker缺失/计划开始marker缺失/计划分类badge marker缺失/Mac计划分类marker缺失/计划面板操作marker缺失/日程toolbar新增marker缺失/iOS和Mac日程分类空态marker缺失/Mac日历范围空态marker缺失/Mac快速新增marker缺失/分类输入上下文marker缺失/待办保存分类marker缺失/待办取消分类marker缺失/Mac小窗快捷面板marker缺失/统计分类占比marker缺失/统计分类投入次数marker缺失/统计分类投入排行marker缺失/统计分类投入排序依据marker缺失/统计分类投入空态marker缺失/统计分类投入元信息可读性marker缺失/统计分类投入占比可读性marker缺失/统计最近记录分类marker缺失/统计计划回顾分类marker缺失/JUnit元数据/JUnit errors/JUnit错包/JUnit failure元素/错包/manifest artifactName/manifest overallOutcome/index artifactName/manifest元数据/index错包/totals错包/index未预期entry/额外artifact/本地篡改/缺失产物/快照manifest generatedAt和byteCount篡改 fixture"]
+  S --> T["测试入口<br/>verify_project.sh / validate_ci_artifact.rb<br/>iOS计时摘要/空态互斥、双操作、分类预填与badge语义分离契约<br/>archive三参数全有全无与目录-only兼容<br/>byte count / SHA-256 / ZIP integrity PASS<br/>部分参数、等长篡改、截断、匹配摘要非ZIP、marker缺失负向fixture<br/>既有manifest/index/run context/JUnit/build/快照复判"]
 ```
 
 ## 计时执行流
@@ -58,7 +58,7 @@ flowchart TD
 
 ## 日程、计划和统计流
 
-读图说明：这张图展示任务如何变成番茄钟计划，计时完成后又如何反向更新任务和统计。日历同步进来的事件也必须先进入 `FocusStore`，不能绕过核心数据仓库；待办新增/编辑保存按钮会在提交前读出任务、分类和计划方式，取消按钮会读出取消动作、任务和分类，统计最近记录会继续使用 `FocusSession.category` 显示分类 badge，统计计划回顾会使用 `PomodoroPlanItem.category` 显示分类 badge，并把任务、分类、时间和轮次写入可访问语义。
+读图说明：这张图展示任务如何变成番茄钟计划，计时完成后又如何反向更新任务和统计。iOS 计时分类筛选只保留一份局部状态：非空摘要可新增或清除，空结果只显示空态；新增沿用当前分类进入既有编辑器，保存后仍通过 `FocusStore` 刷新列表和计数。
 
 ```mermaid
 flowchart TD
@@ -66,6 +66,11 @@ flowchart TD
   P0 --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
   B --> C["FocusTask<br/>标题、分类、截止时间、轮次、循环、外部日历 ID"]
   C --> C2["FocusStore.taskCategories + TaskCategoryFilterOption<br/>合并预设/已有分类<br/>有任务分类优先显示"]
+  C2 --> IT["iOS计时分类筛选<br/>非空摘要与空态互斥<br/>筛选数/总数、双操作"]
+  IT -->|新增此分类| IE["既有TaskEditor sheet<br/>initialCategory预填<br/>筛选保持"]
+  IE --> B
+  IT --> IR["筛选任务行<br/>隐藏重复视觉badge<br/>保留整行可访问语义"]
+  IR --> D
   C2 --> MT["Mac 计时待办队列<br/>全部/分类筛选、结果数/总数<br/>非空筛选上下文或分类空态"]
   MT --> C3["非空分类上下文条<br/>分类名、筛选数/总数<br/>自适应新增/清除动作<br/>隐藏重复视觉badge但保留整行语义"]
   MT -->|新增此分类| MS["MacDetailSelection<br/>写入唯一 MacQuickAddRequest<br/>切换到日程"]
@@ -102,7 +107,7 @@ flowchart LR
 
 ## Agent 迭代与云端验收流程
 
-读图说明：这张图描述当前默认协作方式。人工提出目标后，Agent A 写提示词；Agent B 必须基于最新 `origin/main` 实现、轻量检查、提交并直推 `main`；GitHub Actions 生成未加密 CI 结果包；Agent C 下载并核对最新 run。失败时不回滚，退回 Agent B 在 `main` 追加修复 commit 后重新触发云端验证。
+读图说明：这张图描述当前默认协作方式。GitHub Actions 生成结果包后，Agent C 先以 API 元数据约束原始 ZIP 下载，在唯一目录中使用 `.part`、有限重试和无覆盖原子改名，再把原始 ZIP 与解包目录一起交给 validator；失败时保留证据并退回 Agent B 追加修复。
 
 ```mermaid
 flowchart TD
@@ -114,8 +119,11 @@ flowchart TD
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
   PUSH --> CI["GitHub Actions<br/>checkout@v5 / upload-artifact@v6<br/>静态检查、verify_project、Mac build、iOS build"]
-  CI --> ART["未加密 CI 结果包<br/>manifest、index、run context、JUnit、failure summary<br/>Mac/iOS日志与xcresult、5张正式快照和manifest<br/>Mac分类队列与CI Action Node.js 24 contract marker"]
-  ART --> C["Agent C<br/>gh auth login并下载最新artifact<br/>复判身份、结构、marker/PASS和构建结果<br/>检查完整job日志无Node 20、DEP0040/punycode、DEP0169/url.parse"]
+  CI --> ART["未加密 CI 结果包<br/>manifest、index、run context、JUnit、failure summary<br/>Mac/iOS日志与xcresult、快照和contract marker"]
+  ART --> API["GitHub API元数据<br/>唯一artifact id/name<br/>size/digest/expired=false<br/>run/attempt关联"]
+  API --> DL["全新唯一目录<br/>下载到.zip.part并有限重试<br/>默认拒绝覆盖或删除"]
+  DL --> ZIP["校验size、SHA-256、unzip -t<br/>全部通过后同文件系统原子改名<br/>解包到全新目录"]
+  ZIP --> C["Agent C validator完整调用<br/>解包目录+原始ZIP+API size/digest<br/>三个archive PASS、marker/PASS、build结果"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>run context无重复/无额外字段<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}
   PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]
@@ -141,7 +149,7 @@ flowchart TD
   A --> B["Agent B<br/>按提示词实现<br/>本地轻量检查、commit、push origin/main"]
   B --> CI["GitHub Actions<br/>ci-results.yml<br/>运行静态检查、verify_project、Mac/iOS build"]
   CI --> ART["最新未加密 artifact<br/>manifest、artifact index、run context、JUnit、failure summary/错误摘录、日志、xcresult、快照 manifest、项目产物"]
-  ART --> C["Agent C<br/>下载最新 run artifact<br/>核对 branch、commitSha、run id、run attempt、run context精确键集、artifact 名称、manifest artifactName、overallOutcome、index artifactName、manifest元数据和project reports"]
+  ART --> C["Agent C<br/>核对API id/name/size/digest/expired与run/attempt<br/>唯一目录下载.zip.part并有限重试<br/>size/SHA-256/ZIP通过后无覆盖原子改名<br/>以原始ZIP和全新解包目录完整复判"]
   C --> X2["Agent X 读取 Agent C 结论<br/>只基于最新 origin/main artifact 判断"]
   X2 --> D{"下一步判断"}
   D -->|通过且总目标未完成| X1
