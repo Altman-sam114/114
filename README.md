@@ -119,6 +119,8 @@ v0.97 起，iOS 计时页的非空分类筛选摘要与分类空态互斥，摘�
 
 v0.98 起，iOS 与 macOS 日程待办列表统一采用分类摘要/空态互斥规则：筛选结果非空时显示现有分类摘要，筛选结果为空时只保留现有“新增此分类”和“清除筛选”空态，避免重复操作和重复辅助功能上下文。CI 的 `Final CI status` 使用 `tee` 将同一份 `ci-failure-summary.md` 同时输出到步骤 stdout 与 Step Summary；项目验证新增 `CI failure summary output contracts verified.` 及对应 validator PASS，并以 `cat` 回退 fixture 和 marker 缺失 fixture 防止行为或结果包证明回退。v0.98 实现 commit `9f26f865ab84c7874763bb3eef59a6a5c513a7c4` 的 GitHub Actions run `30189412591`（attempt `1`）与 Agent C 原始 artifact 复判已通过：validator 为 `99 PASS / 0 FAIL`，Mac/iOS build、日程互斥及 CI failure summary marker 均通过。
 
+v0.99 起，iOS 计时页待办队列默认展示当前分类筛选结果的前 4 项，超过 4 项时提供“显示其余 N 项”与“收起”；分类变化或筛选结果数量变化会恢复收起。展开/收起只是 `TimerView` 的瞬态浏览状态，运行中仍可浏览全部待办，但任务行继续禁用，不能切换当前任务；控制保持至少 44pt 点击高度并提供动态 VoiceOver 与 Voice Control 语义。CI artifact validator 可额外接收原始 artifacts API JSON，结构化复判唯一 artifact 的八项 metadata 检查，并以 `Timer task queue expansion contracts verified.`、`CI artifact API metadata contracts verified.` 及对应 PASS/负向 fixture 锁定行为。v0.99 必须使用自身最新 `origin/main` 云端 CI 与 Agent C 原始证据复判，不得引用 v0.98 结果作为本轮结论。
+
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
 ## 协作与云端验证
@@ -136,10 +138,13 @@ ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id>-
   --attempt <run_attempt> \
   --archive /private/tmp/chronofocus-c-review-<run_id>-<unique>/<artifact-name>.zip \
   --archive-size <api-size-in-bytes> \
-  --archive-digest <api-sha256-digest>
+  --archive-digest <api-sha256-digest> \
+  --artifact-metadata /private/tmp/chronofocus-c-review-<run_id>-<unique>/artifacts-api.json
 ```
 
-三个 archive 参数必须全有或全无；省略全部参数时保留原有目录-only 复判。Agent C 应先从 GitHub API 核对最新 run 的 artifact id/name/size/digest/expired 状态，下载到全新目录中的 `.zip.part` 并有限重试；字节数、SHA-256 和 `unzip -t` 全部通过后，才在同一文件系统原子改名为最终 ZIP。默认拒绝覆盖或删除已有 `.part`、ZIP、解包目录和缓存证据。
+三个 archive 参数必须全有或全无；省略全部参数时保留目录-only 复判，只提供完整 archive 三参数时保持 v0.97 兼容，metadata 只能与完整 archive 参数组一起提供。Agent C 应将最新 run 的原始 API 响应先保存为全新目录中的 `artifacts-api.json.part`，成功且非空后无覆盖原子改名；metadata 文件必须非空、不超过 1 MiB、为普通文件且不是 symlink。随后用同一响应中的唯一 artifact id 下载 `.zip.part` 并有限重试；字节数、SHA-256 和 `unzip -t` 全部通过后，才在同一文件系统无覆盖原子改名为最终 ZIP。默认保留失败证据，不覆盖或删除 JSON、`.part`、ZIP、解包目录和缓存。
+
+完整 metadata 模式会额外输出 `PASS artifact metadata response shape`、`PASS artifact metadata unique artifact`、`PASS artifact metadata id`、`PASS artifact metadata name`、`PASS artifact metadata byte count`、`PASS artifact metadata sha256 digest`、`PASS artifact metadata not expired` 和 `PASS artifact metadata workflow run` 八项检查。API 响应没有 `run_attempt` 字段，不能直接证明 attempt；attempt 仍由最新 workflow run、`--attempt`、artifact 名称及 manifest/index/run context 共同核对。
 
 该脚本会核对 manifest 的分支/提交/run/attempt、artifactName、overallOutcome、short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、createdAt、关键路径、project reports allowlist，`ci-run-context.txt` 的精确字段集合、无重复/无额外字段、身份字段和 artifact 名称，artifact index 的身份字段、artifactName、version、createdAt、必需路径、本地文件/目录非空状态、entry 路径集合精确清单、required entry 的本地 byteCount/fileCount/recursiveByteCount 复算和 totals/entries 一致性，artifact 根目录/报告目录/快照目录不存在未声明额外文件，JUnit suite/classname 元数据、四个阶段 testcase、JUnit failures/errors 计数、JUnit outcome 与 manifest outcome、testcase 不含 failure/error 元素，failure summary 的身份字段、总结果、阶段 outcome 和日志入口，static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类 chip 可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge marker、Mac 计划分类上下文 marker、计划面板操作 marker、日程 toolbar 新增 marker、日程分类空态操作 marker、Mac 日程分类空态操作 marker、Mac 快速新增 marker、分类输入上下文 marker、待办保存按钮 marker、待办取消按钮 marker、Mac 小窗快捷面板 marker、统计分类占比 marker、统计分类投入次数 marker、统计分类投入排行 marker、统计分类投入排序依据 marker、统计分类投入空态 marker、统计分类投入元信息可读性 marker、统计分类投入占比可读性 marker、统计最近记录分类 marker、统计计划回顾分类 marker、Mac/iOS build 成功标记、Mac 快照 manifest 的 generatedAt、文件名、尺寸以及每张 PNG 的 byteCount 与下载文件大小一致；`verify_project.sh` 还用旧 process version、run context 额外字段、分类摘要 marker 缺失、日程任务操作 marker 缺失、计时主控 marker 缺失、计划开始 marker 缺失、计划分类 badge marker 缺失、Mac 计划分类 marker 缺失、计划面板操作 marker 缺失、日程 toolbar 新增 marker 缺失、日程分类空态操作 marker 缺失、Mac 日程分类空态操作 marker 缺失、Mac 快速新增 marker 缺失、分类输入上下文 marker 缺失、待办保存按钮 marker 缺失、待办取消按钮 marker 缺失、Mac 小窗快捷面板 marker 缺失、统计分类占比 marker 缺失、统计分类投入次数 marker 缺失、统计分类投入排行 marker 缺失、统计分类投入排序依据 marker 缺失、统计分类投入空态 marker 缺失、统计分类投入元信息可读性 marker 缺失、统计分类投入占比可读性 marker 缺失、统计最近记录分类 marker 缺失、统计计划回顾分类 marker 缺失、错误 JUnit 元数据、错误 JUnit errors 计数、错误 JUnit outcome、JUnit failure/error 元素、错误 artifact 名称、错误 manifest artifactName、错误 manifest overallOutcome、错误 artifact index artifactName、错误 manifest 元数据、错误 artifact index 身份、错误 artifact index totals、artifact index 未预期 entry、额外 artifact 文件、本地文件大小篡改、本地缺失产物、快照 manifest generatedAt 无效和快照 manifest 大小篡改负向 fixture 确认 validator 不会放行旧版本、自洽错包、混入包或残缺下载。
 

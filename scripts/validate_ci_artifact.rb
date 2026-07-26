@@ -10,6 +10,7 @@ require "rexml/document"
 require "time"
 
 EXPECTED_CI_PROCESS_VERSION = "v0.10"
+MAX_ARTIFACT_METADATA_BYTES = 1_048_576
 
 EXPECTED_SNAPSHOTS = %w[
   mini-timer.png
@@ -174,7 +175,7 @@ options = {
 }
 
 parser = OptionParser.new do |opts|
-  opts.banner = "Usage: ruby scripts/validate_ci_artifact.rb ARTIFACT_DIR --commit SHA --run-id ID --attempt N [--branch main] [--archive ZIP --archive-size BYTES --archive-digest sha256:HEX]"
+  opts.banner = "Usage: ruby scripts/validate_ci_artifact.rb ARTIFACT_DIR --commit SHA --run-id ID --attempt N [--branch main] [--archive ZIP --archive-size BYTES --archive-digest sha256:HEX [--artifact-metadata JSON]]"
   opts.on("--commit SHA", "Expected commit SHA") { |value| options["commit"] = value }
   opts.on("--run-id ID", "Expected GitHub Actions run id") { |value| options["run_id"] = value }
   opts.on("--attempt N", "Expected GitHub Actions run attempt") { |value| options["attempt"] = value }
@@ -182,6 +183,7 @@ parser = OptionParser.new do |opts|
   opts.on("--archive ZIP", "Downloaded artifact ZIP to validate") { |value| options["archive"] = value }
   opts.on("--archive-size BYTES", "Expected artifact ZIP byte count") { |value| options["archive_size"] = value }
   opts.on("--archive-digest DIGEST", "Expected artifact ZIP digest in sha256:HEX format") { |value| options["archive_digest"] = value }
+  opts.on("--artifact-metadata JSON", "Raw GitHub run artifacts API response") { |value| options["artifact_metadata"] = value }
 end
 
 parser.parse!
@@ -210,6 +212,11 @@ unless provided_archive_options.empty? || provided_archive_options.length == arc
   exit 2
 end
 
+if options.key?("artifact_metadata") && provided_archive_options.length != archive_option_names.length
+  warn "#{parser}\n--artifact-metadata requires --archive, --archive-size, and --archive-digest"
+  exit 2
+end
+
 archive_path = nil
 if provided_archive_options.length == archive_option_names.length
   unless options["archive_size"].match?(/\A[1-9]\d*\z/)
@@ -224,6 +231,30 @@ if provided_archive_options.length == archive_option_names.length
   archive_path = File.expand_path(options["archive"])
   unless File.file?(archive_path)
     warn "#{parser}\n--archive must reference a regular file"
+    exit 2
+  end
+end
+
+artifact_metadata_path = nil
+if options.key?("artifact_metadata")
+  artifact_metadata_path = File.expand_path(options["artifact_metadata"])
+  begin
+    metadata_stat = File.lstat(artifact_metadata_path)
+  rescue SystemCallError
+    warn "#{parser}\n--artifact-metadata must reference an existing regular file"
+    exit 2
+  end
+
+  if metadata_stat.symlink? || !metadata_stat.file?
+    warn "#{parser}\n--artifact-metadata must reference a regular file and must not be a symlink"
+    exit 2
+  end
+  unless metadata_stat.size.positive?
+    warn "#{parser}\n--artifact-metadata must not be empty"
+    exit 2
+  end
+  if metadata_stat.size > MAX_ARTIFACT_METADATA_BYTES
+    warn "#{parser}\n--artifact-metadata must not exceed #{MAX_ARTIFACT_METADATA_BYTES} bytes"
     exit 2
   end
 end
@@ -324,15 +355,17 @@ end
 begin
 artifact_dir = resolve_artifact_dir(artifact_arg)
 checks = []
+branch_slug = options["branch"].gsub("/", "-")
+short_sha = options["commit"][0, 7]
+expected_artifact_name = "chronofocus-ci-#{EXPECTED_CI_PROCESS_VERSION}-#{branch_slug}-#{short_sha}-run#{options["run_id"]}-attempt#{options["attempt"]}"
+expected_archive_size = archive_path ? Integer(options["archive_size"], 10) : nil
+expected_archive_digest = archive_path ? options["archive_digest"].downcase : nil
+actual_archive_size = archive_path ? File.size(archive_path) : nil
+actual_archive_digest = archive_path ? "sha256:#{Digest::SHA256.file(archive_path).hexdigest}" : nil
 
 if archive_path
-  expected_archive_size = Integer(options["archive_size"], 10)
-  expected_archive_digest = options["archive_digest"].downcase
-
-  check(checks, "artifact archive byte count") { File.size(archive_path) == expected_archive_size }
-  check(checks, "artifact archive sha256 digest") do
-    "sha256:#{Digest::SHA256.file(archive_path).hexdigest}" == expected_archive_digest
-  end
+  check(checks, "artifact archive byte count") { actual_archive_size == expected_archive_size }
+  check(checks, "artifact archive sha256 digest") { actual_archive_digest == expected_archive_digest }
   check(checks, "artifact archive zip integrity") do
     stdout, stderr, status = Open3.capture3(*["unzip", "-t", archive_path])
     unless status.success?
@@ -341,6 +374,73 @@ if archive_path
     end
 
     true
+  end
+end
+
+if artifact_metadata_path
+  artifact_metadata = nil
+  artifact_metadata_error = nil
+  begin
+    artifact_metadata = read_json(artifact_metadata_path)
+  rescue JSON::ParserError, EncodingError, ArgumentError => e
+    artifact_metadata_error = "invalid JSON (#{e.class})"
+  end
+
+  metadata_artifacts = artifact_metadata.is_a?(Hash) ? artifact_metadata["artifacts"] : nil
+  metadata_artifact = metadata_artifacts.is_a?(Array) && metadata_artifacts.length == 1 ? metadata_artifacts.first : nil
+
+  check(checks, "artifact metadata response shape") do
+    raise artifact_metadata_error if artifact_metadata_error
+
+    artifact_metadata.is_a?(Hash) &&
+      artifact_metadata["total_count"].is_a?(Integer) &&
+      artifact_metadata["total_count"] == 1 &&
+      metadata_artifacts.is_a?(Array)
+  end
+  check(checks, "artifact metadata unique artifact") do
+    artifact_metadata.is_a?(Hash) &&
+      metadata_artifacts.is_a?(Array) &&
+      metadata_artifacts.length == 1 &&
+      artifact_metadata["total_count"] == metadata_artifacts.length &&
+      metadata_artifact.is_a?(Hash)
+  end
+  check(checks, "artifact metadata id") do
+    metadata_artifact.is_a?(Hash) &&
+      metadata_artifact["id"].is_a?(Integer) &&
+      metadata_artifact["id"].positive?
+  end
+  check(checks, "artifact metadata name") do
+    metadata_artifact.is_a?(Hash) &&
+      metadata_artifact["name"].is_a?(String) &&
+      metadata_artifact["name"] == expected_artifact_name
+  end
+  check(checks, "artifact metadata byte count") do
+    metadata_artifact.is_a?(Hash) &&
+      metadata_artifact["size_in_bytes"].is_a?(Integer) &&
+      metadata_artifact["size_in_bytes"].positive? &&
+      metadata_artifact["size_in_bytes"] == expected_archive_size &&
+      metadata_artifact["size_in_bytes"] == actual_archive_size
+  end
+  check(checks, "artifact metadata sha256 digest") do
+    metadata_digest = metadata_artifact.is_a?(Hash) ? metadata_artifact["digest"] : nil
+    metadata_digest.is_a?(String) &&
+      metadata_digest.match?(/\Asha256:[0-9a-fA-F]{64}\z/) &&
+      metadata_digest.downcase == expected_archive_digest &&
+      metadata_digest.downcase == actual_archive_digest
+  end
+  check(checks, "artifact metadata not expired") do
+    metadata_artifact.is_a?(Hash) && metadata_artifact["expired"].equal?(false)
+  end
+  check(checks, "artifact metadata workflow run") do
+    workflow_run = metadata_artifact.is_a?(Hash) ? metadata_artifact["workflow_run"] : nil
+    workflow_run.is_a?(Hash) &&
+      workflow_run["id"].is_a?(Integer) &&
+      workflow_run["id"].positive? &&
+      workflow_run["id"].to_s == options["run_id"] &&
+      workflow_run["head_sha"].is_a?(String) &&
+      workflow_run["head_sha"] == options["commit"] &&
+      workflow_run["head_branch"].is_a?(String) &&
+      workflow_run["head_branch"] == options["branch"]
   end
 end
 
@@ -362,9 +462,6 @@ run_context = read_key_values(context_path)
 run_context_entries = read_key_value_entries(context_path)
 snapshot_manifest = read_json(snapshot_manifest_path)
 junit = REXML::Document.new(File.read(junit_path, encoding: "UTF-8")).root
-branch_slug = options["branch"].gsub("/", "-")
-short_sha = options["commit"][0, 7]
-expected_artifact_name = "chronofocus-ci-#{EXPECTED_CI_PROCESS_VERSION}-#{branch_slug}-#{short_sha}-run#{options["run_id"]}-attempt#{options["attempt"]}"
 
 check(checks, "artifact dir exists") { File.directory?(artifact_dir) }
 check(checks, "manifest branch") { manifest["branch"] == options["branch"] }
@@ -653,6 +750,9 @@ end
 check(checks, "verify_project timer category empty state action contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Timer category empty state action contracts verified.")
 end
+check(checks, "verify_project timer task queue expansion contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Timer task queue expansion contracts verified.")
+end
 check(checks, "verify_project declaration boundary resilience contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Declaration boundary resilience contracts verified.")
 end
@@ -667,6 +767,9 @@ check(checks, "verify_project ci failure summary output contracts") do
 end
 check(checks, "verify_project ci artifact archive integrity contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("CI artifact archive integrity contracts verified.")
+end
+check(checks, "verify_project ci artifact API metadata contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("CI artifact API metadata contracts verified.")
 end
 check(checks, "verify_project success") { File.read(verify_log_path, encoding: "UTF-8").include?("Project structure verified.") }
 check(checks, "mac build succeeded") { File.read(mac_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }

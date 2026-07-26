@@ -667,6 +667,73 @@ raise "Timer TaskRow category accessibility semantics must remain independent" u
 raise "Timer TaskRow running-state accessibility must remain available" unless timer_task_row_source.include?("计时运行中不可切换当前待办") && timer_task_row_source.include?("Text(\"\\(task.category)分类待办\")")
 puts "Timer category empty state action contracts verified."
 
+timer_root_source = source_slice(
+  "ChronoFocus/Views/TimerView.swift",
+  "struct TimerView: View",
+  "private struct MetricPill",
+  "TimerView declaration source missing"
+)
+timer_queue_limit_source = segment_slice(
+  timer_root_source,
+  "private let collapsedTaskLimit",
+  "private var currentTint",
+  "Timer task queue collapsed limit declaration missing"
+)
+raise "Timer task queue collapsed limit must remain 4" unless timer_queue_limit_source.match?(/private\s+let\s+collapsedTaskLimit\s*=\s*4/)
+timer_visible_tasks_source = segment_slice(
+  timer_root_source,
+  "private var visibleUpcomingTasks",
+  "private var hiddenTaskCount",
+  "Timer visible upcoming tasks declaration missing"
+)
+raise "Timer expanded queue must expose the full filtered task list" unless timer_visible_tasks_source.include?("isTaskQueueExpanded") && timer_visible_tasks_source.include?("? filteredUpcomingTasks")
+raise "Timer collapsed queue must use the shared limit" unless timer_visible_tasks_source.include?("Array(filteredUpcomingTasks.prefix(collapsedTaskLimit))")
+timer_hidden_count_source = segment_slice(
+  timer_root_source,
+  "private var hiddenTaskCount",
+  "private var taskQueueToggleTitle",
+  "Timer hidden task count declaration missing"
+)
+raise "Timer hidden task count must derive from filtered count and shared limit" unless timer_hidden_count_source.include?("max(filteredUpcomingTasks.count - collapsedTaskLimit, 0)")
+timer_queue_accessibility_source = segment_slice(
+  timer_root_source,
+  "private var taskQueueToggleTitle",
+  "private var taskPickerCountText",
+  "Timer task queue accessibility declarations missing"
+)
+raise "Timer queue toggle visible titles missing" unless timer_queue_accessibility_source.include?('isTaskQueueExpanded ? "收起" : "显示其余 \(hiddenTaskCount) 项"')
+raise "Timer queue toggle VoiceOver labels missing" unless timer_queue_accessibility_source.include?('isTaskQueueExpanded ? "收起待办列表" : "显示其余\(hiddenTaskCount)项待办"')
+raise "Timer queue toggle VoiceOver expanded value missing" unless timer_queue_accessibility_source.include?('已展开，显示全部 \(filteredUpcomingTasks.count) 项')
+raise "Timer queue toggle VoiceOver collapsed value missing" unless timer_queue_accessibility_source.include?('已收起，显示 \(collapsedTaskLimit) 项，共 \(filteredUpcomingTasks.count) 项')
+raise "Timer queue toggle VoiceOver expanded hint missing" unless timer_queue_accessibility_source.include?('收起后仅显示前 \(collapsedTaskLimit) 项待办')
+raise "Timer queue toggle VoiceOver collapsed hint missing" unless timer_queue_accessibility_source.include?('展开后可查看其余 \(hiddenTaskCount) 项待办') && timer_queue_accessibility_source.include?("计时运行中待办仍不可切换")
+raise "Timer queue toggle Voice Control labels must lead with visible title in both states" unless timer_queue_accessibility_source.scan(/return\s*\[\s*Text\(taskQueueToggleTitle\)/).length == 2
+raise "Timer queue expanded Voice Control labels missing" unless timer_queue_accessibility_source.include?('Text("收起待办")') && timer_queue_accessibility_source.include?('Text("收起待办列表")')
+raise "Timer queue collapsed Voice Control labels missing" unless timer_queue_accessibility_source.include?('Text("显示更多待办")') && timer_queue_accessibility_source.include?('Text("显示更多")') && timer_queue_accessibility_source.include?('Text("展开待办")')
+timer_queue_rows_source = segment_slice(
+  timer_picker_source,
+  "ForEach(visibleUpcomingTasks)",
+  "if filteredUpcomingTasks.count > collapsedTaskLimit",
+  "Timer task queue row declaration missing"
+)
+raise "Timer task queue rows must remain disabled while running" unless timer_queue_rows_source.include?(".disabled(engine.isRunning)")
+timer_queue_toggle_source = segment_slice(
+  timer_picker_source,
+  "if filteredUpcomingTasks.count > collapsedTaskLimit",
+  ".onChange(of: selectedTaskCategory)",
+  "Timer task queue toggle declaration missing"
+)
+raise "Timer queue toggle must only render above the collapsed limit" unless timer_queue_toggle_source.match?(/if\s+filteredUpcomingTasks\.count\s*>\s*collapsedTaskLimit\s*\{/)
+raise "Timer queue toggle action missing" unless timer_queue_toggle_source.include?("isTaskQueueExpanded.toggle()")
+raise "Timer queue toggle title and chevrons missing" unless timer_queue_toggle_source.include?("taskQueueToggleTitle") && timer_queue_toggle_source.include?('isTaskQueueExpanded ? "chevron.up" : "chevron.down"')
+raise "Timer queue toggle 44pt tap target missing" unless timer_queue_toggle_source.include?(".frame(maxWidth: .infinity, minHeight: 44)")
+raise "Timer queue toggle VoiceOver modifiers missing" unless timer_queue_toggle_source.include?(".accessibilityLabel(taskQueueToggleAccessibilityLabel)") && timer_queue_toggle_source.include?(".accessibilityValue(taskQueueToggleAccessibilityValue)") && timer_queue_toggle_source.include?(".accessibilityHint(taskQueueToggleAccessibilityHint)")
+raise "Timer queue toggle Voice Control modifier missing" unless timer_queue_toggle_source.include?(".accessibilityInputLabels(taskQueueToggleInputLabels)")
+raise "Timer queue toggle must remain available while running" if timer_queue_toggle_source.include?(".disabled(engine.isRunning)")
+raise "Timer queue must collapse when category changes" unless timer_picker_source.match?(/\.onChange\(of:\s*selectedTaskCategory\)\s*\{[^}]*isTaskQueueExpanded\s*=\s*false[^}]*\}/m)
+raise "Timer queue must collapse when filtered task count changes" unless timer_picker_source.match?(/\.onChange\(of:\s*filteredUpcomingTasks\.count\)\s*\{[^}]*isTaskQueueExpanded\s*=\s*false[^}]*\}/m)
+puts "Timer task queue expansion contracts verified."
+
 timer_task_badge = source_slice(
   "ChronoFocus/Views/TimerView.swift",
   "private struct TimerTaskCategoryBadge",
@@ -1223,11 +1290,24 @@ grep -q "require \"open3\"" scripts/validate_ci_artifact.rb
 grep -q -- "--archive ZIP" scripts/validate_ci_artifact.rb
 grep -q -- "--archive-size BYTES" scripts/validate_ci_artifact.rb
 grep -q -- "--archive-digest DIGEST" scripts/validate_ci_artifact.rb
+grep -q -- "--artifact-metadata JSON" scripts/validate_ci_artifact.rb
+grep -q "MAX_ARTIFACT_METADATA_BYTES = 1_048_576" scripts/validate_ci_artifact.rb
 grep -q "Archive arguments must be provided together" scripts/validate_ci_artifact.rb
+grep -q -- "--artifact-metadata requires --archive, --archive-size, and --archive-digest" scripts/validate_ci_artifact.rb
+grep -q "File.lstat(artifact_metadata_path)" scripts/validate_ci_artifact.rb
+grep -q "metadata_stat.symlink?" scripts/validate_ci_artifact.rb
 grep -q "Open3.capture3(\*\[\"unzip\", \"-t\", archive_path\])" scripts/validate_ci_artifact.rb
 grep -q "artifact archive byte count" scripts/validate_ci_artifact.rb
 grep -q "artifact archive sha256 digest" scripts/validate_ci_artifact.rb
 grep -q "artifact archive zip integrity" scripts/validate_ci_artifact.rb
+grep -q "artifact metadata response shape" scripts/validate_ci_artifact.rb
+grep -q "artifact metadata unique artifact" scripts/validate_ci_artifact.rb
+grep -q "artifact metadata id" scripts/validate_ci_artifact.rb
+grep -q "artifact metadata name" scripts/validate_ci_artifact.rb
+grep -q "artifact metadata byte count" scripts/validate_ci_artifact.rb
+grep -q "artifact metadata sha256 digest" scripts/validate_ci_artifact.rb
+grep -q "artifact metadata not expired" scripts/validate_ci_artifact.rb
+grep -q "artifact metadata workflow run" scripts/validate_ci_artifact.rb
 grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
 grep -q "Project structure verified." scripts/validate_ci_artifact.rb
 grep -q "Category chip accessibility contracts verified." scripts/validate_ci_artifact.rb
@@ -1242,11 +1322,13 @@ grep -q "Schedule category empty state action contracts verified." scripts/valid
 grep -q "Mac schedule category empty state action contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac calendar range empty state quick add contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Timer category empty state action contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Timer task queue expansion contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Declaration boundary resilience contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac timer category queue contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI action Node.js 24 contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI failure summary output contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI artifact archive integrity contracts verified." scripts/validate_ci_artifact.rb
+grep -q "CI artifact API metadata contracts verified." scripts/validate_ci_artifact.rb
 grep -q "verify_ci_failure_summary_output()" scripts/verify_project.sh
 grep -q "CI failure summary output contracts verified." scripts/verify_project.sh
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
@@ -1299,6 +1381,7 @@ grep -q "negative_schedule_category_empty_state_marker_fixture" scripts/verify_p
 grep -q "negative_mac_schedule_category_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_calendar_range_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_timer_category_empty_state_marker_fixture" scripts/verify_project.sh
+grep -q "negative_timer_task_queue_expansion_marker_fixture" scripts/verify_project.sh
 grep -q "negative_declaration_boundary_resilience_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_timer_category_queue_marker_fixture" scripts/verify_project.sh
 grep -q "negative_ci_action_node24_marker_fixture" scripts/verify_project.sh
@@ -1326,7 +1409,12 @@ grep -q "negative_timer_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_archive_digest_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_archive_size_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_archive_zip_fixture" scripts/verify_project.sh
+grep -q "artifact_metadata_fixture" scripts/verify_project.sh
+grep -q "negative_artifact_metadata_symlink_fixture" scripts/verify_project.sh
+grep -q "negative_artifact_metadata_digest_fixture" scripts/verify_project.sh
+grep -q "negative_artifact_metadata_workflow_branch_fixture" scripts/verify_project.sh
 grep -q "negative_ci_artifact_archive_integrity_marker_fixture" scripts/verify_project.sh
+grep -q "negative_ci_artifact_api_metadata_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_run_context_extra_key_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_artifact_name_fixture" scripts/verify_project.sh
@@ -1354,6 +1442,7 @@ grep -q "FAIL verify_project schedule category empty state action contracts" scr
 grep -q "FAIL verify_project mac schedule category empty state action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac calendar range empty state quick add contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project timer category empty state action contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project timer task queue expansion contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project declaration boundary resilience contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac timer category queue contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project ci action Node.js 24 contracts" scripts/verify_project.sh
@@ -1361,7 +1450,16 @@ grep -q "FAIL verify_project ci failure summary output contracts" scripts/verify
 grep -q "FAIL artifact archive sha256 digest" scripts/verify_project.sh
 grep -q "FAIL artifact archive byte count" scripts/verify_project.sh
 grep -q "FAIL artifact archive zip integrity" scripts/verify_project.sh
+grep -q "FAIL artifact metadata response shape" scripts/verify_project.sh
+grep -q "FAIL artifact metadata unique artifact" scripts/verify_project.sh
+grep -q "FAIL artifact metadata id" scripts/verify_project.sh
+grep -q "FAIL artifact metadata name" scripts/verify_project.sh
+grep -q "FAIL artifact metadata byte count" scripts/verify_project.sh
+grep -q "FAIL artifact metadata sha256 digest" scripts/verify_project.sh
+grep -q "FAIL artifact metadata not expired" scripts/verify_project.sh
+grep -q "FAIL artifact metadata workflow run" scripts/verify_project.sh
 grep -q "FAIL verify_project ci artifact archive integrity contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project ci artifact API metadata contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add action accessibility contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac quick add title field category context contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project category input context contracts" scripts/verify_project.sh
@@ -1439,7 +1537,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nTimer task queue expansion contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nCI artifact API metadata contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1702,6 +1800,206 @@ grep -q "PASS artifact archive sha256 digest" "$artifact_archive_success_output"
 grep -q "PASS artifact archive zip integrity" "$artifact_archive_success_output"
 grep -q "PASS verify_project ci artifact archive integrity contracts" "$artifact_archive_success_output"
 rm -f "$artifact_archive_success_output"
+
+artifact_metadata_fixture="$artifact_archive_fixture_dir/artifacts-api.json"
+ruby -rjson - "$artifact_metadata_fixture" "$artifact_archive_size" "$artifact_archive_digest" <<'RUBY'
+path, archive_size, archive_digest = ARGV
+payload = {
+  "total_count" => 1,
+  "artifacts" => [
+    {
+      "id" => 987_654_321,
+      "name" => "chronofocus-ci-v0.10-main-fixture-run12345-attempt1",
+      "size_in_bytes" => Integer(archive_size, 10),
+      "digest" => archive_digest,
+      "expired" => false,
+      "workflow_run" => {
+        "id" => 12_345,
+        "head_sha" => "fixture-sha",
+        "head_branch" => "main"
+      },
+      "future_github_field" => "allowed"
+    }
+  ],
+  "future_response_field" => { "allowed" => true }
+}
+File.write(path, JSON.pretty_generate(payload) + "\n", encoding: "UTF-8")
+RUBY
+artifact_metadata_success_output="$(mktemp)"
+ruby scripts/validate_ci_artifact.rb \
+  "$artifact_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  --artifact-metadata "$artifact_metadata_fixture" \
+  >"$artifact_metadata_success_output"
+grep -q "PASS artifact metadata response shape" "$artifact_metadata_success_output"
+grep -q "PASS artifact metadata unique artifact" "$artifact_metadata_success_output"
+grep -q "PASS artifact metadata id" "$artifact_metadata_success_output"
+grep -q "PASS artifact metadata name" "$artifact_metadata_success_output"
+grep -q "PASS artifact metadata byte count" "$artifact_metadata_success_output"
+grep -q "PASS artifact metadata sha256 digest" "$artifact_metadata_success_output"
+grep -q "PASS artifact metadata not expired" "$artifact_metadata_success_output"
+grep -q "PASS artifact metadata workflow run" "$artifact_metadata_success_output"
+grep -q "PASS artifact archive byte count" "$artifact_metadata_success_output"
+grep -q "PASS artifact archive sha256 digest" "$artifact_metadata_success_output"
+grep -q "PASS artifact archive zip integrity" "$artifact_metadata_success_output"
+grep -q "PASS verify_project ci artifact API metadata contracts" "$artifact_metadata_success_output"
+rm -f "$artifact_metadata_success_output"
+
+negative_artifact_metadata_argument_group_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 --artifact-metadata "$artifact_metadata_fixture" >"$negative_artifact_metadata_argument_group_output" 2>&1; then
+  echo "Expected metadata without archive argument group to fail validation" >&2
+  cat "$negative_artifact_metadata_argument_group_output" >&2
+  exit 1
+fi
+grep -q -- "--artifact-metadata requires --archive, --archive-size, and --archive-digest" "$negative_artifact_metadata_argument_group_output"
+rm -f "$negative_artifact_metadata_argument_group_output"
+
+expect_artifact_metadata_argument_failure() {
+  local metadata_path="$1"
+  local expected_message="$2"
+  local description="$3"
+  local output_path
+  output_path="$(mktemp)"
+
+  if ruby scripts/validate_ci_artifact.rb \
+    "$artifact_fixture" \
+    --commit fixture-sha \
+    --run-id 12345 \
+    --attempt 1 \
+    --archive "$artifact_archive_fixture" \
+    --archive-size "$artifact_archive_size" \
+    --archive-digest "$artifact_archive_digest" \
+    --artifact-metadata "$metadata_path" \
+    >"$output_path" 2>&1; then
+    echo "Expected $description metadata fixture to fail argument validation" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
+  grep -q -- "$expected_message" "$output_path"
+  rm -f "$output_path"
+}
+
+run_negative_artifact_metadata_fixture() {
+  local metadata_path="$1"
+  local expected_failure="$2"
+  local description="$3"
+  local output_path
+  output_path="$(mktemp)"
+
+  if ruby scripts/validate_ci_artifact.rb \
+    "$artifact_fixture" \
+    --commit fixture-sha \
+    --run-id 12345 \
+    --attempt 1 \
+    --archive "$artifact_archive_fixture" \
+    --archive-size "$artifact_archive_size" \
+    --archive-digest "$artifact_archive_digest" \
+    --artifact-metadata "$metadata_path" \
+    >"$output_path" 2>&1; then
+    echo "Expected $description metadata fixture to fail validation" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
+  grep -q "$expected_failure" "$output_path"
+  grep -q "PASS artifact archive byte count" "$output_path"
+  grep -q "PASS artifact archive sha256 digest" "$output_path"
+  grep -q "PASS artifact archive zip integrity" "$output_path"
+  rm -f "$output_path"
+}
+
+negative_artifact_metadata_empty_fixture="$artifact_archive_fixture_dir/negative-empty-metadata.json"
+: > "$negative_artifact_metadata_empty_fixture"
+expect_artifact_metadata_argument_failure "$negative_artifact_metadata_empty_fixture" "--artifact-metadata must not be empty" "empty"
+
+negative_artifact_metadata_missing_fixture="$artifact_archive_fixture_dir/negative-missing-metadata.json"
+expect_artifact_metadata_argument_failure "$negative_artifact_metadata_missing_fixture" "--artifact-metadata must reference an existing regular file" "missing"
+
+negative_artifact_metadata_oversized_fixture="$artifact_archive_fixture_dir/negative-oversized-metadata.json"
+ruby -e 'File.binwrite(ARGV.fetch(0), " " * 1_048_577)' "$negative_artifact_metadata_oversized_fixture"
+expect_artifact_metadata_argument_failure "$negative_artifact_metadata_oversized_fixture" "--artifact-metadata must not exceed 1048576 bytes" "oversized"
+
+negative_artifact_metadata_directory_fixture="$artifact_archive_fixture_dir/negative-metadata-directory"
+mkdir "$negative_artifact_metadata_directory_fixture"
+expect_artifact_metadata_argument_failure "$negative_artifact_metadata_directory_fixture" "--artifact-metadata must reference a regular file and must not be a symlink" "non-regular"
+
+negative_artifact_metadata_symlink_fixture="$artifact_archive_fixture_dir/negative-metadata-symlink.json"
+ln -s "$artifact_metadata_fixture" "$negative_artifact_metadata_symlink_fixture"
+expect_artifact_metadata_argument_failure "$negative_artifact_metadata_symlink_fixture" "--artifact-metadata must reference a regular file and must not be a symlink" "symlink"
+
+ruby -rjson - "$artifact_metadata_fixture" "$artifact_archive_fixture_dir" <<'RUBY'
+source_path, output_dir = ARGV
+source = JSON.parse(File.read(source_path, encoding: "UTF-8"))
+
+write_fixture = lambda do |name, payload|
+  File.write(File.join(output_dir, name), JSON.pretty_generate(payload) + "\n", encoding: "UTF-8")
+end
+mutate = lambda do |name, &block|
+  payload = Marshal.load(Marshal.dump(source))
+  block.call(payload)
+  write_fixture.call(name, payload)
+end
+
+File.write(File.join(output_dir, "negative-invalid-metadata.json"), "{ invalid json\n", encoding: "UTF-8")
+write_fixture.call("negative-top-level-array-metadata.json", [])
+mutate.call("negative-total-count-metadata.json") { |payload| payload["total_count"] = 2 }
+mutate.call("negative-empty-artifacts-metadata.json") { |payload| payload["artifacts"] = [] }
+mutate.call("negative-two-artifacts-metadata.json") { |payload| payload["artifacts"] << Marshal.load(Marshal.dump(payload["artifacts"].first)) }
+mutate.call("negative-id-metadata.json") { |payload| payload["artifacts"][0]["id"] = 0 }
+mutate.call("negative-id-below-zero-metadata.json") { |payload| payload["artifacts"][0]["id"] = -1 }
+mutate.call("negative-string-id-metadata.json") { |payload| payload["artifacts"][0]["id"] = "987654321" }
+mutate.call("negative-name-metadata.json") { |payload| payload["artifacts"][0]["name"] = "wrong-artifact-name" }
+mutate.call("negative-size-metadata.json") { |payload| payload["artifacts"][0]["size_in_bytes"] += 1 }
+mutate.call("negative-digest-metadata.json") { |payload| payload["artifacts"][0]["digest"] = "sha256:#{"0" * 64}" }
+mutate.call("negative-expired-metadata.json") { |payload| payload["artifacts"][0]["expired"] = true }
+mutate.call("negative-string-expired-metadata.json") { |payload| payload["artifacts"][0]["expired"] = "false" }
+mutate.call("negative-missing-workflow-metadata.json") { |payload| payload["artifacts"][0].delete("workflow_run") }
+mutate.call("negative-workflow-type-metadata.json") { |payload| payload["artifacts"][0]["workflow_run"] = [] }
+mutate.call("negative-workflow-id-metadata.json") { |payload| payload["artifacts"][0]["workflow_run"]["id"] = 54_321 }
+mutate.call("negative-workflow-sha-metadata.json") { |payload| payload["artifacts"][0]["workflow_run"]["head_sha"] = "wrong-sha" }
+mutate.call("negative-workflow-branch-metadata.json") { |payload| payload["artifacts"][0]["workflow_run"]["head_branch"] = "wrong-branch" }
+RUBY
+
+negative_artifact_metadata_invalid_json_fixture="$artifact_archive_fixture_dir/negative-invalid-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_invalid_json_fixture" "FAIL artifact metadata response shape" "invalid JSON"
+negative_artifact_metadata_top_array_fixture="$artifact_archive_fixture_dir/negative-top-level-array-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_top_array_fixture" "FAIL artifact metadata response shape" "top-level array"
+negative_artifact_metadata_count_fixture="$artifact_archive_fixture_dir/negative-total-count-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_count_fixture" "FAIL artifact metadata response shape" "total count"
+negative_artifact_metadata_empty_artifacts_fixture="$artifact_archive_fixture_dir/negative-empty-artifacts-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_empty_artifacts_fixture" "FAIL artifact metadata unique artifact" "empty artifacts"
+negative_artifact_metadata_two_artifacts_fixture="$artifact_archive_fixture_dir/negative-two-artifacts-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_two_artifacts_fixture" "FAIL artifact metadata unique artifact" "multiple artifacts"
+negative_artifact_metadata_id_fixture="$artifact_archive_fixture_dir/negative-id-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_id_fixture" "FAIL artifact metadata id" "non-positive id"
+negative_artifact_metadata_negative_id_fixture="$artifact_archive_fixture_dir/negative-id-below-zero-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_negative_id_fixture" "FAIL artifact metadata id" "negative id"
+negative_artifact_metadata_string_id_fixture="$artifact_archive_fixture_dir/negative-string-id-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_string_id_fixture" "FAIL artifact metadata id" "string id"
+negative_artifact_metadata_name_fixture="$artifact_archive_fixture_dir/negative-name-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_name_fixture" "FAIL artifact metadata name" "name mismatch"
+negative_artifact_metadata_size_fixture="$artifact_archive_fixture_dir/negative-size-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_size_fixture" "FAIL artifact metadata byte count" "byte count mismatch"
+negative_artifact_metadata_digest_fixture="$artifact_archive_fixture_dir/negative-digest-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_digest_fixture" "FAIL artifact metadata sha256 digest" "digest mismatch"
+negative_artifact_metadata_expired_fixture="$artifact_archive_fixture_dir/negative-expired-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_expired_fixture" "FAIL artifact metadata not expired" "expired artifact"
+negative_artifact_metadata_string_expired_fixture="$artifact_archive_fixture_dir/negative-string-expired-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_string_expired_fixture" "FAIL artifact metadata not expired" "string expired flag"
+negative_artifact_metadata_missing_workflow_fixture="$artifact_archive_fixture_dir/negative-missing-workflow-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_missing_workflow_fixture" "FAIL artifact metadata workflow run" "missing workflow run"
+negative_artifact_metadata_workflow_type_fixture="$artifact_archive_fixture_dir/negative-workflow-type-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_workflow_type_fixture" "FAIL artifact metadata workflow run" "workflow run type"
+negative_artifact_metadata_workflow_id_fixture="$artifact_archive_fixture_dir/negative-workflow-id-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_workflow_id_fixture" "FAIL artifact metadata workflow run" "workflow run id mismatch"
+negative_artifact_metadata_workflow_sha_fixture="$artifact_archive_fixture_dir/negative-workflow-sha-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_workflow_sha_fixture" "FAIL artifact metadata workflow run" "workflow head SHA mismatch"
+negative_artifact_metadata_workflow_branch_fixture="$artifact_archive_fixture_dir/negative-workflow-branch-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_workflow_branch_fixture" "FAIL artifact metadata workflow run" "workflow head branch mismatch"
 
 negative_artifact_archive_argument_group_output="$(mktemp)"
 if ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 --archive "$artifact_archive_fixture" >"$negative_artifact_archive_argument_group_output" 2>&1; then
@@ -2097,6 +2395,31 @@ fi
 grep -q "FAIL verify_project timer category empty state action contracts" "$negative_timer_category_empty_state_marker_output"
 rm -rf "$negative_timer_category_empty_state_marker_fixture"
 rm -f "$negative_timer_category_empty_state_marker_output"
+negative_timer_task_queue_expansion_marker_fixture="$(mktemp -d)"
+negative_timer_task_queue_expansion_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_timer_task_queue_expansion_marker_fixture"/
+python3 - "$negative_timer_task_queue_expansion_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Timer task queue expansion contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_timer_task_queue_expansion_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_timer_task_queue_expansion_marker_output" 2>&1; then
+  echo "Expected negative timer task queue expansion marker fixture to fail validation" >&2
+  cat "$negative_timer_task_queue_expansion_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project timer task queue expansion contracts" "$negative_timer_task_queue_expansion_marker_output"
+rm -rf "$negative_timer_task_queue_expansion_marker_fixture"
+rm -f "$negative_timer_task_queue_expansion_marker_output"
 negative_declaration_boundary_resilience_marker_fixture="$(mktemp -d)"
 negative_declaration_boundary_resilience_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_declaration_boundary_resilience_marker_fixture"/
@@ -2222,6 +2545,31 @@ fi
 grep -q "FAIL verify_project ci artifact archive integrity contracts" "$negative_ci_artifact_archive_integrity_marker_output"
 rm -rf "$negative_ci_artifact_archive_integrity_marker_fixture"
 rm -f "$negative_ci_artifact_archive_integrity_marker_output"
+negative_ci_artifact_api_metadata_marker_fixture="$(mktemp -d)"
+negative_ci_artifact_api_metadata_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_ci_artifact_api_metadata_marker_fixture"/
+python3 - "$negative_ci_artifact_api_metadata_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "CI artifact API metadata contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_ci_artifact_api_metadata_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_ci_artifact_api_metadata_marker_output" 2>&1; then
+  echo "Expected negative CI artifact API metadata marker fixture to fail validation" >&2
+  cat "$negative_ci_artifact_api_metadata_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project ci artifact API metadata contracts" "$negative_ci_artifact_api_metadata_marker_output"
+rm -rf "$negative_ci_artifact_api_metadata_marker_fixture"
+rm -f "$negative_ci_artifact_api_metadata_marker_output"
 negative_mac_quick_add_action_marker_fixture="$(mktemp -d)"
 negative_mac_quick_add_action_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_quick_add_action_marker_fixture"/
@@ -3194,6 +3542,7 @@ rm -f "$ci_failure_summary_cat_workflow_fixture" "$ci_failure_summary_cat_workfl
 echo "CI action Node.js 24 contracts verified."
 echo "CI failure summary output contracts verified."
 echo "CI artifact archive integrity contracts verified."
+echo "CI artifact API metadata contracts verified."
 
 echo "Running Mac core tests..."
 xcrun --sdk macosx swiftc \

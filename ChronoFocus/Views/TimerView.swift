@@ -6,6 +6,9 @@ struct TimerView: View {
     @EnvironmentObject private var notifications: NotificationService
     @State private var selectedTaskCategory: String?
     @State private var showingCategoryEditor = false
+    @State private var isTaskQueueExpanded = false
+
+    private let collapsedTaskLimit = 4
 
     private var currentTint: Color {
         if let task = store.task(for: engine.selectedTaskID) {
@@ -21,6 +24,56 @@ struct TimerView: View {
     private var filteredUpcomingTasks: [FocusTask] {
         guard let selectedTaskCategory else { return upcomingTasks }
         return upcomingTasks.filter { $0.category == selectedTaskCategory }
+    }
+
+    private var visibleUpcomingTasks: [FocusTask] {
+        isTaskQueueExpanded
+            ? filteredUpcomingTasks
+            : Array(filteredUpcomingTasks.prefix(collapsedTaskLimit))
+    }
+
+    private var hiddenTaskCount: Int {
+        max(filteredUpcomingTasks.count - collapsedTaskLimit, 0)
+    }
+
+    private var taskQueueToggleTitle: String {
+        isTaskQueueExpanded ? "收起" : "显示其余 \(hiddenTaskCount) 项"
+    }
+
+    private var taskQueueToggleAccessibilityLabel: String {
+        isTaskQueueExpanded ? "收起待办列表" : "显示其余\(hiddenTaskCount)项待办"
+    }
+
+    private var taskQueueToggleAccessibilityValue: String {
+        if isTaskQueueExpanded {
+            return "已展开，显示全部 \(filteredUpcomingTasks.count) 项"
+        }
+        return "已收起，显示 \(collapsedTaskLimit) 项，共 \(filteredUpcomingTasks.count) 项"
+    }
+
+    private var taskQueueToggleAccessibilityHint: String {
+        if isTaskQueueExpanded {
+            return "收起后仅显示前 \(collapsedTaskLimit) 项待办"
+        }
+
+        let browsingHint = "展开后可查看其余 \(hiddenTaskCount) 项待办"
+        return engine.isRunning ? "\(browsingHint)，计时运行中待办仍不可切换" : browsingHint
+    }
+
+    private var taskQueueToggleInputLabels: [Text] {
+        if isTaskQueueExpanded {
+            return [
+                Text(taskQueueToggleTitle),
+                Text("收起待办"),
+                Text("收起待办列表")
+            ]
+        }
+        return [
+            Text(taskQueueToggleTitle),
+            Text("显示更多待办"),
+            Text("显示更多"),
+            Text("展开待办")
+        ]
     }
 
     private var taskPickerCountText: String {
@@ -359,7 +412,7 @@ struct TimerView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     VStack(spacing: 10) {
-                        ForEach(filteredUpcomingTasks.prefix(4)) { task in
+                        ForEach(visibleUpcomingTasks) { task in
                             Button {
                                 if !engine.isRunning {
                                     engine.selectTask(task)
@@ -375,9 +428,37 @@ struct TimerView: View {
                             .buttonStyle(.plain)
                             .disabled(engine.isRunning)
                         }
+
+                        if filteredUpcomingTasks.count > collapsedTaskLimit {
+                            Button {
+                                isTaskQueueExpanded.toggle()
+                            } label: {
+                                Label(
+                                    taskQueueToggleTitle,
+                                    systemImage: isTaskQueueExpanded ? "chevron.up" : "chevron.down"
+                                )
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(currentTint)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .contentShape(Rectangle())
+                            .accessibilityLabel(taskQueueToggleAccessibilityLabel)
+                            .accessibilityValue(taskQueueToggleAccessibilityValue)
+                            .accessibilityHint(taskQueueToggleAccessibilityHint)
+                            .accessibilityInputLabels(taskQueueToggleInputLabels)
+                        }
                     }
                 }
             }
+        }
+        .onChange(of: selectedTaskCategory) { _, _ in
+            isTaskQueueExpanded = false
+        }
+        .onChange(of: filteredUpcomingTasks.count) { _, _ in
+            isTaskQueueExpanded = false
         }
     }
 
