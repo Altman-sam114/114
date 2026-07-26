@@ -80,7 +80,10 @@
 验证结果：
 
 - 未运行本地测试命令；人工明确要求“不得在本地测试，都去云端”。
-- 云端验证待本轮提交 push 后由 GitHub Actions 和 Agent C artifact validator 复判。
+- 首个实现 commit `f5dc3115c2dd11e0bed659700b4cac34777dcfa6` 的 GitHub Actions run `29167467255` attempt `1` 失败；Mac/iOS build 均成功，结果包显示验证脚本仍以 `private struct TaskEditorView` 作为源码切片边界。
+- 修复 commit `55f523c` 更新两处声明边界；后续 commit `f0d6f4e6f40cb07415424eb3beb13d787a69cd55` 补充操作区动态布局与对应契约，均已 push 到 `origin/main`。
+- GitHub Actions run `30184604454` attempt `1` 成功，artifact 为 `chronofocus-ci-v0.10-main-f0d6f4e-run30184604454-attempt1`。
+- 完整 artifact 下载到 `/private/tmp/chronofocus-c-review-30184604454-v094/complete/`；Agent C validator 输出全 PASS，包含 `PASS verify_project timer category empty state action contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
 
 遗留事项：
 
