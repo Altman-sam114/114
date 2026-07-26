@@ -115,7 +115,7 @@ v0.95 起，macOS 计时详情的待办队列支持按分类筛选并显示筛�
 
 v0.96 起，macOS 计时详情的非空分类筛选态增加常驻上下文条、自适应新增/清除动作，并将任务行分类 badge 的视觉显示与完整可访问语义分离；云端快照脚本额外渲染正常分类筛选态和 220pt 窄宽上下文条，但正式 artifact manifest 仍保持既有 5 张快照精确清单。CI workflow 使用 `actions/checkout@v5` 和 `actions/upload-artifact@v6`，项目验证输出 `CI action Node.js 24 contracts verified.`，Agent C artifact validator 复判 `PASS verify_project ci action Node.js 24 contracts`；最新 v0.96 云端 run、artifact 和完整日志已确认通过且无 Action/Node 弃用项。
 
-v0.97 起，iOS 计时页的非空分类筛选摘要与分类空态互斥，摘要显示筛选数/总数及新增/清除双操作；筛选态只隐藏重复视觉 badge，整行可访问语义保持完整。artifact validator 可选择接收全有或全无的 `--archive`、`--archive-size`、`--archive-digest`，并分别输出 byte count、SHA-256 和 ZIP integrity PASS；不传三个参数的目录-only 调用继续兼容。项目验证新增 `CI artifact archive integrity contracts verified.` 及对应 validator PASS，并覆盖部分参数、等长篡改、截断、摘要匹配但非 ZIP、marker 缺失拒绝路径。v0.97 尚待最新 `origin/main` 云端 run 和原始 ZIP 验收。
+v0.97 起，iOS 计时页的非空分类筛选摘要与分类空态互斥，摘要显示筛选数/总数及新增/清除双操作；筛选态只隐藏重复视觉 badge，整行可访问语义保持完整。artifact validator 可选择接收全有或全无的 `--archive`、`--archive-size`、`--archive-digest`，并分别输出 byte count、SHA-256 和 ZIP integrity PASS；不传三个参数的目录-only 调用继续兼容。项目验证新增 `CI artifact archive integrity contracts verified.` 及对应 validator PASS，并覆盖部分参数、等长篡改、截断、摘要匹配但非 ZIP、marker 缺失拒绝路径。最新 v0.97 `origin/main` 云端 run、原始 ZIP、validator 和完整日志已验收通过。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
