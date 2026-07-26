@@ -79,7 +79,8 @@
 验证结果：
 
 - 主线程未运行任何本地测试、检查、验证脚本、`git diff --check`、Xcode、`xcodebuild`、`simctl` 或 Simulator；CI 子 Agent 误运行过一次 `git diff --check`，该流程违规已记录，其输出不得作为验收证据。未运行项目验证脚本、Xcode 构建或模拟器。
-- 当前状态为 `pending`：尚无 v1.1 commit、GitHub Actions run、artifact 或 Agent C 云端复判结论。
+- 当前状态为退回修复：v1.1 尚无通过的最新 GitHub Actions run 或 Agent C 结论。
+- 首次实现 commit `0666b4efae1822e978adf21f08df145e43a99aa8` 的 run `30193636728`（attempt `1`）中静态检查、Mac/iOS build 和结果包上传成功，但 project verification 报 `iOS existing category VoiceOver label missing`，最终结论为 failure。原因是 v1.0 旧契约要求分类名后立即拼 selected 后缀，未容纳 v1.1 在中间插入任务数/“历史”；失败 artifact `8629415589` 已保留，Agent B 追加兼容修复后必须重新云端验收。
 
 遗留事项：
 

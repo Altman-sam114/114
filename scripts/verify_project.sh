@@ -953,8 +953,9 @@ raise "Mac repeated selection must preserve the current category" unless mac_exi
 raise "iOS existing category button must preserve 44 point target and dynamic text" unless ios_existing_category_source.include?(".frame(maxWidth: 220, minHeight: 44, alignment: .leading)") && ios_existing_category_source.include?(".fixedSize(horizontal: false, vertical: true)")
 raise "iOS existing category selected indicator missing" unless ios_existing_category_source.include?("Image(systemName: \"checkmark.circle.fill\")") && ios_existing_category_source.include?(".accessibilityAddTraits(isSelected ? .isSelected : [])")
 raise "Mac existing category selected indicator missing" unless mac_existing_category_source.include?("Image(systemName: \"checkmark\")") && mac_existing_category_source.include?(".accessibilityAddTraits(isSelected ? .isSelected : [])")
+raise "iOS existing category VoiceOver label missing" unless ios_existing_category_source.include?("\\(option.name)分类，\\(option.taskCount > 0 ? \"\\(option.taskCount)项任务\" : \"仅历史专注记录\")\\(isSelected ? \"，已选中\" : \"\")")
+raise "Mac existing category VoiceOver label missing" unless mac_existing_category_source.scan("\\(option.displayName)分类，\\(option.accessibilityUsageText)\\(isSelected ? \"，已选中\" : \"\")").length >= 2
 for source, platform, name_expression in [[ios_existing_category_source, "iOS", "option.name"], [mac_existing_category_source, "Mac", "option.displayName"]]
-  raise "#{platform} existing category VoiceOver label missing" unless source.include?("分类\\(isSelected ? \"，已选中\" : \"\")")
   raise "#{platform} existing category VoiceOver hint missing" unless source.include?("选择已有\\(#{name_expression})分类") && source.include?(repeat_hint)
   raise "#{platform} existing category Voice Control labels missing" unless source.include?("Text(\\(#{name_expression}))") || (source.include?("Text(#{name_expression})") && source.include?("Text(\"选择\\(#{name_expression})分类\")"))
 end
