@@ -1041,6 +1041,14 @@ raise "iOS existing category search empty state missing" unless ios_existing_cat
 raise "Mac existing category search empty state missing" unless mac_existing_category_source.include?("没有匹配的已有分类") && mac_existing_category_source.scan("existingCategoryNoResultsView").length >= 3 && mac_existing_category_source.include?("已有分类搜索结果为空")
 raise "iOS existing category results must drive displayed chips" unless ios_existing_category_source.include?("ForEach(filteredExistingCategoryOptions)")
 raise "Mac live and static search results must drive displayed chips" unless mac_existing_category_source.scan("options: filteredExistingCategoryOptions").length >= 2 && mac_existing_category_source.scan("ForEach(options)").length >= 2
+mac_static_existing_category_search_source = segment_slice(
+  mac_existing_category_source,
+  "private struct MacStaticExistingCategoryStrip",
+  "private func existingCategoryHeader",
+  "Mac static existing category search source missing"
+)
+raise "Mac static existing category results must avoid snapshot ScrollView loss" if mac_static_existing_category_search_source.include?("ScrollView")
+raise "Mac static existing category results must use a direct HStack" unless mac_static_existing_category_search_source.include?("HStack(spacing: 8)") && mac_static_existing_category_search_source.include?("ForEach(options)")
 raise "iOS selecting an existing category must retain the search query" if ios_select_source.include?("existingCategorySearch")
 raise "Mac selecting an existing category must retain the search query" if mac_select_source.include?("existingCategorySearchQuery") || mac_select_source.include?("searchQuery")
 

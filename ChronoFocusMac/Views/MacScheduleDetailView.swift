@@ -522,24 +522,22 @@ private struct MacStaticExistingCategoryStrip: View {
             if options.isEmpty {
                 existingCategoryNoResultsView
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(options) { option in
-                            let isSelected = macCategoryComparisonKey(selectedCategory) == option.comparisonKey
-                            MacExistingCategoryChipContent(
-                                option: option,
-                                isSelected: isSelected,
-                                fallbackAccentHex: fallbackAccentHex
-                            )
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(
-                                "\(option.displayName)分类，\(option.accessibilityUsageText)\(isSelected ? "，已选中" : "")"
-                            )
-                            .accessibilityAddTraits(isSelected ? .isSelected : [])
-                        }
+                HStack(spacing: 8) {
+                    ForEach(options) { option in
+                        let isSelected = macCategoryComparisonKey(selectedCategory) == option.comparisonKey
+                        MacExistingCategoryChipContent(
+                            option: option,
+                            isSelected: isSelected,
+                            fallbackAccentHex: fallbackAccentHex
+                        )
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(
+                            "\(option.displayName)分类，\(option.accessibilityUsageText)\(isSelected ? "，已选中" : "")"
+                        )
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
-                    .padding(.vertical, 1)
                 }
+                .padding(.vertical, 1)
             }
         }
         .accessibilityElement(children: .contain)

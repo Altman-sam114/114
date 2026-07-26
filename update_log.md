@@ -81,7 +81,8 @@
 验证结果：
 
 - 按人工硬性约束，未运行任何本地测试、检查、验证脚本、`git diff --check`、Xcode、`xcodebuild`、`simctl` 或 Simulator。
-- 当前状态为 `pending`：尚无 v1.2 commit、GitHub Actions run、artifact 或 Agent C 云端复判结论。
+- 当前状态为首次验收退回，静态快照结果 chip 修复待新云端 run 复判。
+- 实现 commit `2f6b1c03434007e307351a638b164e5b391c8c9a` 的 run `30194825035`（attempt `1`）全步骤成功；Agent C 在 `/private/tmp/chronofocus-c-review-30194825035-tCYBX9/` 复判 artifact `chronofocus-ci-v0.10-main-2f6b1c0-run30194825035-attempt1`（id `8629803475`，size `14399461`，digest `sha256:478d8082768f93f1ad7c3f7aa3bc07ec1de964568cf88372412d7c50758c2e02`，`expired=false`）为 `128 PASS / 0 FAIL`。但云端 `detail-schedule.png` 中搜索框与 `1/6` 计数正常，筛选出的“产品”chip 未渲染，Agent C 视觉验收不通过；Agent B 已把静态结果容器改为直接 HStack，必须重新 push 和验收。
 
 遗留事项：
 
