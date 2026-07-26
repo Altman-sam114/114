@@ -440,7 +440,7 @@ puts "Mac calendar range empty state quick add contracts verified."
 schedule_task_cell = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
   "private struct ScheduleTaskCell",
-  "private struct TaskEditorView",
+  "struct TaskEditorView",
   "Schedule task cell source missing"
 )
 schedule_task_list_source = source_slice(
@@ -679,7 +679,7 @@ puts "Mac quick add title field category context contracts verified."
 
 task_editor_category_source = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
-  "private struct TaskEditorView",
+  "struct TaskEditorView",
   "private struct TaskCategoryPresetPicker",
   "Task editor category input source missing"
 )
