@@ -86,11 +86,12 @@
 验证结果：
 
 - 按人工硬性要求未运行任何本地测试、检查、脚本、Xcode、`xcodebuild`、`simctl` 或 Simulator。
-- 本轮实现提交并 push 后，必须由最新 `origin/main` GitHub Actions 执行项目验证、Mac/iOS build 和 artifact 生成，再由 Agent C 使用原始 API JSON、原始 ZIP 和全新解包目录完整复判。
+- 实现 commit `b54d11bf0dabf1d1c2a73308001867335f541c67` 对应 GitHub Actions run `30190889908`（attempt `1`）为 `success`，artifact `chronofocus-ci-v0.10-main-b54d11b-run30190889908-attempt1`（id `8628543223`，API size `14382466` bytes，digest `sha256:3629e9a6d2ecc434dd6fa93b57afc17555f3b015abd0aa33666465b74c868f49`，`expired=false`）经原始 API JSON、ZIP 和 validator 复判得到 `109 PASS / 0 FAIL`；Mac/iOS build、八项 metadata、三项 archive、UI/API marker 均通过。
+- Agent C 静态审查发现提示词要求的独立 `total_count=0` 负向 fixture 缺失，因此该 run 不作为 v0.99 最终通过结论；Agent B 已补充零值 fixture，必须由修复 commit 自身及后续最新 `origin/main` 云端结果包重新验收。
 
 遗留事项：
 
-- 待实现提交与 push 后补写真实 commit SHA、run id、run attempt、artifact id/name/size/digest、validator 结果和 Agent C 结论；不得使用 v0.98 或其他旧 run 作为 v0.99 证据。
+- 待零值 fixture 修复 commit push 后补写其真实 run/artifact 与 Agent C 最终结论；不得把已明确退回的 `b54d11b` run 或 v0.98 结果作为 v0.99 最终证据。
 
 ### v0.98 / 日程分类空态互斥与 CI 失败摘要直出
 

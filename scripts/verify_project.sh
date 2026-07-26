@@ -1946,6 +1946,7 @@ end
 
 File.write(File.join(output_dir, "negative-invalid-metadata.json"), "{ invalid json\n", encoding: "UTF-8")
 write_fixture.call("negative-top-level-array-metadata.json", [])
+mutate.call("negative-zero-total-count-metadata.json") { |payload| payload["total_count"] = 0 }
 mutate.call("negative-total-count-metadata.json") { |payload| payload["total_count"] = 2 }
 mutate.call("negative-empty-artifacts-metadata.json") { |payload| payload["artifacts"] = [] }
 mutate.call("negative-two-artifacts-metadata.json") { |payload| payload["artifacts"] << Marshal.load(Marshal.dump(payload["artifacts"].first)) }
@@ -1968,6 +1969,8 @@ negative_artifact_metadata_invalid_json_fixture="$artifact_archive_fixture_dir/n
 run_negative_artifact_metadata_fixture "$negative_artifact_metadata_invalid_json_fixture" "FAIL artifact metadata response shape" "invalid JSON"
 negative_artifact_metadata_top_array_fixture="$artifact_archive_fixture_dir/negative-top-level-array-metadata.json"
 run_negative_artifact_metadata_fixture "$negative_artifact_metadata_top_array_fixture" "FAIL artifact metadata response shape" "top-level array"
+negative_artifact_metadata_zero_count_fixture="$artifact_archive_fixture_dir/negative-zero-total-count-metadata.json"
+run_negative_artifact_metadata_fixture "$negative_artifact_metadata_zero_count_fixture" "FAIL artifact metadata response shape" "zero total count"
 negative_artifact_metadata_count_fixture="$artifact_archive_fixture_dir/negative-total-count-metadata.json"
 run_negative_artifact_metadata_fixture "$negative_artifact_metadata_count_fixture" "FAIL artifact metadata response shape" "total count"
 negative_artifact_metadata_empty_artifacts_fixture="$artifact_archive_fixture_dir/negative-empty-artifacts-metadata.json"
