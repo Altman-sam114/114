@@ -83,11 +83,13 @@
 验证结果：
 
 - 未运行本地测试命令；人工明确要求全部测试/验收只走 GitHub Actions/CI。
-- 云端验证待本轮提交 push 后由 GitHub Actions 和 Agent C 下载最新 artifact 复判。
+- 实现提交 `4b4b246d5618ba34ec9a51388c7faf8060d4fa20` 已直推 `origin/main`；GitHub Actions run `30185850571`（attempt `1`）结论为 `success`。
+- Agent C 已下载并复判 artifact `chronofocus-ci-v0.10-main-4b4b246-run30185850571-attempt1`（artifact id `8627016196`，`14382073` bytes）；manifest 的 `branch=main`、commit SHA、run id、run attempt 和 artifact 名称均与最新提交一致。
+- `scripts/validate_ci_artifact.rb` 对该云端结果包完整通过，包含 `PASS verify_project mac timer category queue contracts`、`PASS verify_project declaration boundary resilience contracts`、`PASS manifest overall outcome`、`PASS mac build succeeded` 和 `PASS ios build succeeded`。
 
 遗留事项：
 
-- 总目标仍未完成；v0.95 云端通过后继续评估 Mac 计时队列的信息密度、跨页反馈或下一处 CI marker 韧性。
+- 总目标仍未完成；下一轮继续评估 Mac 计时筛选态的分类上下文和 CI action 运行时升级。
 
 ### v0.94 / 计时页分类空态新增入口
 
