@@ -67,7 +67,7 @@ Agent A 写给 Agent B 的提示词必须明确：
 - Agent B 输出必须包含本地检查命令、结果、commit SHA、push 状态、workflow run 信息和 artifact 名称。
 - Agent C 必须用 `gh auth login` 后查询最新 `origin/main` 对应精确 workflow run API 和 artifacts API。两份原始响应分别先写 `run-api.json.part`、`artifacts-api.json.part`，成功且非空后无覆盖原子改名；run JSON 结构化核对 attempt、workflow、状态、结论和仓库，artifacts JSON 结构化核对唯一 artifact 的 id、name、size、digest、expired 和 workflow run 身份。
 - Agent C 每次使用全新 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 目录。原始 JSON 必须非空、不超过 1 MiB、为普通文件且不是 symlink；原始 ZIP 使用同一 JSON 中的唯一 id 下载到 `.zip.part` 并进行有限重试，size、SHA-256 和 ZIP 结构全部通过后，才在同一文件系统无覆盖原子改名并解包到全新目录。已有目录或目标文件存在时默认停止并更换唯一目录，禁止删除或覆盖。
-- Agent C 必须将解包目录、原始 ZIP、两份原始 API JSON 和 API size/digest 一并交给 validator 第四模式，并核对十项 run metadata、八项 artifact metadata、三项 archive、manifest、failure summary、JUnit、主日志、`.xcresult` 和项目专属快照；前三种较弱模式仅用于兼容，不能替代最新原始证据验收。
+- Agent C 必须将解包目录、原始 ZIP、两份原始 API JSON 和 API size/digest 一并交给 validator 第四模式；v1.2 起核对十四项 run metadata（含 push/actor/triggering actor/head repository 来源）、八项 artifact metadata、三项 archive、manifest、failure summary、JUnit、主日志、`.xcresult` 和项目专属快照。前三种较弱模式仅用于兼容，不能替代最新原始证据验收。
 - Agent C 发现失败或结果包不一致时，退回 Agent B 在 `main` 追加修复 commit，不做回滚式处理。
 - 本轮不引入 `smalldata_test`、`develop`、`codeb/...`、PR 合并流，也不照搬 AITRANS 的漫画探针、GGUF、模型 Release、`test/1.png` 等项目特例。
 
@@ -97,4 +97,8 @@ Agent A 写给 Agent B 的提示词必须明确：
 - v1.1：`md/prompt/v1（持续优化）/v1.1（已有分类使用量上下文）.md`。
 - UI 范围：iOS/macOS 已有分类按同一规范化 key 派生全部当前任务数量，有任务显示数量，session-only 显示“历史”；不持久化、不按数量排序，并保留 v1.0 的代表色、草稿和辅助功能边界。
 - CI 范围：新增 `Existing category usage context contracts verified.`、validator PASS 和 marker 缺失负向 fixture，继续由最新 run 的 Run API、Artifacts API 和 ZIP 第四模式复判。
-- 状态：主线程未运行本地测试或检查，但 CI 子 Agent 误运行过一次 `git diff --check`，其结果不作为验收证据。实现 commit `0666b4efae1822e978adf21f08df145e43a99aa8` 的 run `30193636728` 因旧 VoiceOver 契约失败；修复 commit `46546e703668025a43ed467cafc46571916ad7eb` 的 run `30193805133`（attempt `1`）成功。Agent C 复判 artifact `chronofocus-ci-v0.10-main-46546e7-run30193805133-attempt1`（id `8629486888`，size `14392783`，digest `sha256:9f6dab2a41f7de05200309ca024d6c48215aa00d77955d55e2d3b7bb52bcc1f3`，`expired=false`）为 `122 PASS / 0 FAIL`，annotations 为 0；本证据记录提交仍须完成自身最新云端复判。
+- 状态：主线程未运行本地测试或检查，但 CI 子 Agent 误运行过一次 `git diff --check`，其结果不作为验收证据。实现 commit `0666b4efae1822e978adf21f08df145e43a99aa8` 的 run `30193636728` 因旧 VoiceOver 契约失败；修复 commit `46546e703668025a43ed467cafc46571916ad7eb` 的 run `30193805133` 通过。最终证据 commit `db27324eb1a3ddf1fcf7672fdd66c1a326194946` 的 run `30194008859`（attempt `1`）成功，Agent C 复判 artifact `chronofocus-ci-v0.10-main-db27324-run30194008859-attempt1`（id `8629538360`，size `14392402`，digest `sha256:0b40f8edb49e7aff56761b1fef21d79449098af3666211df661b79311f18a16a`，`expired=false`）为 `122 PASS / 0 FAIL`，annotations 为 0，v1.1 闭环。
+- v1.2：`md/prompt/v1（持续优化）/v1.2（已有分类搜索与Run来源复判）.md`。
+- UI 范围：iOS/macOS 在至少 6 个非预设已有分类时提供规范化名称子串搜索、结果数/总数、清除和无结果反馈；搜索只过滤 View option，不修改分类草稿或持久化。
+- CI 范围：Run API 完整模式增加 `event`、`actor.login`、`triggering_actor.login`、`head_repository.full_name` 四项授权来源复判，并增加独立项目 marker/PASS 和负向 fixtures。
+- 状态：`pending`。Agent A 提示词已写入，Agent B 正在实现；未运行任何本地测试或检查，尚无 v1.2 commit、run、artifact 或 PASS 结论。

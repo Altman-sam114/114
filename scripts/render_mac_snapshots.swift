@@ -52,7 +52,11 @@ struct MacSnapshotRenderer {
 
         let detailPages: [(fileName: String, section: SnapshotDetailSection, content: AnyView)] = [
             ("detail-timer.png", .timer, AnyView(MacTimerDetailView())),
-            ("detail-schedule.png", .schedule, AnyView(MacScheduleDetailView())),
+            (
+                "detail-schedule.png",
+                .schedule,
+                AnyView(MacScheduleDetailView(initialExistingCategorySearchQuery: "产品"))
+            ),
             ("detail-analytics.png", .analytics, AnyView(MacAnalyticsDetailView())),
             ("detail-settings.png", .settings, AnyView(MacSettingsDetailView()))
         ]
@@ -197,11 +201,17 @@ struct MacSnapshotRenderer {
             accentHex: "#A78BFA"
         )
 
-        for offset in 0..<5 {
+        let sessionCategories = [
+            "产品",
+            "工程",
+            "用户研究",
+            "设计系统",
+            "客户反馈",
+            "阅读笔记",
+            "历史归档"
+        ]
+        for (offset, sessionCategory) in sessionCategories.enumerated() {
             let start = Calendar.current.date(byAdding: .day, value: -offset, to: now) ?? now
-            let sessionCategory = offset == 4
-                ? "历史归档"
-                : (offset.isMultiple(of: 2) ? "产品" : "工程")
             store.recordSession(
                 FocusSession(
                     taskID: nil,

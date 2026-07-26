@@ -1,5 +1,7 @@
 import SwiftUI
 
+private let macExistingCategorySearchThreshold = 6
+
 struct MacScheduleDetailView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
@@ -14,15 +16,18 @@ struct MacScheduleDetailView: View {
     @State private var estimatedRounds = 2
     @State private var accentHex = "#3DE8C5"
     @State private var selectedCategory: String?
+    @State private var existingCategorySearchQuery: String
     @FocusState private var isTaskTitleFocused: Bool
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     init(
         quickAddRequest: MacQuickAddRequest? = nil,
+        initialExistingCategorySearchQuery: String = "",
         onConsumeQuickAddRequest: @escaping (UUID) -> Void = { _ in }
     ) {
         self.quickAddRequest = quickAddRequest
         self.onConsumeQuickAddRequest = onConsumeQuickAddRequest
+        _existingCategorySearchQuery = State(initialValue: initialExistingCategorySearchQuery)
     }
 
     private var quickAddCategoryName: String {
@@ -46,8 +51,17 @@ struct MacScheduleDetailView: View {
         macExistingCategoryOptions(categories: store.taskCategories, tasks: store.tasks)
     }
 
+    private var filteredExistingCategoryOptions: [MacExistingCategoryOption] {
+        guard existingCategoryOptions.count >= macExistingCategorySearchThreshold else {
+            return existingCategoryOptions
+        }
+        let queryKey = macExistingCategorySearchKey(existingCategorySearchQuery)
+        guard !queryKey.isEmpty else { return existingCategoryOptions }
+        return existingCategoryOptions.filter { $0.comparisonKey.contains(queryKey) }
+    }
+
     private var snapshotExistingCategory: MacExistingCategoryOption? {
-        existingCategoryOptions.first
+        filteredExistingCategoryOptions.first ?? existingCategoryOptions.first
     }
 
     private var snapshotQuickAddCategoryName: String {
@@ -125,7 +139,9 @@ struct MacScheduleDetailView: View {
                             MacStaticCategoryPresetStrip(selectedCategory: snapshotQuickAddCategoryName)
                             if !existingCategoryOptions.isEmpty {
                                 MacStaticExistingCategoryStrip(
-                                    options: existingCategoryOptions,
+                                    options: filteredExistingCategoryOptions,
+                                    totalCount: existingCategoryOptions.count,
+                                    searchQuery: existingCategorySearchQuery,
                                     selectedCategory: snapshotQuickAddCategoryName,
                                     fallbackAccentHex: snapshotQuickAddAccentHex
                                 )
@@ -153,7 +169,9 @@ struct MacScheduleDetailView: View {
                             MacCategoryPresetPicker(category: $category, accentHex: $accentHex)
                             if !existingCategoryOptions.isEmpty {
                                 MacExistingCategoryPicker(
-                                    options: existingCategoryOptions,
+                                    options: filteredExistingCategoryOptions,
+                                    totalCount: existingCategoryOptions.count,
+                                    searchQuery: $existingCategorySearchQuery,
                                     selectedCategory: category,
                                     fallbackAccentHex: accentHex,
                                     onSelect: selectExistingCategory
@@ -191,11 +209,13 @@ struct MacScheduleDetailView: View {
         .padding(24)
         .onChange(of: selectedCategory) { _, newCategory in
             guard let newCategory else { return }
+            existingCategorySearchQuery = ""
             category = newCategory
             accentHex = TaskCategoryPreset.matching(newCategory)?.accentHex ?? "#3DE8C5"
         }
         .task(id: quickAddRequest?.id) {
             guard let quickAddRequest else { return }
+            existingCategorySearchQuery = ""
             selectedCategory = quickAddRequest.category
             prepareQuickAdd(quickAddRequest.category)
             onConsumeQuickAddRequest(quickAddRequest.id)
@@ -225,6 +245,7 @@ struct MacScheduleDetailView: View {
     }
 
     private func prepareQuickAdd(_ category: String) {
+        existingCategorySearchQuery = ""
         self.category = category
         accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? "#3DE8C5"
         isTaskTitleFocused = true
@@ -272,6 +293,13 @@ private func macCategoryDisplayName(_ category: String) -> String {
 
 private func macCategoryComparisonKey(_ category: String) -> String {
     macCategoryDisplayName(category).folding(
+        options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+        locale: Locale(identifier: "en_US_POSIX")
+    )
+}
+
+private func macExistingCategorySearchKey(_ query: String) -> String {
+    query.trimmingCharacters(in: .whitespacesAndNewlines).folding(
         options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
         locale: Locale(identifier: "en_US_POSIX")
     )
@@ -380,42 +408,74 @@ private struct MacStaticCategoryPresetStrip: View {
 
 private struct MacExistingCategoryPicker: View {
     let options: [MacExistingCategoryOption]
+    let totalCount: Int
+    @Binding var searchQuery: String
     let selectedCategory: String
     let fallbackAccentHex: String
     let onSelect: (MacExistingCategoryOption) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text("已有分类")
-                .font(.caption.bold())
-                .foregroundStyle(MacTheme.secondaryText)
+            existingCategoryHeader(resultCount: options.count, totalCount: totalCount)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(options) { option in
-                        let isSelected = isSelected(option)
+            if totalCount >= macExistingCategorySearchThreshold {
+                HStack(spacing: 7) {
+                    TextField("搜索已有分类", text: $searchQuery)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("搜索已有分类")
+                        .accessibilityHint("只按分类名称缩小已有分类列表")
+                        .accessibilityInputLabels([
+                            Text("搜索已有分类"),
+                            Text("查找已有分类")
+                        ])
+
+                    if !searchQuery.isEmpty {
                         Button {
-                            onSelect(option)
+                            searchQuery = ""
                         } label: {
-                            MacExistingCategoryChipContent(
-                                option: option,
-                                isSelected: isSelected,
-                                fallbackAccentHex: fallbackAccentHex
-                            )
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(MacTheme.secondaryText)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(accessibilityLabel(for: option, isSelected: isSelected))
-                        .accessibilityHint(accessibilityHint(for: option, isSelected: isSelected))
-                        .accessibilityAddTraits(isSelected ? .isSelected : [])
+                        .accessibilityLabel("清除已有分类搜索")
                         .accessibilityInputLabels([
-                            Text(option.displayName),
-                            Text("\(option.displayName)分类"),
-                            Text("选择\(option.displayName)分类")
+                            Text("清除已有分类搜索"),
+                            Text("清除分类搜索")
                         ])
                     }
                 }
-                .padding(.vertical, 1)
+            }
+
+            if options.isEmpty {
+                existingCategoryNoResultsView
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(options) { option in
+                            let isSelected = isSelected(option)
+                            Button {
+                                onSelect(option)
+                            } label: {
+                                MacExistingCategoryChipContent(
+                                    option: option,
+                                    isSelected: isSelected,
+                                    fallbackAccentHex: fallbackAccentHex
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(accessibilityLabel(for: option, isSelected: isSelected))
+                            .accessibilityHint(accessibilityHint(for: option, isSelected: isSelected))
+                            .accessibilityAddTraits(isSelected ? .isSelected : [])
+                            .accessibilityInputLabels([
+                                Text(option.displayName),
+                                Text("\(option.displayName)分类"),
+                                Text("选择\(option.displayName)分类")
+                            ])
+                        }
+                    }
+                    .padding(.vertical, 1)
+                }
             }
         }
         .accessibilityElement(children: .contain)
@@ -446,36 +506,94 @@ private struct MacExistingCategoryPicker: View {
 
 private struct MacStaticExistingCategoryStrip: View {
     let options: [MacExistingCategoryOption]
+    let totalCount: Int
+    let searchQuery: String
     let selectedCategory: String
     let fallbackAccentHex: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text("已有分类")
-                .font(.caption.bold())
-                .foregroundStyle(MacTheme.secondaryText)
+            existingCategoryHeader(resultCount: options.count, totalCount: totalCount)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(options) { option in
-                        let isSelected = macCategoryComparisonKey(selectedCategory) == option.comparisonKey
-                        MacExistingCategoryChipContent(
-                            option: option,
-                            isSelected: isSelected,
-                            fallbackAccentHex: fallbackAccentHex
-                        )
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(
-                            "\(option.displayName)分类，\(option.accessibilityUsageText)\(isSelected ? "，已选中" : "")"
-                        )
-                        .accessibilityAddTraits(isSelected ? .isSelected : [])
+            if totalCount >= macExistingCategorySearchThreshold {
+                MacStaticExistingCategorySearchField(query: searchQuery)
+            }
+
+            if options.isEmpty {
+                existingCategoryNoResultsView
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(options) { option in
+                            let isSelected = macCategoryComparisonKey(selectedCategory) == option.comparisonKey
+                            MacExistingCategoryChipContent(
+                                option: option,
+                                isSelected: isSelected,
+                                fallbackAccentHex: fallbackAccentHex
+                            )
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(
+                                "\(option.displayName)分类，\(option.accessibilityUsageText)\(isSelected ? "，已选中" : "")"
+                            )
+                            .accessibilityAddTraits(isSelected ? .isSelected : [])
+                        }
                     }
+                    .padding(.vertical, 1)
                 }
-                .padding(.vertical, 1)
             }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("已有分类")
+    }
+}
+
+private func existingCategoryHeader(resultCount: Int, totalCount: Int) -> some View {
+    HStack(spacing: 8) {
+        Text("已有分类")
+        Spacer(minLength: 8)
+        Text("\(resultCount)/\(totalCount)")
+            .monospacedDigit()
+    }
+    .font(.caption.bold())
+    .foregroundStyle(MacTheme.secondaryText)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("显示 \(resultCount) 个，共 \(totalCount) 个已有分类")
+}
+
+private var existingCategoryNoResultsView: some View {
+    Label("没有匹配的已有分类", systemImage: "magnifyingglass")
+        .font(.caption)
+        .foregroundStyle(MacTheme.secondaryText)
+        .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+        .accessibilityLabel("已有分类搜索结果为空")
+}
+
+private struct MacStaticExistingCategorySearchField: View {
+    let query: String
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(MacTheme.secondaryText)
+            Text(query.isEmpty ? "搜索已有分类" : query)
+                .foregroundStyle(query.isEmpty ? MacTheme.secondaryText : MacTheme.primaryText)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            if !query.isEmpty {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(MacTheme.secondaryText)
+            }
+        }
+        .font(.caption)
+        .padding(.horizontal, 8)
+        .frame(height: 24)
+        .background(Color.black.opacity(0.16), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .stroke(MacTheme.border, lineWidth: 1)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("搜索已有分类，当前查询\(query.isEmpty ? "为空" : query)")
     }
 }
 

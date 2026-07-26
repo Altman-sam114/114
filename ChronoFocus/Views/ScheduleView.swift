@@ -946,10 +946,12 @@ struct TaskEditorView: View {
     @State private var autoStartPomodoro = false
     @State private var startMode: TaskStartMode = .plannedRounds
     @State private var recurrence: TaskRecurrence = .none
+    @State private var existingCategorySearch = ""
 
     private let task: FocusTask?
     private let colors = ["#3DE8C5", "#A78BFA", "#FFB84D", "#FF6B6B", "#54A0FF"]
     private let categoryComparisonLocale = Locale(identifier: "en_US_POSIX")
+    private let existingCategorySearchThreshold = 6
 
     private var existingCategoryOptions: [ExistingCategoryOption] {
         let presetKeys = Set(TaskCategoryPreset.defaults.map { categoryComparisonKey(for: $0.title) })
@@ -970,6 +972,27 @@ struct TaskEditorView: View {
                 taskCount: taskCounts[comparisonKey, default: 0]
             )
         }
+    }
+
+    private var filteredExistingCategoryOptions: [ExistingCategoryOption] {
+        guard existingCategoryOptions.count >= existingCategorySearchThreshold else {
+            return existingCategoryOptions
+        }
+        let queryKey = existingCategorySearchKey(for: existingCategorySearch)
+        guard !queryKey.isEmpty else {
+            return existingCategoryOptions
+        }
+        return existingCategoryOptions.filter { option in
+            option.comparisonKey.contains(queryKey)
+        }
+    }
+
+    private var showsExistingCategorySearch: Bool {
+        existingCategoryOptions.count >= existingCategorySearchThreshold
+    }
+
+    private var existingCategoryResultCountText: String {
+        "\(filteredExistingCategoryOptions.count)/\(existingCategoryOptions.count)"
     }
 
     private var categoryDisplayName: String {
@@ -1150,20 +1173,70 @@ struct TaskEditorView: View {
     }
 
     private var existingCategoryPicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("已有分类")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppTheme.primaryText)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("已有分类")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.primaryText)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(existingCategoryOptions) { option in
-                        existingCategoryButton(for: option)
-                    }
-                }
-                .padding(.vertical, 2)
+                Spacer(minLength: 8)
+
+                Text(existingCategoryResultCountText)
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize()
+                    .accessibilityLabel(
+                        "显示\(filteredExistingCategoryOptions.count)个，共\(existingCategoryOptions.count)个已有分类"
+                    )
             }
-            .accessibilityLabel("已有分类")
+
+            if showsExistingCategorySearch {
+                existingCategorySearchField
+            }
+
+            if filteredExistingCategoryOptions.isEmpty {
+                Label("没有匹配的已有分类", systemImage: "magnifyingglass")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .accessibilityLabel("已有分类搜索结果为空")
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(filteredExistingCategoryOptions) { option in
+                            existingCategoryButton(for: option)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .accessibilityLabel("已有分类")
+            }
+        }
+    }
+
+    private var existingCategorySearchField: some View {
+        HStack(spacing: 4) {
+            TextField("搜索已有分类", text: $existingCategorySearch)
+                .textFieldStyle(.roundedBorder)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .accessibilityLabel("搜索已有分类")
+                .accessibilityHint("输入名称以缩小已有分类列表")
+
+            if !existingCategorySearch.isEmpty {
+                Button {
+                    existingCategorySearch = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.body)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(AppTheme.secondaryText)
+                .accessibilityLabel("清除已有分类搜索")
+                .accessibilityInputLabels([Text("清除已有分类搜索")])
+            }
         }
     }
 
@@ -1233,6 +1306,15 @@ struct TaskEditorView: View {
             options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
             locale: categoryComparisonLocale
         )
+    }
+
+    private func existingCategorySearchKey(for rawQuery: String) -> String {
+        rawQuery
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(
+                options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                locale: categoryComparisonLocale
+            )
     }
 
     private func firstTask(matching option: ExistingCategoryOption) -> FocusTask? {

@@ -15,6 +15,9 @@ MAX_RUN_METADATA_BYTES = MAX_ARTIFACT_METADATA_BYTES
 EXPECTED_WORKFLOW_RUN_NAME = "ChronoFocus CI Results"
 EXPECTED_WORKFLOW_RUN_PATH = ".github/workflows/ci-results.yml"
 EXPECTED_WORKFLOW_RUN_REPOSITORY = "Altman-sam114/114"
+EXPECTED_WORKFLOW_RUN_EVENT = "push"
+EXPECTED_WORKFLOW_RUN_ACTOR = "Altman-sam114"
+EXPECTED_WORKFLOW_RUN_HEAD_REPOSITORY = "Altman-sam114/114"
 
 EXPECTED_SNAPSHOTS = %w[
   mini-timer.png
@@ -564,6 +567,29 @@ if run_metadata_path
 
     true
   end
+  check(checks, "workflow run metadata event") do
+    run_metadata.is_a?(Hash) &&
+      run_metadata["event"].is_a?(String) &&
+      run_metadata["event"] == EXPECTED_WORKFLOW_RUN_EVENT
+  end
+  check(checks, "workflow run metadata actor") do
+    actor = run_metadata.is_a?(Hash) ? run_metadata["actor"] : nil
+    actor.is_a?(Hash) &&
+      actor["login"].is_a?(String) &&
+      actor["login"] == EXPECTED_WORKFLOW_RUN_ACTOR
+  end
+  check(checks, "workflow run metadata triggering actor") do
+    triggering_actor = run_metadata.is_a?(Hash) ? run_metadata["triggering_actor"] : nil
+    triggering_actor.is_a?(Hash) &&
+      triggering_actor["login"].is_a?(String) &&
+      triggering_actor["login"] == EXPECTED_WORKFLOW_RUN_ACTOR
+  end
+  check(checks, "workflow run metadata head repository") do
+    head_repository = run_metadata.is_a?(Hash) ? run_metadata["head_repository"] : nil
+    head_repository.is_a?(Hash) &&
+      head_repository["full_name"].is_a?(String) &&
+      head_repository["full_name"] == EXPECTED_WORKFLOW_RUN_HEAD_REPOSITORY
+  end
 end
 
 manifest_path = File.join(artifact_dir, "ci-artifact-manifest.json")
@@ -836,6 +862,9 @@ end
 check(checks, "verify_project existing category usage context contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Existing category usage context contracts verified.")
 end
+check(checks, "verify_project existing category search contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Existing category search contracts verified.")
+end
 check(checks, "verify_project mac mini quick panel accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Mac mini quick panel accessibility contracts verified.")
 end
@@ -901,6 +930,9 @@ check(checks, "verify_project ci artifact API metadata contracts") do
 end
 check(checks, "verify_project ci workflow run API metadata contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("CI workflow run API metadata contracts verified.")
+end
+check(checks, "verify_project ci workflow run provenance contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("CI workflow run provenance contracts verified.")
 end
 check(checks, "verify_project success") { File.read(verify_log_path, encoding: "UTF-8").include?("Project structure verified.") }
 check(checks, "mac build succeeded") { File.read(mac_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }

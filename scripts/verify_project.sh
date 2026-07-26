@@ -960,10 +960,10 @@ for source, platform, name_expression in [[ios_existing_category_source, "iOS", 
   raise "#{platform} existing category Voice Control labels missing" unless source.include?("Text(\\(#{name_expression}))") || (source.include?("Text(#{name_expression})") && source.include?("Text(\"选择\\(#{name_expression})分类\")"))
 end
 raise "Mac existing category snapshot branch missing" unless mac_existing_category_source.include?("if isSnapshotRendering") && mac_existing_category_source.include?("MacStaticExistingCategoryStrip(")
-raise "Mac snapshot and live paths must share existing category options" unless mac_existing_category_source.scan("options: existingCategoryOptions").length >= 2
+raise "Mac snapshot and live paths must share existing category options" unless mac_existing_category_source.scan("options: filteredExistingCategoryOptions").length >= 2
 raise "Mac existing category snapshot must avoid native button placeholders" unless mac_existing_category_source.include?("private struct MacStaticExistingCategoryStrip") && !segment_slice(mac_existing_category_source, "private struct MacStaticExistingCategoryStrip", "private struct MacExistingCategoryChipContent", "Mac static existing category source missing").include?("Button")
 mac_snapshot_source = File.read("scripts/render_mac_snapshots.swift")
-raise "Mac schedule snapshot must seed a non-preset existing category" unless mac_snapshot_source.include?("AnyView(MacScheduleDetailView())") && mac_snapshot_source.include?("category: \"产品\"")
+raise "Mac schedule snapshot must seed a non-preset existing category" unless mac_snapshot_source.include?("AnyView(MacScheduleDetailView(") && mac_snapshot_source.include?("category: \"产品\"")
 puts "Existing category reuse contracts verified."
 
 raise "iOS existing category option task count missing" unless ios_existing_category_source.include?("let taskCount: Int")
@@ -978,9 +978,123 @@ raise "iOS existing category usage must remain readable beside selection state" 
 raise "Mac existing category usage must remain readable beside selection state" unless mac_existing_category_source.include?(".lineLimit(2)") && mac_existing_category_source.include?(".fixedSize(horizontal: false, vertical: true)") && mac_existing_category_source.include?("Text(option.usageText)") && mac_existing_category_source.include?(".fixedSize(horizontal: true, vertical: true)") && mac_existing_category_source.include?("Image(systemName: \"checkmark\")")
 raise "iOS existing category usage accessibility missing" unless ios_existing_category_source.include?("\\(option.name)分类，\\(option.taskCount > 0 ? \"\\(option.taskCount)项任务\" : \"仅历史专注记录\")") && ios_existing_category_source.include?(".accessibilityAddTraits(isSelected ? .isSelected : [])")
 raise "Mac live and static existing category usage accessibility missing" unless mac_existing_category_source.scan("\\(option.displayName)分类，\\(option.accessibilityUsageText)\\(isSelected ? \"，已选中\" : \"\")").length >= 2 && mac_existing_category_source.scan(".accessibilityAddTraits(isSelected ? .isSelected : [])").length >= 2
-raise "Mac live and static existing category paths must share counted options" unless mac_existing_category_source.scan("options: existingCategoryOptions").length >= 2 && mac_existing_category_source.scan("MacExistingCategoryChipContent(").length >= 2
-raise "Mac schedule snapshot must cover task-backed and session-only existing categories" unless mac_snapshot_source.include?("category: \"产品\"") && mac_snapshot_source.include?("category: sessionCategory") && mac_snapshot_source.include?("? \"历史归档\"")
+raise "Mac live and static existing category paths must share counted options" unless mac_existing_category_source.scan("options: filteredExistingCategoryOptions").length >= 2 && mac_existing_category_source.scan("MacExistingCategoryChipContent(").length >= 2
+raise "Mac schedule snapshot must cover task-backed and session-only existing categories" unless mac_snapshot_source.include?("category: \"产品\"") && mac_snapshot_source.include?("category: sessionCategory") && mac_snapshot_source.include?("\"历史归档\"")
 puts "Existing category usage context contracts verified."
+
+raise "iOS existing category search state missing" unless ios_existing_category_source.include?("@State private var existingCategorySearch = \"\"")
+raise "Mac existing category search state missing" unless mac_existing_category_source.include?("@State private var existingCategorySearchQuery: String") && mac_existing_category_source.include?("initialExistingCategorySearchQuery: String = \"\"")
+raise "iOS existing category search threshold must be six" unless ios_existing_category_source.include?("private let existingCategorySearchThreshold = 6") && ios_existing_category_source.include?("existingCategoryOptions.count >= existingCategorySearchThreshold")
+raise "Mac existing category search threshold must be six" unless File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift").include?("private let macExistingCategorySearchThreshold = 6") && mac_existing_category_source.include?("existingCategoryOptions.count >= macExistingCategorySearchThreshold")
+
+ios_existing_category_search_key_source = segment_slice(
+  ios_existing_category_source,
+  "private func existingCategorySearchKey",
+  "private func firstTask",
+  "iOS existing category search key source missing"
+)
+mac_existing_category_search_key_source = segment_slice(
+  mac_existing_category_source,
+  "private func macExistingCategorySearchKey",
+  "private func macExistingCategoryOptions",
+  "Mac existing category search key source missing"
+)
+for source, platform in [[ios_existing_category_search_key_source, "iOS"], [mac_existing_category_search_key_source, "Mac"]]
+  raise "#{platform} existing category search must trim query whitespace" unless source.include?("trimmingCharacters(in: .whitespacesAndNewlines)")
+  raise "#{platform} existing category search must use width-insensitive folding" unless source.include?(folding_options)
+  raise "#{platform} existing category search must preserve an empty query" if source.include?("未分类")
+end
+raise "iOS existing category search must use POSIX locale" unless ios_existing_category_search_key_source.include?("locale: categoryComparisonLocale") && ios_existing_category_source.include?("categoryComparisonLocale = Locale(identifier: \"en_US_POSIX\")")
+raise "Mac existing category search must use POSIX locale" unless mac_existing_category_search_key_source.include?("Locale(identifier: \"en_US_POSIX\")")
+
+ios_filtered_existing_category_source = segment_slice(
+  ios_existing_category_source,
+  "private var filteredExistingCategoryOptions",
+  "private var showsExistingCategorySearch",
+  "iOS filtered existing category source missing"
+)
+mac_filtered_existing_category_source = segment_slice(
+  mac_existing_category_source,
+  "private var filteredExistingCategoryOptions",
+  "private var snapshotExistingCategory",
+  "Mac filtered existing category source missing"
+)
+raise "iOS existing category filtered options missing" unless ios_filtered_existing_category_source.include?("existingCategorySearchKey(for: existingCategorySearch)") && ios_filtered_existing_category_source.include?("existingCategoryOptions.filter") && ios_filtered_existing_category_source.include?("option.comparisonKey.contains(queryKey)")
+raise "Mac existing category filtered options missing" unless mac_filtered_existing_category_source.include?("macExistingCategorySearchKey(existingCategorySearchQuery)") && mac_filtered_existing_category_source.include?("existingCategoryOptions.filter") && mac_filtered_existing_category_source.include?("$0.comparisonKey.contains(queryKey)")
+for source, platform in [[ios_filtered_existing_category_source, "iOS"], [mac_filtered_existing_category_source, "Mac"]]
+  raise "#{platform} empty existing category search must restore all options" unless source.include?("queryKey.isEmpty") && source.scan("return existingCategoryOptions").length >= 2
+  raise "#{platform} existing category search must preserve source order" if source.match?(/sorted\s*[({]/)
+  raise "#{platform} existing category search must match names only" if source.include?("taskCount") || source.include?("usageText") || source.include?("历史")
+  raise "#{platform} existing category search must not modify form drafts or persistence" if source.match?(/(?:category|accentHex)\s*=/) || source.include?("store.")
+end
+
+raise "iOS existing category search field missing" unless ios_existing_category_source.include?("TextField(\"搜索已有分类\", text: $existingCategorySearch)")
+raise "Mac existing category search field missing" unless mac_existing_category_source.include?("TextField(\"搜索已有分类\", text: $searchQuery)") && mac_existing_category_source.include?("searchQuery: $existingCategorySearchQuery")
+raise "iOS existing category result count missing" unless ios_existing_category_source.include?("\\(filteredExistingCategoryOptions.count)/\\(existingCategoryOptions.count)") && ios_existing_category_source.include?("显示\\(filteredExistingCategoryOptions.count)个，共\\(existingCategoryOptions.count)个已有分类")
+raise "Mac existing category result count missing" unless mac_existing_category_source.include?("Text(\"\\(resultCount)/\\(totalCount)\")") && mac_existing_category_source.include?("显示 \\(resultCount) 个，共 \\(totalCount) 个已有分类")
+raise "iOS existing category search clear action missing" unless ios_existing_category_source.include?("Image(systemName: \"xmark.circle.fill\")") && ios_existing_category_source.include?("existingCategorySearch = \"\"") && ios_existing_category_source.include?(".accessibilityLabel(\"清除已有分类搜索\")") && ios_existing_category_source.include?("Text(\"清除已有分类搜索\")")
+raise "Mac existing category search clear action missing" unless mac_existing_category_source.include?("Image(systemName: \"xmark.circle.fill\")") && mac_existing_category_source.include?("searchQuery = \"\"") && mac_existing_category_source.include?(".accessibilityLabel(\"清除已有分类搜索\")") && mac_existing_category_source.include?("Text(\"清除已有分类搜索\")")
+raise "iOS existing category search clear target must be at least 44 points" unless ios_existing_category_source.match?(/xmark\.circle\.fill[\s\S]{0,400}\.frame\([^\n]*(?:width:\s*44[^\n]*height:\s*44|height:\s*44[^\n]*width:\s*44|minWidth:\s*44[^\n]*minHeight:\s*44|minHeight:\s*44[^\n]*minWidth:\s*44)/)
+raise "iOS existing category search accessibility hint missing" unless ios_existing_category_source.include?("缩小已有分类列表")
+raise "Mac existing category search accessibility hint missing" unless mac_existing_category_source.include?("缩小已有分类列表")
+raise "iOS existing category search empty state missing" unless ios_existing_category_source.include?("没有匹配的已有分类") && ios_existing_category_source.include?("filteredExistingCategoryOptions.isEmpty") && ios_existing_category_source.include?("已有分类搜索结果为空")
+raise "Mac existing category search empty state missing" unless mac_existing_category_source.include?("没有匹配的已有分类") && mac_existing_category_source.scan("existingCategoryNoResultsView").length >= 3 && mac_existing_category_source.include?("已有分类搜索结果为空")
+raise "iOS existing category results must drive displayed chips" unless ios_existing_category_source.include?("ForEach(filteredExistingCategoryOptions)")
+raise "Mac live and static search results must drive displayed chips" unless mac_existing_category_source.scan("options: filteredExistingCategoryOptions").length >= 2 && mac_existing_category_source.scan("ForEach(options)").length >= 2
+raise "iOS selecting an existing category must retain the search query" if ios_select_source.include?("existingCategorySearch")
+raise "Mac selecting an existing category must retain the search query" if mac_select_source.include?("existingCategorySearchQuery") || mac_select_source.include?("searchQuery")
+
+mac_selected_category_change_source = segment_slice(
+  mac_existing_category_source,
+  ".onChange(of: selectedCategory)",
+  ".task(id: quickAddRequest?.id)",
+  "Mac selected category change source missing"
+)
+mac_quick_add_prefill_source = segment_slice(
+  mac_existing_category_source,
+  "private func prepareQuickAdd(_ category: String)",
+  "private func selectExistingCategory",
+  "Mac quick add prefill source missing"
+)
+mac_quick_add_request_source = segment_slice(
+  mac_existing_category_source,
+  ".task(id: quickAddRequest?.id)",
+  "private func addTask()",
+  "Mac cross-page quick add request source missing"
+)
+raise "Mac category summary prefill must clear existing category search" unless mac_selected_category_change_source.include?("existingCategorySearchQuery = \"\"")
+raise "Mac cross-page quick add request must clear existing category search" unless mac_quick_add_request_source.include?("existingCategorySearchQuery = \"\"") && mac_quick_add_request_source.include?("prepareQuickAdd(quickAddRequest.category)")
+raise "Mac quick add prefill must clear existing category search" unless mac_quick_add_prefill_source.include?("existingCategorySearchQuery = \"\"")
+
+mac_static_existing_category_search_source = segment_slice(
+  mac_existing_category_source,
+  "private struct MacStaticExistingCategorySearchField",
+  "private struct MacExistingCategoryChipContent",
+  "Mac static existing category search source missing"
+)
+raise "Mac static existing category search must avoid native control placeholders" if mac_static_existing_category_search_source.include?("Button") || mac_static_existing_category_search_source.include?("TextField")
+raise "Mac static existing category search must expose the current query" unless mac_static_existing_category_search_source.include?("let query: String") && mac_static_existing_category_search_source.include?("搜索已有分类，当前查询")
+
+snapshot_seed_source = segment_slice(
+  mac_snapshot_source,
+  "private static func seedSnapshotData",
+  "private static func render",
+  "Mac snapshot seed source missing"
+)
+preset_titles = preset_source.scan(/TaskCategoryPreset\(title:\s*\"([^\"]+)\"/).flatten
+snapshot_session_category_source = segment_slice(
+  snapshot_seed_source,
+  "let sessionCategories = [",
+  "for (offset, sessionCategory)",
+  "Mac snapshot session category source missing"
+)
+snapshot_literal_categories = (
+  snapshot_seed_source.scan(/category:\s*\"([^\"]+)\"/).flatten +
+  snapshot_session_category_source.scan(/\"([^\"]+)\"/).flatten
+).uniq - preset_titles
+raise "Mac schedule snapshot must seed at least six non-preset existing categories" unless snapshot_literal_categories.length >= 6
+raise "Mac schedule snapshot must use a nonempty existing category search query" unless mac_snapshot_source.match?(/MacScheduleDetailView\([\s\S]{0,500}?(?:initialExistingCategorySearchQuery|existingCategorySearchQuery):\s*\"[^\"]+\"/)
+puts "Existing category search contracts verified."
 
 mac_mini_quick_panel_source = source_slice(
   "ChronoFocusMac/Views/MacMiniTimerView.swift",
@@ -1396,6 +1510,10 @@ grep -q "workflow run metadata path" scripts/validate_ci_artifact.rb
 grep -q "workflow run metadata status" scripts/validate_ci_artifact.rb
 grep -q "workflow run metadata conclusion" scripts/validate_ci_artifact.rb
 grep -q "workflow run metadata repository" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata event" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata actor" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata triggering actor" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata head repository" scripts/validate_ci_artifact.rb
 grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
 grep -q "Project structure verified." scripts/validate_ci_artifact.rb
 grep -q "Category chip accessibility contracts verified." scripts/validate_ci_artifact.rb
@@ -1419,7 +1537,9 @@ grep -q "CI artifact archive integrity contracts verified." scripts/validate_ci_
 grep -q "CI artifact API metadata contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Existing category reuse contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Existing category usage context contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Existing category search contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI workflow run API metadata contracts verified." scripts/validate_ci_artifact.rb
+grep -q "CI workflow run provenance contracts verified." scripts/validate_ci_artifact.rb
 grep -q "verify_ci_failure_summary_output()" scripts/verify_project.sh
 grep -q "CI failure summary output contracts verified." scripts/verify_project.sh
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
@@ -1507,7 +1627,9 @@ grep -q "negative_artifact_metadata_workflow_branch_fixture" scripts/verify_proj
 grep -q "negative_ci_artifact_archive_integrity_marker_fixture" scripts/verify_project.sh
 grep -q "negative_ci_artifact_api_metadata_marker_fixture" scripts/verify_project.sh
 grep -q "negative_existing_category_reuse_marker_fixture" scripts/verify_project.sh
+grep -q "negative_existing_category_search_marker_fixture" scripts/verify_project.sh
 grep -q "negative_ci_workflow_run_api_metadata_marker_fixture" scripts/verify_project.sh
+grep -q "negative_ci_workflow_run_provenance_marker_fixture" scripts/verify_project.sh
 grep -q "run_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_run_metadata_symlink_fixture" scripts/verify_project.sh
 grep -q "negative_run_metadata_repository_full_name_fixture" scripts/verify_project.sh
@@ -1633,7 +1755,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nExisting category reuse contracts verified.\nExisting category usage context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nTimer task queue expansion contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nCI artifact API metadata contracts verified.\nCI workflow run API metadata contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nExisting category reuse contracts verified.\nExisting category usage context contracts verified.\nExisting category search contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nTimer task queue expansion contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nCI artifact API metadata contracts verified.\nCI workflow run API metadata contracts verified.\nCI workflow run provenance contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1958,6 +2080,19 @@ payload = {
   "path" => ".github/workflows/ci-results.yml",
   "status" => "completed",
   "conclusion" => "success",
+  "event" => "push",
+  "actor" => {
+    "login" => "Altman-sam114",
+    "future_actor_field" => "allowed"
+  },
+  "triggering_actor" => {
+    "login" => "Altman-sam114",
+    "future_triggering_actor_field" => "allowed"
+  },
+  "head_repository" => {
+    "full_name" => "Altman-sam114/114",
+    "future_head_repository_field" => "allowed"
+  },
   "repository" => {
     "full_name" => "Altman-sam114/114",
     "future_repository_field" => "allowed"
@@ -2000,7 +2135,11 @@ assert_run_metadata_passes_except() {
     "path" \
     "status" \
     "conclusion" \
-    "repository"; do
+    "repository" \
+    "event" \
+    "actor" \
+    "triggering actor" \
+    "head repository"; do
     if [[ "$check_name" != "$excluded_check" ]]; then
       grep -q "PASS workflow run metadata $check_name" "$output_path"
     fi
@@ -2024,7 +2163,9 @@ assert_artifact_metadata_passes "$run_metadata_success_output"
 assert_run_metadata_passes_except "$run_metadata_success_output"
 grep -q "PASS verify_project existing category reuse contracts" "$run_metadata_success_output"
 grep -q "PASS verify_project existing category usage context contracts" "$run_metadata_success_output"
+grep -q "PASS verify_project existing category search contracts" "$run_metadata_success_output"
 grep -q "PASS verify_project ci workflow run API metadata contracts" "$run_metadata_success_output"
+grep -q "PASS verify_project ci workflow run provenance contracts" "$run_metadata_success_output"
 rm -f "$run_metadata_success_output"
 
 negative_artifact_metadata_argument_group_output="$(mktemp)"
@@ -2384,6 +2525,11 @@ run_negative_run_metadata_fixture() {
   assert_archive_passes "$output_path"
   assert_artifact_metadata_passes "$output_path"
   assert_run_metadata_passes_except "$output_path" "$failed_check"
+  if [[ "$(grep -c '^FAIL ' "$output_path")" -ne 1 ]]; then
+    echo "Expected only workflow run metadata $failed_check to fail for $description" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
   rm -f "$output_path"
 }
 
@@ -2477,6 +2623,22 @@ mutate.call("negative-repository-full-name-run-api.json") { |payload| payload["r
 mutate.call("negative-repository-name-run-api.json") { |payload| payload["repository"]["full_name"] = "Altman-sam114/other" }
 mutate.call("negative-repository-short-name-run-api.json") { |payload| payload["repository"]["full_name"] = "114" }
 mutate.call("negative-repository-full-name-type-run-api.json") { |payload| payload["repository"]["full_name"] = 12_345 }
+mutate.call("negative-missing-event-run-api.json") { |payload| payload.delete("event") }
+mutate.call("negative-value-event-run-api.json") { |payload| payload["event"] = "workflow_dispatch" }
+mutate.call("negative-type-event-run-api.json") { |payload| payload["event"] = ["push"] }
+
+[
+  ["actor", "actor", "login"],
+  ["triggering-actor", "triggering_actor", "login"],
+  ["head-repository", "head_repository", "full_name"]
+].each do |fixture_name, field, nested_field|
+  wrong_value = fixture_name == "head-repository" ? "Other/114" : "unauthorized-user"
+  mutate.call("negative-missing-#{fixture_name}-run-api.json") { |payload| payload.delete(field) }
+  mutate.call("negative-shape-#{fixture_name}-run-api.json") { |payload| payload[field] = [] }
+  mutate.call("negative-missing-#{fixture_name}-#{nested_field.tr("_", "-")}-run-api.json") { |payload| payload[field].delete(nested_field) }
+  mutate.call("negative-value-#{fixture_name}-run-api.json") { |payload| payload[field][nested_field] = wrong_value }
+  mutate.call("negative-type-#{fixture_name}-run-api.json") { |payload| payload[field][nested_field] = 12_345 }
+end
 RUBY
 
 for run_field_spec in \
@@ -2521,6 +2683,39 @@ run_negative_run_metadata_fixture "$negative_run_metadata_repository_full_name_f
 run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-repository-name-run-api.json" "repository" "repository name mismatch"
 run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-repository-short-name-run-api.json" "repository" "repository short name"
 run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-repository-full-name-type-run-api.json" "repository" "repository full_name type"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-missing-event-run-api.json" "event" "missing event"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-value-event-run-api.json" "event" "event mismatch"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-type-event-run-api.json" "event" "event type"
+
+for run_provenance_spec in \
+  "actor:actor:login" \
+  "triggering-actor:triggering actor:login" \
+  "head-repository:head repository:full-name"; do
+  run_fixture_name="${run_provenance_spec%%:*}"
+  run_provenance_remainder="${run_provenance_spec#*:}"
+  run_check_name="${run_provenance_remainder%%:*}"
+  run_nested_name="${run_provenance_remainder#*:}"
+  run_negative_run_metadata_fixture \
+    "$artifact_archive_fixture_dir/negative-missing-$run_fixture_name-run-api.json" \
+    "$run_check_name" \
+    "missing $run_check_name object"
+  run_negative_run_metadata_fixture \
+    "$artifact_archive_fixture_dir/negative-shape-$run_fixture_name-run-api.json" \
+    "$run_check_name" \
+    "$run_check_name object shape"
+  run_negative_run_metadata_fixture \
+    "$artifact_archive_fixture_dir/negative-missing-$run_fixture_name-$run_nested_name-run-api.json" \
+    "$run_check_name" \
+    "missing $run_check_name $run_nested_name"
+  run_negative_run_metadata_fixture \
+    "$artifact_archive_fixture_dir/negative-value-$run_fixture_name-run-api.json" \
+    "$run_check_name" \
+    "$run_check_name value mismatch"
+  run_negative_run_metadata_fixture \
+    "$artifact_archive_fixture_dir/negative-type-$run_fixture_name-run-api.json" \
+    "$run_check_name" \
+    "$run_check_name nested value type"
+done
 
 negative_artifact_archive_argument_group_output="$(mktemp)"
 if ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 --archive "$artifact_archive_fixture" >"$negative_artifact_archive_argument_group_output" 2>&1; then
@@ -3206,6 +3401,81 @@ fi
 rm -rf "$negative_existing_category_usage_marker_fixture"
 rm -f "$negative_existing_category_usage_marker_output"
 
+negative_existing_category_search_marker_fixture="$(mktemp -d)"
+negative_existing_category_search_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_existing_category_search_marker_fixture"/
+python3 - "$negative_existing_category_search_marker_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+marker = "Existing category search contracts verified.\n"
+source = verify_log_path.read_text(encoding="utf-8")
+if source.count(marker) != 1:
+    raise SystemExit("Expected exactly one existing category search marker")
+verify_log_path.write_text(source.replace(marker, ""), encoding="utf-8")
+
+index_path = root / "ci-artifact-index.json"
+for _ in range(10):
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    for entry in index["entries"]:
+        contract_path = entry["path"]
+        prefix = "ci-results/"
+        relative_path = contract_path[len(prefix):] if contract_path.startswith(prefix) else contract_path
+        local_path = root / relative_path
+        if entry["kind"] == "file":
+            entry["byteCount"] = local_path.stat().st_size
+        elif entry["kind"] == "directory":
+            files = [child for child in local_path.rglob("*") if child.is_file()]
+            entry["fileCount"] = len(files)
+            entry["recursiveByteCount"] = sum(child.stat().st_size for child in files)
+    index["totals"] = {
+        "entryCount": len(index["entries"]),
+        "missingRequiredCount": sum(
+            1 for entry in index["entries"]
+            if entry["required"] and not entry["exists"]
+        ),
+        "fileByteCount": sum(entry.get("byteCount", 0) for entry in index["entries"]),
+        "directoryRecursiveByteCount": sum(
+            entry.get("recursiveByteCount", 0) for entry in index["entries"]
+        ),
+    }
+    encoded = json.dumps(index, ensure_ascii=False, indent=2) + "\n"
+    if encoded == index_path.read_text(encoding="utf-8"):
+        break
+    index_path.write_text(encoded, encoding="utf-8")
+else:
+    raise SystemExit("Existing category search marker fixture index did not stabilize")
+PY
+if ruby scripts/validate_ci_artifact.rb \
+  "$negative_existing_category_search_marker_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  --artifact-metadata "$artifact_metadata_fixture" \
+  --run-metadata "$run_metadata_fixture" \
+  >"$negative_existing_category_search_marker_output" 2>&1; then
+  echo "Expected negative existing category search marker fixture to fail validation" >&2
+  cat "$negative_existing_category_search_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project existing category search contracts" "$negative_existing_category_search_marker_output"
+assert_archive_passes "$negative_existing_category_search_marker_output"
+assert_artifact_metadata_passes "$negative_existing_category_search_marker_output"
+assert_run_metadata_passes_except "$negative_existing_category_search_marker_output"
+if [[ "$(grep -c '^FAIL ' "$negative_existing_category_search_marker_output")" -ne 1 ]]; then
+  echo "Expected only the existing category search contract to fail" >&2
+  cat "$negative_existing_category_search_marker_output" >&2
+  exit 1
+fi
+rm -rf "$negative_existing_category_search_marker_fixture"
+rm -f "$negative_existing_category_search_marker_output"
+
 negative_ci_workflow_run_api_metadata_marker_fixture="$(mktemp -d)"
 negative_ci_workflow_run_api_metadata_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_ci_workflow_run_api_metadata_marker_fixture"/
@@ -3244,6 +3514,81 @@ assert_artifact_metadata_passes "$negative_ci_workflow_run_api_metadata_marker_o
 assert_run_metadata_passes_except "$negative_ci_workflow_run_api_metadata_marker_output"
 rm -rf "$negative_ci_workflow_run_api_metadata_marker_fixture"
 rm -f "$negative_ci_workflow_run_api_metadata_marker_output"
+
+negative_ci_workflow_run_provenance_marker_fixture="$(mktemp -d)"
+negative_ci_workflow_run_provenance_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_ci_workflow_run_provenance_marker_fixture"/
+python3 - "$negative_ci_workflow_run_provenance_marker_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+marker = "CI workflow run provenance contracts verified.\n"
+source = verify_log_path.read_text(encoding="utf-8")
+if source.count(marker) != 1:
+    raise SystemExit("Expected exactly one CI workflow run provenance marker")
+verify_log_path.write_text(source.replace(marker, ""), encoding="utf-8")
+
+index_path = root / "ci-artifact-index.json"
+for _ in range(10):
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    for entry in index["entries"]:
+        contract_path = entry["path"]
+        prefix = "ci-results/"
+        relative_path = contract_path[len(prefix):] if contract_path.startswith(prefix) else contract_path
+        local_path = root / relative_path
+        if entry["kind"] == "file":
+            entry["byteCount"] = local_path.stat().st_size
+        elif entry["kind"] == "directory":
+            files = [child for child in local_path.rglob("*") if child.is_file()]
+            entry["fileCount"] = len(files)
+            entry["recursiveByteCount"] = sum(child.stat().st_size for child in files)
+    index["totals"] = {
+        "entryCount": len(index["entries"]),
+        "missingRequiredCount": sum(
+            1 for entry in index["entries"]
+            if entry["required"] and not entry["exists"]
+        ),
+        "fileByteCount": sum(entry.get("byteCount", 0) for entry in index["entries"]),
+        "directoryRecursiveByteCount": sum(
+            entry.get("recursiveByteCount", 0) for entry in index["entries"]
+        ),
+    }
+    encoded = json.dumps(index, ensure_ascii=False, indent=2) + "\n"
+    if encoded == index_path.read_text(encoding="utf-8"):
+        break
+    index_path.write_text(encoded, encoding="utf-8")
+else:
+    raise SystemExit("CI workflow run provenance marker fixture index did not stabilize")
+PY
+if ruby scripts/validate_ci_artifact.rb \
+  "$negative_ci_workflow_run_provenance_marker_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  --artifact-metadata "$artifact_metadata_fixture" \
+  --run-metadata "$run_metadata_fixture" \
+  >"$negative_ci_workflow_run_provenance_marker_output" 2>&1; then
+  echo "Expected negative CI workflow run provenance marker fixture to fail validation" >&2
+  cat "$negative_ci_workflow_run_provenance_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project ci workflow run provenance contracts" "$negative_ci_workflow_run_provenance_marker_output"
+assert_archive_passes "$negative_ci_workflow_run_provenance_marker_output"
+assert_artifact_metadata_passes "$negative_ci_workflow_run_provenance_marker_output"
+assert_run_metadata_passes_except "$negative_ci_workflow_run_provenance_marker_output"
+if [[ "$(grep -c '^FAIL ' "$negative_ci_workflow_run_provenance_marker_output")" -ne 1 ]]; then
+  echo "Expected only the CI workflow run provenance contract to fail" >&2
+  cat "$negative_ci_workflow_run_provenance_marker_output" >&2
+  exit 1
+fi
+rm -rf "$negative_ci_workflow_run_provenance_marker_fixture"
+rm -f "$negative_ci_workflow_run_provenance_marker_output"
 negative_mac_quick_add_action_marker_fixture="$(mktemp -d)"
 negative_mac_quick_add_action_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_quick_add_action_marker_fixture"/
@@ -4218,6 +4563,7 @@ echo "CI failure summary output contracts verified."
 echo "CI artifact archive integrity contracts verified."
 echo "CI artifact API metadata contracts verified."
 echo "CI workflow run API metadata contracts verified."
+echo "CI workflow run provenance contracts verified."
 
 echo "Running Mac core tests..."
 xcrun --sdk macosx swiftc \

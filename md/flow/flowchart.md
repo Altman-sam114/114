@@ -11,7 +11,7 @@ flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
-  V --> CAT["分类 UI<br/>分类快选、计数、筛选与重复点击清除<br/>iOS/Mac录入从taskCategories复用已有分类<br/>固定locale规范化、排除预设、首次出现去重<br/>选择只改category/accentHex草稿<br/>首个同分类任务提供代表色<br/>iOS计时队列默认4项、可展开、运行中只读<br/>辅助功能语义"]
+  V --> CAT["分类 UI<br/>分类快选、计数、筛选与重复点击清除<br/>iOS/Mac录入从taskCategories复用已有分类<br/>固定locale规范化、排除预设、首次出现去重<br/>至少6项时瞬态搜索、计数、清除与无结果<br/>搜索只过滤option，选择只改category/accentHex草稿<br/>首个同分类任务提供代表色<br/>iOS计时队列默认4项、可展开、运行中只读<br/>辅助功能语义"]
   CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]
@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>verify_project.sh / validate_ci_artifact.rb<br/>已有分类复用与计时队列契约<br/>四种validator模式<br/>run十项、artifact八项、ZIP三项检查<br/>安全边界、字段篡改、marker缺失fixture<br/>manifest/index/JUnit/build/快照复判"]
+  S --> T["测试入口<br/>verify_project.sh / validate_ci_artifact.rb<br/>已有分类复用/搜索与计时队列契约<br/>四种validator模式<br/>run十四项、artifact八项、ZIP三项检查<br/>授权触发来源、安全边界、字段篡改、marker缺失fixture<br/>manifest/index/JUnit/build/快照复判"]
 ```
 
 ## 计时执行流
@@ -131,10 +131,10 @@ flowchart TD
   RESULT -->|否| FAIL["run failure<br/>步骤日志直接包含失败摘要"]
   ART --> RUNAPI["精确run API原始JSON<br/>run-api.json.part -> run-api.json<br/>成功非空后无覆盖原子改名"]
   RUNAPI --> API["artifacts API原始JSON<br/>artifacts-api.json.part -> artifacts-api.json<br/>结构化取得唯一artifact"]
-  API --> META["包外metadata安全与身份<br/>不超过1MiB、普通文件、非symlink<br/>run十项 + artifact八项<br/>精确run API直接核对attempt"]
+  API --> META["包外metadata安全与身份<br/>不超过1MiB、普通文件、非symlink<br/>run十四项 + artifact八项<br/>attempt与授权触发来源复判"]
   META --> DL["用同一artifact id下载<br/>写入.zip.part并有限重试<br/>默认拒绝覆盖或删除"]
   DL --> ZIP["校验size、SHA-256、unzip -t<br/>全部通过后同文件系统原子改名<br/>解包到全新目录"]
-  ZIP --> C["Agent C validator第四模式<br/>解包目录+原始ZIP+两份原始API JSON<br/>run十项+artifact八项+archive三项<br/>marker/PASS、manifest与build"]
+  ZIP --> C["Agent C validator第四模式<br/>解包目录+原始ZIP+两份原始API JSON<br/>run十四项+artifact八项+archive三项<br/>push/actor/triggering actor/head repository<br/>marker/PASS、manifest与build"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>run context无重复/无额外字段<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}
   PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]

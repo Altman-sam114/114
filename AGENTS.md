@@ -90,7 +90,7 @@ macOS 平台层：
 - 每次验收使用全新的 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 缓存目录。目录、目标 ZIP、`.part` 或解包目录已存在时默认停止并改用新的唯一目录，禁止覆盖、清空或删除已有证据。
 - 原始 artifact 必须下载到同一文件系统内的 `<artifact-name>.zip.part`，使用失败即退出、跟随重定向和有限重试；先核对实际字节数、SHA-256 和 ZIP 结构，全部通过且最终 ZIP 不存在后再原子改名为 `<artifact-name>.zip`，随后解包到全新目录。
 - Agent C 复判时应把解包目录、最新 commit/run/attempt、原始 ZIP、API size/digest、原始 `artifacts-api.json` 和原始 `run-api.json` 一并交给 validator。目录-only、archive 三参数、archive 三参数加 artifact metadata、再加 run metadata 四种模式保持兼容；artifact metadata 不得脱离完整 archive 参数组，run metadata 还必须同时具备 artifact metadata。下载或校验失败时保留 JSON、`.part`、ZIP 和相关证据，不自动删除，也不得用自动解包结果代替原始 ZIP 来源核对。
-- Run artifacts API 的 `workflow_run` 不提供 `run_attempt`；完整模式由精确 run API 结构化复判 `id/run_attempt/head_sha/head_branch/name/path/status/conclusion/repository.full_name`，并与参数、artifacts API、artifact 名称和 manifest/index/run context 交叉关联。
+- Run artifacts API 的 `workflow_run` 不提供 `run_attempt`；完整模式由精确 run API 结构化复判 `id/run_attempt/head_sha/head_branch/name/path/status/conclusion/repository.full_name/event/actor.login/triggering_actor.login/head_repository.full_name`，并与参数、artifacts API、artifact 名称和 manifest/index/run context 交叉关联。v1.2 起正式验收只接受授权账号向授权 head repository 的 `push` run。
 - Agent C 只验收 manifest 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新 commit 完全一致的结果包。
 - Agent C 下载 artifact 前只选择最新 run 对应的必要结果包，缓存使用上述全新唯一目录，不得下载历史 artifact、大体积测试数据、模型、DerivedData 或无关缓存。
 - push、CI 和 artifact 验收必须基于项目授权的 GitHub 账号 `Altman-sam114`，不得使用其他账号伪装完成。
