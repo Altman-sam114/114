@@ -97,4 +97,4 @@ Agent A 写给 Agent B 的提示词必须明确：
 - v1.1：`md/prompt/v1（持续优化）/v1.1（已有分类使用量上下文）.md`。
 - UI 范围：iOS/macOS 已有分类按同一规范化 key 派生全部当前任务数量，有任务显示数量，session-only 显示“历史”；不持久化、不按数量排序，并保留 v1.0 的代表色、草稿和辅助功能边界。
 - CI 范围：新增 `Existing category usage context contracts verified.`、validator PASS 和 marker 缺失负向 fixture，继续由最新 run 的 Run API、Artifacts API 和 ZIP 第四模式复判。
-- 状态：退回修复。主线程未运行本地测试或检查，但 CI 子 Agent 误运行过一次 `git diff --check`，其结果不作为验收证据。实现 commit `0666b4efae1822e978adf21f08df145e43a99aa8` 的 run `30193636728`（attempt `1`）中静态检查、Mac/iOS build 和 artifact 上传成功，但 project verification 因 v1.0 VoiceOver label 旧契约未容纳 v1.1 使用量插入而失败；Agent B 正追加契约兼容修复，v1.1 尚未通过。
+- 状态：主线程未运行本地测试或检查，但 CI 子 Agent 误运行过一次 `git diff --check`，其结果不作为验收证据。实现 commit `0666b4efae1822e978adf21f08df145e43a99aa8` 的 run `30193636728` 因旧 VoiceOver 契约失败；修复 commit `46546e703668025a43ed467cafc46571916ad7eb` 的 run `30193805133`（attempt `1`）成功。Agent C 复判 artifact `chronofocus-ci-v0.10-main-46546e7-run30193805133-attempt1`（id `8629486888`，size `14392783`，digest `sha256:9f6dab2a41f7de05200309ca024d6c48215aa00d77955d55e2d3b7bb52bcc1f3`，`expired=false`）为 `122 PASS / 0 FAIL`，annotations 为 0；本证据记录提交仍须完成自身最新云端复判。
