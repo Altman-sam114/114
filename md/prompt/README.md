@@ -101,4 +101,4 @@ Agent A 写给 Agent B 的提示词必须明确：
 - v1.2：`md/prompt/v1（持续优化）/v1.2（已有分类搜索与Run来源复判）.md`。
 - UI 范围：iOS/macOS 在至少 6 个非预设已有分类时提供规范化名称子串搜索、结果数/总数、清除和无结果反馈；搜索只过滤 View option，不修改分类草稿或持久化。
 - CI 范围：Run API 完整模式增加 `event`、`actor.login`、`triggering_actor.login`、`head_repository.full_name` 四项授权来源复判，并增加独立项目 marker/PASS 和负向 fixtures。
-- 状态：退回修复。未运行任何本地测试或检查。实现 commit `2f6b1c03434007e307351a638b164e5b391c8c9a` 的 run `30194825035`（attempt `1`）和 artifact validator 虽为 `128 PASS / 0 FAIL`，但 Agent C 检查云端 `detail-schedule.png` 时发现搜索框下未渲染筛选结果 chip，因此不通过；Agent B 已将静态结果从横向 ScrollView 改为直接 HStack，等待新 commit/run 验收。
+- 状态：实现验收通过。未运行任何本地测试或检查。首次 run `30194825035` 虽为 `128 PASS / 0 FAIL`，但因云端快照缺少筛选结果 chip 被退回；返修 commit `0802d252056e99c704db8fe4bdaf8d26bb39a846` 的 run `30195201551`（attempt `1`）成功，Agent C 复判 artifact `chronofocus-ci-v0.10-main-0802d25-run30195201551-attempt1`（id `8629896081`，size `14377527`，digest `sha256:78644d90e385b81c6c84017a059a4bc48bbebffe0967d63f14e04e7f2fdd8382`，`expired=false`）为 `128 PASS / 0 FAIL`，annotations 为 0；`detail-schedule.png` 已清晰显示“产品”结果 chip，无重叠、占位或截断。

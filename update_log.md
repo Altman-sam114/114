@@ -81,12 +81,13 @@
 验证结果：
 
 - 按人工硬性约束，未运行任何本地测试、检查、验证脚本、`git diff --check`、Xcode、`xcodebuild`、`simctl` 或 Simulator。
-- 当前状态为首次验收退回，静态快照结果 chip 修复待新云端 run 复判。
 - 实现 commit `2f6b1c03434007e307351a638b164e5b391c8c9a` 的 run `30194825035`（attempt `1`）全步骤成功；Agent C 在 `/private/tmp/chronofocus-c-review-30194825035-tCYBX9/` 复判 artifact `chronofocus-ci-v0.10-main-2f6b1c0-run30194825035-attempt1`（id `8629803475`，size `14399461`，digest `sha256:478d8082768f93f1ad7c3f7aa3bc07ec1de964568cf88372412d7c50758c2e02`，`expired=false`）为 `128 PASS / 0 FAIL`。但云端 `detail-schedule.png` 中搜索框与 `1/6` 计数正常，筛选出的“产品”chip 未渲染，Agent C 视觉验收不通过；Agent B 已把静态结果容器改为直接 HStack，必须重新 push 和验收。
+- 返修 commit `0802d252056e99c704db8fe4bdaf8d26bb39a846` 的 run `30195201551`（attempt `1`）、job `89775366110` 全步骤成功。Agent C 在 `/private/tmp/chronofocus-c-review-30195201551-x2lTMH/` 复判 artifact `chronofocus-ci-v0.10-main-0802d25-run30195201551-attempt1`（id `8629896081`，size `14377527`，digest `sha256:78644d90e385b81c6c84017a059a4bc48bbebffe0967d63f14e04e7f2fdd8382`，`expired=false`）为 `128 PASS / 0 FAIL`，annotations 为 `0`，JUnit 为 `0 failures / 0 errors`，Mac/iOS build 均成功。
+- 新 `detail-schedule.png` 已清晰显示搜索词“产品”、`1/6` 计数和“产品”结果 chip，无重叠、空白占位或截断；其余四张快照抽查无关联回归，v1.2 实现验收通过。
 
 遗留事项：
 
-- Agent B 完成实现并 push 后，Agent C 必须只验收最新 `origin/main` 的 push run，并核对十四项 Run API、八项 artifact metadata、三项 archive、UI/CI markers、Mac/iOS build 和完整日志。
+- 静态快照不能覆盖真实键盘输入、滚动和点击交互；本轮严格只采用 GitHub Actions 和下载的云端证据验收。
 
 ### v1.1 / 已有分类使用量上下文
 
