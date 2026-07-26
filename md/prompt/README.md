@@ -85,4 +85,4 @@ Agent A 写给 Agent B 的提示词必须明确：
 - v0.98：`md/prompt/v0（持续优化）/v0.98（日程分类空态互斥与CI失败摘要直出）.md`。
 - UI 范围：iOS/macOS 日程分类筛选结果非空时显示摘要，结果为空时只显示现有双操作分类空态，保持新增预填、清除筛选与辅助功能接线。
 - CI 范围：`Final CI status` 通过 `tee` 将同一 failure summary 同时输出到步骤 stdout 与 Step Summary；新增 `CI failure summary output contracts verified.`、对应 validator PASS、`cat` 回退 fixture 和 marker 缺失 fixture，不改变 artifact 结构。
-- 状态：实现与文档已准备，未运行任何本地测试或检查；尚待提交、推送、GitHub Actions/CI 和 Agent C 对最新 artifact 的验收，不记录尚未产生的 commit、run 或 artifact 信息。
+- 状态：未运行任何本地测试或检查；实现 commit `9f26f865ab84c7874763bb3eef59a6a5c513a7c4` 的 GitHub Actions run `30189412591`（attempt `1`）已成功，job `89759759272` 全步骤成功且 annotations 为 `0`。Agent C 已复判 artifact `chronofocus-ci-v0.10-main-9f26f86-run30189412591-attempt1`（id `8628068160`，size `14382692`，digest `sha256:36b099026d830adb266034b9d70a776ee5dce696270d8288ceb1bb768d5de28f`，`expired=false`），validator 为 `99 PASS / 0 FAIL`；三个 archive、日程互斥、CI failure summary marker、manifest overall 和 Mac/iOS build 均 PASS，v0.98 云端验收完成。
