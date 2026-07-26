@@ -36,7 +36,7 @@
 - v0.97 已对齐 iOS 计时非空分类筛选摘要与空态互斥、双操作和视觉 badge/可访问语义分离；artifact validator 已支持可选 archive 三参数全有全无、size/SHA-256/ZIP 三项复判和目录-only 兼容，相关 marker/PASS、部分参数及四类负向 fixture 已接线，最新 `origin/main` 云端 run、原始 ZIP、validator 与完整日志已验收通过。
 - v0.98 已实现 iOS/macOS 日程分类非空摘要与分类空态互斥，并让 `Final CI status` 通过 `tee` 将既有 failure summary 同时输出到步骤 stdout 与 Step Summary；新增独立 marker/PASS、`cat` 回退 fixture 和 marker 缺失 fixture。实现 commit `9f26f865ab84c7874763bb3eef59a6a5c513a7c4` 的 GitHub Actions run `30189412591`（attempt `1`）及 Agent C 原始 artifact 复判已通过，validator 为 `99 PASS / 0 FAIL`。
 - v0.99 已实现 iOS 计时队列默认 4 项、展开/收起、分类与数量变化重置及运行中只读浏览边界；artifact validator 已增加原始 API JSON 的参数安全、结构化唯一 artifact 复判、八项 metadata PASS、UI/API marker 和含独立零计数在内的负向 fixture。修复 commit `c65693fe49e0c6ade7ff9751c5dda00103a9c37b` 的 run `30191096124` 与原始 artifact 已由 Agent C 复判通过，validator 为 `109 PASS / 0 FAIL`。
-- v1.0 当前实现中：iOS 待办新增/编辑与 macOS 快速新增已接入非预设“已有分类”复用，分类只更新 View 草稿并按任务首次出现复用代表色，不新增持久化；artifact validator 已增加 `--run-metadata` 第四模式和十项 workflow run API 独立复判，`scripts/verify_project.sh` 已接入对应 UI/CI 契约与 fixtures。提交、push、GitHub Actions run/artifact 与 Agent C 完整验收仍为 `pending`，不得据此声明 v1.0 通过。
+- v1.0 已让 iOS 待办新增/编辑与 macOS 快速新增接入非预设“已有分类”复用，分类只更新 View 草稿并按任务首次出现复用代表色，不新增持久化；artifact validator 已增加 `--run-metadata` 第四模式和十项 workflow run API 独立复判。实现 commit `7ccf408b82ce2ead457e5bce679f5cee1ac9ae33` 的 run `30192906663` 与原始 artifact 已由 Agent C 复判通过，validator 为 `121 PASS / 0 FAIL`。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest overallOutcome、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index artifactName、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context 精确键集、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/总结果/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、日程分类空态操作 contract marker、Mac 日程分类空态操作 contract marker、Mac 快速新增和标题分类上下文 contract marker、分类输入上下文 contract marker、待办保存分类 contract marker、待办取消分类 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、统计分类投入次数 contract marker、统计分类投入排行 contract marker、统计分类投入排序依据 contract marker、统计分类投入空态 contract marker、统计分类投入元信息可读性 contract marker、统计分类投入占比可读性 contract marker、统计最近记录分类 contract marker、统计计划回顾分类 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
 - v0.93 的当前云端覆盖还包括 `Mac calendar range empty state quick add contracts verified.` marker、`PASS verify_project mac calendar range empty state quick add contracts` 复判和 `negative_mac_calendar_range_empty_state_marker_fixture` 拒绝路径。
@@ -87,12 +87,14 @@
 验证结果：
 
 - 按人工硬性约束，未运行任何本地测试、检查、验证脚本、`git diff --check`、Xcode、`xcodebuild`、`simctl` 或 Simulator。
-- 当前状态为 `pending`：尚无 v1.0 commit、push、GitHub Actions run、artifact id、digest、PASS 数量或 Agent C 结论；这些字段只能在最新 `origin/main` 云端结果产生并完成证据复判后补写。
+- 实现 commit `7ccf408b82ce2ead457e5bce679f5cee1ac9ae33` 已 push 到 `origin/main`。GitHub Actions run `30192906663`（attempt `1`）成功，job `89769233620` 的项目验证、Mac build 和 iOS generic build 全部通过。
+- Agent C 在 `/private/tmp/chronofocus-c-review-30192906663-BareEe/` 保存并核对精确 `run-api.json`、`artifacts-api.json` 和原始 ZIP；artifact `chronofocus-ci-v0.10-main-7ccf408-run30192906663-attempt1`（id `8629193568`，size `14394202`，digest `sha256:5d9a13ee2995960da6e9b6cd928ccc0f39e18b07bb42aae8f55184b4d44d8c94`，`expired=false`）经 validator 第四模式复判为 `121 PASS / 0 FAIL`。
+- 三项 archive、八项 artifact metadata、十项 workflow run metadata、`Existing category reuse contracts verified.`、`CI workflow run API metadata contracts verified.`、manifest overall、Mac build 和 iOS build 均 PASS。完整日志未发现 Node 20 或 Action 弃用警告，仅有目标未依赖 AppIntents.framework 时跳过 metadata extraction 的已知良性警告。
 
 遗留事项：
 
-- Agent B 仍需整合当前实现与文档，提交并 push 到 `origin/main`；`scripts/verify_project.sh` 的 UI/CI 契约、成功与负向 fixtures、marker 缺失复判虽已写入源码，但尚无任何执行结果。
-- Agent C 必须取得最新精确 run API JSON、artifacts API JSON 和原始 ZIP，以 validator 第四模式核对十项 run metadata、八项 artifact metadata、三项 archive、项目 marker、manifest 和 Mac/iOS 云端构建；通过前 v1.0 不得闭环。
+- 本证据记录需作为独立 commit push 到 `origin/main`，并由 Agent C 对该最新 HEAD 的精确 run API、artifacts API 和原始 ZIP 再次执行 validator 第四模式复判；通过前不得把证据记录提交本身声明为闭环。
+- v1.0 不改真实 StoreKit/EventKit 失败路径测试，也不新增分类管理、重命名、合并或删除能力；这些仍是后续独立轮次候选。
 
 ### v0.99 / iOS 计时队列展开与 Artifact API 元数据复判
 

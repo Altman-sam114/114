@@ -56,7 +56,7 @@ Pro 权益使用 StoreKit 2，iOS 和 macOS 共用商品 ID `com.example.ChronoF
 bash scripts/verify_project.sh
 ```
 
-Agent C 的完整云端 artifact 复判支持 validator 第四模式：目录、原始 ZIP 三参数、`artifacts-api.json` 和 `run-api.json` 一起传入。精确 run 响应与 artifacts 响应都先写入全新唯一目录中的 `.part`，成功且非空后无覆盖原子改名；ZIP 也先下载为 `.zip.part`，核对 API size、SHA-256 和 ZIP 结构后才改名并解包。Validator 对 run API 独立核对 response shape、id、attempt、SHA、branch、workflow name/path、completed status、success conclusion 和授权仓库，共十项；v1.0 的云端执行结果当前为 `pending`。
+Agent C 的完整云端 artifact 复判支持 validator 第四模式：目录、原始 ZIP 三参数、`artifacts-api.json` 和 `run-api.json` 一起传入。精确 run 响应与 artifacts 响应都先写入全新唯一目录中的 `.part`，成功且非空后无覆盖原子改名；ZIP 也先下载为 `.zip.part`，核对 API size、SHA-256 和 ZIP 结构后才改名并解包。Validator 对 run API 独立核对 response shape、id、attempt、SHA、branch、workflow name/path、completed status、success conclusion 和授权仓库，共十项。v1.0 实现 commit `7ccf408b82ce2ead457e5bce679f5cee1ac9ae33` 的 GitHub Actions run `30192906663`（attempt `1`）及 artifact `8629193568` 已由 Agent C 复判为 `121 PASS / 0 FAIL`；本证据记录提交仍须以自身最新云端结果完成复判。
 
 可单独构建 Mac 版：
 
