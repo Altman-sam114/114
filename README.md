@@ -117,11 +117,15 @@ v0.96 起，macOS 计时详情的非空分类筛选态增加常驻上下文条�
 
 v0.97 起，iOS 计时页的非空分类筛选摘要与分类空态互斥，摘要显示筛选数/总数及新增/清除双操作；筛选态只隐藏重复视觉 badge，整行可访问语义保持完整。artifact validator 可选择接收全有或全无的 `--archive`、`--archive-size`、`--archive-digest`，并分别输出 byte count、SHA-256 和 ZIP integrity PASS；不传三个参数的目录-only 调用继续兼容。项目验证新增 `CI artifact archive integrity contracts verified.` 及对应 validator PASS，并覆盖部分参数、等长篡改、截断、摘要匹配但非 ZIP、marker 缺失拒绝路径。最新 v0.97 `origin/main` 云端 run、原始 ZIP、validator 和完整日志已验收通过。
 
+v0.98 起，iOS 与 macOS 日程待办列表统一采用分类摘要/空态互斥规则：筛选结果非空时显示现有分类摘要，筛选结果为空时只保留现有“新增此分类”和“清除筛选”空态，避免重复操作和重复辅助功能上下文。CI 的 `Final CI status` 使用 `tee` 将同一份 `ci-failure-summary.md` 同时输出到步骤 stdout 与 Step Summary；项目验证新增 `CI failure summary output contracts verified.` 及对应 validator PASS，并以 `cat` 回退 fixture 和 marker 缺失 fixture 防止行为或结果包证明回退。v0.98 尚待 `origin/main` GitHub Actions/CI 与 Agent C artifact 验收。
+
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
 ## 协作与云端验证
 
 项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 完成本地轻量检查后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、artifact index、run context、artifact 名称、manifest/index artifactName、manifest overallOutcome、JUnit、failure summary 错误摘录、日志、分类可访问 contract marker、Mac/iOS `.xcresult`、Mac 快照和各阶段 outcome，再确认最新 `origin/main` 是否通过。
+
+`Final CI status` 会在判断四个阶段 outcome 前，通过 `tee` 把现有 failure summary 同时写入步骤 stdout 和 Step Summary；失败 run 可直接从失败步骤日志查看同一摘要，artifact 中仍只保留原有 `ci-failure-summary.md`，不增加副本或清单项。
 
 下载 artifact 后可用脚本做结构化复判：
 

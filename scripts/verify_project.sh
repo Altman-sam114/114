@@ -25,6 +25,58 @@ verify_ci_action_versions() {
   fi
 }
 
+verify_ci_failure_summary_output() {
+  local workflow_path="$1"
+
+  ruby - "$workflow_path" <<'RUBY'
+path = ARGV.fetch(0)
+source = File.read(path)
+final_heading = "      - name: Final CI status\n"
+upload_heading = "      - name: Upload Agent C result package\n"
+
+raise "Expected exactly one Final CI status step in #{path}" unless source.scan(final_heading).length == 1
+raise "Expected exactly one Agent C artifact upload step in #{path}" unless source.scan(upload_heading).length == 1
+
+final_start = source.index(final_heading)
+upload_start = source.index(upload_heading)
+raise "Agent C artifact upload must precede Final CI status" unless upload_start < final_start
+
+upload_step = source[upload_start...final_start]
+final_step = source[final_start..]
+tee_line = 'tee -a "$GITHUB_STEP_SUMMARY" < ci-results/ci-failure-summary.md'
+legacy_cat_line = 'cat ci-results/ci-failure-summary.md >> "$GITHUB_STEP_SUMMARY"'
+failure_condition = 'if [[ "$STATIC_OUTCOME" != "success" || "$PROJECT_VERIFY_OUTCOME" != "success" || "$BUILD_OUTCOME" != "success" || "$IOS_BUILD_OUTCOME" != "success" ]]; then'
+
+raise "Final CI status must keep if: always()" unless final_step.match?(/^        if: always\(\)$/)
+raise "Final CI status must keep shell: bash" unless final_step.match?(/^        shell: bash$/)
+raise "Final CI status must keep strict shell options" unless final_step.match?(/^          set -euo pipefail$/)
+raise "Final CI status must tee failure summary to stdout and GITHUB_STEP_SUMMARY" unless final_step.scan(tee_line).length == 1
+raise "Final CI status must not use the legacy cat-only summary output" if source.include?(legacy_cat_line)
+
+tee_index = final_step.index(tee_line)
+condition_index = final_step.index(failure_condition)
+exit_index = final_step.index("            exit 1\n")
+raise "Final CI status must preserve the four-stage failure condition" unless condition_index
+raise "Final CI status must preserve exit 1" unless exit_index
+raise "Final CI status must output the failure summary before outcome evaluation" unless tee_index < condition_index && condition_index < exit_index
+
+expected_env = {
+  "STATIC_OUTCOME" => "${{ steps.static_checks.outcome }}",
+  "PROJECT_VERIFY_OUTCOME" => "${{ steps.project_verification.outcome }}",
+  "BUILD_OUTCOME" => "${{ steps.mac_build.outcome }}",
+  "IOS_BUILD_OUTCOME" => "${{ steps.ios_build.outcome }}"
+}
+expected_env.each do |name, expression|
+  raise "Final CI status missing #{name} outcome mapping" unless final_step.include?("          #{name}: #{expression}")
+end
+
+raise "Agent C artifact upload must keep if: always()" unless upload_step.match?(/^        if: always\(\)$/)
+raise "Agent C artifact upload must keep actions\/upload-artifact@v6" unless upload_step.match?(/^        uses: actions\/upload-artifact@v6$/)
+raise "Agent C artifact upload must keep the ci-results root path" unless upload_step.scan(/^          path: ci-results$/).length == 1
+raise "Failure summary must keep exactly one artifact file writer" unless source.scan('(result_dir / "ci-failure-summary.md").write_text').length == 1
+RUBY
+}
+
 echo "Checking project and property lists..."
 plutil -lint "$project" >/dev/null
 plutil -lint \
@@ -279,13 +331,14 @@ def assert_calendar_day_accessibility(path, day_name, later)
   raise "#{day_name} must attach accessibility hint" unless segment.include?(".accessibilityHint(accessibilityHintText)")
 end
 
-assert_slice_contains(
+schedule_category_context_source = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
-  "SelectedCategorySummaryView(",
+  "TaskCategoryFilterBar(",
   "if visibleTasks.isEmpty",
-  /SelectedCategorySummaryView\([\s\S]*?onAddTask:\s*\{\s*showingEditor = true\s*\}[\s\S]*?onClear:\s*\{\s*selectedCategory = nil\s*\}/,
-  "Schedule category summary must wire add and clear actions"
+  "Schedule category summary context missing"
 )
+raise "Schedule category summary must require a selected category and nonempty visible tasks" unless schedule_category_context_source.match?(/if\s+let\s+selectedCategoryName\s*=\s*selectedCategory\s*,\s*!visibleTasks\.isEmpty\s*\{[\s\S]*?SelectedCategorySummaryView\(/)
+raise "Schedule category summary must wire add and clear actions" unless schedule_category_context_source.match?(/SelectedCategorySummaryView\([\s\S]*?onAddTask:\s*\{\s*showingEditor = true\s*\}[\s\S]*?onClear:\s*\{\s*selectedCategory = nil\s*\}/)
 
 schedule_summary_source = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
@@ -626,13 +679,14 @@ raise "Timer task category badge label missing" unless timer_task_badge.include?
 raise "Timer task category badge accessibility label missing" unless timer_task_badge.include?(".accessibilityLabel(\"\\(task.category)分类\")")
 raise "Timer task category badge Voice Control input labels missing" unless timer_task_badge.include?(".accessibilityInputLabels([Text(task.category), Text(\"\\(task.category)分类\")])")
 
-assert_slice_contains(
+mac_schedule_category_context_source = source_slice(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
-  "MacSelectedCategorySummaryView(",
+  "MacCategoryFilterBar(",
   "if visibleTasks.isEmpty",
-  /MacSelectedCategorySummaryView\([\s\S]*?onAddTask:\s*\{\s*onAddTaskInCategory\(selectedCategoryName\)\s*\}[\s\S]*?\)\s*\{\s*selectedCategory = nil\s*\}/,
-  "Mac category summary must wire add and clear actions"
+  "Mac category summary context missing"
 )
+raise "Mac category summary must require a selected category and nonempty visible tasks" unless mac_schedule_category_context_source.match?(/if\s+let\s+selectedCategoryName\s*=\s*selectedCategory\s*,\s*!visibleTasks\.isEmpty\s*\{[\s\S]*?MacSelectedCategorySummaryView\(/)
+raise "Mac category summary must wire add and clear actions" unless mac_schedule_category_context_source.match?(/MacSelectedCategorySummaryView\([\s\S]*?onAddTask:\s*\{\s*onAddTaskInCategory\(selectedCategoryName\)\s*\}[\s\S]*?\)\s*\{\s*selectedCategory = nil\s*\}/)
 
 mac_schedule_summary_source = source_slice(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
@@ -1191,7 +1245,10 @@ grep -q "Timer category empty state action contracts verified." scripts/validate
 grep -q "Declaration boundary resilience contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac timer category queue contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI action Node.js 24 contracts verified." scripts/validate_ci_artifact.rb
+grep -q "CI failure summary output contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI artifact archive integrity contracts verified." scripts/validate_ci_artifact.rb
+grep -q "verify_ci_failure_summary_output()" scripts/verify_project.sh
+grep -q "CI failure summary output contracts verified." scripts/verify_project.sh
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Mac quick add title field category context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Category input context contracts verified." scripts/validate_ci_artifact.rb
@@ -1245,6 +1302,8 @@ grep -q "negative_timer_category_empty_state_marker_fixture" scripts/verify_proj
 grep -q "negative_declaration_boundary_resilience_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_timer_category_queue_marker_fixture" scripts/verify_project.sh
 grep -q "negative_ci_action_node24_marker_fixture" scripts/verify_project.sh
+grep -q "ci_failure_summary_cat_workflow_fixture" scripts/verify_project.sh
+grep -q "negative_ci_failure_summary_output_marker_fixture" scripts/verify_project.sh
 grep -q "checkout_v4_workflow_fixture" scripts/verify_project.sh
 grep -q "upload_v4_workflow_fixture" scripts/verify_project.sh
 grep -q "negative_mac_quick_add_action_marker_fixture" scripts/verify_project.sh
@@ -1298,6 +1357,7 @@ grep -q "FAIL verify_project timer category empty state action contracts" script
 grep -q "FAIL verify_project declaration boundary resilience contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac timer category queue contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project ci action Node.js 24 contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project ci failure summary output contracts" scripts/verify_project.sh
 grep -q "FAIL artifact archive sha256 digest" scripts/verify_project.sh
 grep -q "FAIL artifact archive byte count" scripts/verify_project.sh
 grep -q "FAIL artifact archive zip integrity" scripts/verify_project.sh
@@ -1379,7 +1439,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI artifact archive integrity contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -2112,6 +2172,31 @@ fi
 grep -q "FAIL verify_project ci action Node.js 24 contracts" "$negative_ci_action_node24_marker_output"
 rm -rf "$negative_ci_action_node24_marker_fixture"
 rm -f "$negative_ci_action_node24_marker_output"
+negative_ci_failure_summary_output_marker_fixture="$(mktemp -d)"
+negative_ci_failure_summary_output_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_ci_failure_summary_output_marker_fixture"/
+python3 - "$negative_ci_failure_summary_output_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "CI failure summary output contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_ci_failure_summary_output_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_ci_failure_summary_output_marker_output" 2>&1; then
+  echo "Expected negative CI failure summary output marker fixture to fail validation" >&2
+  cat "$negative_ci_failure_summary_output_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project ci failure summary output contracts" "$negative_ci_failure_summary_output_marker_output"
+rm -rf "$negative_ci_failure_summary_output_marker_fixture"
+rm -f "$negative_ci_failure_summary_output_marker_output"
 negative_ci_artifact_archive_integrity_marker_fixture="$(mktemp -d)"
 negative_ci_artifact_archive_integrity_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_ci_artifact_archive_integrity_marker_fixture"/
@@ -3071,6 +3156,7 @@ grep -q "path_metadata" .github/workflows/ci-results.yml
 grep -q "recursiveByteCount" .github/workflows/ci-results.yml
 
 verify_ci_action_versions .github/workflows/ci-results.yml
+verify_ci_failure_summary_output .github/workflows/ci-results.yml
 
 checkout_v4_workflow_fixture="$(mktemp)"
 checkout_v4_workflow_output="$(mktemp)"
@@ -3094,7 +3180,19 @@ fi
 grep -q "Expected exactly one actions/upload-artifact@v6 declaration" "$upload_v4_workflow_output"
 rm -f "$upload_v4_workflow_fixture" "$upload_v4_workflow_output"
 
+ci_failure_summary_cat_workflow_fixture="$(mktemp)"
+ci_failure_summary_cat_workflow_output="$(mktemp)"
+cp .github/workflows/ci-results.yml "$ci_failure_summary_cat_workflow_fixture"
+ruby -e 'path = ARGV.fetch(0); source = File.read(path); tee_line = %q{tee -a "$GITHUB_STEP_SUMMARY" < ci-results/ci-failure-summary.md}; cat_line = %q{cat ci-results/ci-failure-summary.md >> "$GITHUB_STEP_SUMMARY"}; updated = source.sub(tee_line, cat_line); raise "CI failure summary cat fixture replacement missing" if updated == source; File.write(path, updated)' "$ci_failure_summary_cat_workflow_fixture"
+if verify_ci_failure_summary_output "$ci_failure_summary_cat_workflow_fixture" >"$ci_failure_summary_cat_workflow_output" 2>&1; then
+  echo "Expected cat-only CI failure summary workflow fixture to fail validation" >&2
+  exit 1
+fi
+grep -q "Final CI status must tee failure summary to stdout and GITHUB_STEP_SUMMARY" "$ci_failure_summary_cat_workflow_output"
+rm -f "$ci_failure_summary_cat_workflow_fixture" "$ci_failure_summary_cat_workflow_output"
+
 echo "CI action Node.js 24 contracts verified."
+echo "CI failure summary output contracts verified."
 echo "CI artifact archive integrity contracts verified."
 
 echo "Running Mac core tests..."

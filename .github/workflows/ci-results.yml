@@ -421,7 +421,7 @@ jobs:
           IOS_BUILD_OUTCOME: ${{ steps.ios_build.outcome }}
         run: |
           set -euo pipefail
-          cat ci-results/ci-failure-summary.md >> "$GITHUB_STEP_SUMMARY"
+          tee -a "$GITHUB_STEP_SUMMARY" < ci-results/ci-failure-summary.md
           if [[ "$STATIC_OUTCOME" != "success" || "$PROJECT_VERIFY_OUTCOME" != "success" || "$BUILD_OUTCOME" != "success" || "$IOS_BUILD_OUTCOME" != "success" ]]; then
             exit 1
           fi

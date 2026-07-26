@@ -295,7 +295,7 @@ struct ScheduleView: View {
                     countProvider: taskCount(in:)
                 )
 
-                if let selectedCategoryName = selectedCategory {
+                if let selectedCategoryName = selectedCategory, !visibleTasks.isEmpty {
                     SelectedCategorySummaryView(
                         category: selectedCategoryName,
                         count: taskCount(in: selectedCategoryName),

@@ -34,6 +34,7 @@
 - v0.95 起，macOS 计时待办队列分类筛选/计数/空态跨页新增与声明边界韧性新增独立云端结果包复判：`Mac timer category queue contracts verified.`、`Declaration boundary resilience contracts verified.` 及两个对应 PASS。
 - v0.96 已增加 macOS 计时非空分类筛选上下文条、视觉 badge/可访问语义分离、正常和 220pt 云端快照覆盖，并将 CI Action 升级到 `actions/checkout@v5`、`actions/upload-artifact@v6`；最新 `origin/main` 云端 run、artifact、validator 与完整日志已验收通过。
 - v0.97 已对齐 iOS 计时非空分类筛选摘要与空态互斥、双操作和视觉 badge/可访问语义分离；artifact validator 已支持可选 archive 三参数全有全无、size/SHA-256/ZIP 三项复判和目录-only 兼容，相关 marker/PASS、部分参数及四类负向 fixture 已接线，最新 `origin/main` 云端 run、原始 ZIP、validator 与完整日志已验收通过。
+- v0.98 已实现 iOS/macOS 日程分类非空摘要与分类空态互斥，并让 `Final CI status` 通过 `tee` 将既有 failure summary 同时输出到步骤 stdout 与 Step Summary；新增独立 marker/PASS、`cat` 回退 fixture 和 marker 缺失 fixture。人工要求本轮不运行任何本地测试或检查，当前仅待提交、推送及 GitHub Actions/CI 与 Agent C artifact 验收，不记录尚未产生的 commit、run 或 artifact 信息。
 - 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest overallOutcome、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index artifactName、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context 精确键集、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/总结果/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、日程分类空态操作 contract marker、Mac 日程分类空态操作 contract marker、Mac 快速新增和标题分类上下文 contract marker、分类输入上下文 contract marker、待办保存分类 contract marker、待办取消分类 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、统计分类投入次数 contract marker、统计分类投入排行 contract marker、统计分类投入排序依据 contract marker、统计分类投入空态 contract marker、统计分类投入元信息可读性 contract marker、统计分类投入占比可读性 contract marker、统计最近记录分类 contract marker、统计计划回顾分类 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
 - v0.93 的当前云端覆盖还包括 `Mac calendar range empty state quick add contracts verified.` marker、`PASS verify_project mac calendar range empty state quick add contracts` 复判和 `negative_mac_calendar_range_empty_state_marker_fixture` 拒绝路径。
@@ -52,6 +53,43 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### v0.98 / 日程分类空态互斥与 CI 失败摘要直出
+
+日期：2026-07-26
+
+核心变更：
+
+- iOS `ScheduleView` 仅在存在分类筛选且 `visibleTasks` 非空时显示 `SelectedCategorySummaryView`；分类筛选无结果时只显示现有 `ScheduleCategoryEmptyStateView` 双操作。
+- macOS `MacTaskListPanelView` 应用相同互斥条件；正常与 snapshot rendering 路径继续复用现有 `MacScheduleCategoryEmptyStateView`，不增加快照专用业务状态。
+- 两端非空摘要的分类、计数、新增和清除接线保持不变；空态新增继续预填当前分类，清除继续恢复全部分类，既有辅助功能语义不变。
+- `.github/workflows/ci-results.yml` 的 `Final CI status` 使用 `tee -a "$GITHUB_STEP_SUMMARY" < ci-results/ci-failure-summary.md`，在四阶段 outcome 判断前把同一摘要同时写入步骤 stdout 与 Step Summary；artifact 文件、目录、manifest、index、上传路径和保留策略不变。
+- `scripts/verify_project.sh` 强化 iOS/macOS 日程摘要与空态互斥契约，新增 `CI failure summary output contracts verified.`、`ci_failure_summary_cat_workflow_fixture` 和自检接线；`scripts/validate_ci_artifact.rb` 新增 `PASS verify_project ci failure summary output contracts`，并由 `negative_ci_failure_summary_output_marker_fixture` 覆盖 marker 缺失拒绝路径。
+
+关键文件：
+
+- `ChronoFocus/Views/ScheduleView.swift`
+- `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `.github/workflows/ci-results.yml`
+- `scripts/verify_project.sh`
+- `scripts/validate_ci_artifact.rb`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/README.md`
+- `md/prompt/v0（持续优化）/v0.98（日程分类空态互斥与CI失败摘要直出）.md`
+- `update_log.md`
+
+验证结果：
+
+- 未运行任何本地测试或检查命令；人工明确要求全部测试与验收只走 GitHub Actions/CI。
+- 本轮实现提交并 push 后必须补写真实 GitHub Actions run 与 artifact 信息；在最新结果产生并完成验收前，不得将本地 diff 或旧 run 作为 v0.98 验收证据。
+- v0.98 仅云端待验收：提交并推送 `origin/main` 后，需由 GitHub Actions 执行项目验证、Mac build 和 iOS generic build，再由 Agent C 下载最新原始 ZIP 并完整复判。
+
+遗留事项：
+
+- 待补写真实 commit SHA、run id、run attempt、artifact id/name/size/digest 和 Agent C 结论；这些信息只能在对应最新 `origin/main` 云端结果实际产生并完成验收后记录。
 
 ### v0.97 / iOS 计时筛选上下文与 Artifact 归档完整性
 

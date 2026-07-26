@@ -886,7 +886,7 @@ private struct MacTaskListPanelView: View {
                     countProvider: taskCount(in:)
                 )
 
-                if let selectedCategoryName = selectedCategory {
+                if let selectedCategoryName = selectedCategory, !visibleTasks.isEmpty {
                     MacSelectedCategorySummaryView(
                         category: selectedCategoryName,
                         count: taskCount(in: selectedCategoryName),

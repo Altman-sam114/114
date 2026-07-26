@@ -11,7 +11,7 @@ flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
-  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>分类快选、计数、筛选排序与重复点击清除<br/>iOS计时非空摘要显示筛选数/总数及新增/清除<br/>分类空态与非空摘要互斥<br/>筛选态隐藏重复视觉badge但保留整行分类/选中/运行语义<br/>日程、计划、统计和Mac分类上下文及Voice Control语义"]
+  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>分类快选、计数、筛选排序与重复点击清除<br/>iOS计时非空摘要显示筛选数/总数及新增/清除<br/>iOS/Mac日程与计时分类空态/非空摘要互斥<br/>筛选态隐藏重复视觉badge但保留整行分类/选中/运行语义<br/>日程、计划、统计和Mac分类上下文及Voice Control语义"]
   CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]
@@ -58,7 +58,7 @@ flowchart TD
 
 ## 日程、计划和统计流
 
-读图说明：这张图展示任务如何变成番茄钟计划，计时完成后又如何反向更新任务和统计。iOS 计时分类筛选只保留一份局部状态：非空摘要可新增或清除，空结果只显示空态；新增沿用当前分类进入既有编辑器，保存后仍通过 `FocusStore` 刷新列表和计数。
+读图说明：这张图展示任务如何变成番茄钟计划，计时完成后又如何反向更新任务和统计。iOS 计时以及 iOS/Mac 日程分类筛选都采用非空摘要与空结果空态互斥规则；新增沿用当前分类进入既有编辑器或快速新增流程，保存后仍通过 `FocusStore` 刷新列表和计数。
 
 ```mermaid
 flowchart TD
@@ -66,6 +66,10 @@ flowchart TD
   P0 --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
   B --> C["FocusTask<br/>标题、分类、截止时间、轮次、循环、外部日历 ID"]
   C --> C2["FocusStore.taskCategories + TaskCategoryFilterOption<br/>合并预设/已有分类<br/>有任务分类优先显示"]
+  C2 --> IS["iOS/Mac日程分类筛选<br/>结果非空显示摘要<br/>结果为空只显示双操作空态"]
+  IS -->|新增此分类| SE["既有TaskEditor或Mac快速新增<br/>预填当前分类"]
+  SE --> B
+  IS -->|清除筛选| C2
   C2 --> IT["iOS计时分类筛选<br/>非空摘要与空态互斥<br/>筛选数/总数、双操作"]
   IT -->|新增此分类| IE["既有TaskEditor sheet<br/>initialCategory预填<br/>筛选保持"]
   IE --> B
@@ -119,7 +123,11 @@ flowchart TD
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
   PUSH --> CI["GitHub Actions<br/>checkout@v5 / upload-artifact@v6<br/>静态检查、verify_project、Mac build、iOS build"]
-  CI --> ART["未加密 CI 结果包<br/>manifest、index、run context、JUnit、failure summary<br/>Mac/iOS日志与xcresult、快照和contract marker"]
+  CI --> ART["先上传未加密 CI 结果包<br/>manifest、index、run context、JUnit、failure summary唯一副本<br/>Mac/iOS日志与xcresult、快照和contract marker"]
+  ART --> SUM["Final CI status<br/>读取既有failure summary<br/>tee到stdout与Step Summary<br/>再判断四阶段outcome"]
+  SUM --> RESULT{"四阶段是否全部成功?"}
+  RESULT -->|是| OK["run success"]
+  RESULT -->|否| FAIL["run failure<br/>步骤日志直接包含失败摘要"]
   ART --> API["GitHub API元数据<br/>唯一artifact id/name<br/>size/digest/expired=false<br/>run/attempt关联"]
   API --> DL["全新唯一目录<br/>下载到.zip.part并有限重试<br/>默认拒绝覆盖或删除"]
   DL --> ZIP["校验size、SHA-256、unzip -t<br/>全部通过后同文件系统原子改名<br/>解包到全新目录"]

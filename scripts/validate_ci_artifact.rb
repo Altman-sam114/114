@@ -662,6 +662,9 @@ end
 check(checks, "verify_project ci action Node.js 24 contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("CI action Node.js 24 contracts verified.")
 end
+check(checks, "verify_project ci failure summary output contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("CI failure summary output contracts verified.")
+end
 check(checks, "verify_project ci artifact archive integrity contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("CI artifact archive integrity contracts verified.")
 end
