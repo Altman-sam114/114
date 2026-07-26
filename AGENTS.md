@@ -85,12 +85,12 @@ macOS 平台层：
 - 本轮不使用 `smalldata_test`、`develop`、`codeb/...` 或 PR 合并流；如后续人工要改流程，必须先更新本文件和 `md/flow/*`。
 - Agent B 完成后在本地提交，并直接 `git push origin main` 触发 GitHub Actions。
 - GitHub Actions 必须上传未加密 CI 结果包，至少包含 manifest、failure summary、JUnit 或等价摘要、主日志和项目专属验证产物。
-- Agent C 必须先 `gh auth login`，再通过 GitHub run artifacts API 获取 `origin/main` 最新 commit 对应 run 的原始 JSON。响应先写入全新目录中的 `artifacts-api.json.part`，成功且非空、最终文件不存在时再在同一文件系统无覆盖原子改名为 `artifacts-api.json`；禁止把该 JSON 放入 GitHub Actions artifact 或解包目录。
-- 原始 API JSON 必须由 validator 通过 `--artifact-metadata` 结构化解析，并与完整 archive 三参数、最新 commit/run/branch 和预期 artifact 名称交叉核对唯一 artifact 的正整数 id、name、`size_in_bytes`、SHA-256 digest、`expired=false` 及 `workflow_run.id/head_sha/head_branch`。文件必须非空、不超过 1 MiB、是普通文件且不是 symlink；API size/digest 是包外信任输入，不能由包内字段自证。
+- Agent C 必须先 `gh auth login`，再通过精确 workflow run API 和 run artifacts API 获取 `origin/main` 最新 commit 对应 run 的两份原始 JSON。响应分别先写入全新目录中的 `run-api.json.part`、`artifacts-api.json.part`，成功且非空、最终文件不存在时再在同一文件系统无覆盖原子改名为 `run-api.json`、`artifacts-api.json`；禁止把两份 JSON 放入 GitHub Actions artifact 或解包目录。
+- `artifacts-api.json` 必须由 validator 通过 `--artifact-metadata` 结构化解析，`run-api.json` 必须通过 `--run-metadata` 结构化解析。两者与完整 archive 三参数、最新 commit/run/attempt/branch 和预期 artifact 名称交叉核对 artifact 与 workflow run 身份；文件必须非空、不超过 1 MiB、是普通文件且不是 symlink。API size/digest 与 run status/attempt 等字段是包外信任输入，不能由包内字段自证。
 - 每次验收使用全新的 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 缓存目录。目录、目标 ZIP、`.part` 或解包目录已存在时默认停止并改用新的唯一目录，禁止覆盖、清空或删除已有证据。
 - 原始 artifact 必须下载到同一文件系统内的 `<artifact-name>.zip.part`，使用失败即退出、跟随重定向和有限重试；先核对实际字节数、SHA-256 和 ZIP 结构，全部通过且最终 ZIP 不存在后再原子改名为 `<artifact-name>.zip`，随后解包到全新目录。
-- Agent C 复判时应把解包目录、最新 commit/run/attempt、原始 ZIP、API size/digest 和原始 `artifacts-api.json` 一并交给 validator。目录-only、archive 三参数、archive 三参数加 metadata 三种模式保持兼容；metadata 不得脱离完整 archive 参数组单独提供。下载或校验失败时保留 JSON、`.part`、ZIP 和相关证据，不自动删除，也不得用自动解包结果代替原始 ZIP 来源核对。
-- Run artifacts API 的 `workflow_run` 不提供 `run_attempt`，不能直接证明 attempt；attempt 继续由最新 workflow run、`--attempt`、artifact 名称和 manifest/index/run context 共同关联。
+- Agent C 复判时应把解包目录、最新 commit/run/attempt、原始 ZIP、API size/digest、原始 `artifacts-api.json` 和原始 `run-api.json` 一并交给 validator。目录-only、archive 三参数、archive 三参数加 artifact metadata、再加 run metadata 四种模式保持兼容；artifact metadata 不得脱离完整 archive 参数组，run metadata 还必须同时具备 artifact metadata。下载或校验失败时保留 JSON、`.part`、ZIP 和相关证据，不自动删除，也不得用自动解包结果代替原始 ZIP 来源核对。
+- Run artifacts API 的 `workflow_run` 不提供 `run_attempt`；完整模式由精确 run API 结构化复判 `id/run_attempt/head_sha/head_branch/name/path/status/conclusion/repository.full_name`，并与参数、artifacts API、artifact 名称和 manifest/index/run context 交叉关联。
 - Agent C 只验收 manifest 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新 commit 完全一致的结果包。
 - Agent C 下载 artifact 前只选择最新 run 对应的必要结果包，缓存使用上述全新唯一目录，不得下载历史 artifact、大体积测试数据、模型、DerivedData 或无关缓存。
 - push、CI 和 artifact 验收必须基于项目授权的 GitHub 账号 `Altman-sam114`，不得使用其他账号伪装完成。

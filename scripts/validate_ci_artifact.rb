@@ -11,6 +11,10 @@ require "time"
 
 EXPECTED_CI_PROCESS_VERSION = "v0.10"
 MAX_ARTIFACT_METADATA_BYTES = 1_048_576
+MAX_RUN_METADATA_BYTES = MAX_ARTIFACT_METADATA_BYTES
+EXPECTED_WORKFLOW_RUN_NAME = "ChronoFocus CI Results"
+EXPECTED_WORKFLOW_RUN_PATH = ".github/workflows/ci-results.yml"
+EXPECTED_WORKFLOW_RUN_REPOSITORY = "Altman-sam114/114"
 
 EXPECTED_SNAPSHOTS = %w[
   mini-timer.png
@@ -175,7 +179,7 @@ options = {
 }
 
 parser = OptionParser.new do |opts|
-  opts.banner = "Usage: ruby scripts/validate_ci_artifact.rb ARTIFACT_DIR --commit SHA --run-id ID --attempt N [--branch main] [--archive ZIP --archive-size BYTES --archive-digest sha256:HEX [--artifact-metadata JSON]]"
+  opts.banner = "Usage: ruby scripts/validate_ci_artifact.rb ARTIFACT_DIR --commit SHA --run-id ID --attempt N [--branch main] [--archive ZIP --archive-size BYTES --archive-digest sha256:HEX [--artifact-metadata JSON [--run-metadata JSON]]]"
   opts.on("--commit SHA", "Expected commit SHA") { |value| options["commit"] = value }
   opts.on("--run-id ID", "Expected GitHub Actions run id") { |value| options["run_id"] = value }
   opts.on("--attempt N", "Expected GitHub Actions run attempt") { |value| options["attempt"] = value }
@@ -184,9 +188,22 @@ parser = OptionParser.new do |opts|
   opts.on("--archive-size BYTES", "Expected artifact ZIP byte count") { |value| options["archive_size"] = value }
   opts.on("--archive-digest DIGEST", "Expected artifact ZIP digest in sha256:HEX format") { |value| options["archive_digest"] = value }
   opts.on("--artifact-metadata JSON", "Raw GitHub run artifacts API response") { |value| options["artifact_metadata"] = value }
+  opts.on("--run-metadata JSON", "Raw GitHub workflow run API response") { |value| options["run_metadata"] = value }
 end
 
-parser.parse!
+begin
+  parser.parse!
+rescue OptionParser::MissingArgument => e
+  raise unless e.message.include?("--run-metadata")
+
+  warn "#{parser}\n--run-metadata requires a non-empty JSON file path"
+  exit 2
+end
+
+if options.key?("run_metadata") && options["run_metadata"].empty?
+  warn "#{parser}\n--run-metadata requires a non-empty JSON file path"
+  exit 2
+end
 
 artifact_arg = ARGV.shift
 missing_args = []
@@ -217,6 +234,12 @@ if options.key?("artifact_metadata") && provided_archive_options.length != archi
   exit 2
 end
 
+if options.key?("run_metadata") &&
+   (provided_archive_options.length != archive_option_names.length || !options.key?("artifact_metadata"))
+  warn "#{parser}\n--run-metadata requires --archive, --archive-size, --archive-digest, and --artifact-metadata"
+  exit 2
+end
+
 archive_path = nil
 if provided_archive_options.length == archive_option_names.length
   unless options["archive_size"].match?(/\A[1-9]\d*\z/)
@@ -235,29 +258,54 @@ if provided_archive_options.length == archive_option_names.length
   end
 end
 
-artifact_metadata_path = nil
-if options.key?("artifact_metadata")
-  artifact_metadata_path = File.expand_path(options["artifact_metadata"])
+def validate_external_metadata_path(raw_path, option_name, max_bytes, parser)
+  path = File.expand_path(raw_path)
   begin
-    metadata_stat = File.lstat(artifact_metadata_path)
+    metadata_stat = File.lstat(path)
   rescue SystemCallError
-    warn "#{parser}\n--artifact-metadata must reference an existing regular file"
+    warn "#{parser}\n#{option_name} must reference an existing regular file"
     exit 2
   end
 
   if metadata_stat.symlink? || !metadata_stat.file?
-    warn "#{parser}\n--artifact-metadata must reference a regular file and must not be a symlink"
+    warn "#{parser}\n#{option_name} must reference a regular file and must not be a symlink"
     exit 2
   end
   unless metadata_stat.size.positive?
-    warn "#{parser}\n--artifact-metadata must not be empty"
+    warn "#{parser}\n#{option_name} must not be empty"
     exit 2
   end
-  if metadata_stat.size > MAX_ARTIFACT_METADATA_BYTES
-    warn "#{parser}\n--artifact-metadata must not exceed #{MAX_ARTIFACT_METADATA_BYTES} bytes"
+  if metadata_stat.size > max_bytes
+    warn "#{parser}\n#{option_name} must not exceed #{max_bytes} bytes"
     exit 2
   end
+  unless File.readable?(path)
+    warn "#{parser}\n#{option_name} must reference a readable regular file"
+    exit 2
+  end
+
+  path
 end
+
+artifact_metadata_path =
+  if options.key?("artifact_metadata")
+    validate_external_metadata_path(
+      options["artifact_metadata"],
+      "--artifact-metadata",
+      MAX_ARTIFACT_METADATA_BYTES,
+      parser
+    )
+  end
+
+run_metadata_path =
+  if options.key?("run_metadata")
+    validate_external_metadata_path(
+      options["run_metadata"],
+      "--run-metadata",
+      MAX_RUN_METADATA_BYTES,
+      parser
+    )
+  end
 
 def resolve_artifact_dir(path)
   expanded = File.expand_path(path)
@@ -388,6 +436,7 @@ if artifact_metadata_path
 
   metadata_artifacts = artifact_metadata.is_a?(Hash) ? artifact_metadata["artifacts"] : nil
   metadata_artifact = metadata_artifacts.is_a?(Array) && metadata_artifacts.length == 1 ? metadata_artifacts.first : nil
+  metadata_workflow_run = metadata_artifact.is_a?(Hash) ? metadata_artifact["workflow_run"] : nil
 
   check(checks, "artifact metadata response shape") do
     raise artifact_metadata_error if artifact_metadata_error
@@ -432,15 +481,88 @@ if artifact_metadata_path
     metadata_artifact.is_a?(Hash) && metadata_artifact["expired"].equal?(false)
   end
   check(checks, "artifact metadata workflow run") do
-    workflow_run = metadata_artifact.is_a?(Hash) ? metadata_artifact["workflow_run"] : nil
-    workflow_run.is_a?(Hash) &&
-      workflow_run["id"].is_a?(Integer) &&
-      workflow_run["id"].positive? &&
-      workflow_run["id"].to_s == options["run_id"] &&
-      workflow_run["head_sha"].is_a?(String) &&
-      workflow_run["head_sha"] == options["commit"] &&
-      workflow_run["head_branch"].is_a?(String) &&
-      workflow_run["head_branch"] == options["branch"]
+    metadata_workflow_run.is_a?(Hash) &&
+      metadata_workflow_run["id"].is_a?(Integer) &&
+      metadata_workflow_run["id"].positive? &&
+      metadata_workflow_run["id"].to_s == options["run_id"] &&
+      metadata_workflow_run["head_sha"].is_a?(String) &&
+      metadata_workflow_run["head_sha"] == options["commit"] &&
+      metadata_workflow_run["head_branch"].is_a?(String) &&
+      metadata_workflow_run["head_branch"] == options["branch"]
+  end
+end
+
+if run_metadata_path
+  run_metadata = nil
+  run_metadata_error = nil
+  begin
+    run_metadata = read_json(run_metadata_path)
+  rescue JSON::ParserError, EncodingError, ArgumentError => e
+    run_metadata_error = "invalid JSON (#{e.class})"
+  end
+
+  check(checks, "workflow run metadata response shape") do
+    raise run_metadata_error if run_metadata_error
+
+    run_metadata.is_a?(Hash)
+  end
+  check(checks, "workflow run metadata id") do
+    run_metadata.is_a?(Hash) &&
+      run_metadata["id"].is_a?(Integer) &&
+      run_metadata["id"].positive? &&
+      run_metadata["id"].to_s == options["run_id"] &&
+      metadata_workflow_run.is_a?(Hash) &&
+      run_metadata["id"] == metadata_workflow_run["id"]
+  end
+  check(checks, "workflow run metadata run attempt") do
+    run_metadata.is_a?(Hash) &&
+      run_metadata["run_attempt"].is_a?(Integer) &&
+      run_metadata["run_attempt"].positive? &&
+      run_metadata["run_attempt"].to_s == options["attempt"]
+  end
+  check(checks, "workflow run metadata head sha") do
+    run_metadata.is_a?(Hash) &&
+      run_metadata["head_sha"].is_a?(String) &&
+      run_metadata["head_sha"] == options["commit"] &&
+      metadata_workflow_run.is_a?(Hash) &&
+      run_metadata["head_sha"] == metadata_workflow_run["head_sha"]
+  end
+  check(checks, "workflow run metadata head branch") do
+    run_metadata.is_a?(Hash) &&
+      run_metadata["head_branch"].is_a?(String) &&
+      run_metadata["head_branch"] == options["branch"] &&
+      metadata_workflow_run.is_a?(Hash) &&
+      run_metadata["head_branch"] == metadata_workflow_run["head_branch"]
+  end
+  check(checks, "workflow run metadata name") do
+    run_metadata.is_a?(Hash) &&
+      run_metadata["name"].is_a?(String) &&
+      run_metadata["name"] == EXPECTED_WORKFLOW_RUN_NAME
+  end
+  check(checks, "workflow run metadata path") do
+    run_metadata.is_a?(Hash) &&
+      run_metadata["path"].is_a?(String) &&
+      run_metadata["path"] == EXPECTED_WORKFLOW_RUN_PATH
+  end
+  check(checks, "workflow run metadata status") do
+    run_metadata.is_a?(Hash) &&
+      run_metadata["status"].is_a?(String) &&
+      run_metadata["status"] == "completed"
+  end
+  check(checks, "workflow run metadata conclusion") do
+    run_metadata.is_a?(Hash) &&
+      run_metadata["conclusion"].is_a?(String) &&
+      run_metadata["conclusion"] == "success"
+  end
+  check(checks, "workflow run metadata repository") do
+    repository = run_metadata.is_a?(Hash) ? run_metadata["repository"] : nil
+    unless repository.is_a?(Hash) &&
+           repository["full_name"].is_a?(String) &&
+           repository["full_name"] == EXPECTED_WORKFLOW_RUN_REPOSITORY
+      raise "repository.full_name must equal #{EXPECTED_WORKFLOW_RUN_REPOSITORY}"
+    end
+
+    true
   end
 end
 
@@ -708,6 +830,9 @@ end
 check(checks, "verify_project task editor cancel category accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Task editor cancel category accessibility contracts verified.")
 end
+check(checks, "verify_project existing category reuse contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Existing category reuse contracts verified.")
+end
 check(checks, "verify_project mac mini quick panel accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Mac mini quick panel accessibility contracts verified.")
 end
@@ -770,6 +895,9 @@ check(checks, "verify_project ci artifact archive integrity contracts") do
 end
 check(checks, "verify_project ci artifact API metadata contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("CI artifact API metadata contracts verified.")
+end
+check(checks, "verify_project ci workflow run API metadata contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("CI workflow run API metadata contracts verified.")
 end
 check(checks, "verify_project success") { File.read(verify_log_path, encoding: "UTF-8").include?("Project structure verified.") }
 check(checks, "mac build succeeded") { File.read(mac_build_log_path, encoding: "UTF-8").include?("** BUILD SUCCEEDED **") }

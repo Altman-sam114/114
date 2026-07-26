@@ -925,6 +925,13 @@ private struct ScheduleTaskCell: View {
 }
 
 struct TaskEditorView: View {
+    private struct ExistingCategoryOption: Identifiable {
+        let name: String
+        let comparisonKey: String
+
+        var id: String { comparisonKey }
+    }
+
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var notifications: NotificationService
@@ -941,6 +948,21 @@ struct TaskEditorView: View {
 
     private let task: FocusTask?
     private let colors = ["#3DE8C5", "#A78BFA", "#FFB84D", "#FF6B6B", "#54A0FF"]
+    private let categoryComparisonLocale = Locale(identifier: "en_US_POSIX")
+
+    private var existingCategoryOptions: [ExistingCategoryOption] {
+        let presetKeys = Set(TaskCategoryPreset.defaults.map { categoryComparisonKey(for: $0.title) })
+        var seenKeys = Set<String>()
+
+        return store.taskCategories.compactMap { rawCategory in
+            let name = cleanedCategoryName(rawCategory)
+            let comparisonKey = categoryComparisonKey(for: name)
+            guard !presetKeys.contains(comparisonKey), seenKeys.insert(comparisonKey).inserted else {
+                return nil
+            }
+            return ExistingCategoryOption(name: name, comparisonKey: comparisonKey)
+        }
+    }
 
     private var categoryDisplayName: String {
         let trimmedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1048,6 +1070,9 @@ struct TaskEditorView: View {
                         symbolName: categorySymbolName
                     )
                     TaskCategoryPresetPicker(category: $category, accentHex: $accentHex)
+                    if !existingCategoryOptions.isEmpty {
+                        existingCategoryPicker
+                    }
                     Toggle("启用", isOn: $isEnabled)
                     Toggle("设置开始时间", isOn: $usesDueDate)
                     if usesDueDate {
@@ -1113,6 +1138,100 @@ struct TaskEditorView: View {
                     .accessibilityInputLabels(saveButtonInputLabels)
                 }
             }
+        }
+    }
+
+    private var existingCategoryPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("已有分类")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.primaryText)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(existingCategoryOptions) { option in
+                        existingCategoryButton(for: option)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .accessibilityLabel("已有分类")
+        }
+    }
+
+    private func existingCategoryButton(for option: ExistingCategoryOption) -> some View {
+        let isSelected = categoryComparisonKey(for: category) == option.comparisonKey
+        let tint = existingCategoryTint(for: option)
+
+        return Button {
+            selectExistingCategory(option)
+        } label: {
+            HStack(spacing: 6) {
+                Label {
+                    Text(option.name)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "tag.fill")
+                }
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .accessibilityHidden(true)
+                }
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(isSelected ? tint : AppTheme.primaryText)
+            .frame(maxWidth: 180, minHeight: 44, alignment: .leading)
+            .padding(.horizontal, 10)
+            .background(isSelected ? tint.opacity(0.18) : AppTheme.panel, in: Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(tint.opacity(isSelected ? 0.9 : 0.42), lineWidth: isSelected ? 1.5 : 1)
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(option.name)分类\(isSelected ? "，已选中" : "")")
+        .accessibilityHint(
+            isSelected
+                ? "当前使用该分类，再次点击保持当前分类"
+                : "选择已有\(option.name)分类"
+        )
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityInputLabels([
+            Text(option.name),
+            Text("\(option.name)分类"),
+            Text("选择\(option.name)分类")
+        ])
+    }
+
+    private func cleanedCategoryName(_ rawCategory: String) -> String {
+        let trimmedCategory = rawCategory.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedCategory.isEmpty ? "未分类" : trimmedCategory
+    }
+
+    private func categoryComparisonKey(for rawCategory: String) -> String {
+        cleanedCategoryName(rawCategory).folding(
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: categoryComparisonLocale
+        )
+    }
+
+    private func firstTask(matching option: ExistingCategoryOption) -> FocusTask? {
+        store.tasks.first { task in
+            categoryComparisonKey(for: task.category) == option.comparisonKey
+        }
+    }
+
+    private func existingCategoryTint(for option: ExistingCategoryOption) -> Color {
+        Color(hex: firstTask(matching: option)?.accentHex ?? accentHex)
+    }
+
+    private func selectExistingCategory(_ option: ExistingCategoryOption) {
+        category = option.name
+        if let matchingTask = firstTask(matching: option) {
+            accentHex = matchingTask.accentHex
         }
     }
 

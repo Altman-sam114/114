@@ -79,7 +79,7 @@ macOS：
 ### 2.5 日程与计划
 
 1. 用户创建、编辑、启用/停用、完成或删除 `FocusTask`。
-2. 新增/编辑 UI 可用 `TaskCategoryPreset` 快速填入分类和代表色，分类输入区域会显示当前分类上下文；输入框和预设按钮会暴露当前分类、提示、已选中状态、选择提示和分类名 Voice Control input labels，也可继续手写分类；保存按钮会读出待办、分类、预计轮次或只设开始模式，取消按钮会读出取消新增/取消编辑、待办和分类。
+2. 新增/编辑 UI 可用 `TaskCategoryPreset` 快速填入分类和代表色，也可继续手写分类。iOS `TaskEditorView` 与 macOS 快速新增还会顺序遍历 `FocusStore.taskCategories`，用固定 POSIX locale 对清理后的名称执行大小写、变音符号和宽度不敏感比较，排除预设并按首次出现去重，形成“已有分类”。点击已有分类只更新 View 的 `category` / `accentHex` 草稿；代表色取 `store.tasks` 中首个同比较键任务，仅有历史 session 时保留当前草稿颜色，不调用保存入口、不新增持久化。当前项以 checkmark、轮廓和 selected trait 表达，再次点击不清空；自由文本、5 个预设和保存/取消语义保持不变。
 3. 选中分类筛选后 toolbar 新增入口会读出当前分类并支持按分类 Voice Control 新增，新增待办会预填该分类；再次点击已选分类、点击“全部”或摘要清除会退出筛选；分类 chip 的可访问标签会读出数量、已选中状态和点击后的筛选/清除动作；iOS 待办标题显示筛选数/总数，日程任务行以带分类名 Voice Control input labels 的分类 badge 保留分类上下文，完成/启用/编辑操作会读出任务名；iOS 当前范围没有该分类待办时，分类空态会直接提供新增此分类和清除筛选操作；macOS 完成/启用/删除操作也读出任务名，避免长列表中误操作；列表摘要可直接新增此分类待办或清除筛选，摘要和按钮可访问标签也会说明新增/清除动作及分类名；macOS 计时队列选中分类且结果非空时显示常驻分类上下文条、筛选数/总数和新增/清除动作，窄宽时动作纵排；筛选态任务行隐藏重复视觉 badge，但整行继续读出任务名、分类名、选中/运行状态与操作提示，未筛选态和其他页面仍显示 badge。macOS 选中分类且无未完成待办时，空态本身也可新增此分类或清除筛选；macOS 选中分类摘要可把左侧快速新增表单切回当前分类并聚焦任务名称，任务名称输入框会读出当前将新增到的分类并支持按分类 Voice Control 输入，摘要新增/清除按钮也暴露分类名 Voice Control input labels，快速新增面板显示当前分类，筛选预填时保留“已预填”语义，提交按钮会读出当前分类和预计轮次，连续新增时保留刚创建任务的分类；编辑已有待办仍保留原任务分类。
 4. macOS 日历面板当前范围没有待办时，空态可把当前选中日期传回父视图；父视图保留快速新增截止时间的时分，只替换年月日并聚焦任务名称，任务仍通过现有 `addTask()` 写入 `FocusStore`。
 5. `FocusStore` 清洗空白分类、合并常用分类和已有分类为 `taskCategories`，供 iOS/macOS 筛选 UI 使用。
@@ -161,7 +161,7 @@ macOS：
 iOS：
 
 - 计时页：按分类筛选当前待办、再次点击已选分类退出筛选；非空筛选摘要显示分类名、筛选数/总数和新增/清除双操作，无结果时只显示原有双操作空态。新增动作复用现有 `TaskEditorView(initialCategory:)`，保存后筛选保持并由 `FocusStore` 派生数据刷新计数。筛选态隐藏任务行重复视觉 badge，但任务名、分类、selected trait、选择/运行中提示和 Voice Control input labels 独立保留；计时主控继续读出当前任务名和分类，支持选择任务、开始/暂停/恢复/跳过及调整铃声/振动/常亮和主题。
-- 日程页：日历/待办、日期格读出日期、待办数、已选中和非本月状态并支持 Voice Control input labels、toolbar 新增入口在选中分类时读出当前分类并支持按分类 Voice Control 新增、任务行分类 badge 和 Voice Control input labels、任务行完成/启用/编辑/删除操作任务名和分类语义、计划面板生成/清空操作读出当前未完成轮数，计划项分类 badge 和开始按钮任务名/时间段/轮次语义、分类筛选、再次点击已选分类退出筛选、分类 chip 可访问状态/动作提示、selected trait 和 Voice Control input labels、筛选/总数计数、分类快选、分类输入上下文、保存按钮读出待办/分类/预计轮次或只设开始，取消按钮读出取消新增/取消编辑/待办/分类、分类摘要快捷新增，摘要可访问标签说明新增/清除动作，摘要新增/清除按钮带分类名可访问标签和 Voice Control input labels，分类无结果空态也可直接新增此分类或清除筛选、任务编辑、计划生成、日历同步。
+- 日程页：日历/待办、日期格语义、分类筛选/摘要/空态、任务操作、计划和日历同步；新增/编辑保留自由文本与 5 个预设，并从 `store.taskCategories` 显示稳定去重的非预设“已有分类”，选择时只修改草稿并复用首个同分类任务代表色。已有分类项提供非颜色选中状态、至少 44pt 点击高度、VoiceOver 和 Voice Control，保存仍统一进入 `FocusStore.addTask/updateTask`。
 - 统计页：Pro 预览、购买、报表和分析；最近记录显示分类 badge，整行读出任务、分类、模式、开始时间、时长和完成状态，并支持任务名/分类名 Voice Control 输入标签；日程计划回顾计划项显示分类 badge，整行读出任务、分类、计划开始时间和轮次，并支持任务名/分类名 Voice Control 输入标签。
 - 设置页：时长、通知、Pro、App 内到点音色选择/试听、日历、主题等设置；非 Pro 不能持久保留 Pro 音色。
 - Live Activity：锁屏、通知栏和灵动岛倒计时。
@@ -171,7 +171,7 @@ macOS：
 - 菜单栏时间胶囊：显示剩余时间。
 - 左键 popover：极简计时器、动态进度条、带分类名可访问标签、Voice Control input labels、已选中状态、选择提示、运行中不可切换提示和任务名/分类名语音标签的当前待办分类 badge/时间上下文、可读出按钮动作和当前选中状态的快捷面板，并可直接打开日程、统计或设置详情页。
 - 右键菜单：开始/暂停、打开详细界面、退出。
-- 详细窗口：计时、日程、日期格读出日期、待办数、已选中和非本月状态并支持 Voice Control input labels、日历范围空态按当前选中日期准备快速新增并聚焦标题、未筛选任务行显示分类 badge、分类名 Voice Control input labels、任务行完成/启用/删除操作任务名和分类语义、计时主控按钮读出当前任务名和分类，计时待办队列按分类筛选并显示筛选数/总数；非空筛选态常驻显示分类上下文和新增/清除动作，隐藏重复视觉 badge 但保留整行完整可访问语义，分类空态可清除或通过一次性 `MacQuickAddRequest` 转到日程预填分类并聚焦标题；计划面板生成/清空操作读出当前未完成轮数，计划项显示分类 badge 并在开始按钮读出任务名/时间段/轮次/分类、预设色兜底、当前任务 selected trait、选择/运行中提示和任务名/分类名语音标签、分类筛选、再次点击已选分类退出筛选、分类 chip 可访问状态/动作提示、selected trait 和 Voice Control input labels、筛选/总数计数、选中分类摘要快捷新增、分类无结果空态新增/清除操作、摘要新增/清除按钮分类语义和稳定点击区、快速新增任务名称输入框分类上下文、分类输入上下文、快速新增分类预填提示、快速新增提交按钮分类/轮次语义、连续新增保留分类、统计最近记录分类 badge 和整行语义、统计、设置。
+- 详细窗口：计时、日程、计划、统计和设置；快速新增保留自由文本、5 个预设和分类预填，并从 `store.taskCategories` 显示与 iOS 相同算法的“已有分类”。选择已有分类只更新快速新增草稿并复用首个同分类任务代表色，真实与 snapshot rendering 路径消费同一选项数据；提交仍走现有 `addTask()`，连续新增、筛选摘要、任务操作和计时语义保持不变。
 
 ## 6. 前端 / 数据层 / 模型层 / 测试层关系
 
@@ -203,11 +203,12 @@ macOS：
 - v0.98 起，`Final CI status` 在四阶段 outcome 判断前读取既有 `ci-failure-summary.md`，通过 `tee` 同时写入步骤 stdout 与 Step Summary，不增加 artifact 副本或清单项。`scripts/verify_project.sh` 输出 `CI failure summary output contracts verified.`，以 `ci_failure_summary_cat_workflow_fixture` 拒绝退回仅写 Step Summary 的 `cat` 实现；validator 复判 `PASS verify_project ci failure summary output contracts`，marker 缺失 fixture 锁定结果包拒绝路径。实现 commit `9f26f865ab84c7874763bb3eef59a6a5c513a7c4` 的 run `30189412591` 与原始 artifact 已由 Agent C 完整验收，validator 为 `99 PASS / 0 FAIL`，`Final CI status` stdout 实际包含 failure summary 标题和四阶段 success。
 - v0.99 起，iOS 计时待办队列默认显示筛选结果前 4 项；超过 4 项时可展开全部或收起，分类变化与筛选结果数量变化会重置为收起。该状态只属于 `TimerView`，运行中仍可浏览，但任务行继续禁用；44pt 点击区、动态可访问语义和两态输入标签由 `Timer task queue expansion contracts verified.` 与对应 validator PASS 覆盖。
 - v0.99 起，Agent C 将 run artifacts API 原始响应先写入 `artifacts-api.json.part`，成功且非空后无覆盖原子改名。Validator 的 `--artifact-metadata` 只允许与完整 archive 三参数共同使用，拒绝空文件、超过 1 MiB、非普通文件和 symlink，并结构化核对响应形状、唯一 artifact、id、name、size、digest、expired 和 workflow run 八项 PASS；`CI artifact API metadata contracts verified.`、参数/字段负向 fixtures 和 marker 缺失 fixture 锁定该链路。API 不含 `run_attempt`，attempt 仍由最新 workflow run、参数、artifact 名称与 manifest/index/run context 共同关联。
+- v1.0 当前实现中，validator 新增第四种 archive + artifact metadata + run metadata 模式；`--run-metadata` 复用 1 MiB、普通文件、非 symlink 和非空限制，并独立输出 response shape、id、run attempt、head SHA、head branch、name、path、status、conclusion、repository 十项检查。`scripts/verify_project.sh` 已接入 `Existing category reuse contracts verified.`、`CI workflow run API metadata contracts verified.`、成功/安全/参数矩阵/逐字段和 marker 缺失 fixtures；尚未运行，提交、push 和云端验收仍为 `pending`。
 - 平台服务负责系统能力，不持有核心业务规则。
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。
 - `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选摘要、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、iOS/Mac 计时主控按钮任务名和分类语义、分类 chip 点击切换、分类输入上下文、待办保存/取消按钮分类语义、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、统计分类投入占比/次数/排行/排序依据/空态/元信息和占比可读性语义、统计最近记录分类上下文、统计计划回顾分类语义、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS/Mac 日程分类空态操作、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名和分类语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划项分类 badge、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增任务名称输入框分类上下文、提交按钮分类/轮次语义、Mac 小窗快捷面板按钮语义、Mac 计划项分类上下文、Mac 待办筛选计数、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、Mac 分类摘要快捷新增、Mac 连续快速新增保留分类、分类摘要插入点/动作接线、分类快捷新增/预填提示、validator 正向、manifest artifactName/overallOutcome 复判、index artifactName 复判、分类摘要 marker 缺失负向、日程任务操作 marker 缺失负向、计时主控 marker 缺失负向、计划开始 marker 缺失负向、计划分类 badge marker 缺失负向、Mac 计划分类 marker 缺失负向、计划面板操作 marker 缺失负向、日程 toolbar 新增 marker 缺失负向、日程分类空态操作 marker 缺失负向、Mac 日程分类空态操作 marker 缺失负向、Mac 快速新增 marker 缺失负向、Mac 快速新增标题分类上下文 marker 缺失负向、分类输入上下文 marker 缺失负向、待办保存 marker 缺失负向、待办取消 marker 缺失负向、Mac 小窗快捷面板 marker 缺失负向、统计分类占比 marker 缺失负向、统计分类投入次数 marker 缺失负向、统计分类投入排行 marker 缺失负向、统计分类投入排序依据 marker 缺失负向、统计分类投入空态 marker 缺失负向、统计分类投入元信息可读性 marker 缺失负向、统计分类投入占比可读性 marker 缺失负向、统计最近记录分类 marker 缺失负向、统计计划回顾分类 marker 缺失负向、JUnit 元数据负向、JUnit errors 负向、JUnit outcome 负向、JUnit failure/error 元素负向、artifactName mismatch 负向、manifest artifactName/overallOutcome 负向、index artifactName 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向、额外 artifact 文件负向、本地文件大小篡改负向、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture、分类摘要动作、分类 chip 可访问、日程任务操作、计时主控、计划开始、计划分类 badge、Mac 计划分类、计划面板操作、日程 toolbar 新增、iOS/Mac 日程分类空态操作、Mac 快速新增和标题分类上下文、分类输入上下文、待办保存、待办取消、Mac 小窗快捷面板、统计分类占比/投入次数/排行/排序依据/空态/元信息和占比可读性、统计最近记录分类和统计计划回顾分类 contract 日志 marker、核心测试和快照的本地/云端项目专属验证入口。
-- `scripts/validate_ci_artifact.rb` 是 Agent C 下载结果包后的结构化复判脚本，覆盖 manifest、run context、artifact index、JUnit、failure summary、日志 marker、build 与快照身份/结构；可选 `--archive`、`--archive-size`、`--archive-digest` 必须全有或全无，完整参数组对同一原始 ZIP 复算 byte count、SHA-256 并安全调用 `unzip -t`，目录-only 调用保持兼容。可选 `--artifact-metadata` 必须与完整 archive 参数组一起使用，结构化复判原始 API JSON 的八项身份与归档交叉检查。`scripts/verify_project.sh` 通过真实 ZIP/API JSON 成功 fixture、参数矩阵、安全边界、字段篡改和 marker 缺失 fixtures，防止错包、残缺下载、伪造 API 字段或内部自证结果被放行。
+- `scripts/validate_ci_artifact.rb` 是 Agent C 下载结果包后的结构化复判脚本。它保留目录-only、archive-only、archive + artifact metadata，并新增 archive + artifact metadata + run metadata 第四模式；run metadata 必须同时具备完整 archive 参数和 artifact metadata，十项 run API 检查与八项 artifact metadata、三项 ZIP 检查并行输出。Validator 不联网，所有 API JSON 都是 artifact 外部输入。
 - `.github/workflows/ci-results.yml` 是默认云端重验证入口，使用 `actions/checkout@v5` 和 `actions/upload-artifact@v6`，负责在 `main` push 和手动触发时运行静态检查、项目验证、Mac build 和 iOS generic build，并生成带 artifact index 与 manifest `overallOutcome` 的未加密 CI 结果包；失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录。Agent C 还需检查最新完整 job 日志不含 Node.js 20、`DEP0040`/`punycode` 或 `DEP0169`/`url.parse` 弃用项。
 
 ## 7. 协作与云端验证流
@@ -228,9 +229,9 @@ macOS：
 4. Agent B `git push origin main` 触发 GitHub Actions。
 5. `.github/workflows/ci-results.yml` 在云端运行静态检查、`scripts/verify_project.sh`、`ChronoFocusMac` build 和 `ChronoFocus` iOS generic build。
 6. workflow 上传未加密结果包，包含 `ci-artifact-manifest.json`、`ci-artifact-index.json`、`ci-run-context.txt`、带失败错误摘录的 `ci-failure-summary.md`、`junit.xml`、Mac/iOS build 日志、`verify_project.log`、Mac/iOS `.xcresult`、Mac 快照和 Mac 快照 manifest；manifest 会记录 artifactName、short SHA、workflow/project/scheme/destination、createdAt 和 project reports，artifact index 会记录 artifactName、version、createdAt 与本地元数据。
-7. Agent C 用 `gh auth login` 后获取最新 run 的原始 artifacts API JSON，在全新唯一目录中先写 `artifacts-api.json.part`，成功且非空后无覆盖原子改名；从结构化响应核对并选择唯一 artifact id。
-8. Agent C 用同一 id 下载到 `.zip.part` 并有限重试；原始 ZIP 的实际 size、SHA-256 和 ZIP 结构全部通过后，才在同一文件系统无覆盖原子改名并解包，失败时保留 JSON、`.part` 和证据。
-9. Agent C 以解包目录、原始 ZIP、原始 API JSON、API size/digest 和 commit/run/attempt 完整调用 `scripts/validate_ci_artifact.rb`，同时核对八项 metadata PASS、三个 archive PASS、结果包结构、日志 marker、build 和项目专属产物；目录-only 与 archive-only 调用仅保留向后兼容。API 不直接证明 attempt。
+7. Agent C 用 `gh auth login` 后从精确 run endpoint 和 run artifacts endpoint 获取原始响应，在全新唯一目录分别写 `run-api.json.part`、`artifacts-api.json.part`，成功且非空后无覆盖原子改名；从 artifacts JSON 结构化选择唯一 artifact id。
+8. Agent C 用同一 id 下载到 `.zip.part` 并有限重试；原始 ZIP 的实际 size、SHA-256 和 ZIP 结构全部通过后，才在同一文件系统无覆盖原子改名并解包，失败时保留两份 JSON、`.part` 和全部证据。
+9. Agent C 以解包目录、原始 ZIP、两份原始 API JSON、API size/digest 和 commit/run/attempt 完整调用 validator，核对十项 run metadata、八项 artifact metadata、三项 archive、结果包结构、marker、build 和项目专属产物；较弱模式仅保留向后兼容，不能替代最新云端验收。
 10. Agent C 只验收 manifest 与 run context 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新状态一致，并且 run context 无重复/无额外字段的结果包。
 11. 如果云端失败或结果包不一致，Agent C 不回滚；退回 Agent B 在 `main` 上追加修复 commit 后重新 push。
 12. 如果 Agent C 需要补齐核心文档，也必须用 `main` 追加 commit/push，并验收新的最新 run。

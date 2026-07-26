@@ -4,14 +4,14 @@
 
 ## 核心数据流
 
-读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。重点看 `FocusStore` 与 `TimerEngine` 的职责边界；iOS 计时队列展开只属于 View 瞬态，分类与运行语义不变，artifact 原始 API JSON 和 ZIP 则由独立契约与 validator 复判。
+读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。已有分类选择和计时队列展开只属于 View 草稿/瞬态，不新增持久化或计时状态；run/artifacts 原始 API JSON 与 ZIP 由独立证据链交给 validator 复判。
 
 ```mermaid
 flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
-  V --> CAT["TaskCategoryPreset / TaskCategoryFilterOption<br/>分类快选、计数、筛选排序与重复点击清除<br/>iOS计时非空摘要显示筛选数/总数及新增/清除<br/>iOS计时队列默认4项、可展开全部、分类或数量变化重置<br/>运行中可浏览但任务行继续禁用<br/>iOS/Mac日程与计时分类空态/非空摘要互斥<br/>筛选态隐藏重复视觉badge但保留整行分类/选中/运行语义<br/>日程、计划、统计和Mac分类上下文及Voice Control语义"]
+  V --> CAT["分类 UI<br/>分类快选、计数、筛选与重复点击清除<br/>iOS/Mac录入从taskCategories复用已有分类<br/>固定locale规范化、排除预设、首次出现去重<br/>选择只改category/accentHex草稿<br/>首个同分类任务提供代表色<br/>iOS计时队列默认4项、可展开、运行中只读<br/>辅助功能语义"]
   CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]
@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>verify_project.sh / validate_ci_artifact.rb<br/>iOS计时摘要/空态互斥与4项队列展开契约<br/>archive参数矩阵与artifact-metadata结构化复判<br/>八项metadata、byte count、SHA-256、ZIP integrity PASS<br/>安全边界、字段篡改、marker缺失负向fixture<br/>既有manifest/index/run context/JUnit/build/快照复判"]
+  S --> T["测试入口<br/>verify_project.sh / validate_ci_artifact.rb<br/>已有分类复用与计时队列契约<br/>四种validator模式<br/>run十项、artifact八项、ZIP三项检查<br/>安全边界、字段篡改、marker缺失fixture<br/>manifest/index/JUnit/build/快照复判"]
 ```
 
 ## 计时执行流
@@ -58,12 +58,13 @@ flowchart TD
 
 ## 日程、计划和统计流
 
-读图说明：这张图展示任务如何变成番茄钟计划，计时完成后又如何反向更新任务和统计。iOS 计时以及 iOS/Mac 日程分类筛选都采用非空摘要与空结果空态互斥规则；新增沿用当前分类进入既有编辑器或快速新增流程，保存后仍通过 `FocusStore` 刷新列表和计数。
+读图说明：这张图展示任务如何变成番茄钟计划，计时完成后又如何反向更新任务和统计。新增/编辑表单可从 store 的完整分类列表复用非预设分类，但选择只修改表单草稿；用户提交后才通过既有 `FocusStore` 入口持久化并刷新筛选、计划和统计。
 
 ```mermaid
 flowchart TD
   A["用户新增/编辑任务<br/>或系统日历同步事件"] --> P0["分类 UI<br/>iOS/Mac日程日期格读出日期、待办数、选中和非本月状态<br/>Mac日历范围空态把当前选中日期带入快速新增并聚焦标题<br/>iOS日程筛选/总数计数<br/>iOS日程toolbar新增入口读出当前分类<br/>iOS/Mac日程分类空态可直接新增此分类或清除筛选<br/>iOS日程任务行分类badge语音标签<br/>iOS/Mac日程任务操作读出任务名和分类<br/>iOS待办保存按钮读出任务、分类、预计轮次或只设开始，取消按钮读出取消新增/取消编辑、任务和分类<br/>iOS/Mac计时主控读出任务名和分类<br/>iOS/Mac计划开始读出任务/时间/轮次<br/>iOS/Mac计划项分类badge可见<br/>iOS/Mac计划面板生成/清空读出当前未完成轮数<br/>Mac快速新增任务名称输入框读出将新增到的分类<br/>Mac快速新增提交读出分类和预计轮次<br/>Mac小窗快捷面板读出按钮动作和选中状态<br/>Mac计划项直接显示分类<br/>计时页当前待办筛选摘要<br/>计时页摘要清除入口<br/>计时页空态清除入口<br/>计时页任务行分类badge可访问<br/>当前任务选择读出已选中状态、运行中提示和任务/分类语音标签<br/>Mac任务行和小窗分类badge可说分类名<br/>常用分类快选、手写分类和输入上下文<br/>重复点击已选分类退出<br/>VoiceOver读出已选状态和点击动作<br/>辅助技术识别 selected trait<br/>Voice Control 可说日期、任务和分类名<br/>筛选摘要新增/清除按钮读出分类名<br/>筛选联动新建预填<br/>Mac 摘要快捷新增并聚焦任务名<br/>Mac 快速新增当前分类/已预填提示<br/>Mac 摘要按钮稳定点击区<br/>Mac 连续新增保留分类"]
-  P0 --> B["FocusStore.addTask / updateTask / upsertExternalTask"]
+  P0 --> DRAFT["已有分类选择<br/>只更新category/accentHex草稿<br/>不自动保存或持久化"]
+  DRAFT --> B["FocusStore.addTask / updateTask / upsertExternalTask<br/>用户提交后的统一入口"]
   B --> C["FocusTask<br/>标题、分类、截止时间、轮次、循环、外部日历 ID"]
   C --> C2["FocusStore.taskCategories + TaskCategoryFilterOption<br/>合并预设/已有分类<br/>有任务分类优先显示"]
   C2 --> IS["iOS/Mac日程分类筛选<br/>结果非空显示摘要<br/>结果为空只显示双操作空态"]
@@ -111,7 +112,7 @@ flowchart LR
 
 ## Agent 迭代与云端验收流程
 
-读图说明：这张图描述当前默认协作方式。GitHub Actions 生成结果包后，Agent C 先无覆盖保存原始 API JSON，再以其中的唯一 artifact 身份约束 ZIP 下载；JSON 和 ZIP 都使用 `.part`、成功确认或有限重试及原子改名，最终与解包目录一起交给 validator，失败时保留证据并退回 Agent B 追加修复。
+读图说明：这张图描述当前默认协作方式。Agent C 分别无覆盖保存精确 workflow run API 和 artifacts API 原始 JSON，再用 artifacts 响应中的唯一 id 约束 ZIP 下载；两份 JSON 和 ZIP 都使用 `.part` 与原子改名，最终连同全新解包目录进入 validator 第四模式。
 
 ```mermaid
 flowchart TD
@@ -128,11 +129,12 @@ flowchart TD
   SUM --> RESULT{"四阶段是否全部成功?"}
   RESULT -->|是| OK["run success"]
   RESULT -->|否| FAIL["run failure<br/>步骤日志直接包含失败摘要"]
-  ART --> API["GitHub API原始JSON<br/>先写artifacts-api.json.part<br/>成功非空后无覆盖原子改名<br/>结构化取得唯一artifact"]
-  API --> META["metadata安全与身份<br/>不超过1MiB、普通文件、非symlink<br/>id/name/size/digest/expired/workflow run<br/>API不直接证明attempt"]
+  ART --> RUNAPI["精确run API原始JSON<br/>run-api.json.part -> run-api.json<br/>成功非空后无覆盖原子改名"]
+  RUNAPI --> API["artifacts API原始JSON<br/>artifacts-api.json.part -> artifacts-api.json<br/>结构化取得唯一artifact"]
+  API --> META["包外metadata安全与身份<br/>不超过1MiB、普通文件、非symlink<br/>run十项 + artifact八项<br/>精确run API直接核对attempt"]
   META --> DL["用同一artifact id下载<br/>写入.zip.part并有限重试<br/>默认拒绝覆盖或删除"]
   DL --> ZIP["校验size、SHA-256、unzip -t<br/>全部通过后同文件系统原子改名<br/>解包到全新目录"]
-  ZIP --> C["Agent C validator完整调用<br/>解包目录+原始ZIP+原始API JSON<br/>八项metadata与三个archive PASS<br/>marker/PASS、build结果"]
+  ZIP --> C["Agent C validator第四模式<br/>解包目录+原始ZIP+两份原始API JSON<br/>run十项+artifact八项+archive三项<br/>marker/PASS、manifest与build"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>run context无重复/无额外字段<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}
   PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]
@@ -158,7 +160,7 @@ flowchart TD
   A --> B["Agent B<br/>按提示词实现<br/>本地轻量检查、commit、push origin/main"]
   B --> CI["GitHub Actions<br/>ci-results.yml<br/>运行静态检查、verify_project、Mac/iOS build"]
   CI --> ART["最新未加密 artifact<br/>manifest、artifact index、run context、JUnit、failure summary/错误摘录、日志、xcresult、快照 manifest、项目产物"]
-  ART --> C["Agent C<br/>原始API JSON .part后无覆盖原子改名<br/>结构化核对唯一artifact身份<br/>同一id下载ZIP .part并有限重试<br/>以JSON、原始ZIP和全新解包目录完整复判<br/>attempt由run与包内身份另行关联"]
+  ART --> C["Agent C<br/>run/artifacts API JSON分别以.part无覆盖原子改名<br/>结构化核对run与唯一artifact身份<br/>同一id下载ZIP .part并有限重试<br/>以两份JSON、原始ZIP和全新解包目录第四模式复判"]
   C --> X2["Agent X 读取 Agent C 结论<br/>只基于最新 origin/main artifact 判断"]
   X2 --> D{"下一步判断"}
   D -->|通过且总目标未完成| X1

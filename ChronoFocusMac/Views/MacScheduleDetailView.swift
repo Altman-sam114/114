@@ -42,6 +42,22 @@ struct MacScheduleDetailView: View {
         quickAddCategoryPreset?.symbolName ?? "tag.fill"
     }
 
+    private var existingCategoryOptions: [MacExistingCategoryOption] {
+        macExistingCategoryOptions(categories: store.taskCategories, tasks: store.tasks)
+    }
+
+    private var snapshotExistingCategory: MacExistingCategoryOption? {
+        existingCategoryOptions.first
+    }
+
+    private var snapshotQuickAddCategoryName: String {
+        snapshotExistingCategory?.displayName ?? quickAddCategoryName
+    }
+
+    private var snapshotQuickAddAccentHex: String {
+        snapshotExistingCategory?.representativeAccentHex ?? accentHex
+    }
+
     private var isQuickAddCategoryPrefilled: Bool {
         selectedCategory?.trimmingCharacters(in: .whitespacesAndNewlines) == quickAddCategoryName
     }
@@ -99,14 +115,21 @@ struct MacScheduleDetailView: View {
 
                         if isSnapshotRendering {
                             MacStaticInputRowView(title: "任务名称", value: "新的专注任务")
-                            MacStaticInputRowView(title: "分类", value: category)
+                            MacStaticInputRowView(title: "分类", value: snapshotQuickAddCategoryName)
                             MacQuickAddCategoryContextView(
-                                category: quickAddCategoryName,
-                                tint: quickAddCategoryTint,
-                                symbolName: quickAddCategorySymbolName,
+                                category: snapshotQuickAddCategoryName,
+                                tint: Color(hex: snapshotQuickAddAccentHex),
+                                symbolName: "tag.fill",
                                 isPrefilled: isQuickAddCategoryPrefilled
                             )
-                            MacStaticCategoryPresetStrip(selectedCategory: category)
+                            MacStaticCategoryPresetStrip(selectedCategory: snapshotQuickAddCategoryName)
+                            if !existingCategoryOptions.isEmpty {
+                                MacStaticExistingCategoryStrip(
+                                    options: existingCategoryOptions,
+                                    selectedCategory: snapshotQuickAddCategoryName,
+                                    fallbackAccentHex: snapshotQuickAddAccentHex
+                                )
+                            }
                             MacStaticInputRowView(title: "截止时间", value: dueDate.scheduleTimeText)
                             MacStaticInputRowView(title: "预计轮次", value: "\(estimatedRounds) 轮")
                         } else {
@@ -128,6 +151,14 @@ struct MacScheduleDetailView: View {
                                 isPrefilled: isQuickAddCategoryPrefilled
                             )
                             MacCategoryPresetPicker(category: $category, accentHex: $accentHex)
+                            if !existingCategoryOptions.isEmpty {
+                                MacExistingCategoryPicker(
+                                    options: existingCategoryOptions,
+                                    selectedCategory: category,
+                                    fallbackAccentHex: accentHex,
+                                    onSelect: selectExistingCategory
+                                )
+                            }
                             DatePicker("截止时间", selection: $dueDate)
                             Stepper("预计 \(estimatedRounds) 轮", value: $estimatedRounds, in: 1...12)
                         }
@@ -199,6 +230,13 @@ struct MacScheduleDetailView: View {
         isTaskTitleFocused = true
     }
 
+    private func selectExistingCategory(_ option: MacExistingCategoryOption) {
+        category = option.displayName
+        if let representativeAccentHex = option.representativeAccentHex {
+            accentHex = representativeAccentHex
+        }
+    }
+
     private func prepareQuickAdd(at date: Date) {
         let calendar = Calendar.current
         let timeComponents = calendar.dateComponents([.hour, .minute], from: dueDate)
@@ -208,6 +246,56 @@ struct MacScheduleDetailView: View {
         dueDate = calendar.date(from: dateComponents) ?? date
         isTaskTitleFocused = true
     }
+}
+
+private struct MacExistingCategoryOption: Identifiable {
+    let displayName: String
+    let comparisonKey: String
+    let representativeAccentHex: String?
+
+    var id: String { comparisonKey }
+}
+
+private func macCategoryDisplayName(_ category: String) -> String {
+    let trimmedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmedCategory.isEmpty ? "未分类" : trimmedCategory
+}
+
+private func macCategoryComparisonKey(_ category: String) -> String {
+    macCategoryDisplayName(category).folding(
+        options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+        locale: Locale(identifier: "en_US_POSIX")
+    )
+}
+
+private func macExistingCategoryOptions(
+    categories: [String],
+    tasks: [FocusTask]
+) -> [MacExistingCategoryOption] {
+    let presetKeys = Set(TaskCategoryPreset.defaults.map { macCategoryComparisonKey($0.title) })
+    var seenKeys = Set<String>()
+    var options: [MacExistingCategoryOption] = []
+
+    for category in categories {
+        let displayName = macCategoryDisplayName(category)
+        let comparisonKey = macCategoryComparisonKey(displayName)
+        guard !presetKeys.contains(comparisonKey), seenKeys.insert(comparisonKey).inserted else {
+            continue
+        }
+
+        let representativeAccentHex = tasks.first {
+            macCategoryComparisonKey($0.category) == comparisonKey
+        }?.accentHex
+        options.append(
+            MacExistingCategoryOption(
+                displayName: displayName,
+                comparisonKey: comparisonKey,
+                representativeAccentHex: representativeAccentHex
+            )
+        )
+    }
+
+    return options
 }
 
 private struct MacQuickAddCategoryContextView: View {
@@ -274,6 +362,133 @@ private struct MacStaticCategoryPresetStrip: View {
                 .background(Color.white.opacity(0.06), in: Capsule())
         }
         .padding(.vertical, 1)
+    }
+}
+
+private struct MacExistingCategoryPicker: View {
+    let options: [MacExistingCategoryOption]
+    let selectedCategory: String
+    let fallbackAccentHex: String
+    let onSelect: (MacExistingCategoryOption) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("已有分类")
+                .font(.caption.bold())
+                .foregroundStyle(MacTheme.secondaryText)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(options) { option in
+                        let isSelected = isSelected(option)
+                        Button {
+                            onSelect(option)
+                        } label: {
+                            MacExistingCategoryChipContent(
+                                option: option,
+                                isSelected: isSelected,
+                                fallbackAccentHex: fallbackAccentHex
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(accessibilityLabel(for: option, isSelected: isSelected))
+                        .accessibilityHint(accessibilityHint(for: option, isSelected: isSelected))
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
+                        .accessibilityInputLabels([
+                            Text(option.displayName),
+                            Text("\(option.displayName)分类"),
+                            Text("选择\(option.displayName)分类")
+                        ])
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("已有分类")
+    }
+
+    private func isSelected(_ option: MacExistingCategoryOption) -> Bool {
+        macCategoryComparisonKey(selectedCategory) == option.comparisonKey
+    }
+
+    private func accessibilityLabel(
+        for option: MacExistingCategoryOption,
+        isSelected: Bool
+    ) -> String {
+        "\(option.displayName)分类\(isSelected ? "，已选中" : "")"
+    }
+
+    private func accessibilityHint(
+        for option: MacExistingCategoryOption,
+        isSelected: Bool
+    ) -> String {
+        if isSelected {
+            return "当前使用该分类，再次点击保持当前分类"
+        }
+        return "选择已有\(option.displayName)分类"
+    }
+}
+
+private struct MacStaticExistingCategoryStrip: View {
+    let options: [MacExistingCategoryOption]
+    let selectedCategory: String
+    let fallbackAccentHex: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("已有分类")
+                .font(.caption.bold())
+                .foregroundStyle(MacTheme.secondaryText)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(options) { option in
+                        MacExistingCategoryChipContent(
+                            option: option,
+                            isSelected: macCategoryComparisonKey(selectedCategory) == option.comparisonKey,
+                            fallbackAccentHex: fallbackAccentHex
+                        )
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("已有分类，当前已选中\(selectedCategory)分类")
+    }
+}
+
+private struct MacExistingCategoryChipContent: View {
+    let option: MacExistingCategoryOption
+    let isSelected: Bool
+    let fallbackAccentHex: String
+
+    private var tint: Color {
+        Color(hex: option.representativeAccentHex ?? fallbackAccentHex)
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "tag.fill")
+                .accessibilityHidden(true)
+            Text(option.displayName)
+                .fixedSize(horizontal: true, vertical: true)
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .accessibilityHidden(true)
+            }
+        }
+        .font(.caption.bold())
+        .foregroundStyle(isSelected ? Color.black.opacity(0.82) : MacTheme.primaryText)
+        .frame(minHeight: 30)
+        .padding(.horizontal, 10)
+        .background(isSelected ? tint : Color.white.opacity(0.06), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(tint.opacity(isSelected ? 0.9 : 0.42), lineWidth: isSelected ? 1.5 : 1)
+        }
     }
 }
 

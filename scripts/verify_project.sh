@@ -911,6 +911,60 @@ raise "Mac quick add category context visible labels missing" unless mac_quick_a
 raise "Mac quick add category context accessibility missing" unless mac_quick_add_category_context_source.include?("快速新增已预填\\(category)分类") && mac_quick_add_category_context_source.include?("快速新增当前分类\\(category)") && mac_quick_add_category_context_source.include?("Text(\"\\(category)分类\")") && mac_quick_add_category_context_source.include?("Text(\"当前分类\\(category)\")")
 puts "Category input context contracts verified."
 
+ios_existing_category_source = source_slice(
+  "ChronoFocus/Views/ScheduleView.swift",
+  "struct TaskEditorView",
+  "private struct TaskCategoryPresetPicker",
+  "iOS existing category source missing"
+)
+mac_existing_category_source = source_slice(
+  "ChronoFocusMac/Views/MacScheduleDetailView.swift",
+  "struct MacScheduleDetailView",
+  "private struct MacStaticScheduleActionChipView",
+  "Mac existing category source missing"
+)
+raise "iOS existing categories must come from store.taskCategories" unless ios_existing_category_source.include?("return store.taskCategories.compactMap")
+raise "Mac existing categories must come from store.taskCategories" unless mac_existing_category_source.include?("macExistingCategoryOptions(categories: store.taskCategories, tasks: store.tasks)")
+raise "iOS existing categories must preserve free text and preset controls" unless ios_existing_category_source.include?("TextField(\"分类\", text: $category)") && ios_existing_category_source.include?("TaskCategoryPresetPicker(category: $category, accentHex: $accentHex)")
+raise "Mac existing categories must preserve free text and preset controls" unless mac_existing_category_source.include?("TextField(\"分类\", text: $category)") && mac_existing_category_source.include?("MacCategoryPresetPicker(category: $category, accentHex: $accentHex)")
+preset_source = source_slice("ChronoFocus/Models/AppModels.swift", "struct TaskCategoryPreset", "struct FocusTask", "Task category preset source missing")
+raise "Existing category controls must retain exactly five presets" unless preset_source.scan("TaskCategoryPreset(title:").length == 5
+raise "iOS preset exclusion must use normalized preset keys" unless ios_existing_category_source.include?("let presetKeys = Set(TaskCategoryPreset.defaults.map { categoryComparisonKey(for: $0.title) })") && ios_existing_category_source.include?("!presetKeys.contains(comparisonKey)")
+raise "Mac preset exclusion must use normalized preset keys" unless mac_existing_category_source.include?("let presetKeys = Set(TaskCategoryPreset.defaults.map { macCategoryComparisonKey($0.title) })") && mac_existing_category_source.include?("!presetKeys.contains(comparisonKey)")
+folding_options = "options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive]"
+raise "iOS category comparison must use POSIX folding" unless ios_existing_category_source.include?(folding_options) && ios_existing_category_source.include?("Locale(identifier: \"en_US_POSIX\")")
+raise "Mac category comparison must use POSIX folding" unless mac_existing_category_source.include?(folding_options) && mac_existing_category_source.include?("Locale(identifier: \"en_US_POSIX\")")
+raise "iOS existing categories must preserve stable first occurrence order" unless ios_existing_category_source.include?("return store.taskCategories.compactMap") && ios_existing_category_source.include?("seenKeys.insert(comparisonKey).inserted")
+raise "Mac existing categories must preserve stable first occurrence order" unless mac_existing_category_source.include?("for category in categories") && mac_existing_category_source.include?("seenKeys.insert(comparisonKey).inserted") && mac_existing_category_source.include?("options.append(")
+raise "iOS representative color must use the first matching store task" unless ios_existing_category_source.include?("store.tasks.first { task in") && ios_existing_category_source.include?("accentHex = matchingTask.accentHex")
+raise "Mac representative color must use the first matching task" unless mac_existing_category_source.include?("let representativeAccentHex = tasks.first {") && mac_existing_category_source.include?("accentHex = representativeAccentHex")
+raise "iOS existing category selection must only update form drafts" unless ios_existing_category_source.include?("category = option.name") && ios_existing_category_source.include?("if let matchingTask = firstTask(matching: option)")
+raise "Mac existing category selection must only update form drafts" unless mac_existing_category_source.include?("category = option.displayName") && mac_existing_category_source.include?("if let representativeAccentHex = option.representativeAccentHex")
+ios_select_source = segment_slice(ios_existing_category_source, "private func selectExistingCategory", "private func save()", "iOS existing category selection source missing")
+mac_select_source = segment_slice(mac_existing_category_source, "private func selectExistingCategory", "private func prepareQuickAdd(at date:", "Mac existing category selection source missing")
+for source, platform in [[ios_select_source, "iOS"], [mac_select_source, "Mac"]]
+  raise "#{platform} existing category selection must not persist or dismiss" if source.match?(/store\.|save\(|dismiss\(|addTask\(|updateTask\(/)
+end
+raise "iOS existing category selected state must use normalized identity" unless ios_existing_category_source.include?("categoryComparisonKey(for: category) == option.comparisonKey")
+raise "Mac existing category selected state must use normalized identity" unless mac_existing_category_source.include?("macCategoryComparisonKey(selectedCategory) == option.comparisonKey")
+repeat_hint = "当前使用该分类，再次点击保持当前分类"
+raise "iOS repeated selection must preserve the current category" unless ios_existing_category_source.include?(repeat_hint)
+raise "Mac repeated selection must preserve the current category" unless mac_existing_category_source.include?(repeat_hint)
+raise "iOS existing category button must preserve 44 point target and dynamic text" unless ios_existing_category_source.include?(".frame(maxWidth: 180, minHeight: 44, alignment: .leading)") && ios_existing_category_source.include?(".fixedSize(horizontal: false, vertical: true)")
+raise "iOS existing category selected indicator missing" unless ios_existing_category_source.include?("Image(systemName: \"checkmark.circle.fill\")") && ios_existing_category_source.include?(".accessibilityAddTraits(isSelected ? .isSelected : [])")
+raise "Mac existing category selected indicator missing" unless mac_existing_category_source.include?("Image(systemName: \"checkmark\")") && mac_existing_category_source.include?(".accessibilityAddTraits(isSelected ? .isSelected : [])")
+for source, platform, name_expression in [[ios_existing_category_source, "iOS", "option.name"], [mac_existing_category_source, "Mac", "option.displayName"]]
+  raise "#{platform} existing category VoiceOver label missing" unless source.include?("分类\\(isSelected ? \"，已选中\" : \"\")")
+  raise "#{platform} existing category VoiceOver hint missing" unless source.include?("选择已有\\(#{name_expression})分类") && source.include?(repeat_hint)
+  raise "#{platform} existing category Voice Control labels missing" unless source.include?("Text(\\(#{name_expression}))") || (source.include?("Text(#{name_expression})") && source.include?("Text(\"选择\\(#{name_expression})分类\")"))
+end
+raise "Mac existing category snapshot branch missing" unless mac_existing_category_source.include?("if isSnapshotRendering") && mac_existing_category_source.include?("MacStaticExistingCategoryStrip(")
+raise "Mac snapshot and live paths must share existing category options" unless mac_existing_category_source.scan("options: existingCategoryOptions").length >= 2
+raise "Mac existing category snapshot must avoid native button placeholders" unless mac_existing_category_source.include?("private struct MacStaticExistingCategoryStrip") && !segment_slice(mac_existing_category_source, "private struct MacStaticExistingCategoryStrip", "private struct MacExistingCategoryChipContent", "Mac static existing category source missing").include?("Button")
+mac_snapshot_source = File.read("scripts/render_mac_snapshots.swift")
+raise "Mac schedule snapshot must seed a non-preset existing category" unless mac_snapshot_source.include?("AnyView(MacScheduleDetailView())") && mac_snapshot_source.include?("category: \"产品\"")
+puts "Existing category reuse contracts verified."
+
 mac_mini_quick_panel_source = source_slice(
   "ChronoFocusMac/Views/MacMiniTimerView.swift",
   "private struct MacMiniQuickPanelView",
@@ -1291,10 +1345,17 @@ grep -q -- "--archive ZIP" scripts/validate_ci_artifact.rb
 grep -q -- "--archive-size BYTES" scripts/validate_ci_artifact.rb
 grep -q -- "--archive-digest DIGEST" scripts/validate_ci_artifact.rb
 grep -q -- "--artifact-metadata JSON" scripts/validate_ci_artifact.rb
+grep -q -- "--run-metadata JSON" scripts/validate_ci_artifact.rb
 grep -q "MAX_ARTIFACT_METADATA_BYTES = 1_048_576" scripts/validate_ci_artifact.rb
+grep -q "MAX_RUN_METADATA_BYTES = MAX_ARTIFACT_METADATA_BYTES" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_WORKFLOW_RUN_NAME = \"ChronoFocus CI Results\"" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_WORKFLOW_RUN_PATH = \".github/workflows/ci-results.yml\"" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_WORKFLOW_RUN_REPOSITORY = \"Altman-sam114/114\"" scripts/validate_ci_artifact.rb
 grep -q "Archive arguments must be provided together" scripts/validate_ci_artifact.rb
 grep -q -- "--artifact-metadata requires --archive, --archive-size, and --archive-digest" scripts/validate_ci_artifact.rb
-grep -q "File.lstat(artifact_metadata_path)" scripts/validate_ci_artifact.rb
+grep -q -- "--run-metadata requires --archive, --archive-size, --archive-digest, and --artifact-metadata" scripts/validate_ci_artifact.rb
+grep -q "validate_external_metadata_path" scripts/validate_ci_artifact.rb
+grep -q "File.lstat(path)" scripts/validate_ci_artifact.rb
 grep -q "metadata_stat.symlink?" scripts/validate_ci_artifact.rb
 grep -q "Open3.capture3(\*\[\"unzip\", \"-t\", archive_path\])" scripts/validate_ci_artifact.rb
 grep -q "artifact archive byte count" scripts/validate_ci_artifact.rb
@@ -1308,6 +1369,16 @@ grep -q "artifact metadata byte count" scripts/validate_ci_artifact.rb
 grep -q "artifact metadata sha256 digest" scripts/validate_ci_artifact.rb
 grep -q "artifact metadata not expired" scripts/validate_ci_artifact.rb
 grep -q "artifact metadata workflow run" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata response shape" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata id" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata run attempt" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata head sha" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata head branch" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata name" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata path" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata status" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata conclusion" scripts/validate_ci_artifact.rb
+grep -q "workflow run metadata repository" scripts/validate_ci_artifact.rb
 grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
 grep -q "Project structure verified." scripts/validate_ci_artifact.rb
 grep -q "Category chip accessibility contracts verified." scripts/validate_ci_artifact.rb
@@ -1329,6 +1400,8 @@ grep -q "CI action Node.js 24 contracts verified." scripts/validate_ci_artifact.
 grep -q "CI failure summary output contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI artifact archive integrity contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI artifact API metadata contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Existing category reuse contracts verified." scripts/validate_ci_artifact.rb
+grep -q "CI workflow run API metadata contracts verified." scripts/validate_ci_artifact.rb
 grep -q "verify_ci_failure_summary_output()" scripts/verify_project.sh
 grep -q "CI failure summary output contracts verified." scripts/verify_project.sh
 grep -q "Mac quick add action accessibility contracts verified." scripts/validate_ci_artifact.rb
@@ -1415,6 +1488,11 @@ grep -q "negative_artifact_metadata_digest_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_metadata_workflow_branch_fixture" scripts/verify_project.sh
 grep -q "negative_ci_artifact_archive_integrity_marker_fixture" scripts/verify_project.sh
 grep -q "negative_ci_artifact_api_metadata_marker_fixture" scripts/verify_project.sh
+grep -q "negative_existing_category_reuse_marker_fixture" scripts/verify_project.sh
+grep -q "negative_ci_workflow_run_api_metadata_marker_fixture" scripts/verify_project.sh
+grep -q "run_metadata_fixture" scripts/verify_project.sh
+grep -q "negative_run_metadata_symlink_fixture" scripts/verify_project.sh
+grep -q "negative_run_metadata_repository_full_name_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_fixture" scripts/verify_project.sh
 grep -q "negative_run_context_extra_key_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_artifact_name_fixture" scripts/verify_project.sh
@@ -1537,7 +1615,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nTimer task queue expansion contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nCI artifact API metadata contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nExisting category reuse contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nTimer task queue expansion contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nCI artifact API metadata contracts verified.\nCI workflow run API metadata contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -1850,6 +1928,86 @@ grep -q "PASS artifact archive zip integrity" "$artifact_metadata_success_output
 grep -q "PASS verify_project ci artifact API metadata contracts" "$artifact_metadata_success_output"
 rm -f "$artifact_metadata_success_output"
 
+run_metadata_fixture="$artifact_archive_fixture_dir/run-api.json"
+ruby -rjson - "$run_metadata_fixture" <<'RUBY'
+path = ARGV.fetch(0)
+payload = {
+  "id" => 12_345,
+  "run_attempt" => 1,
+  "head_sha" => "fixture-sha",
+  "head_branch" => "main",
+  "name" => "ChronoFocus CI Results",
+  "path" => ".github/workflows/ci-results.yml",
+  "status" => "completed",
+  "conclusion" => "success",
+  "repository" => {
+    "full_name" => "Altman-sam114/114",
+    "future_repository_field" => "allowed"
+  },
+  "future_run_field" => { "allowed" => true }
+}
+File.write(path, JSON.pretty_generate(payload) + "\n", encoding: "UTF-8")
+RUBY
+
+assert_archive_passes() {
+  local output_path="$1"
+  grep -q "PASS artifact archive byte count" "$output_path"
+  grep -q "PASS artifact archive sha256 digest" "$output_path"
+  grep -q "PASS artifact archive zip integrity" "$output_path"
+}
+
+assert_artifact_metadata_passes() {
+  local output_path="$1"
+  grep -q "PASS artifact metadata response shape" "$output_path"
+  grep -q "PASS artifact metadata unique artifact" "$output_path"
+  grep -q "PASS artifact metadata id" "$output_path"
+  grep -q "PASS artifact metadata name" "$output_path"
+  grep -q "PASS artifact metadata byte count" "$output_path"
+  grep -q "PASS artifact metadata sha256 digest" "$output_path"
+  grep -q "PASS artifact metadata not expired" "$output_path"
+  grep -q "PASS artifact metadata workflow run" "$output_path"
+}
+
+assert_run_metadata_passes_except() {
+  local output_path="$1"
+  local excluded_check="${2:-}"
+  local check_name
+  for check_name in \
+    "response shape" \
+    "id" \
+    "run attempt" \
+    "head sha" \
+    "head branch" \
+    "name" \
+    "path" \
+    "status" \
+    "conclusion" \
+    "repository"; do
+    if [[ "$check_name" != "$excluded_check" ]]; then
+      grep -q "PASS workflow run metadata $check_name" "$output_path"
+    fi
+  done
+}
+
+run_metadata_success_output="$(mktemp)"
+ruby scripts/validate_ci_artifact.rb \
+  "$artifact_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  --artifact-metadata "$artifact_metadata_fixture" \
+  --run-metadata "$run_metadata_fixture" \
+  >"$run_metadata_success_output"
+assert_archive_passes "$run_metadata_success_output"
+assert_artifact_metadata_passes "$run_metadata_success_output"
+assert_run_metadata_passes_except "$run_metadata_success_output"
+grep -q "PASS verify_project existing category reuse contracts" "$run_metadata_success_output"
+grep -q "PASS verify_project ci workflow run API metadata contracts" "$run_metadata_success_output"
+rm -f "$run_metadata_success_output"
+
 negative_artifact_metadata_argument_group_output="$(mktemp)"
 if ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 --artifact-metadata "$artifact_metadata_fixture" >"$negative_artifact_metadata_argument_group_output" 2>&1; then
   echo "Expected metadata without archive argument group to fail validation" >&2
@@ -2003,6 +2161,347 @@ negative_artifact_metadata_workflow_sha_fixture="$artifact_archive_fixture_dir/n
 run_negative_artifact_metadata_fixture "$negative_artifact_metadata_workflow_sha_fixture" "FAIL artifact metadata workflow run" "workflow head SHA mismatch"
 negative_artifact_metadata_workflow_branch_fixture="$artifact_archive_fixture_dir/negative-workflow-branch-metadata.json"
 run_negative_artifact_metadata_fixture "$negative_artifact_metadata_workflow_branch_fixture" "FAIL artifact metadata workflow run" "workflow head branch mismatch"
+
+negative_run_metadata_without_prerequisites_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb \
+  "$artifact_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --run-metadata "$run_metadata_fixture" \
+  >"$negative_run_metadata_without_prerequisites_output" 2>&1; then
+  echo "Expected run metadata without archive and artifact metadata to fail argument validation" >&2
+  cat "$negative_run_metadata_without_prerequisites_output" >&2
+  exit 1
+fi
+grep -q -- "--run-metadata requires --archive, --archive-size, --archive-digest, and --artifact-metadata" "$negative_run_metadata_without_prerequisites_output"
+rm -f "$negative_run_metadata_without_prerequisites_output"
+
+negative_run_metadata_without_artifact_metadata_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb \
+  "$artifact_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  --run-metadata "$run_metadata_fixture" \
+  >"$negative_run_metadata_without_artifact_metadata_output" 2>&1; then
+  echo "Expected run metadata without artifact metadata to fail argument validation" >&2
+  cat "$negative_run_metadata_without_artifact_metadata_output" >&2
+  exit 1
+fi
+grep -q -- "--run-metadata requires --archive, --archive-size, --archive-digest, and --artifact-metadata" "$negative_run_metadata_without_artifact_metadata_output"
+rm -f "$negative_run_metadata_without_artifact_metadata_output"
+
+negative_run_metadata_without_archive_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb \
+  "$artifact_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --artifact-metadata "$artifact_metadata_fixture" \
+  --run-metadata "$run_metadata_fixture" \
+  >"$negative_run_metadata_without_archive_output" 2>&1; then
+  echo "Expected run and artifact metadata without archive arguments to fail argument validation" >&2
+  cat "$negative_run_metadata_without_archive_output" >&2
+  exit 1
+fi
+grep -q -- "--artifact-metadata requires --archive, --archive-size, and --archive-digest" "$negative_run_metadata_without_archive_output"
+rm -f "$negative_run_metadata_without_archive_output"
+
+expect_run_metadata_partial_archive_failure() {
+  local missing_option="$1"
+  shift
+  local output_path
+  output_path="$(mktemp)"
+
+  if ruby scripts/validate_ci_artifact.rb \
+    "$artifact_fixture" \
+    --commit fixture-sha \
+    --run-id 12345 \
+    --attempt 1 \
+    "$@" \
+    --artifact-metadata "$artifact_metadata_fixture" \
+    --run-metadata "$run_metadata_fixture" \
+    >"$output_path" 2>&1; then
+    echo "Expected run metadata with missing $missing_option to fail argument validation" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
+  grep -q "Archive arguments must be provided together" "$output_path"
+  grep -q -- "$missing_option" "$output_path"
+  rm -f "$output_path"
+}
+
+expect_run_metadata_partial_archive_failure \
+  "--archive" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest"
+expect_run_metadata_partial_archive_failure \
+  "--archive-size" \
+  --archive "$artifact_archive_fixture" \
+  --archive-digest "$artifact_archive_digest"
+expect_run_metadata_partial_archive_failure \
+  "--archive-digest" \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size"
+
+negative_run_metadata_empty_argument_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb \
+  "$artifact_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  --artifact-metadata "$artifact_metadata_fixture" \
+  --run-metadata "" \
+  >"$negative_run_metadata_empty_argument_output" 2>&1; then
+  echo "Expected empty run metadata argument to fail argument validation" >&2
+  cat "$negative_run_metadata_empty_argument_output" >&2
+  exit 1
+fi
+grep -q -- "--run-metadata requires a non-empty JSON file path" "$negative_run_metadata_empty_argument_output"
+rm -f "$negative_run_metadata_empty_argument_output"
+
+negative_run_metadata_missing_argument_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb \
+  "$artifact_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  --artifact-metadata "$artifact_metadata_fixture" \
+  --run-metadata \
+  >"$negative_run_metadata_missing_argument_output" 2>&1; then
+  echo "Expected missing run metadata argument to fail argument validation" >&2
+  cat "$negative_run_metadata_missing_argument_output" >&2
+  exit 1
+fi
+grep -q -- "--run-metadata requires a non-empty JSON file path" "$negative_run_metadata_missing_argument_output"
+rm -f "$negative_run_metadata_missing_argument_output"
+
+expect_run_metadata_argument_failure() {
+  local metadata_path="$1"
+  local expected_message="$2"
+  local description="$3"
+  local output_path
+  output_path="$(mktemp)"
+
+  if ruby scripts/validate_ci_artifact.rb \
+    "$artifact_fixture" \
+    --commit fixture-sha \
+    --run-id 12345 \
+    --attempt 1 \
+    --archive "$artifact_archive_fixture" \
+    --archive-size "$artifact_archive_size" \
+    --archive-digest "$artifact_archive_digest" \
+    --artifact-metadata "$artifact_metadata_fixture" \
+    --run-metadata "$metadata_path" \
+    >"$output_path" 2>&1; then
+    echo "Expected $description run metadata fixture to fail argument validation" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
+  grep -q -- "$expected_message" "$output_path"
+  rm -f "$output_path"
+}
+
+run_negative_run_metadata_shape_fixture() {
+  local metadata_path="$1"
+  local description="$2"
+  local output_path
+  output_path="$(mktemp)"
+
+  if ruby scripts/validate_ci_artifact.rb \
+    "$artifact_fixture" \
+    --commit fixture-sha \
+    --run-id 12345 \
+    --attempt 1 \
+    --archive "$artifact_archive_fixture" \
+    --archive-size "$artifact_archive_size" \
+    --archive-digest "$artifact_archive_digest" \
+    --artifact-metadata "$artifact_metadata_fixture" \
+    --run-metadata "$metadata_path" \
+    >"$output_path" 2>&1; then
+    echo "Expected $description run metadata fixture to fail validation" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
+  grep -q "FAIL workflow run metadata response shape" "$output_path"
+  assert_archive_passes "$output_path"
+  assert_artifact_metadata_passes "$output_path"
+  rm -f "$output_path"
+}
+
+run_negative_run_metadata_fixture() {
+  local metadata_path="$1"
+  local failed_check="$2"
+  local description="$3"
+  local output_path
+  output_path="$(mktemp)"
+
+  if ruby scripts/validate_ci_artifact.rb \
+    "$artifact_fixture" \
+    --commit fixture-sha \
+    --run-id 12345 \
+    --attempt 1 \
+    --archive "$artifact_archive_fixture" \
+    --archive-size "$artifact_archive_size" \
+    --archive-digest "$artifact_archive_digest" \
+    --artifact-metadata "$artifact_metadata_fixture" \
+    --run-metadata "$metadata_path" \
+    >"$output_path" 2>&1; then
+    echo "Expected $description run metadata fixture to fail validation" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
+  grep -q "FAIL workflow run metadata $failed_check" "$output_path"
+  assert_archive_passes "$output_path"
+  assert_artifact_metadata_passes "$output_path"
+  assert_run_metadata_passes_except "$output_path" "$failed_check"
+  rm -f "$output_path"
+}
+
+negative_run_metadata_missing_fixture="$artifact_archive_fixture_dir/missing-run-api.json"
+expect_run_metadata_argument_failure "$negative_run_metadata_missing_fixture" "--run-metadata must reference an existing regular file" "missing file"
+
+negative_run_metadata_empty_fixture="$artifact_archive_fixture_dir/empty-run-api.json"
+: > "$negative_run_metadata_empty_fixture"
+expect_run_metadata_argument_failure "$negative_run_metadata_empty_fixture" "--run-metadata must not be empty" "empty file"
+
+negative_run_metadata_oversized_fixture="$artifact_archive_fixture_dir/oversized-run-api.json"
+ruby -e 'File.binwrite(ARGV.fetch(0), "x" * (1_048_576 + 1))' "$negative_run_metadata_oversized_fixture"
+expect_run_metadata_argument_failure "$negative_run_metadata_oversized_fixture" "--run-metadata must not exceed 1048576 bytes" "oversized file"
+
+negative_run_metadata_directory_fixture="$artifact_archive_fixture_dir/run-api-directory"
+mkdir "$negative_run_metadata_directory_fixture"
+expect_run_metadata_argument_failure "$negative_run_metadata_directory_fixture" "--run-metadata must reference a regular file and must not be a symlink" "directory"
+
+negative_run_metadata_symlink_fixture="$artifact_archive_fixture_dir/run-api-symlink.json"
+ln -s "$run_metadata_fixture" "$negative_run_metadata_symlink_fixture"
+expect_run_metadata_argument_failure "$negative_run_metadata_symlink_fixture" "--run-metadata must reference a regular file and must not be a symlink" "symlink"
+
+negative_run_metadata_unreadable_fixture="$artifact_archive_fixture_dir/unreadable-run-api.json"
+cp "$run_metadata_fixture" "$negative_run_metadata_unreadable_fixture"
+chmod 000 "$negative_run_metadata_unreadable_fixture"
+expect_run_metadata_argument_failure "$negative_run_metadata_unreadable_fixture" "--run-metadata must reference a readable regular file" "unreadable file"
+chmod 600 "$negative_run_metadata_unreadable_fixture"
+
+negative_run_metadata_invalid_json_fixture="$artifact_archive_fixture_dir/invalid-run-api.json"
+printf '{"id":' > "$negative_run_metadata_invalid_json_fixture"
+run_negative_run_metadata_shape_fixture "$negative_run_metadata_invalid_json_fixture" "invalid JSON"
+
+negative_run_metadata_top_array_fixture="$artifact_archive_fixture_dir/top-array-run-api.json"
+printf '[]\n' > "$negative_run_metadata_top_array_fixture"
+run_negative_run_metadata_shape_fixture "$negative_run_metadata_top_array_fixture" "top-level array"
+
+negative_run_metadata_top_string_fixture="$artifact_archive_fixture_dir/top-string-run-api.json"
+printf '"run"\n' > "$negative_run_metadata_top_string_fixture"
+run_negative_run_metadata_shape_fixture "$negative_run_metadata_top_string_fixture" "top-level string"
+
+negative_run_metadata_top_number_fixture="$artifact_archive_fixture_dir/top-number-run-api.json"
+printf '12345\n' > "$negative_run_metadata_top_number_fixture"
+run_negative_run_metadata_shape_fixture "$negative_run_metadata_top_number_fixture" "top-level number"
+
+negative_run_metadata_top_true_fixture="$artifact_archive_fixture_dir/top-true-run-api.json"
+printf 'true\n' > "$negative_run_metadata_top_true_fixture"
+run_negative_run_metadata_shape_fixture "$negative_run_metadata_top_true_fixture" "top-level boolean"
+
+negative_run_metadata_top_null_fixture="$artifact_archive_fixture_dir/top-null-run-api.json"
+printf 'null\n' > "$negative_run_metadata_top_null_fixture"
+run_negative_run_metadata_shape_fixture "$negative_run_metadata_top_null_fixture" "top-level null"
+
+ruby -rjson - "$run_metadata_fixture" "$artifact_archive_fixture_dir" <<'RUBY'
+source_path, output_dir = ARGV
+source = JSON.parse(File.read(source_path, encoding: "UTF-8"))
+mutate = lambda do |name, &block|
+  payload = Marshal.load(Marshal.dump(source))
+  block.call(payload)
+  File.write(File.join(output_dir, name), JSON.pretty_generate(payload) + "\n", encoding: "UTF-8")
+end
+
+fields = {
+  "id" => ["id", 54_321, "12345"],
+  "run-attempt" => ["run_attempt", 2, "1"],
+  "head-sha" => ["head_sha", "0000000000000000000000000000000000000000", 12_345],
+  "head-branch" => ["head_branch", "wrong-branch", 12_345],
+  "name" => ["name", "Wrong Workflow", 12_345],
+  "path" => ["path", ".github/workflows/wrong.yml", 12_345],
+  "status" => ["status", "in_progress", 12_345],
+  "conclusion" => ["conclusion", "failure", 12_345]
+}
+fields.each do |fixture_name, (field, wrong_value, wrong_type)|
+  mutate.call("negative-missing-#{fixture_name}-run-api.json") { |payload| payload.delete(field) }
+  mutate.call("negative-value-#{fixture_name}-run-api.json") { |payload| payload[field] = wrong_value }
+  mutate.call("negative-type-#{fixture_name}-run-api.json") { |payload| payload[field] = wrong_type }
+end
+mutate.call("negative-zero-id-run-api.json") { |payload| payload["id"] = 0 }
+mutate.call("negative-negative-id-run-api.json") { |payload| payload["id"] = -1 }
+mutate.call("negative-zero-run-attempt-run-api.json") { |payload| payload["run_attempt"] = 0 }
+mutate.call("negative-negative-run-attempt-run-api.json") { |payload| payload["run_attempt"] = -1 }
+mutate.call("negative-short-head-sha-run-api.json") { |payload| payload["head_sha"] = "fixture" }
+mutate.call("negative-file-name-path-run-api.json") { |payload| payload["path"] = "ci-results.yml" }
+mutate.call("negative-queued-status-run-api.json") { |payload| payload["status"] = "queued" }
+mutate.call("negative-uppercase-status-run-api.json") { |payload| payload["status"] = "COMPLETED" }
+mutate.call("negative-null-conclusion-run-api.json") { |payload| payload["conclusion"] = nil }
+mutate.call("negative-cancelled-conclusion-run-api.json") { |payload| payload["conclusion"] = "cancelled" }
+mutate.call("negative-missing-repository-run-api.json") { |payload| payload.delete("repository") }
+mutate.call("negative-repository-shape-run-api.json") { |payload| payload["repository"] = [] }
+mutate.call("negative-missing-repository-full-name-run-api.json") { |payload| payload["repository"].delete("full_name") }
+mutate.call("negative-repository-full-name-run-api.json") { |payload| payload["repository"]["full_name"] = "Other/114" }
+mutate.call("negative-repository-name-run-api.json") { |payload| payload["repository"]["full_name"] = "Altman-sam114/other" }
+mutate.call("negative-repository-short-name-run-api.json") { |payload| payload["repository"]["full_name"] = "114" }
+mutate.call("negative-repository-full-name-type-run-api.json") { |payload| payload["repository"]["full_name"] = 12_345 }
+RUBY
+
+for run_field_spec in \
+  "id:id" \
+  "run-attempt:run attempt" \
+  "head-sha:head sha" \
+  "head-branch:head branch" \
+  "name:name" \
+  "path:path" \
+  "status:status" \
+  "conclusion:conclusion"; do
+  run_fixture_name="${run_field_spec%%:*}"
+  run_check_name="${run_field_spec#*:}"
+  run_negative_run_metadata_fixture \
+    "$artifact_archive_fixture_dir/negative-missing-$run_fixture_name-run-api.json" \
+    "$run_check_name" \
+    "missing $run_check_name"
+  run_negative_run_metadata_fixture \
+    "$artifact_archive_fixture_dir/negative-value-$run_fixture_name-run-api.json" \
+    "$run_check_name" \
+    "$run_check_name mismatch"
+  run_negative_run_metadata_fixture \
+    "$artifact_archive_fixture_dir/negative-type-$run_fixture_name-run-api.json" \
+    "$run_check_name" \
+    "$run_check_name type"
+done
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-zero-id-run-api.json" "id" "zero id"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-negative-id-run-api.json" "id" "negative id"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-zero-run-attempt-run-api.json" "run attempt" "zero run attempt"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-negative-run-attempt-run-api.json" "run attempt" "negative run attempt"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-short-head-sha-run-api.json" "head sha" "short head SHA"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-file-name-path-run-api.json" "path" "path file name only"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-queued-status-run-api.json" "status" "queued status"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-uppercase-status-run-api.json" "status" "uppercase status"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-null-conclusion-run-api.json" "conclusion" "null conclusion"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-cancelled-conclusion-run-api.json" "conclusion" "cancelled conclusion"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-missing-repository-run-api.json" "repository" "missing repository"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-repository-shape-run-api.json" "repository" "repository shape"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-missing-repository-full-name-run-api.json" "repository" "missing repository full_name"
+negative_run_metadata_repository_full_name_fixture="$artifact_archive_fixture_dir/negative-repository-full-name-run-api.json"
+run_negative_run_metadata_fixture "$negative_run_metadata_repository_full_name_fixture" "repository" "repository owner mismatch"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-repository-name-run-api.json" "repository" "repository name mismatch"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-repository-short-name-run-api.json" "repository" "repository short name"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-repository-full-name-type-run-api.json" "repository" "repository full_name type"
 
 negative_artifact_archive_argument_group_output="$(mktemp)"
 if ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 --archive "$artifact_archive_fixture" >"$negative_artifact_archive_argument_group_output" 2>&1; then
@@ -2573,6 +3072,83 @@ fi
 grep -q "FAIL verify_project ci artifact API metadata contracts" "$negative_ci_artifact_api_metadata_marker_output"
 rm -rf "$negative_ci_artifact_api_metadata_marker_fixture"
 rm -f "$negative_ci_artifact_api_metadata_marker_output"
+negative_existing_category_reuse_marker_fixture="$(mktemp -d)"
+negative_existing_category_reuse_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_existing_category_reuse_marker_fixture"/
+python3 - "$negative_existing_category_reuse_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "Existing category reuse contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb \
+  "$negative_existing_category_reuse_marker_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  --artifact-metadata "$artifact_metadata_fixture" \
+  --run-metadata "$run_metadata_fixture" \
+  >"$negative_existing_category_reuse_marker_output" 2>&1; then
+  echo "Expected negative existing category reuse marker fixture to fail validation" >&2
+  cat "$negative_existing_category_reuse_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project existing category reuse contracts" "$negative_existing_category_reuse_marker_output"
+assert_archive_passes "$negative_existing_category_reuse_marker_output"
+assert_artifact_metadata_passes "$negative_existing_category_reuse_marker_output"
+assert_run_metadata_passes_except "$negative_existing_category_reuse_marker_output"
+rm -rf "$negative_existing_category_reuse_marker_fixture"
+rm -f "$negative_existing_category_reuse_marker_output"
+
+negative_ci_workflow_run_api_metadata_marker_fixture="$(mktemp -d)"
+negative_ci_workflow_run_api_metadata_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_ci_workflow_run_api_metadata_marker_fixture"/
+python3 - "$negative_ci_workflow_run_api_metadata_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+verify_log_path.write_text(
+    verify_log_path.read_text(encoding="utf-8").replace(
+        "CI workflow run API metadata contracts verified.\n",
+        "",
+    ),
+    encoding="utf-8",
+)
+PY
+if ruby scripts/validate_ci_artifact.rb \
+  "$negative_ci_workflow_run_api_metadata_marker_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  --artifact-metadata "$artifact_metadata_fixture" \
+  --run-metadata "$run_metadata_fixture" \
+  >"$negative_ci_workflow_run_api_metadata_marker_output" 2>&1; then
+  echo "Expected negative CI workflow run API metadata marker fixture to fail validation" >&2
+  cat "$negative_ci_workflow_run_api_metadata_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project ci workflow run API metadata contracts" "$negative_ci_workflow_run_api_metadata_marker_output"
+assert_archive_passes "$negative_ci_workflow_run_api_metadata_marker_output"
+assert_artifact_metadata_passes "$negative_ci_workflow_run_api_metadata_marker_output"
+assert_run_metadata_passes_except "$negative_ci_workflow_run_api_metadata_marker_output"
+rm -rf "$negative_ci_workflow_run_api_metadata_marker_fixture"
+rm -f "$negative_ci_workflow_run_api_metadata_marker_output"
 negative_mac_quick_add_action_marker_fixture="$(mktemp -d)"
 negative_mac_quick_add_action_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_mac_quick_add_action_marker_fixture"/
@@ -3546,6 +4122,7 @@ echo "CI action Node.js 24 contracts verified."
 echo "CI failure summary output contracts verified."
 echo "CI artifact archive integrity contracts verified."
 echo "CI artifact API metadata contracts verified."
+echo "CI workflow run API metadata contracts verified."
 
 echo "Running Mac core tests..."
 xcrun --sdk macosx swiftc \
