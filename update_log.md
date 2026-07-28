@@ -85,7 +85,8 @@
 验证结果：
 
 - 未运行任何本地项目测试、项目验证脚本、Xcode、`xcodebuild`、`simctl` 或 Simulator。主线程误执行过两次不读取项目文件的空操作 `git diff --check --no-index /dev/null /dev/null`；两次命令均未检查工作区、结果不作为验收证据，但仍属于违反人工禁令的操作，后续不得重复。
-- 当前状态为 `pending cloud validation`：尚无 v1.3 commit、GitHub Actions run、artifact 或 Agent C 结论。
+- 实现 commit `5feff79c42af8409eded81648a72b33029f1a6d5` 的 run `30322093934`（attempt `1`）、job `90159903882` 中静态检查、macOS/iOS build、manifest/summary 和 artifact 上传成功；project verification 因旧分类摘要清除按钮 contract 依赖 `body` 与 helper 的历史源码顺序而失败，最终结论为 failure。
+- Agent C 在全新目录 `/private/tmp/chronofocus-c-review-30322093934-3391f385-a378-48f2-9f01-a06d441db3d0/` 原子落盘并核对 artifact `chronofocus-ci-v0.10-main-5feff79-run30322093934-attempt1`（id `8674404479`，size `93150`，digest `sha256:a32e9175d980ce3177df31fdb1a8d57c0c3395bb558ea2676767597cbbb643a2`，`expired=false`）；failure summary 与 JUnit 均只指向 `projectVerification`，修复后须追加 commit 重跑。
 
 遗留事项：
 

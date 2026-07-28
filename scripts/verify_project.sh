@@ -377,8 +377,8 @@ raise "Schedule category summary add accessibility label missing" unless schedul
 raise "Schedule category summary add Voice Control input labels missing" unless schedule_summary_add_button.include?(".accessibilityInputLabels([Text(\"新增此分类\"), Text(\"新增\\(category)分类待办\"), Text(\"新增\\(category)分类\")])")
 schedule_summary_clear_button = segment_slice(
   schedule_summary_source,
-  "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
-  ".accessibilityElement(children: .contain)",
+  "private var clearButton: some View",
+  "private struct ScheduleCategoryEmptyStateView",
   "Schedule category summary clear button source missing"
 )
 raise "Schedule category summary clear button tap target missing" unless schedule_summary_clear_button.include?(".frame(minWidth: 72)") && schedule_summary_clear_button.include?(".frame(minHeight: 44)")
@@ -793,7 +793,7 @@ raise "Mac category summary add button tap target missing" unless mac_schedule_s
 mac_schedule_summary_clear_button = segment_slice(
   mac_schedule_summary_source,
   "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
-  ".accessibilityElement(children: .contain)",
+  ".frame(maxWidth: axis == .vertical ? .infinity : nil, alignment: .leading)",
   "Mac category summary clear button source missing"
 )
 raise "Mac category summary clear accessibility label missing" unless mac_schedule_summary_clear_button.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
