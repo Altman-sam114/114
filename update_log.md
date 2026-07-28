@@ -89,6 +89,8 @@
 - Agent C 在全新目录 `/private/tmp/chronofocus-c-review-30322093934-3391f385-a378-48f2-9f01-a06d441db3d0/` 原子落盘并核对 artifact `chronofocus-ci-v0.10-main-5feff79-run30322093934-attempt1`（id `8674404479`，size `93150`，digest `sha256:a32e9175d980ce3177df31fdb1a8d57c0c3395bb558ea2676767597cbbb643a2`，`expired=false`）；failure summary 与 JUnit 均只指向 `projectVerification`，修复后须追加 commit 重跑。
 - 首次修复 commit `ab1974f943dfc6869c9a44849b2f9552585310e6` 的 run `30322395891`（attempt `1`）、job `90160800368` 已输出 `Schedule to timer handoff contracts verified.`，两端 build 和结果包上传成功；随后另一条旧 contract 因 `MacTaskListPanelView` 调用已封装到 `taskListPanel` helper、仍以旧调用位置到 `.onChange` 为切片而失败。
 - Agent C 在全新目录 `/private/tmp/chronofocus-c-review-30322395891-186a98e0-026c-4515-8e75-0b4be83aba5f/` 核对 artifact `chronofocus-ci-v0.10-main-ab1974f-run30322395891-attempt1`（id `8674495274`，size `93522`，digest `sha256:1f787f3fac1e14f42dd6c63ef57c6160ebbe9e7e72cafb332b2d05bb38fe2d58`，`expired=false`）；failure summary 仍只指向 `projectVerification`，现改为直接验证 helper 内的 callback 接线。
+- 第二次修复 commit `a5d5a85ac7095fe5718f45ba3c310c7252acb56d` 的 run `30322671653`（attempt `1`）、job `90161605749` 全步骤成功。Agent C 在 `/private/tmp/chronofocus-c-review-30322671653-ee8dcfd5-fe47-4ba7-8498-dca9bc14f086/` 原子落盘并复判 artifact `chronofocus-ci-v0.10-main-a5d5a85-run30322671653-attempt1`（id `8674620314`，size `14323974`，digest `sha256:58caa79f3d136235ddce0b6fba7201b5ed2ce3b0712d59a36b351ea4d052f1d3`，`expired=false`）为 `129 PASS / 0 FAIL`；JUnit 为 `4 tests / 0 failures / 0 errors`，annotations 为 `0`，Mac/iOS build 均成功。
+- `detail-schedule.png` 清晰显示“产品”分类摘要的“转到计时”入口，`detail-timer.png` 显示“产品”筛选、`1/3` 计数和 selected 目标任务；两张快照均无重叠、空白占位或截断。独立 Agent C 判定实现验收通过，证据文档 commit 仍须单独 push 和云端复判。
 
 遗留事项：
 

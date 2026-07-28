@@ -105,4 +105,4 @@ Agent A 写给 Agent B 的提示词必须明确：
 - v1.3：`md/prompt/v1（持续优化）/v1.3（日程分类接力到计时）.md`。
 - UI 范围：iOS/macOS 从日程分类摘要或任务行发出带唯一 id 的瞬态接力请求，切到计时并恢复分类/合法任务选择；运行中不替换任务，且绝不自动开始。
 - CI 范围：新增 `Schedule to timer handoff contracts verified.`、对应 validator PASS 和 marker 缺失负向 fixture；两张 Mac 快照覆盖接力入口与计时终态，预期基线 `129 PASS / 0 FAIL`。
-- 状态：`repair pending cloud validation`。实现 run `30322093934` 因旧分类摘要清除按钮 contract 的源码顺序假设失败；修复 commit `ab1974f943dfc6869c9a44849b2f9552585310e6` 的 run `30322395891` 已越过新接力 marker，但另一条旧 Mac 任务列表 callback contract 未跟随调用封装到 helper，project verification 仍失败。两次 run 的静态检查、macOS/iOS build 与结果包上传均成功，Agent C 已保留原始 API/ZIP 证据；修复后须追加 commit 重跑。未运行本地项目测试或验证，主线程误执行的两次 `/dev/null` 空 `git diff --check --no-index` 均未读取项目文件且不作为证据。
+- 状态：实现验收通过，最终证据 commit 待云端复判。前两次 run `30322093934`、`30322395891` 分别暴露并修复两个旧源码切片边界；实现 commit `a5d5a85ac7095fe5718f45ba3c310c7252acb56d` 的 run `30322671653`（attempt `1`）成功，Agent C 在全新目录复判 artifact `8674620314` 为 `129 PASS / 0 FAIL`，JUnit `4/0/0`、annotations `0`，两端 build 与关键快照均通过。未运行本地项目测试或验证；主线程误执行的两次 `/dev/null` 空 `git diff --check --no-index` 均未读取项目文件且不作为证据。
