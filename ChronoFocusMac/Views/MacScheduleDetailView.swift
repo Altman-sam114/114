@@ -10,6 +10,7 @@ struct MacScheduleDetailView: View {
     @EnvironmentObject private var notifications: MacNotificationService
     let quickAddRequest: MacQuickAddRequest?
     let onConsumeQuickAddRequest: (UUID) -> Void
+    let onTimerHandoff: (String, UUID?) -> Void
     @State private var taskTitle = ""
     @State private var category = "工作"
     @State private var dueDate = Date().addingTimeInterval(3600)
@@ -22,11 +23,15 @@ struct MacScheduleDetailView: View {
 
     init(
         quickAddRequest: MacQuickAddRequest? = nil,
+        initialTaskCategory: String? = nil,
         initialExistingCategorySearchQuery: String = "",
-        onConsumeQuickAddRequest: @escaping (UUID) -> Void = { _ in }
+        onConsumeQuickAddRequest: @escaping (UUID) -> Void = { _ in },
+        onTimerHandoff: @escaping (String, UUID?) -> Void = { _, _ in }
     ) {
         self.quickAddRequest = quickAddRequest
         self.onConsumeQuickAddRequest = onConsumeQuickAddRequest
+        self.onTimerHandoff = onTimerHandoff
+        _selectedCategory = State(initialValue: initialTaskCategory)
         _existingCategorySearchQuery = State(initialValue: initialExistingCategorySearchQuery)
     }
 
@@ -196,13 +201,15 @@ struct MacScheduleDetailView: View {
                 .frame(width: 320)
 
                 VStack(spacing: 18) {
+                    if isSnapshotRendering {
+                        taskListPanel
+                    }
                     MacCalendarPanelView(onAddTaskAtDate: prepareQuickAdd(at:))
                     MacCalendarSyncPanelView()
                     MacPlanPanelView()
-                    MacTaskListPanelView(
-                        selectedCategory: $selectedCategory,
-                        onAddTaskInCategory: prepareQuickAdd
-                    )
+                    if !isSnapshotRendering {
+                        taskListPanel
+                    }
                 }
             }
         }
@@ -220,6 +227,14 @@ struct MacScheduleDetailView: View {
             prepareQuickAdd(quickAddRequest.category)
             onConsumeQuickAddRequest(quickAddRequest.id)
         }
+    }
+
+    private var taskListPanel: some View {
+        MacTaskListPanelView(
+            selectedCategory: $selectedCategory,
+            onAddTaskInCategory: prepareQuickAdd,
+            onTimerHandoff: onTimerHandoff
+        )
     }
 
     private func addTask() {
@@ -1205,9 +1220,11 @@ private struct MacPlanCategoryBadgeView: View {
 
 private struct MacTaskListPanelView: View {
     @EnvironmentObject private var store: FocusStore
+    @EnvironmentObject private var engine: TimerEngine
     @EnvironmentObject private var notifications: MacNotificationService
     @Binding var selectedCategory: String?
     let onAddTaskInCategory: (String) -> Void
+    let onTimerHandoff: (String, UUID?) -> Void
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     private var visibleTasks: [FocusTask] {
@@ -1252,9 +1269,13 @@ private struct MacTaskListPanelView: View {
                     MacSelectedCategorySummaryView(
                         category: selectedCategoryName,
                         count: taskCount(in: selectedCategoryName),
+                        isTimerRunning: engine.isRunning,
                         isSnapshotRendering: isSnapshotRendering,
                         onAddTask: {
                             onAddTaskInCategory(selectedCategoryName)
+                        },
+                        onTimerHandoff: {
+                            onTimerHandoff(selectedCategoryName, nil)
                         }
                     ) {
                         selectedCategory = nil
@@ -1308,9 +1329,25 @@ private struct MacTaskListPanelView: View {
                         MacTaskRowView(task: task)
 
                         if isSnapshotRendering {
+                            MacStaticScheduleActionChipView(
+                                title: "将\(task.title)设为当前计时待办，\(task.category)分类",
+                                symbolName: "timer",
+                                tint: task.isEnabled ? .cyan : MacTheme.secondaryText,
+                                isProminent: false,
+                                iconOnly: true
+                            )
                             MacStaticTaskEnablePillView(isEnabled: task.isEnabled, taskTitle: task.title, taskCategory: task.category)
                             MacStaticScheduleActionChipView(title: "删除\(task.title)待办，\(task.category)分类", symbolName: "trash", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
                         } else {
+                            Button("设为计时待办", systemImage: "timer") {
+                                onTimerHandoff(task.category, task.id)
+                            }
+                            .labelStyle(.iconOnly)
+                            .disabled(!task.isEnabled)
+                            .accessibilityLabel(timerHandoffLabel(for: task))
+                            .accessibilityHint(timerHandoffHint(for: task))
+                            .accessibilityInputLabels(timerHandoffInputLabels(for: task))
+
                             Toggle("启用", isOn: Binding(
                                 get: { task.isEnabled },
                                 set: { setTask(task, enabled: $0) }
@@ -1365,6 +1402,37 @@ private struct MacTaskListPanelView: View {
         if let updatedTask = store.setTaskEnabled(task, enabled: enabled) {
             syncMacTaskReminder(for: updatedTask, store: store, notifications: notifications)
         }
+    }
+
+    private func timerHandoffHint(for task: FocusTask) -> String {
+        guard task.isEnabled else { return "请先启用此待办" }
+        if engine.isRunning {
+            return "转到计时页并查看此分类；计时运行中不可切换当前待办"
+        }
+        return "转到计时页并选择此待办，不会自动开始计时"
+    }
+
+    private func timerHandoffLabel(for task: FocusTask) -> String {
+        if engine.isRunning {
+            return "在计时页查看\(task.category)分类，计时运行中不切换到\(task.title)"
+        }
+        return "将\(task.title)设为当前计时待办，\(task.category)分类"
+    }
+
+    private func timerHandoffInputLabels(for task: FocusTask) -> [Text] {
+        if engine.isRunning {
+            return [
+                Text("查看\(task.category)分类"),
+                Text("转到计时"),
+                Text("\(task.category)分类转到计时")
+            ]
+        }
+        return [
+            Text("转到计时"),
+            Text("将\(task.title)设为计时待办"),
+            Text("\(task.title)转到计时"),
+            Text("\(task.category)分类转到计时")
+        ]
     }
 }
 
@@ -1461,8 +1529,10 @@ private struct MacScheduleCategoryEmptyStateView: View {
 private struct MacSelectedCategorySummaryView: View {
     let category: String
     let count: Int
+    let isTimerRunning: Bool
     let isSnapshotRendering: Bool
     let onAddTask: () -> Void
+    let onTimerHandoff: () -> Void
     let onClear: () -> Void
 
     private var preset: TaskCategoryPreset? {
@@ -1473,8 +1543,41 @@ private struct MacSelectedCategorySummaryView: View {
         Color(hex: preset?.accentHex ?? "#3DE8C5")
     }
 
+    private var timerHandoffAccessibilityLabel: String {
+        if isTimerRunning {
+            return "在计时页查看\(category)分类，计时运行中不可切换当前待办"
+        }
+        return "在计时页查看\(category)分类并选择待办"
+    }
+
+    private var timerHandoffAccessibilityHint: String {
+        isTimerRunning
+            ? "转到计时页并恢复分类筛选，不会替换当前待办"
+            : "转到计时页并选择此分类首个可用待办，不会自动开始计时"
+    }
+
     var body: some View {
-        HStack(spacing: 10) {
+        ViewThatFits(in: .horizontal) {
+            summaryLayout(axis: .horizontal)
+            summaryLayout(axis: .vertical)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(tint.opacity(0.36), lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("当前筛选\(category)分类，\(count)项，可转到计时、新增此分类待办或清除筛选")
+    }
+
+    private func summaryLayout(axis: Axis) -> some View {
+        let layout = axis == .horizontal
+            ? AnyLayout(HStackLayout(alignment: .center, spacing: 10))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+
+        return layout {
             Label(category, systemImage: preset?.symbolName ?? "tag.fill")
                 .font(.subheadline.bold())
                 .foregroundStyle(MacTheme.primaryText)
@@ -1486,44 +1589,67 @@ private struct MacSelectedCategorySummaryView: View {
                 .padding(.vertical, 4)
                 .background(tint.opacity(0.16), in: Capsule())
 
-            Spacer()
+            if axis == .horizontal {
+                Spacer(minLength: 0)
+            }
 
+            summaryActions(axis: axis)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func summaryActions(axis: Axis) -> some View {
+        let layout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 8))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+
+        return layout {
             if isSnapshotRendering {
-                HStack(spacing: 8) {
-                    MacSummaryStaticActionView(title: "新增此分类", tint: tint, isProminent: true)
-                    MacSummaryStaticActionView(title: "清除", tint: tint, isProminent: false)
-                }
+                MacSummaryStaticActionView(title: "转到计时", tint: tint, isProminent: false)
+                    .frame(maxWidth: axis == .vertical ? .infinity : nil)
+                MacSummaryStaticActionView(title: "新增此分类", tint: tint, isProminent: true)
+                    .frame(maxWidth: axis == .vertical ? .infinity : nil)
+                MacSummaryStaticActionView(title: "清除", tint: tint, isProminent: false)
+                    .frame(maxWidth: axis == .vertical ? .infinity : nil)
             } else {
-                HStack(spacing: 8) {
-                    Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
-                        .font(.caption.bold())
-                        .foregroundStyle(Color.black.opacity(0.82))
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 10)
-                        .frame(minWidth: 104, minHeight: 36)
-                        .background(tint, in: Capsule())
-                        .accessibilityLabel("新增\(category)分类待办")
-                        .accessibilityInputLabels([Text("新增此分类"), Text("新增\(category)分类待办"), Text("新增\(category)分类")])
+                Button("转到计时", systemImage: "timer", action: onTimerHandoff)
+                    .font(.caption.bold())
+                    .foregroundStyle(tint)
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .frame(minWidth: 92, minHeight: 36)
+                    .frame(maxWidth: axis == .vertical ? .infinity : nil)
+                    .background(Color.white.opacity(0.07), in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(tint.opacity(0.36), lineWidth: 1)
+                    }
+                    .accessibilityLabel(timerHandoffAccessibilityLabel)
+                    .accessibilityHint(timerHandoffAccessibilityHint)
+                    .accessibilityInputLabels([Text("转到计时"), Text("在计时页查看\(category)分类"), Text("\(category)分类转到计时")])
 
-                    Button("清除", systemImage: "xmark.circle.fill", action: onClear)
-                        .font(.caption.bold())
-                        .foregroundStyle(tint)
-                        .buttonStyle(.plain)
-                        .frame(minWidth: 72, minHeight: 36)
-                        .accessibilityLabel("清除\(category)分类筛选")
-                        .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
-                }
+                Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
+                    .font(.caption.bold())
+                    .foregroundStyle(Color.black.opacity(0.82))
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .frame(minWidth: 104, minHeight: 36)
+                    .frame(maxWidth: axis == .vertical ? .infinity : nil)
+                    .background(tint, in: Capsule())
+                    .accessibilityLabel("新增\(category)分类待办")
+                    .accessibilityInputLabels([Text("新增此分类"), Text("新增\(category)分类待办"), Text("新增\(category)分类")])
+
+                Button("清除", systemImage: "xmark.circle.fill", action: onClear)
+                    .font(.caption.bold())
+                    .foregroundStyle(tint)
+                    .buttonStyle(.plain)
+                    .frame(minWidth: 72, minHeight: 36)
+                    .frame(maxWidth: axis == .vertical ? .infinity : nil)
+                    .accessibilityLabel("清除\(category)分类筛选")
+                    .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(tint.opacity(0.36), lineWidth: 1)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("当前筛选\(category)分类，\(count)项，可新增此分类待办或清除筛选")
+        .frame(maxWidth: axis == .vertical ? .infinity : nil, alignment: .leading)
     }
 }
 

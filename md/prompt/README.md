@@ -101,4 +101,8 @@ Agent A 写给 Agent B 的提示词必须明确：
 - v1.2：`md/prompt/v1（持续优化）/v1.2（已有分类搜索与Run来源复判）.md`。
 - UI 范围：iOS/macOS 在至少 6 个非预设已有分类时提供规范化名称子串搜索、结果数/总数、清除和无结果反馈；搜索只过滤 View option，不修改分类草稿或持久化。
 - CI 范围：Run API 完整模式增加 `event`、`actor.login`、`triggering_actor.login`、`head_repository.full_name` 四项授权来源复判，并增加独立项目 marker/PASS 和负向 fixtures。
-- 状态：实现验收通过。未运行任何本地测试或检查。首次 run `30194825035` 虽为 `128 PASS / 0 FAIL`，但因云端快照缺少筛选结果 chip 被退回；返修 commit `0802d252056e99c704db8fe4bdaf8d26bb39a846` 的 run `30195201551`（attempt `1`）成功，Agent C 复判 artifact `chronofocus-ci-v0.10-main-0802d25-run30195201551-attempt1`（id `8629896081`，size `14377527`，digest `sha256:78644d90e385b81c6c84017a059a4bc48bbebffe0967d63f14e04e7f2fdd8382`，`expired=false`）为 `128 PASS / 0 FAIL`，annotations 为 0；`detail-schedule.png` 已清晰显示“产品”结果 chip，无重叠、占位或截断。
+- 状态：已闭环。未运行任何本地测试或检查。首次 run `30194825035` 虽为 `128 PASS / 0 FAIL`，但因云端快照缺少筛选结果 chip 被退回；返修 commit `0802d252056e99c704db8fe4bdaf8d26bb39a846` 的 run `30195201551` 通过实现验收。最终证据 commit `001875c842a2a2368346c043af59498c75a68788` 的 run `30195874234`（attempt `1`）成功，Agent C 复判 artifact `chronofocus-ci-v0.10-main-001875c-run30195874234-attempt1`（id `8630116575`，size `14377358`，digest `sha256:1ac0c627198c6d64cb77911a767c487a61d6c0604a383a6220f189e6aad4f007`，`expired=false`）为 `128 PASS / 0 FAIL`，annotations 为 0；`detail-schedule.png` 清晰显示“产品”结果 chip，无重叠、占位或截断。
+- v1.3：`md/prompt/v1（持续优化）/v1.3（日程分类接力到计时）.md`。
+- UI 范围：iOS/macOS 从日程分类摘要或任务行发出带唯一 id 的瞬态接力请求，切到计时并恢复分类/合法任务选择；运行中不替换任务，且绝不自动开始。
+- CI 范围：新增 `Schedule to timer handoff contracts verified.`、对应 validator PASS 和 marker 缺失负向 fixture；两张 Mac 快照覆盖接力入口与计时终态，预期基线 `129 PASS / 0 FAIL`。
+- 状态：`pending cloud validation`。Agent A 提示词已写入，Agent B 已完成两端接力、快照和 CI contract 实现；未运行本地项目测试或验证，主线程误执行的两次 `/dev/null` 空 `git diff --check --no-index` 均未读取项目文件且不作为证据；尚无 v1.3 commit、run、artifact 或 PASS 结论。

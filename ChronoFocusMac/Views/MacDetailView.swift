@@ -4,6 +4,7 @@ import SwiftUI
 final class MacDetailSelection: ObservableObject {
     @Published var selectedSection: MacDetailSection?
     @Published private(set) var quickAddRequest: MacQuickAddRequest?
+    @Published private(set) var timerHandoffRequest: MacTimerHandoffRequest?
 
     init(selectedSection: MacDetailSection = .timer) {
         self.selectedSection = selectedSection
@@ -18,11 +19,30 @@ final class MacDetailSelection: ObservableObject {
         guard quickAddRequest?.id == id else { return }
         quickAddRequest = nil
     }
+
+    func requestTimerHandoff(category: String, preferredTaskID: UUID?) {
+        timerHandoffRequest = MacTimerHandoffRequest(
+            category: category,
+            preferredTaskID: preferredTaskID
+        )
+        selectedSection = .timer
+    }
+
+    func consumeTimerHandoffRequest(id: UUID) {
+        guard timerHandoffRequest?.id == id else { return }
+        timerHandoffRequest = nil
+    }
 }
 
 struct MacQuickAddRequest: Identifiable, Equatable {
     let id = UUID()
     let category: String
+}
+
+struct MacTimerHandoffRequest: Identifiable, Equatable {
+    let id = UUID()
+    let category: String
+    let preferredTaskID: UUID?
 }
 
 struct MacDetailView: View {
@@ -53,11 +73,16 @@ private struct MacDetailContentView: View {
         ScrollView {
             switch selection.selectedSection ?? .timer {
             case .timer:
-                MacTimerDetailView(onAddTaskInCategory: selection.requestQuickAdd)
+                MacTimerDetailView(
+                    onAddTaskInCategory: selection.requestQuickAdd,
+                    timerHandoffRequest: selection.timerHandoffRequest,
+                    onConsumeTimerHandoffRequest: selection.consumeTimerHandoffRequest
+                )
             case .schedule:
                 MacScheduleDetailView(
                     quickAddRequest: selection.quickAddRequest,
-                    onConsumeQuickAddRequest: selection.consumeQuickAddRequest
+                    onConsumeQuickAddRequest: selection.consumeQuickAddRequest,
+                    onTimerHandoff: selection.requestTimerHandoff
                 )
             case .analytics:
                 MacAnalyticsDetailView()

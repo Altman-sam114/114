@@ -7,8 +7,18 @@ struct TimerView: View {
     @State private var selectedTaskCategory: String?
     @State private var showingCategoryEditor = false
     @State private var isTaskQueueExpanded = false
+    let timerHandoffRequest: TimerHandoffRequest?
+    let onConsumeTimerHandoff: (UUID) -> Void
 
     private let collapsedTaskLimit = 4
+
+    init(
+        timerHandoffRequest: TimerHandoffRequest? = nil,
+        onConsumeTimerHandoff: @escaping (UUID) -> Void = { _ in }
+    ) {
+        self.timerHandoffRequest = timerHandoffRequest
+        self.onConsumeTimerHandoff = onConsumeTimerHandoff
+    }
 
     private var currentTint: Color {
         if let task = store.task(for: engine.selectedTaskID) {
@@ -168,7 +178,39 @@ struct TimerView: View {
                 .environmentObject(notifications)
                 .presentationDetents([.medium, .large])
             }
+            .task(id: timerHandoffRequest?.id) {
+                consumeTimerHandoffRequest()
+            }
         }
+    }
+
+    private func consumeTimerHandoffRequest() {
+        guard let request = timerHandoffRequest else { return }
+
+        selectedTaskCategory = request.category
+        isTaskQueueExpanded = false
+
+        let startableTasks = store.upcomingTasks().filter(\.isEnabled)
+        let categoryTasks = startableTasks.filter { $0.category == request.category }
+        let targetTask: FocusTask?
+        if let preferredTaskID = request.preferredTaskID {
+            targetTask = categoryTasks.first { $0.id == preferredTaskID }
+        } else {
+            targetTask = categoryTasks.first
+        }
+
+        if !engine.isRunning {
+            if let targetTask {
+                engine.selectTask(targetTask)
+            } else if request.preferredTaskID != nil {
+                engine.selectTask(nil)
+            } else if let selectedTaskID = engine.selectedTaskID,
+                      !categoryTasks.contains(where: { $0.id == selectedTaskID }) {
+                engine.selectTask(nil)
+            }
+        }
+
+        onConsumeTimerHandoff(request.id)
     }
 
     private var header: some View {

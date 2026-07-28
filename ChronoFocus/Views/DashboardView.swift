@@ -1,6 +1,18 @@
 import SwiftUI
 import UIKit
 
+struct TimerHandoffRequest: Identifiable, Equatable {
+    let id: UUID
+    let category: String
+    let preferredTaskID: UUID?
+
+    init(id: UUID = UUID(), category: String, preferredTaskID: UUID? = nil) {
+        self.id = id
+        self.category = category
+        self.preferredTaskID = preferredTaskID
+    }
+}
+
 struct DashboardView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
@@ -8,14 +20,18 @@ struct DashboardView: View {
     @EnvironmentObject private var premium: PremiumAccessService
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: AppTab = .timer
+    @State private var timerHandoffRequest: TimerHandoffRequest?
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            TimerView()
+            TimerView(
+                timerHandoffRequest: timerHandoffRequest,
+                onConsumeTimerHandoff: consumeTimerHandoff
+            )
                 .tabItem { Label("计时", systemImage: "timer") }
                 .tag(AppTab.timer)
 
-            ScheduleView()
+            ScheduleView(onTimerHandoff: requestTimerHandoff)
                 .tabItem { Label("日程", systemImage: "calendar") }
                 .tag(AppTab.schedule)
 
@@ -60,6 +76,16 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    private func requestTimerHandoff(_ request: TimerHandoffRequest) {
+        timerHandoffRequest = request
+        selectedTab = .timer
+    }
+
+    private func consumeTimerHandoff(id: UUID) {
+        guard timerHandoffRequest?.id == id else { return }
+        timerHandoffRequest = nil
     }
 
     private func enforceCompletionSoundAccess() {

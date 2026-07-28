@@ -71,6 +71,17 @@ flowchart TD
   IS -->|新增此分类| SE["既有TaskEditor或Mac快速新增<br/>预填当前分类"]
   SE --> B
   IS -->|清除筛选| C2
+  IS -->|分类摘要转到计时| TH["一次性 TimerHandoffRequest<br/>UUID、分类、preferredTaskID=nil"]
+  C -->|日程任务行设为计时待办| TE["一次性精确接力请求<br/>UUID、分类、preferredTaskID"]
+  TH --> TN["DashboardView / MacDetailSelection<br/>保存瞬态请求并切换到计时"]
+  TE --> TN
+  TN --> TV["TimerView / MacTimerDetailView<br/>按请求id消费并恢复分类<br/>从FocusStore重新查询可启动任务"]
+  TV -->|非运行且目标合法| TS["TimerEngine.selectTask<br/>只选择，不自动开始"]
+  TV -->|精确目标失效| TC["TimerEngine.selectTask(nil)<br/>不保留同分类错误旧任务"]
+  TV -->|计时运行中| TB["只恢复分类筛选<br/>不替换或清除当前任务"]
+  TS --> D
+  TC --> D
+  TB --> D
   C2 --> IT["iOS计时分类筛选<br/>非空摘要与空态互斥<br/>筛选数/总数、双操作<br/>默认前4项、超过时展开/收起"]
   IT -->|新增此分类| IE["既有TaskEditor sheet<br/>initialCategory预填<br/>筛选保持"]
   IE --> B

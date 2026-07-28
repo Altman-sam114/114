@@ -293,6 +293,25 @@ def segment_slice(source, earlier, later, message)
   source[earlier_index...later_index]
 end
 
+def function_slices_matching(source, name_pattern)
+  slices = []
+  source.to_enum(:scan, /\bfunc\s+\w*#{name_pattern}\w*\s*\([^)]*\)[^{]*\{/i).each do
+    match = Regexp.last_match
+    depth = 0
+    ending = nil
+    source[match.begin(0)..].each_char.with_index(match.begin(0)) do |character, index|
+      depth += 1 if character == "{"
+      depth -= 1 if character == "}"
+      if depth.zero? && index >= match.end(0)
+        ending = index + 1
+        break
+      end
+    end
+    slices << source[match.begin(0)...ending] if ending
+  end
+  slices
+end
+
 def assert_slice_contains(path, earlier, later, pattern, message)
   segment = source_slice(path, earlier, later, message)
   matched = pattern.is_a?(Regexp) ? segment.match?(pattern) : segment.include?(pattern)
@@ -1104,6 +1123,108 @@ raise "Mac schedule snapshot must seed at least six non-preset existing categori
 raise "Mac schedule snapshot must use a nonempty existing category search query" unless mac_snapshot_source.match?(/MacScheduleDetailView\([\s\S]{0,500}?(?:initialExistingCategorySearchQuery|existingCategorySearchQuery):\s*\"[^\"]+\"/)
 puts "Existing category search contracts verified."
 
+dashboard_source = File.read("ChronoFocus/Views/DashboardView.swift")
+ios_schedule_handoff_source = File.read("ChronoFocus/Views/ScheduleView.swift")
+ios_timer_handoff_source = File.read("ChronoFocus/Views/TimerView.swift")
+mac_detail_handoff_source = File.read("ChronoFocusMac/Views/MacDetailView.swift")
+mac_schedule_handoff_source = File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift")
+mac_timer_handoff_source = File.read("ChronoFocusMac/Views/MacTimerDetailView.swift")
+
+ios_request_source = source_slice(
+  "ChronoFocus/Views/DashboardView.swift",
+  "struct TimerHandoffRequest",
+  "struct DashboardView",
+  "iOS timer handoff request source missing"
+)
+raise "iOS timer handoff request must carry a generated UUID" unless ios_request_source.match?(/let\s+id(?:\s*:\s*UUID)?\s*=\s*UUID\(\)/) || ios_request_source.match?(/init\s*\(\s*id:\s*UUID\s*=\s*UUID\(\)/)
+raise "iOS timer handoff request category missing" unless ios_request_source.match?(/let\s+category\s*:\s*String/)
+raise "iOS timer handoff preferred task id missing" unless ios_request_source.match?(/let\s+preferredTaskID\s*:\s*UUID\?/)
+raise "iOS timer handoff request must remain transient" if ios_request_source.include?("UserDefaults") || ios_request_source.include?("FocusStore")
+raise "iOS schedule handoff callback wiring missing" unless dashboard_source.include?("onTimerHandoff:") && ios_schedule_handoff_source.include?("TimerHandoffRequest(")
+raise "iOS timer handoff request state missing" unless dashboard_source.match?(/@State\s+private\s+var\s+\w*[Tt]imer[Hh]andoff\w*\s*:\s*TimerHandoffRequest\?/)
+ios_navigation_source = function_slices_matching(dashboard_source, "handoff").find { |slice| slice.include?("selectedTab = .timer") }
+raise "iOS timer handoff navigation missing" unless ios_navigation_source && ios_navigation_source.include?("timerHandoffRequest = request")
+raise "iOS timer handoff request injection missing" unless dashboard_source.match?(/TimerView\([\s\S]{0,500}?(?:timerHandoffRequest|handoffRequest):/)
+raise "iOS timer handoff identity task missing" unless ios_timer_handoff_source.match?(/\.task\s*\(\s*id:\s*\w*[Tt]imer[Hh]andoff\w*\?\.id\s*\)/)
+
+ios_consumer_source = function_slices_matching(ios_timer_handoff_source, "handoff").find do |slice|
+  slice.include?("engine.selectTask(")
+end
+raise "iOS timer handoff consumer source missing" unless ios_consumer_source
+raise "iOS timer handoff must re-query FocusStore launchable tasks" unless ios_consumer_source.include?("store.upcomingTasks()") && ios_consumer_source.include?("isEnabled")
+raise "iOS timer handoff must restore category context" unless ios_consumer_source.include?("selectedTaskCategory") && ios_consumer_source.include?("request.category")
+raise "iOS timer handoff preferred task validation missing" unless ios_consumer_source.include?("preferredTaskID") && ios_consumer_source.match?(/\.id\s*==\s*preferredTaskID|preferredTaskID\s*==\s*\w+\.id/)
+raise "iOS invalid preferred timer handoff must clear stale selection" unless ios_consumer_source.match?(/request\.preferredTaskID\s*!=\s*nil[\s\S]{0,180}?engine\.selectTask\(nil\)/)
+raise "iOS timer handoff running-state protection missing" unless ios_consumer_source.include?("engine.isRunning")
+raise "iOS timer handoff must select through TimerEngine" unless ios_consumer_source.include?("engine.selectTask(")
+raise "iOS timer handoff identity consumption missing" unless ios_consumer_source.match?(/onConsume\w*[Hh]andoff\w*\s*\(\s*request\.id\s*\)/)
+raise "iOS timer handoff must not auto-start" if ios_consumer_source.include?("engine.start(")
+raise "iOS timer handoff must not write selectedTaskID directly" if ios_consumer_source.match?(/engine\.selectedTaskID\s*=(?!=)/)
+
+raise "iOS category summary timer handoff action missing" unless ios_schedule_handoff_source.include?("转到计时") && ios_schedule_handoff_source.match?(/onTimerHandoff[\s\S]{0,500}?TimerHandoffRequest\(\s*category:\s*selectedCategoryName\s*\)/)
+raise "iOS task row timer handoff action missing" unless ios_schedule_handoff_source.match?(/onTimerHandoff[\s\S]{0,700}?preferredTaskID:\s*task\.id/)
+raise "iOS timer handoff action eligibility guard missing" unless ios_schedule_handoff_source.include?("task.isDone") && ios_schedule_handoff_source.include?("task.isEnabled")
+raise "iOS timer handoff minimum tap target missing" unless ios_schedule_handoff_source.match?(/转到计时[\s\S]{0,700}?\.frame\([^\n]*minHeight:\s*44/)
+raise "iOS category timer handoff accessibility label missing" unless ios_schedule_handoff_source.include?("在计时页查看\\(category)分类")
+raise "iOS task timer handoff accessibility label missing" unless ios_schedule_handoff_source.include?("将\\(task.title)设为当前计时待办")
+raise "iOS running task timer handoff accessibility label missing" unless ios_schedule_handoff_source.include?("在计时页查看\\(task.category)分类，计时运行中不切换到\\(task.title)") && ios_schedule_handoff_source.include?(".accessibilityLabel(timerHandoffAccessibilityLabel)")
+raise "iOS running task timer handoff Voice Control labels missing" unless ios_schedule_handoff_source.match?(/timerHandoffInputLabels[\s\S]{0,500}?if\s+isTimerRunning[\s\S]{0,300}?Text\("查看\\\(task\.category\)分类"\)/)
+raise "iOS timer handoff Voice Control labels missing" unless ios_schedule_handoff_source.include?("Text(\"转到计时\")") && ios_schedule_handoff_source.include?(".accessibilityInputLabels(")
+raise "iOS running-state accessibility guidance missing" unless ios_schedule_handoff_source.include?("计时运行中不可切换当前待办")
+
+mac_request_source = source_slice(
+  "ChronoFocusMac/Views/MacDetailView.swift",
+  "struct MacTimerHandoffRequest",
+  "struct MacDetailView",
+  "Mac timer handoff request source missing"
+)
+raise "Mac timer handoff request must carry a generated UUID" unless mac_request_source.match?(/let\s+id\s*=\s*UUID\(\)/)
+raise "Mac timer handoff request category missing" unless mac_request_source.match?(/let\s+category\s*:\s*String/)
+raise "Mac timer handoff preferred task id missing" unless mac_request_source.match?(/let\s+preferredTaskID\s*:\s*UUID\?/)
+raise "Mac timer handoff request must remain transient" if mac_request_source.include?("UserDefaults") || mac_request_source.include?("FocusStore")
+mac_selection_source = source_slice(
+  "ChronoFocusMac/Views/MacDetailView.swift",
+  "final class MacDetailSelection",
+  "struct MacTimerHandoffRequest",
+  "Mac timer handoff selection source missing"
+)
+raise "Mac timer handoff request state missing" unless mac_selection_source.match?(/@Published\s+private\(set\)\s+var\s+\w*[Tt]imer[Hh]andoff\w*\s*:\s*MacTimerHandoffRequest\?/)
+raise "Mac timer handoff request creation missing" unless mac_selection_source.include?("MacTimerHandoffRequest(")
+raise "Mac timer handoff navigation missing" unless mac_selection_source.match?(/MacTimerHandoffRequest\([\s\S]{0,500}?selectedSection\s*=\s*\.timer/)
+raise "Mac timer handoff identity consumption missing" unless mac_selection_source.match?(/consume\w*[Hh]andoff\w*\s*\(\s*id:\s*UUID\s*\)[\s\S]{0,300}?\?\.id\s*==\s*id[\s\S]{0,300}?=\s*nil/)
+raise "Mac schedule timer handoff callback wiring missing" unless mac_detail_handoff_source.include?("requestTimerHandoff") && mac_detail_handoff_source.match?(/MacScheduleDetailView\([\s\S]{0,700}?onTimerHandoff:/)
+raise "Mac timer handoff request injection missing" unless mac_detail_handoff_source.match?(/MacTimerDetailView\([\s\S]{0,700}?(?:timerHandoffRequest|handoffRequest):[\s\S]{0,700}?onConsume\w*[Hh]andoff/)
+raise "Mac timer handoff identity task missing" unless mac_timer_handoff_source.match?(/\.task\s*\(\s*id:\s*\w*[Tt]imer[Hh]andoff\w*\?\.id\s*\)/)
+
+mac_consumer_source = function_slices_matching(mac_timer_handoff_source, "handoff").find do |slice|
+  slice.include?("engine.selectTask(")
+end
+raise "Mac timer handoff consumer source missing" unless mac_consumer_source
+mac_resolver_source = function_slices_matching(mac_timer_handoff_source, "resolveMacTimerHandoffTask").first
+raise "Mac timer handoff task resolver source missing" unless mac_resolver_source
+raise "Mac timer handoff must re-query FocusStore launchable tasks" unless mac_consumer_source.include?("store.upcomingTasks()") && mac_consumer_source.include?("isEnabled")
+raise "Mac timer handoff must restore category context" unless mac_consumer_source.include?("selectedCategory") && mac_consumer_source.include?("request.category")
+raise "Mac timer handoff preferred task validation missing" unless mac_consumer_source.include?("resolveMacTimerHandoffTask(") && mac_resolver_source.include?("preferredTaskID") && mac_resolver_source.match?(/\.id\s*==\s*preferredTaskID|preferredTaskID\s*==\s*\w+\.id/) && mac_resolver_source.match?(/\.category\s*==\s*request\.category/)
+raise "Mac invalid preferred timer handoff must clear stale selection" unless mac_consumer_source.match?(/request\.preferredTaskID\s*!=\s*nil[\s\S]{0,180}?engine\.selectTask\(nil\)/)
+raise "Mac timer handoff running-state protection missing" unless mac_consumer_source.include?("engine.isRunning")
+raise "Mac timer handoff must select through TimerEngine" unless mac_consumer_source.include?("engine.selectTask(")
+raise "Mac timer handoff identity consumption missing in timer queue" unless mac_consumer_source.match?(/onConsume\w*[Hh]andoff\w*\s*\(\s*request\.id\s*\)/)
+raise "Mac timer handoff must not auto-start" if mac_consumer_source.include?("engine.start(")
+raise "Mac timer handoff must not write selectedTaskID directly" if mac_consumer_source.match?(/engine\.selectedTaskID\s*=(?!=)/)
+
+raise "Mac category summary timer handoff action missing" unless mac_schedule_handoff_source.include?("转到计时") && mac_schedule_handoff_source.match?(/onTimerHandoff\(\s*selectedCategoryName\s*,\s*nil\s*\)/)
+raise "Mac task row timer handoff action missing" unless mac_schedule_handoff_source.match?(/onTimerHandoff\(\s*task\.category\s*,\s*task\.id\s*\)/)
+raise "Mac timer handoff action eligibility guard missing" unless mac_schedule_handoff_source.include?("task.isDone") && mac_schedule_handoff_source.include?("task.isEnabled")
+raise "Mac category timer handoff accessibility label missing" unless mac_schedule_handoff_source.include?("在计时页查看\\(category)分类")
+raise "Mac category timer handoff running-state guidance missing" unless mac_schedule_handoff_source.include?("let isTimerRunning: Bool") && mac_schedule_handoff_source.include?("计时运行中不可切换当前待办") && mac_schedule_handoff_source.include?("不会替换当前待办")
+raise "Mac task timer handoff accessibility label missing" unless mac_schedule_handoff_source.include?("将\\(task.title)设为当前计时待办")
+raise "Mac running task timer handoff accessibility label missing" unless mac_schedule_handoff_source.include?("在计时页查看\\(task.category)分类，计时运行中不切换到\\(task.title)") && mac_schedule_handoff_source.include?(".accessibilityLabel(timerHandoffLabel(for: task))")
+raise "Mac running task timer handoff Voice Control labels missing" unless mac_schedule_handoff_source.match?(/timerHandoffInputLabels\(for\s+task:[\s\S]{0,500}?if\s+engine\.isRunning[\s\S]{0,300}?Text\("查看\\\(task\.category\)分类"\)/) && mac_schedule_handoff_source.include?(".accessibilityInputLabels(timerHandoffInputLabels(for: task))")
+raise "Mac timer handoff Voice Control labels missing" unless mac_schedule_handoff_source.include?("Text(\"转到计时\")") && mac_schedule_handoff_source.include?(".accessibilityInputLabels(")
+raise "Mac running-state accessibility guidance missing" unless mac_schedule_handoff_source.include?("计时运行中不可切换当前待办")
+raise "Mac timer handoff snapshot request wiring missing" unless mac_snapshot_source.match?(/let\s+timerHandoffRequest\s*=\s*MacTimerHandoffRequest\([\s\S]{0,300}?preferredTaskID:\s*timerHandoffTask\.id/) && mac_snapshot_source.match?(/MacTimerDetailView\([\s\S]{0,500}?timerHandoffRequest:\s*timerHandoffRequest/)
+puts "Schedule to timer handoff contracts verified."
+
 mac_mini_quick_panel_source = source_slice(
   "ChronoFocusMac/Views/MacMiniTimerView.swift",
   "private struct MacMiniQuickPanelView",
@@ -1360,10 +1481,11 @@ mac_timer_category_context_narrow_snapshot_source = segment_slice(
   "print(timerCategoryFilteredURL.path)",
   "Mac timer category context narrow snapshot source missing"
 )
-raise "Mac timer normal queue snapshot coverage missing" unless mac_snapshot_source.include?("(\"detail-timer.png\", .timer, AnyView(MacTimerDetailView()))")
+raise "Mac timer normal queue snapshot coverage missing" unless mac_snapshot_source.include?("chronofocus-mac-timer-normal-queue.png") && mac_snapshot_source.include?("content: AnyView(MacTimerDetailView())")
+raise "Mac timer handoff snapshot coverage missing" unless mac_snapshot_source.match?(/"detail-timer\.png",\s*\.timer,\s*AnyView\(MacTimerDetailView\([\s\S]{0,500}?initialTaskCategory:\s*"产品",[\s\S]{0,500}?timerHandoffRequest:\s*timerHandoffRequest/) && mac_snapshot_source.include?("resolveMacTimerHandoffTask(")
 raise "Mac timer category empty snapshot fixture missing" unless mac_snapshot_source.include?("MacTimerDetailView(initialTaskCategory: \"工作\")") && mac_snapshot_source.include?("allSatisfy({ $0.category != \"工作\" })")
 raise "Mac timer category empty narrow snapshot fixture missing" unless mac_snapshot_source.include?("MacTimerCategoryEmptyStateView(") && mac_snapshot_source.include?(".frame(width: 220)")
-raise "Mac timer non-empty category snapshot fixture missing" unless mac_snapshot_source.include?("MacTimerDetailView(initialTaskCategory: \"产品\")") && mac_snapshot_source.include?("chronofocus-mac-timer-category-filtered.png")
+raise "Mac timer non-empty category snapshot fixture missing" unless mac_snapshot_source.match?(/timerCategoryFilteredView[\s\S]{0,500}?MacTimerDetailView\(initialTaskCategory:\s*"产品"\)/) && mac_snapshot_source.include?("chronofocus-mac-timer-category-filtered.png")
 raise "Mac timer category context narrow snapshot fixture missing" unless mac_timer_category_context_narrow_snapshot_source.include?("MacTimerCategoryContextView(") && mac_timer_category_context_narrow_snapshot_source.include?("chronofocus-mac-timer-category-context-narrow.png") && mac_timer_category_context_narrow_snapshot_source.include?(".frame(width: 220)")
 raise "Mac timer category context narrow snapshot long category fixture missing" unless mac_timer_category_context_narrow_snapshot_source.include?("category: \"跨团队产品体验优化\"")
 raise "Mac timer category context narrow snapshot minimum pixel size assertion missing" unless mac_timer_category_context_narrow_snapshot_source.include?("try assertMinimumPixelSize(") && mac_timer_category_context_narrow_snapshot_source.include?("at: timerCategoryContextNarrowURL") && mac_timer_category_context_narrow_snapshot_source.include?("width: 400") && mac_timer_category_context_narrow_snapshot_source.include?("height: 220")
@@ -1546,6 +1668,7 @@ grep -q "CI artifact API metadata contracts verified." scripts/validate_ci_artif
 grep -q "Existing category reuse contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Existing category usage context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Existing category search contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Schedule to timer handoff contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI workflow run API metadata contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI workflow run provenance contracts verified." scripts/validate_ci_artifact.rb
 grep -q "verify_ci_failure_summary_output()" scripts/verify_project.sh
@@ -1763,7 +1886,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nExisting category reuse contracts verified.\nExisting category usage context contracts verified.\nExisting category search contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nTimer task queue expansion contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nCI artifact API metadata contracts verified.\nCI workflow run API metadata contracts verified.\nCI workflow run provenance contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nExisting category reuse contracts verified.\nExisting category usage context contracts verified.\nExisting category search contracts verified.\nSchedule to timer handoff contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nTimer task queue expansion contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nCI artifact API metadata contracts verified.\nCI workflow run API metadata contracts verified.\nCI workflow run provenance contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -2172,6 +2295,7 @@ assert_run_metadata_passes_except "$run_metadata_success_output"
 grep -q "PASS verify_project existing category reuse contracts" "$run_metadata_success_output"
 grep -q "PASS verify_project existing category usage context contracts" "$run_metadata_success_output"
 grep -q "PASS verify_project existing category search contracts" "$run_metadata_success_output"
+grep -q "PASS verify_project schedule to timer handoff contracts" "$run_metadata_success_output"
 grep -q "PASS verify_project ci workflow run API metadata contracts" "$run_metadata_success_output"
 grep -q "PASS verify_project ci workflow run provenance contracts" "$run_metadata_success_output"
 rm -f "$run_metadata_success_output"
@@ -3484,6 +3608,82 @@ fi
 rm -rf "$negative_existing_category_search_marker_fixture"
 rm -f "$negative_existing_category_search_marker_output"
 
+negative_schedule_timer_handoff_marker_fixture="$(mktemp -d)"
+negative_schedule_timer_handoff_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_schedule_timer_handoff_marker_fixture"/
+python3 - "$negative_schedule_timer_handoff_marker_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+marker = "Schedule to timer handoff contracts verified.\n"
+source = verify_log_path.read_text(encoding="utf-8")
+if source.count(marker) != 1:
+    raise SystemExit("Expected exactly one schedule to timer handoff marker")
+verify_log_path.write_text(source.replace(marker, ""), encoding="utf-8")
+
+index_path = root / "ci-artifact-index.json"
+for _ in range(10):
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    for entry in index["entries"]:
+        contract_path = entry["path"]
+        prefix = "ci-results/"
+        relative_path = contract_path[len(prefix):] if contract_path.startswith(prefix) else contract_path
+        local_path = root / relative_path
+        if entry["kind"] == "file":
+            entry["byteCount"] = local_path.stat().st_size
+        elif entry["kind"] == "directory":
+            files = [child for child in local_path.rglob("*") if child.is_file()]
+            entry["fileCount"] = len(files)
+            entry["recursiveByteCount"] = sum(child.stat().st_size for child in files)
+    index["totals"] = {
+        "entryCount": len(index["entries"]),
+        "missingRequiredCount": sum(
+            1 for entry in index["entries"]
+            if entry["required"] and not entry["exists"]
+        ),
+        "fileByteCount": sum(entry.get("byteCount", 0) for entry in index["entries"]),
+        "directoryRecursiveByteCount": sum(
+            entry.get("recursiveByteCount", 0) for entry in index["entries"]
+        ),
+    }
+    encoded = json.dumps(index, ensure_ascii=False, indent=2) + "\n"
+    if encoded == index_path.read_text(encoding="utf-8"):
+        break
+    index_path.write_text(encoded, encoding="utf-8")
+else:
+    raise SystemExit("Schedule to timer handoff marker fixture index did not stabilize")
+PY
+if ruby scripts/validate_ci_artifact.rb \
+  "$negative_schedule_timer_handoff_marker_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  --artifact-metadata "$artifact_metadata_fixture" \
+  --run-metadata "$run_metadata_fixture" \
+  >"$negative_schedule_timer_handoff_marker_output" 2>&1; then
+  echo "Expected negative schedule to timer handoff marker fixture to fail validation" >&2
+  cat "$negative_schedule_timer_handoff_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project schedule to timer handoff contracts" "$negative_schedule_timer_handoff_marker_output"
+grep -q "PASS verify_project existing category search contracts" "$negative_schedule_timer_handoff_marker_output"
+assert_archive_passes "$negative_schedule_timer_handoff_marker_output"
+assert_artifact_metadata_passes "$negative_schedule_timer_handoff_marker_output"
+assert_run_metadata_passes_except "$negative_schedule_timer_handoff_marker_output"
+if [[ "$(grep -c '^FAIL ' "$negative_schedule_timer_handoff_marker_output")" -ne 1 ]]; then
+  echo "Expected only the schedule to timer handoff contract to fail" >&2
+  cat "$negative_schedule_timer_handoff_marker_output" >&2
+  exit 1
+fi
+rm -rf "$negative_schedule_timer_handoff_marker_fixture"
+rm -f "$negative_schedule_timer_handoff_marker_output"
+
 negative_ci_workflow_run_api_metadata_marker_fixture="$(mktemp -d)"
 negative_ci_workflow_run_api_metadata_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_ci_workflow_run_api_metadata_marker_fixture"/
@@ -4607,6 +4807,7 @@ xcrun --sdk macosx swiftc \
   scripts/render_mac_snapshots.swift \
   -o /tmp/chrono_focus_render_mac_snapshots
 /tmp/chrono_focus_render_mac_snapshots
+test -s /tmp/chronofocus-mac-timer-normal-queue.png
 test -s /tmp/chronofocus-mac-snapshots/mini-timer.png
 test -s /tmp/chronofocus-mac-snapshots/detail-timer.png
 test -s /tmp/chronofocus-mac-snapshots/detail-schedule.png

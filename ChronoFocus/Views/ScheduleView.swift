@@ -11,8 +11,13 @@ struct ScheduleView: View {
     @State private var selectedCategory: String?
     @State private var showingEditor = false
     @State private var editingTask: FocusTask?
+    let onTimerHandoff: (TimerHandoffRequest) -> Void
 
     private let calendar = Calendar.current
+
+    init(onTimerHandoff: @escaping (TimerHandoffRequest) -> Void = { _ in }) {
+        self.onTimerHandoff = onTimerHandoff
+    }
 
     private var visibleTasks: [FocusTask] {
         store.tasks
@@ -299,8 +304,12 @@ struct ScheduleView: View {
                     SelectedCategorySummaryView(
                         category: selectedCategoryName,
                         count: taskCount(in: selectedCategoryName),
+                        isTimerRunning: engine.isRunning,
                         onAddTask: {
                             showingEditor = true
+                        },
+                        onTimerHandoff: {
+                            onTimerHandoff(TimerHandoffRequest(category: selectedCategoryName))
                         },
                         onClear: {
                             selectedCategory = nil
@@ -327,12 +336,20 @@ struct ScheduleView: View {
                 } else {
                     VStack(spacing: 10) {
                         ForEach(visibleTasks) { task in
-                            ScheduleTaskCell(task: task) {
+                            ScheduleTaskCell(task: task, isTimerRunning: engine.isRunning) {
                                 toggleTask(task)
                             } onEnable: {
                                 setTask(task, enabled: !task.isEnabled)
                             } onEdit: {
                                 editingTask = task
+                            } onTimerHandoff: {
+                                guard task.isEnabled, !task.isDone else { return }
+                                onTimerHandoff(
+                                    TimerHandoffRequest(
+                                        category: task.category,
+                                        preferredTaskID: task.id
+                                    )
+                                )
                             }
                             .swipeActions {
                                 Button {
@@ -492,7 +509,9 @@ struct ScheduleView: View {
 private struct SelectedCategorySummaryView: View {
     let category: String
     let count: Int
+    let isTimerRunning: Bool
     let onAddTask: () -> Void
+    let onTimerHandoff: () -> Void
     let onClear: () -> Void
 
     private var preset: TaskCategoryPreset? {
@@ -501,6 +520,19 @@ private struct SelectedCategorySummaryView: View {
 
     private var tint: Color {
         Color(hex: preset?.accentHex ?? "#3DE8C5")
+    }
+
+    private var timerHandoffAccessibilityLabel: String {
+        if isTimerRunning {
+            return "在计时页查看\(category)分类，计时运行中不可切换当前待办"
+        }
+        return "在计时页查看\(category)分类并选择待办"
+    }
+
+    private var timerHandoffAccessibilityHint: String {
+        isTimerRunning
+            ? "切换到计时页并恢复分类筛选，不会替换当前待办"
+            : "切换到计时页并选择可用待办，不会自动开始计时"
     }
 
     var body: some View {
@@ -520,26 +552,18 @@ private struct SelectedCategorySummaryView: View {
                 Spacer()
             }
 
-            HStack(spacing: 8) {
-                Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.black.opacity(0.82))
-                    .buttonStyle(.plain)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: 44)
-                    .padding(.horizontal, 10)
-                    .background(tint, in: Capsule())
-                    .accessibilityLabel("新增\(category)分类待办")
-                    .accessibilityInputLabels([Text("新增此分类"), Text("新增\(category)分类待办"), Text("新增\(category)分类")])
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    addTaskButton
+                    timerHandoffButton
+                    clearButton
+                }
 
-                Button("清除", systemImage: "xmark.circle.fill", action: onClear)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(tint)
-                    .buttonStyle(.plain)
-                    .frame(minWidth: 72)
-                    .frame(minHeight: 44)
-                    .accessibilityLabel("清除\(category)分类筛选")
-                    .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
+                VStack(spacing: 8) {
+                    addTaskButton
+                    timerHandoffButton
+                    clearButton
+                }
             }
         }
         .padding(.horizontal, 12)
@@ -550,7 +574,51 @@ private struct SelectedCategorySummaryView: View {
                 .stroke(tint.opacity(0.36), lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("当前筛选\(category)分类，\(count)项，可新增此分类待办或清除筛选")
+        .accessibilityLabel("当前筛选\(category)分类，\(count)项，可新增此分类待办或清除筛选，也可转到计时")
+    }
+
+    private var addTaskButton: some View {
+        Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(.black.opacity(0.82))
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
+            .padding(.horizontal, 10)
+            .background(tint, in: Capsule())
+            .accessibilityLabel("新增\(category)分类待办")
+            .accessibilityInputLabels([Text("新增此分类"), Text("新增\(category)分类待办"), Text("新增\(category)分类")])
+    }
+
+    private var timerHandoffButton: some View {
+        Button("转到计时", systemImage: "timer", action: onTimerHandoff)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(tint)
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
+            .padding(.horizontal, 10)
+            .contentShape(Rectangle())
+            .accessibilityLabel(timerHandoffAccessibilityLabel)
+            .accessibilityHint(timerHandoffAccessibilityHint)
+            .accessibilityInputLabels([
+                Text("转到计时"),
+                Text("在计时页查看\(category)分类"),
+                Text("\(category)分类转到计时")
+            ])
+    }
+
+    private var clearButton: some View {
+        Button("清除", systemImage: "xmark.circle.fill", action: onClear)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(tint)
+            .buttonStyle(.plain)
+            .frame(minWidth: 72)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+            .accessibilityLabel("清除\(category)分类筛选")
+            .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
     }
 }
 
@@ -790,9 +858,11 @@ private struct TaskCategoryFilterChip: View {
 
 private struct ScheduleTaskCell: View {
     let task: FocusTask
+    let isTimerRunning: Bool
     let onToggle: () -> Void
     let onEnable: () -> Void
     let onEdit: () -> Void
+    let onTimerHandoff: () -> Void
 
     private var categoryPreset: TaskCategoryPreset? {
         TaskCategoryPreset.matching(task.category)
@@ -843,6 +913,42 @@ private struct ScheduleTaskCell: View {
             Text("\(task.title)编辑"),
             Text("编辑\(task.category)分类\(task.title)"),
             Text("\(task.category)分类\(task.title)编辑")
+        ]
+    }
+
+    private var timerHandoffAccessibilityHint: String {
+        if isTimerRunning {
+            return "切换到计时页并恢复\(task.category)分类筛选，计时运行中不可切换当前待办"
+        }
+        if task.isDone {
+            return "已完成待办不可设为当前计时待办"
+        }
+        if !task.isEnabled {
+            return "已停用待办不可设为当前计时待办"
+        }
+        return "切换到计时页并选择此待办，不会自动开始计时"
+    }
+
+    private var timerHandoffAccessibilityLabel: String {
+        if isTimerRunning {
+            return "在计时页查看\(task.category)分类，计时运行中不切换到\(task.title)"
+        }
+        return "将\(task.title)设为当前计时待办，\(task.category)分类"
+    }
+
+    private var timerHandoffInputLabels: [Text] {
+        if isTimerRunning {
+            return [
+                Text("查看\(task.category)分类"),
+                Text("转到计时"),
+                Text("\(task.category)分类转到计时")
+            ]
+        }
+        return [
+            Text("将\(task.title)设为计时待办"),
+            Text("\(task.title)转到计时"),
+            Text("转到计时"),
+            Text("\(task.category)分类\(task.title)计时")
         ]
     }
 
@@ -899,6 +1005,18 @@ private struct ScheduleTaskCell: View {
             }
 
             VStack(spacing: 8) {
+                Button(action: onTimerHandoff) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(task.isEnabled && !task.isDone ? categoryTint : AppTheme.secondaryText)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .disabled(task.isDone || !task.isEnabled)
+                .accessibilityLabel(timerHandoffAccessibilityLabel)
+                .accessibilityHint(timerHandoffAccessibilityHint)
+                .accessibilityInputLabels(timerHandoffInputLabels)
+
                 Button(action: onEnable) {
                     Image(systemName: task.isEnabled ? "bolt.circle.fill" : "bolt.slash.circle")
                         .font(.system(size: 19, weight: .semibold))
@@ -917,7 +1035,7 @@ private struct ScheduleTaskCell: View {
                 .accessibilityLabel(editAccessibilityLabel)
                 .accessibilityInputLabels(editInputLabels)
             }
-            .frame(width: 34)
+            .frame(width: 44)
         }
         .padding(12)
         .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))

@@ -1,17 +1,35 @@
 import SwiftUI
 
+func resolveMacTimerHandoffTask(
+    _ request: MacTimerHandoffRequest,
+    from startableTasks: [FocusTask]
+) -> FocusTask? {
+    if let preferredTaskID = request.preferredTaskID {
+        return startableTasks.first {
+            $0.id == preferredTaskID && $0.category == request.category
+        }
+    }
+    return startableTasks.first { $0.category == request.category }
+}
+
 struct MacTimerDetailView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
     let onAddTaskInCategory: (String) -> Void
     let initialTaskCategory: String?
+    let timerHandoffRequest: MacTimerHandoffRequest?
+    let onConsumeTimerHandoffRequest: (UUID) -> Void
 
     init(
         onAddTaskInCategory: @escaping (String) -> Void = { _ in },
-        initialTaskCategory: String? = nil
+        initialTaskCategory: String? = nil,
+        timerHandoffRequest: MacTimerHandoffRequest? = nil,
+        onConsumeTimerHandoffRequest: @escaping (UUID) -> Void = { _ in }
     ) {
         self.onAddTaskInCategory = onAddTaskInCategory
         self.initialTaskCategory = initialTaskCategory
+        self.timerHandoffRequest = timerHandoffRequest
+        self.onConsumeTimerHandoffRequest = onConsumeTimerHandoffRequest
     }
 
     private var currentTint: Color {
@@ -44,7 +62,9 @@ struct MacTimerDetailView: View {
                     MacTaskQueueView(
                         currentTint: currentTint,
                         initialTaskCategory: initialTaskCategory,
-                        onAddTaskInCategory: onAddTaskInCategory
+                        onAddTaskInCategory: onAddTaskInCategory,
+                        timerHandoffRequest: timerHandoffRequest,
+                        onConsumeTimerHandoffRequest: onConsumeTimerHandoffRequest
                     )
                 }
                 .frame(minWidth: 320)
@@ -342,14 +362,20 @@ private struct MacTaskQueueView: View {
 
     let currentTint: Color
     let onAddTaskInCategory: (String) -> Void
+    let timerHandoffRequest: MacTimerHandoffRequest?
+    let onConsumeTimerHandoffRequest: (UUID) -> Void
 
     init(
         currentTint: Color,
         initialTaskCategory: String?,
-        onAddTaskInCategory: @escaping (String) -> Void
+        onAddTaskInCategory: @escaping (String) -> Void,
+        timerHandoffRequest: MacTimerHandoffRequest?,
+        onConsumeTimerHandoffRequest: @escaping (UUID) -> Void
     ) {
         self.currentTint = currentTint
         self.onAddTaskInCategory = onAddTaskInCategory
+        self.timerHandoffRequest = timerHandoffRequest
+        self.onConsumeTimerHandoffRequest = onConsumeTimerHandoffRequest
         _selectedCategory = State(initialValue: initialTaskCategory)
     }
 
@@ -446,11 +472,33 @@ private struct MacTaskQueueView: View {
                 }
             }
         }
+        .task(id: timerHandoffRequest?.id) {
+            consumeTimerHandoffRequest()
+        }
     }
 
     private func taskCount(in category: String?) -> Int {
         guard let category else { return upcomingTasks.count }
         return upcomingTasks.filter { $0.category == category }.count
+    }
+
+    private func consumeTimerHandoffRequest() {
+        guard let request = timerHandoffRequest else { return }
+        defer { onConsumeTimerHandoffRequest(request.id) }
+
+        selectedCategory = request.category
+        guard !engine.isRunning else { return }
+
+        let startableTasks = store.upcomingTasks().filter(\.isEnabled)
+        let targetTask = resolveMacTimerHandoffTask(request, from: startableTasks)
+
+        if let targetTask {
+            engine.selectTask(targetTask)
+        } else if request.preferredTaskID != nil {
+            engine.selectTask(nil)
+        } else if store.task(for: engine.selectedTaskID)?.category != request.category {
+            engine.selectTask(nil)
+        }
     }
 }
 

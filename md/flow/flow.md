@@ -204,6 +204,7 @@ macOS：
 - v0.99 起，iOS 计时待办队列默认显示筛选结果前 4 项；超过 4 项时可展开全部或收起，分类变化与筛选结果数量变化会重置为收起。该状态只属于 `TimerView`，运行中仍可浏览，但任务行继续禁用；44pt 点击区、动态可访问语义和两态输入标签由 `Timer task queue expansion contracts verified.` 与对应 validator PASS 覆盖。
 - v0.99 起，Agent C 将 run artifacts API 原始响应先写入 `artifacts-api.json.part`，成功且非空后无覆盖原子改名。Validator 的 `--artifact-metadata` 只允许与完整 archive 三参数共同使用，拒绝空文件、超过 1 MiB、非普通文件和 symlink，并结构化核对响应形状、唯一 artifact、id、name、size、digest、expired 和 workflow run 八项 PASS；`CI artifact API metadata contracts verified.`、参数/字段负向 fixtures 和 marker 缺失 fixture 锁定该链路。API 不含 `run_attempt`，attempt 仍由最新 workflow run、参数、artifact 名称与 manifest/index/run context 共同关联。
 - v1.0 起，validator 第四种 archive + artifact metadata + run metadata 模式复用 1 MiB、普通文件、非 symlink 和非空限制，并输出 response shape、id、run attempt、head SHA、head branch、name、path、status、conclusion、repository 十项检查；v1.2 再增加 push event、actor、triggering actor 和 head repository 四项授权来源复判。API JSON 始终是 artifact 外部证据，不能由包内 manifest 自证。
+- v1.3 起，iOS `DashboardView` 与 macOS `MacDetailSelection` 持有带 UUID、分类和可选任务 id 的一次性日程到计时接力请求。计时页消费时先恢复分类，再从 `FocusStore.upcomingTasks()` 重新验证目标；分类摘要选择首个当前可启动任务，精确任务失效时清除旧选择，运行中只浏览分类。所有非运行态选择统一调用 `TimerEngine.selectTask(_:)`，接力路径不调用开始且不持久化。
 - 平台服务负责系统能力，不持有核心业务规则。
 - `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。

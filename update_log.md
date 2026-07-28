@@ -58,6 +58,39 @@
 
 ## 历史记录
 
+### v1.3 / 日程分类接力到计时
+
+日期：2026-07-28
+
+核心变更：
+
+- iOS/macOS 日程分类摘要可通过带 UUID 的瞬态请求切到计时、恢复分类并选择首个当前可启动任务；任务行可携带 preferred task id 精确接力。
+- 计时端消费时重新查询 `FocusStore.upcomingTasks()`；精确目标已完成、停用或删除时清除旧选择，运行中只恢复分类筛选。所有选择统一进入 `TimerEngine.selectTask(_:)`，不会自动开始或持久化请求。
+- 分类摘要采用自适应布局，任务行和摘要接力入口补齐分类/任务上下文、运行中提示、VoiceOver 与 Voice Control 标签。
+- Mac 快照覆盖日程接力入口与计时分类/selected 终态；云端验证新增 `Schedule to timer handoff contracts verified.`、对应 validator PASS 和 marker 缺失负向 fixture，预期基线为 `129 PASS / 0 FAIL`。
+
+关键文件：
+
+- `ChronoFocus/Views/DashboardView.swift`
+- `ChronoFocus/Views/ScheduleView.swift`
+- `ChronoFocus/Views/TimerView.swift`
+- `ChronoFocusMac/Views/MacDetailView.swift`
+- `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `ChronoFocusMac/Views/MacTimerDetailView.swift`
+- `scripts/render_mac_snapshots.swift`
+- `scripts/verify_project.sh`
+- `scripts/validate_ci_artifact.rb`
+- `md/prompt/v1（持续优化）/v1.3（日程分类接力到计时）.md`
+
+验证结果：
+
+- 未运行任何本地项目测试、项目验证脚本、Xcode、`xcodebuild`、`simctl` 或 Simulator。主线程误执行过两次不读取项目文件的空操作 `git diff --check --no-index /dev/null /dev/null`；两次命令均未检查工作区、结果不作为验收证据，但仍属于违反人工禁令的操作，后续不得重复。
+- 当前状态为 `pending cloud validation`：尚无 v1.3 commit、GitHub Actions run、artifact 或 Agent C 结论。
+
+遗留事项：
+
+- 静态快照只能证明入口和消费终态布局，真实点击、Tab/SplitView 重建与交互时序仍需源码 contract、双平台云端构建和 Agent C artifact 共同验收。
+
 ### v1.2 / 已有分类搜索与 Run 来源复判
 
 日期：2026-07-26
@@ -84,6 +117,7 @@
 - 实现 commit `2f6b1c03434007e307351a638b164e5b391c8c9a` 的 run `30194825035`（attempt `1`）全步骤成功；Agent C 在 `/private/tmp/chronofocus-c-review-30194825035-tCYBX9/` 复判 artifact `chronofocus-ci-v0.10-main-2f6b1c0-run30194825035-attempt1`（id `8629803475`，size `14399461`，digest `sha256:478d8082768f93f1ad7c3f7aa3bc07ec1de964568cf88372412d7c50758c2e02`，`expired=false`）为 `128 PASS / 0 FAIL`。但云端 `detail-schedule.png` 中搜索框与 `1/6` 计数正常，筛选出的“产品”chip 未渲染，Agent C 视觉验收不通过；Agent B 已把静态结果容器改为直接 HStack，必须重新 push 和验收。
 - 返修 commit `0802d252056e99c704db8fe4bdaf8d26bb39a846` 的 run `30195201551`（attempt `1`）、job `89775366110` 全步骤成功。Agent C 在 `/private/tmp/chronofocus-c-review-30195201551-x2lTMH/` 复判 artifact `chronofocus-ci-v0.10-main-0802d25-run30195201551-attempt1`（id `8629896081`，size `14377527`，digest `sha256:78644d90e385b81c6c84017a059a4bc48bbebffe0967d63f14e04e7f2fdd8382`，`expired=false`）为 `128 PASS / 0 FAIL`，annotations 为 `0`，JUnit 为 `0 failures / 0 errors`，Mac/iOS build 均成功。
 - 新 `detail-schedule.png` 已清晰显示搜索词“产品”、`1/6` 计数和“产品”结果 chip，无重叠、空白占位或截断；其余四张快照抽查无关联回归，v1.2 实现验收通过。
+- 最终证据 commit `001875c842a2a2368346c043af59498c75a68788` 的 run `30195874234`（attempt `1`）、job `89777204906` 全步骤成功；Agent C 在命名与原子落盘规则合规的 `/private/tmp/chronofocus-c-review-30195874234-z335ik/` 复判 artifact `chronofocus-ci-v0.10-main-001875c-run30195874234-attempt1`（id `8630116575`，size `14377358`，digest `sha256:1ac0c627198c6d64cb77911a767c487a61d6c0604a383a6220f189e6aad4f007`，`expired=false`）为 `128 PASS / 0 FAIL`，annotations 为 `0`，v1.2 正式闭环。
 
 遗留事项：
 

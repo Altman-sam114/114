@@ -50,12 +50,54 @@ struct MacSnapshotRenderer {
         print("Mac snapshots rendered:")
         print(miniURL.path)
 
+        let timerNormalQueueURL = URL(fileURLWithPath: "/tmp/chronofocus-mac-timer-normal-queue.png")
+        let timerNormalQueueView = SnapshotDetailView(
+            selectedSection: .timer,
+            content: AnyView(MacTimerDetailView())
+        )
+        .environmentObject(store)
+        .environmentObject(engine)
+        .environmentObject(notifications)
+        .environmentObject(premium)
+        .environmentObject(calendarSync)
+        .environment(\.macSnapshotRendering, true)
+        .frame(width: 1100, height: 720)
+        try render(timerNormalQueueView, to: timerNormalQueueURL)
+        try assertNonBlankImage(at: timerNormalQueueURL)
+        try assertNoMissingControlPlaceholders(at: timerNormalQueueURL)
+        print(timerNormalQueueURL.path)
+
+        guard let timerHandoffTask = store.upcomingTasks().first(where: { $0.category == "产品" && $0.isEnabled }) else {
+            throw SnapshotError("Mac schedule to timer handoff fixture requires an enabled 产品 task")
+        }
+        let timerHandoffRequest = MacTimerHandoffRequest(
+            category: "产品",
+            preferredTaskID: timerHandoffTask.id
+        )
+        guard let resolvedTimerHandoffTask = resolveMacTimerHandoffTask(
+            timerHandoffRequest,
+            from: store.upcomingTasks().filter(\.isEnabled)
+        ) else {
+            throw SnapshotError("Mac schedule to timer handoff fixture could not resolve its request")
+        }
+        engine.selectTask(resolvedTimerHandoffTask)
+
         let detailPages: [(fileName: String, section: SnapshotDetailSection, content: AnyView)] = [
-            ("detail-timer.png", .timer, AnyView(MacTimerDetailView())),
+            (
+                "detail-timer.png",
+                .timer,
+                AnyView(MacTimerDetailView(
+                    initialTaskCategory: "产品",
+                    timerHandoffRequest: timerHandoffRequest
+                ))
+            ),
             (
                 "detail-schedule.png",
                 .schedule,
-                AnyView(MacScheduleDetailView(initialExistingCategorySearchQuery: "产品"))
+                AnyView(MacScheduleDetailView(
+                    initialTaskCategory: "产品",
+                    initialExistingCategorySearchQuery: "产品"
+                ))
             ),
             ("detail-analytics.png", .analytics, AnyView(MacAnalyticsDetailView())),
             ("detail-settings.png", .settings, AnyView(MacSettingsDetailView()))

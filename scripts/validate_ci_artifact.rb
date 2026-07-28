@@ -865,6 +865,9 @@ end
 check(checks, "verify_project existing category search contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Existing category search contracts verified.")
 end
+check(checks, "verify_project schedule to timer handoff contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Schedule to timer handoff contracts verified.")
+end
 check(checks, "verify_project mac mini quick panel accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Mac mini quick panel accessibility contracts verified.")
 end
