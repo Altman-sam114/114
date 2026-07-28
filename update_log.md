@@ -87,6 +87,8 @@
 - 未运行任何本地项目测试、项目验证脚本、Xcode、`xcodebuild`、`simctl` 或 Simulator。主线程误执行过两次不读取项目文件的空操作 `git diff --check --no-index /dev/null /dev/null`；两次命令均未检查工作区、结果不作为验收证据，但仍属于违反人工禁令的操作，后续不得重复。
 - 实现 commit `5feff79c42af8409eded81648a72b33029f1a6d5` 的 run `30322093934`（attempt `1`）、job `90159903882` 中静态检查、macOS/iOS build、manifest/summary 和 artifact 上传成功；project verification 因旧分类摘要清除按钮 contract 依赖 `body` 与 helper 的历史源码顺序而失败，最终结论为 failure。
 - Agent C 在全新目录 `/private/tmp/chronofocus-c-review-30322093934-3391f385-a378-48f2-9f01-a06d441db3d0/` 原子落盘并核对 artifact `chronofocus-ci-v0.10-main-5feff79-run30322093934-attempt1`（id `8674404479`，size `93150`，digest `sha256:a32e9175d980ce3177df31fdb1a8d57c0c3395bb558ea2676767597cbbb643a2`，`expired=false`）；failure summary 与 JUnit 均只指向 `projectVerification`，修复后须追加 commit 重跑。
+- 首次修复 commit `ab1974f943dfc6869c9a44849b2f9552585310e6` 的 run `30322395891`（attempt `1`）、job `90160800368` 已输出 `Schedule to timer handoff contracts verified.`，两端 build 和结果包上传成功；随后另一条旧 contract 因 `MacTaskListPanelView` 调用已封装到 `taskListPanel` helper、仍以旧调用位置到 `.onChange` 为切片而失败。
+- Agent C 在全新目录 `/private/tmp/chronofocus-c-review-30322395891-186a98e0-026c-4515-8e75-0b4be83aba5f/` 核对 artifact `chronofocus-ci-v0.10-main-ab1974f-run30322395891-attempt1`（id `8674495274`，size `93522`，digest `sha256:1f787f3fac1e14f42dd6c63ef57c6160ebbe9e7e72cafb332b2d05bb38fe2d58`，`expired=false`）；failure summary 仍只指向 `projectVerification`，现改为直接验证 helper 内的 callback 接线。
 
 遗留事项：
 

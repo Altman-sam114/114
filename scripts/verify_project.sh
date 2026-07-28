@@ -1352,8 +1352,8 @@ puts "Analytics recent session category contracts verified."
 
 assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
-  "MacTaskListPanelView(",
-  ".onChange(of: selectedCategory)",
+  "private var taskListPanel: some View",
+  "private func addTask()",
   /MacTaskListPanelView\([\s\S]*?selectedCategory:\s*\$selectedCategory,[\s\S]*?onAddTaskInCategory:\s*prepareQuickAdd/,
   "Mac task list panel must pass quick add category action"
 )
