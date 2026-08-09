@@ -2373,6 +2373,22 @@ require_validator_marker() {
   fi
 }
 
+report_artifact_fixture_state() {
+  local label="$1"
+  echo "Artifact fixture state: $label"
+  printf "verify_project.log bytes: "
+  wc -c < "$artifact_fixture/verify_project.log" | tr -d '[:space:]'
+  printf "verify_project.log sha256: "
+  shasum -a 256 "$artifact_fixture/verify_project.log" | awk '{print $1}'
+  printf "ci-artifact-index.json bytes: "
+  wc -c < "$artifact_fixture/ci-artifact-index.json" | tr -d '[:space:]'
+  if grep -Fq "Existing category reuse contracts verified." "$artifact_fixture/verify_project.log"; then
+    echo "existing category reuse marker: present"
+  else
+    echo "existing category reuse marker: missing"
+  fi
+}
+
 artifact_metadata_fixture="$artifact_archive_fixture_dir/artifacts-api.json"
 ruby -rjson - "$artifact_metadata_fixture" "$artifact_archive_size" "$artifact_archive_digest" <<'RUBY'
 path, archive_size, archive_digest = ARGV
@@ -2429,6 +2445,7 @@ for marker in \
   require_validator_marker "$artifact_metadata_success_output" "$marker"
 done
 rm -f "$artifact_metadata_success_output"
+report_artifact_fixture_state "after artifact metadata success"
 
 run_metadata_fixture="$artifact_archive_fixture_dir/run-api.json"
 ruby -rjson - "$run_metadata_fixture" <<'RUBY'
@@ -2525,6 +2542,7 @@ if ! ruby scripts/validate_ci_artifact.rb \
   cat "$run_metadata_success_output" >&2
   exit 1
 fi
+report_artifact_fixture_state "before run metadata success"
 assert_archive_passes "$run_metadata_success_output"
 assert_artifact_metadata_passes "$run_metadata_success_output"
 assert_run_metadata_passes_except "$run_metadata_success_output"

@@ -137,6 +137,7 @@
 - 已追加修复：移除 v1.4 提示词 EOF 空行、让 iOS handoff 静态 contract 接受直接 startable lookup，并增加 CI fixture 失败行号诊断；等待新的 `origin/main` run、快照和 archive 目录绑定结果。
 
 - 2026-08-09：云端 run 31293195672 已消除 duplicate warning，但正向 metadata/run metadata 断言仍无明细退出；增加正向 validator 命令失败输出和缺失 marker 诊断，等待新的 main run。
+- 2026-08-09：云端 run 31293435259 的 run metadata 正向验证报告 archive 与当前 verify_project.log 不一致，并连带 index metadata/既有分类 marker 失败；增加两次 validator 之间的 fixture 摘要诊断，等待新的 main run。
 
 ### v1.2 / 已有分类搜索与 Run 来源复判
 
