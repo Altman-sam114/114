@@ -112,16 +112,18 @@
 
 - `scripts/test_mac_core.swift`
 - `md/test/test.md`
+- `md/prompt/v1（持续优化）/v1.4.3（Mac core 计划失效断言）.md`
 - `update_log.md`
 
 验证结果：
 
 - 未运行任何本地测试、`verify_project.sh`、validator、Swift 编译器、Xcode、`xcodebuild`、`simctl` 或 Simulator；仅完成静态审阅和云端失败日志核对。
-- 本轮修复必须提交并 push 到 `origin/main`，后续只接受新 commit 对应的 GitHub Actions run 和 Agent C 原始 artifact 复判；run `31296048491` 仅作为失败背景，不作为通过证据。
+- commit `9efdec763716e722fd1985feb5551a1dc5da2850` 已 push 到 `origin/main`。对应 GitHub Actions run `31296565259`（attempt `1`、`main`、`push`）的 Static checks、Project verification、Mac build、iOS build、artifact 生成和上传全部成功；云端日志包含 `Mac core tests passed.` 和 `Project structure verified.`，JUnit 为 `4 tests / 0 failures / 0 errors`。
+- Agent C 使用 `gh` 在全新目录 `/private/tmp/chronofocus-c-review-31296565259-6i1hl1/` 保存并核对原始 run/artifacts API JSON 和 ZIP。唯一 artifact 为 `chronofocus-ci-v0.10-main-9efdec7-run31296565259-attempt1`（id `9033169188`，size `14359355`，digest `sha256:f6b2eaab0e8428cf7e7e5142ec606b4464359c76a0f79d222201f1f182ee6481`，`expired=false`）；ZIP 结构、manifest/index/run context、失败摘要、日志、两个 `.xcresult` 和五张 Mac 快照均通过人工核对。
 
 遗留事项：
 
-- 等待新 `origin/main` run 完成，并由 Agent C 使用 `gh` 核对最新 run、artifact、日志和完整结果包；在最新云端验收通过前不得宣称 v1.4.3 或总目标完成。
+- v1.4.3 的 Mac core 修复已完成云端验收；总目标仍未完成，下一轮转入 Mac 计时页队列展开/收起、分类切换重置和辅助功能优化。
 
 ### v1.4.2 / Mac core CI 编译接线
 

@@ -95,6 +95,10 @@ Agent A 写给 Agent B 的提示词必须明确：
 - 范围：只在 Mac core `swiftc` 源列表补入 `TimerEngine.swift` 和 `TimerPlatformServices.swift`，与 snapshot 编译顺序一致；不改 UI、产品 Swift、测试断言、validator 或 workflow。
 - 状态：针对 run `31295311282` 的 Mac core `TimerEngine` 缺失编译失败完成静态接线；未运行任何本地测试、validator、构建或模拟器，等待新 `origin/main` run 和 Agent C artifact 复判。
 
+- v1.4.3：`md/prompt/v1（持续优化）/v1.4.3（Mac core 计划失效断言）.md`。
+- 范围：仅调整停用任务触发自动计划重生成后的 Mac core 断言，接受计划项合法消失或开始时间保持不变；不改产品逻辑、UI、CI workflow、validator 或 artifact 结构。
+- 状态：commit `9efdec763716e722fd1985feb5551a1dc5da2850` 的 run `31296565259`（attempt `1`）已成功。Agent C 使用 `gh` 核对 artifact `chronofocus-ci-v0.10-main-9efdec7-run31296565259-attempt1`（id `9033169188`，size `14359355`，digest `sha256:f6b2eaab0e8428cf7e7e5142ec606b4464359c76a0f79d222201f1f182ee6481`，`expired=false`），原始 ZIP、manifest、index、run context、JUnit、日志、`.xcresult` 和 Mac 快照均匹配；未运行本地测试或 validator。
+
 - v0.98：`md/prompt/v0（持续优化）/v0.98（日程分类空态互斥与CI失败摘要直出）.md`。
 - UI 范围：iOS/macOS 日程分类筛选结果非空时显示摘要，结果为空时只显示现有双操作分类空态，保持新增预填、清除筛选与辅助功能接线。
 - CI 范围：`Final CI status` 通过 `tee` 将同一 failure summary 同时输出到步骤 stdout 与 Step Summary；新增 `CI failure summary output contracts verified.`、对应 validator PASS、`cat` 回退 fixture 和 marker 缺失 fixture，不改变 artifact 结构。
