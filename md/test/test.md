@@ -1,12 +1,12 @@
 # 测试规范
 
-本文指导 Agent B 和 Agent C 为 ChronoFocus 选择测试层级。每次实现前先读本文件，默认从本地轻量检查开始，并通过 `origin/main` 上的 GitHub Actions 做重验证。
+本文指导 Agent B 和 Agent C 为 ChronoFocus 选择测试层级。当前总目标要求所有测试和验收只走 `origin/main` 上的 GitHub Actions；本机只允许阅读源码和审查 diff，不运行项目测试或构建命令。
 
 ## 默认验证策略
 
-- 默认路径：本地轻量检查 -> commit 到 `main` -> `git push origin main` -> GitHub Actions 上传未加密 CI 结果包 -> Agent C 下载并复判。
-- 只有人工明确要求“本机测试”“本地 build”“本地 xcodebuild”“本地跑探针”等，才把完整本机 Xcode build 作为默认路径。
-- 文档-only 修改可本地跑 `git diff --check` 和必要的 YAML/plist 解析；业务代码、工程文件、脚本或平台能力改动完成后，默认依赖云端重验证给出最终结论。
+- 默认路径：静态审阅 -> commit 到 `main` -> `git push origin main` -> GitHub Actions 上传未加密 CI 结果包 -> Agent C 下载并复判。
+- 当前硬性约束不允许本地项目测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；即使是文档-only 修改，也不把本地命令作为验收证据。
+- 云端 workflow 是唯一测试入口；本地终端输出不得替代最新 `origin/main` run、原始 API JSON、原始 ZIP 和 Agent C 复判。
 - 云端失败时，Agent B 根据结果包里的 failure summary、JUnit、日志和 manifest 修复，并在 `main` 上追加修复 commit 后重新 push。
 - 云端环境缺依赖时，最终回复必须说明没跑哪个测试、缺什么依赖、是否影响验收、需要人工提供什么。
 
@@ -14,8 +14,8 @@
 
 Agent X 只负责主控调度，不改变每轮验证责任。每一个由 Agent X 拆出的轮次仍按 Agent A -> Agent B -> Agent C 闭环执行：
 
-- Agent A 提示词必须写清本轮本地验证、GitHub Actions、artifact 和 Agent C 复判要求。
-- Agent B 必须按本文件选择本地轻量检查；实现轮次默认至少有本地轻量检查结果、commit 和 `origin/main` push。
+- Agent A 提示词必须写清本轮静态审阅边界、GitHub Actions、artifact 和 Agent C 复判要求。
+- Agent B 不运行本地测试；实现轮次至少有 commit、`origin/main` push 和最新云端结果包。
 - GitHub Actions 必须为最新 `origin/main` commit 生成未加密 artifact。
 - Agent C 必须下载并核对最新 run 对应 artifact，检查 manifest、run context、artifact 名称、JUnit 或测试摘要、failure summary、主日志、`.xcresult` 和项目专属产物。
 - Agent X 不得跳过 Agent C artifact 验收，不得用本地输出、旧 run 或旧 artifact 代替最新云端结论。
@@ -49,13 +49,13 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocus -configuration Deb
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-本机 iOS simulator destination 解析：
+云端 workflow 的 iOS simulator destination 解析（本机禁止执行）：
 
 ```bash
 ruby scripts/resolve_ios_simulator_destination.rb
 ```
 
-本机 iOS simulator build 命令可由脚本打印：
+云端 workflow 的 iOS simulator build 命令可由脚本打印（本机禁止执行）：
 
 ```bash
 ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
@@ -69,13 +69,13 @@ ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
 bash scripts/verify_project.sh
 ```
 
-文档和补丁格式检查：
+文档和补丁格式检查由 GitHub Actions 执行，本机不运行：
 
 ```bash
 git diff --check
 ```
 
-GitHub Actions workflow 语法轻量检查：
+GitHub Actions workflow 语法检查：
 
 ```bash
 ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci-results.yml"); puts "yaml ok"'
@@ -107,7 +107,7 @@ ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id>-
   --run-metadata /private/tmp/chronofocus-c-review-<run_id>-<unique>/run-api.json
 ```
 
-`--archive`、`--archive-size`、`--archive-digest` 必须全有或全无。完整参数组会针对同一个原始 ZIP 输出 `PASS artifact archive byte count`、`PASS artifact archive sha256 digest` 和 `PASS artifact archive zip integrity`。Validator 保留四种模式：目录-only、archive-only、archive + artifact metadata、archive + artifact metadata + run metadata。`--artifact-metadata` 必须依附完整 archive 参数；`--run-metadata` 还必须同时具备完整 archive 参数与 artifact metadata，缺少任一前置输入都以参数错误退出。
+`--archive`、`--archive-size`、`--archive-digest` 必须全有或全无。完整参数组会针对同一个原始 ZIP 输出 `PASS artifact archive byte count`、`PASS artifact archive sha256 digest`、`PASS artifact archive zip integrity` 和 `PASS artifact archive extracted directory binding`；后者逐路径比较 validator 自建临时解包树与传入目录的类型、大小和 SHA-256，并拒绝 traversal、重复路径、前缀冲突、symlink 和特殊文件。Validator 保留四种模式：目录-only、archive-only、archive + artifact metadata、archive + artifact metadata + run metadata。`--artifact-metadata` 必须依附完整 archive 参数；`--run-metadata` 还必须同时具备完整 archive 参数与 artifact metadata，缺少任一前置输入都以参数错误退出。
 
 Agent C 必须从精确 workflow run endpoint 和 run artifacts endpoint 获取最新 run 的两份原始响应，分别写入全新目录的 `run-api.json.part`、`artifacts-api.json.part`，成功且非空、最终文件不存在时才在同一文件系统无覆盖原子改名。两份 metadata 都必须是非空普通文件、拒绝 symlink 且不超过 `1_048_576` bytes，由 `JSON.parse` 结构化复判，不得复制进 artifact 解包目录。再使用 artifacts JSON 中的唯一 id 下载 `<artifact-name>.zip.part`，启用失败即退出、跟随重定向和有限重试；在 `.part` 上核对 size、SHA-256 与 `unzip -t`，全部通过且最终 ZIP 不存在后才原子改名。任何既有目录、JSON、`.part`、最终 ZIP 或解包目录默认拒绝覆盖、删除或复用，失败证据必须保留。
 
@@ -119,7 +119,7 @@ v1.2 起，第四模式还必须输出 `PASS workflow run metadata event`、`act
 
 该脚本会核对 manifest branch/commit/run/attempt、manifest artifactName、overallOutcome、short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、createdAt、project reports allowlist 和关键路径字段、`ci-run-context.txt` 精确字段集合、无重复/无额外字段、身份字段与 artifact 名称、artifact index 身份字段、artifactName、version、createdAt、必需路径与 kind、entry 路径集合精确清单、下载后本地文件/目录非空状态、required entry 的本地 byteCount/fileCount/recursiveByteCount 复算、index totals 与 entries 聚合一致性、artifact 根目录/报告目录/快照目录不存在未声明额外文件、JUnit suite/classname 元数据、四个 testcase、JUnit failures/errors 计数、JUnit outcome 与 manifest outcome、testcase 不含 failure/error 元素、failure summary 身份字段/总结果/阶段 outcome/日志入口、`static-checks.log` 静态检查 marker、`xcode-version.log` 版本内容、`verify_project.log` 分类摘要动作 contract marker、分类 chip 可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge marker、Mac 计划分类上下文 marker、计划面板操作 marker、日程 toolbar 新增 marker、日程分类空态操作 marker、Mac 日程分类空态操作 marker、Mac 快速新增 marker、Mac 快速新增标题分类上下文 marker、分类输入上下文 marker、待办保存按钮 marker、待办取消按钮 marker、Mac 小窗快捷面板 marker、统计分类占比 marker、统计分类投入次数 marker、统计分类投入排行 marker、统计分类投入排序依据 marker、统计分类投入空态 marker、统计最近记录分类 marker 和统计计划回顾分类 marker、Mac/iOS build 成功标记、Mac 快照 manifest generatedAt 和快照 manifest 中 PNG byteCount 与下载文件大小一致性。`verify_project.sh` 用小型成功 fixture、旧 process version 负向 fixture、run context 额外字段负向 fixture、分类摘要 marker 缺失负向 fixture、日程任务操作 marker 缺失负向 fixture、计时主控 marker 缺失负向 fixture、计划开始 marker 缺失负向 fixture、计划分类 badge marker 缺失负向 fixture、Mac 计划分类 marker 缺失负向 fixture、计划面板操作 marker 缺失负向 fixture、日程 toolbar 新增 marker 缺失负向 fixture、日程分类空态操作 marker 缺失负向 fixture、Mac 日程分类空态操作 marker 缺失负向 fixture、Mac 快速新增 marker 缺失负向 fixture、Mac 快速新增标题分类上下文 marker 缺失负向 fixture、分类输入上下文 marker 缺失负向 fixture、待办保存按钮 marker 缺失负向 fixture、待办取消按钮 marker 缺失负向 fixture、Mac 小窗快捷面板 marker 缺失负向 fixture、统计分类占比 marker 缺失负向 fixture、统计分类投入次数 marker 缺失负向 fixture、统计分类投入排行 marker 缺失负向 fixture、统计分类投入排序依据 marker 缺失负向 fixture、统计分类投入空态 marker 缺失负向 fixture、统计最近记录分类 marker 缺失负向 fixture、统计计划回顾分类 marker 缺失负向 fixture、错误 JUnit 元数据负向 fixture、错误 JUnit errors 计数负向 fixture、错误 JUnit outcome 负向 fixture、JUnit failure/error 元素负向 fixture、错误 artifactName 负向 fixture、错误 manifest artifactName 负向 fixture、错误 manifest overallOutcome 负向 fixture、错误 index artifactName 负向 fixture、错误 manifest 元数据负向 fixture、artifact index 身份错包负向 fixture、artifact index totals 篡改负向 fixture、artifact index 未预期 entry 负向 fixture、额外 artifact 文件负向 fixture、本地文件大小篡改负向 fixture、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture 和快照 manifest 大小篡改负向 fixture 覆盖 validator 的放行/拒绝路径。脚本只能辅助复判，不能替代 Agent C 对最新 `origin/main` run 和 artifact 来源的一致性核对。
 
-## StoreKit / EventKit 本地人工验证
+## StoreKit / EventKit 覆盖边界
 
 StoreKit 和 EventKit 依赖真实系统服务、App Store Connect / StoreKit 配置、sandbox 账号、系统日历数据和权限弹窗，默认 GitHub Actions 不访问真实 App Store 或系统日历数据。CI 只检查代码标记、plist / project 配置、项目专属脚本、Mac build 和 iOS generic build，不能替代人工环境验证。
 
@@ -131,14 +131,14 @@ StoreKit 和 EventKit 依赖真实系统服务、App Store Connect / StoreKit �
 - macOS 日历同步：`ChronoFocusMac/Services/MacCalendarSyncService.swift`，首次授权在 macOS 14+ 使用 EventKit 请求完整日历访问，当前实现也接受已有 `writeOnly` / `authorized` 状态。
 - 外部日历事件必须通过 `FocusStore.upsertExternalTask(...)` 合并，不能绕过 `FocusStore` 直接写持久化。
 
-涉及 StoreKit / EventKit 代码、权限描述、商品 ID、同步规则或 Pro gating 的改动，本地至少运行：
+涉及 StoreKit / EventKit 代码、权限描述、商品 ID、同步规则或 Pro gating 的改动，本轮只由云端 workflow 验证：
 
 ```bash
 git diff --check
 bash scripts/verify_project.sh
 ```
 
-人工验证 StoreKit 时，使用 Xcode scheme 绑定包含 `com.example.ChronoFocus.pro.analytics` 的 StoreKit 配置，或使用 App Store Connect sandbox 中已配置的同名商品。检查商品加载、购买、恢复、取消、无商品配置和 entitlement 刷新后的状态文案；不要通过直接改 `UserDefaults`、`FocusStore` 或新增调试开关伪造 Pro 权益。
+本机不执行 StoreKit/EventKit 人工验收；云端只核对代码标记、配置、平台构建和项目专属契约，不能把本机环境状态写成测试结果。
 
 人工验证 EventKit 时，先通过 StoreKit 本地配置或 sandbox 解锁 Pro，再在系统日历中创建从今天零点起 45 天范围内的非全天事件，执行同步，确认待办列表出现同标题任务、分类为来源日历名称、开始时间进入待办时间，并且重复同步不会复制同一外部事件。还要检查拒绝日历权限、无近期非全天事件和权限重新授权后的状态文案。
 
@@ -273,6 +273,8 @@ bash scripts/verify_project.sh
 - v1.2 最终证据 commit `001875c842a2a2368346c043af59498c75a68788` 的 run `30195874234`（attempt `1`）已在全新合规目录完成同样第四模式复判，artifact `8630116575` 为 `128 PASS / 0 FAIL`，annotations 为 0，v1.2 闭环。
 - v1.3 起，iOS/macOS 日程分类摘要和任务行接力到计时必须使用带唯一 UUID、分类和可选任务 id 的瞬态请求；消费端恢复分类、重新查询 `FocusStore`、按 id 清除请求，且仅在非运行态通过 `engine.selectTask(...)` 选择。精确目标失效必须清除旧选择，接力切片禁止 `engine.start()`、直接写 `selectedTaskID` 或持久化。
 - v1.3 的云端项目验证必须输出 `Schedule to timer handoff contracts verified.`，artifact validator 必须输出 `PASS verify_project schedule to timer handoff contracts`；marker 缺失负向 fixture 只允许该项 FAIL。实现 commit `a5d5a85ac7095fe5718f45ba3c310c7252acb56d` 的 run `30322671653` 已由 Agent C 以完整第四模式复判为 `129 PASS / 0 FAIL`，JUnit `4/0/0`、annotations `0`、Mac/iOS build 成功；`detail-schedule.png` 的接力入口和 `detail-timer.png` 的产品分类/selected 终态无重叠、占位或截断。最终证据 commit 仍须单独云端复判。
+- v1.4 起，`FocusStore.upcomingTasks()` 继续服务日程展示，`startableTasks()` / `startableTask(for:)` 统一服务计时队列、计划项、日程接力和 TimerEngine 最终边界；云端 `Mac core` 需覆盖停用/完成/删除任务、空闲 reconcile、计划项拒绝和运行中/暂停中快照保护。`verify_project.log` 必须包含 `Startable task consistency contracts verified.`，validator 必须输出 `PASS verify_project startable task consistency contracts`，并由 `negative_startable_task_consistency_marker_fixture` 在只移除该 marker 时只触发对应 FAIL。
+- v1.4 的完整 archive 模式必须在三项 archive integrity PASS 后输出 `PASS artifact archive extracted directory binding`，用独立临时解包树逐路径比较类型、大小和 SHA-256；目录错配 fixture 必须只让绑定项 FAIL，traversal、重复路径和特殊文件 ZIP 必须拒绝。第四模式目标为 `131 PASS / 0 FAIL`，JUnit `4/0/0`、annotations `0`，所有结论只接受最新 `origin/main` GitHub Actions artifact。
 - 检查分类预设、日程页和计时页分类筛选、统计分类投入占比/次数/排行/排序依据/空态/元信息和占比可读性、统计计划回顾分类语义、分类 chip 点击切换、分类输入上下文、待办保存/取消按钮分类语义、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、新建预填、筛选摘要、筛选摘要动作可访问提示、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名和分类语义、iOS/Mac 计时主控按钮任务名和分类语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划项分类 badge、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增提交按钮分类/轮次语义、Mac 小窗快捷面板按钮语义、Mac 计划项分类上下文、计时页分类筛选摘要、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、分类摘要插入点和新增/清除动作接线、iOS 摘要快捷新增分类待办、Mac 待办筛选计数、Mac 分类摘要快捷新增、Mac 快速新增分类预填提示和连续新增分类保留、筛选优先级、44pt iOS 分类点击区域、iOS 设置页音色选择/试听、根视图非 Pro 音色清洗、Mac 小窗任务分类上下文、Mac 小窗直达详情入口、Mac 各详情页快照安全静态控件、CI iOS/错误摘录/artifact index 精确清单/run context/manifest 元数据和 manifest/index artifactName/manifest overallOutcome 结果包实现标记、结果包校验脚本语法、validator 小型成功、固定 CI process version 复判、manifest artifactName 复判、manifest overallOutcome 复判、index artifactName 复判、旧 process version 负向 fixture、分类摘要 marker 缺失负向 fixture、日程任务操作 marker 缺失负向 fixture、计时主控 marker 缺失负向 fixture、计划开始 marker 缺失负向 fixture、计划分类 badge marker 缺失负向 fixture、Mac 计划分类 marker 缺失负向 fixture、计划面板操作 marker 缺失负向 fixture、日程 toolbar 新增 marker 缺失负向 fixture、Mac 快速新增 marker 缺失负向 fixture、分类输入上下文 marker 缺失负向 fixture、待办保存 marker 缺失负向 fixture、待办取消 marker 缺失负向 fixture、Mac 小窗快捷面板 marker 缺失负向 fixture、统计分类占比 marker 缺失负向 fixture、统计分类投入次数 marker 缺失负向 fixture、统计分类投入排行 marker 缺失负向 fixture、统计分类投入排序依据 marker 缺失负向 fixture、统计分类投入空态 marker 缺失负向 fixture、统计分类投入元信息可读性 marker 缺失负向 fixture、统计分类投入占比可读性 marker 缺失负向 fixture、统计最近记录分类 marker 缺失负向 fixture、统计计划回顾分类 marker 缺失负向 fixture、JUnit 元数据负向 fixture、JUnit errors 负向 fixture、JUnit outcome 负向 fixture、JUnit failure/error 元素负向 fixture、artifactName mismatch 负向、manifest artifactName 负向、manifest overallOutcome 负向、index artifactName 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向 fixture、额外 artifact 文件负向 fixture、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture、快照 manifest 大小篡改负向 fixture、static-checks 日志 marker、分类可访问 contract 日志复判、日程任务操作 contract 日志复判、计时主控 contract 日志复判、计划开始 contract 日志复判、计划分类 badge contract 日志复判、Mac 计划分类 contract 日志复判、计划面板操作 contract 日志复判、日程 toolbar 新增 contract 日志复判、Mac 快速新增 contract 日志复判、分类输入上下文 contract 日志复判、待办保存/取消按钮 contract 日志复判、Mac 小窗快捷面板 contract 日志复判、统计分类占比/投入次数/排行/排序依据/空态/元信息和占比可读性 contract 日志复判、统计最近记录分类 contract 日志复判和统计计划回顾分类 contract 日志复判、iOS simulator destination 解析 fixture。
 - v0.93 的完整检查清单还包括 Mac 日历范围空态的选中日期传递、保留时分、标题聚焦、快照动作和可访问语义，`Mac calendar range empty state quick add contracts verified.` 日志复判，以及 `negative_mac_calendar_range_empty_state_marker_fixture` 的拒绝路径。
 - 编译并运行 Mac core tests。

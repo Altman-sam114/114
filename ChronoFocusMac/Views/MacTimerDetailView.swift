@@ -379,19 +379,19 @@ private struct MacTaskQueueView: View {
         _selectedCategory = State(initialValue: initialTaskCategory)
     }
 
-    private var upcomingTasks: [FocusTask] {
-        store.upcomingTasks()
+    private var startableTasks: [FocusTask] {
+        store.startableTasks()
     }
 
     private var visibleTasks: [FocusTask] {
-        guard let selectedCategory else { return upcomingTasks }
-        return upcomingTasks.filter { $0.category == selectedCategory }
+        guard let selectedCategory else { return startableTasks }
+        return startableTasks.filter { $0.category == selectedCategory }
     }
 
     private var taskQueueCountText: String {
-        guard !upcomingTasks.isEmpty else { return "0 项待办" }
-        guard selectedCategory != nil else { return "\(upcomingTasks.count) 项待办" }
-        return "\(visibleTasks.count)/\(upcomingTasks.count) 项待办"
+        guard !startableTasks.isEmpty else { return "0 项可启动待办" }
+        guard selectedCategory != nil else { return "\(startableTasks.count) 项可启动待办" }
+        return "\(visibleTasks.count)/\(startableTasks.count) 项可启动待办"
     }
 
     var body: some View {
@@ -409,7 +409,7 @@ private struct MacTaskQueueView: View {
                         .minimumScaleFactor(0.78)
                 }
 
-                if !upcomingTasks.isEmpty {
+                if !startableTasks.isEmpty {
                     MacCategoryFilterBar(
                         categories: store.taskCategories,
                         selectedCategory: $selectedCategory,
@@ -417,8 +417,8 @@ private struct MacTaskQueueView: View {
                     )
                 }
 
-                if upcomingTasks.isEmpty {
-                    Text("暂无待办，仍可启动自由专注。")
+                if startableTasks.isEmpty {
+                    Text("暂无可启动待办，仍可启动自由专注。")
                         .font(.caption)
                         .foregroundStyle(MacTheme.secondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -438,7 +438,7 @@ private struct MacTaskQueueView: View {
                         MacTimerCategoryContextView(
                             category: selectedCategory,
                             filteredCount: visibleTasks.count,
-                            totalCount: upcomingTasks.count,
+                            totalCount: startableTasks.count,
                             isSnapshotRendering: isSnapshotRendering,
                             onAddTask: {
                                 onAddTaskInCategory(selectedCategory)
@@ -478,8 +478,8 @@ private struct MacTaskQueueView: View {
     }
 
     private func taskCount(in category: String?) -> Int {
-        guard let category else { return upcomingTasks.count }
-        return upcomingTasks.filter { $0.category == category }.count
+        guard let category else { return startableTasks.count }
+        return startableTasks.filter { $0.category == category }.count
     }
 
     private func consumeTimerHandoffRequest() {
@@ -489,14 +489,14 @@ private struct MacTaskQueueView: View {
         selectedCategory = request.category
         guard !engine.isRunning else { return }
 
-        let startableTasks = store.upcomingTasks().filter(\.isEnabled)
+        let startableTasks = store.startableTasks()
         let targetTask = resolveMacTimerHandoffTask(request, from: startableTasks)
 
         if let targetTask {
             engine.selectTask(targetTask)
         } else if request.preferredTaskID != nil {
             engine.selectTask(nil)
-        } else if store.task(for: engine.selectedTaskID)?.category != request.category {
+        } else if store.startableTask(for: engine.selectedTaskID)?.category != request.category {
             engine.selectTask(nil)
         }
     }
@@ -519,7 +519,7 @@ struct MacTimerCategoryContextView: View {
     }
 
     private var countText: String {
-        "\(filteredCount)/\(totalCount) 项待办"
+        "\(filteredCount)/\(totalCount) 项可启动待办"
     }
 
     var body: some View {
@@ -535,8 +535,8 @@ struct MacTimerCategoryContextView: View {
                 .stroke(tint.opacity(0.32), lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("当前筛选为\(category)分类，显示\(filteredCount)项，共\(totalCount)项待办")
-        .accessibilityHint("可新增\(category)分类待办或清除筛选查看全部待办")
+        .accessibilityLabel("当前筛选为\(category)分类，显示\(filteredCount)项，共\(totalCount)项可启动待办")
+        .accessibilityHint("可新增\(category)分类待办或清除筛选查看全部可启动待办")
     }
 
     private func contextLayout(axis: Axis) -> some View {
@@ -578,7 +578,7 @@ struct MacTimerCategoryContextView: View {
                 .lineLimit(1)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("已选择\(category)分类，显示\(filteredCount)项，共\(totalCount)项待办")
+        .accessibilityLabel("已选择\(category)分类，显示\(filteredCount)项，共\(totalCount)项可启动待办")
     }
 }
 
@@ -687,11 +687,11 @@ struct MacTimerCategoryEmptyStateView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("暂无\(category)分类待办", systemImage: preset?.symbolName ?? "tag.slash")
+            Label("暂无\(category)分类可启动待办", systemImage: preset?.symbolName ?? "tag.slash")
                 .font(.subheadline.bold())
                 .foregroundStyle(MacTheme.primaryText)
 
-            Text("可转到日程快速新增此分类待办，或清除筛选查看全部。")
+            Text("可转到日程快速新增此分类待办，或清除筛选查看全部可启动待办。")
                 .font(.caption)
                 .foregroundStyle(MacTheme.secondaryText)
 
@@ -727,7 +727,7 @@ struct MacTimerCategoryEmptyStateView: View {
                 .stroke(tint.opacity(0.32), lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(category)分类暂无待办，可转到日程新增此分类待办或清除筛选")
+        .accessibilityLabel("\(category)分类暂无可启动待办，可转到日程新增此分类待办或清除筛选")
     }
 }
 

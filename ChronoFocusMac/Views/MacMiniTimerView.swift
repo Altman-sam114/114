@@ -254,6 +254,10 @@ private struct MacMiniTaskPickerView: View {
 
     let currentTint: Color
 
+    private var startableTasks: [FocusTask] {
+        store.startableTasks()
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -261,47 +265,55 @@ private struct MacMiniTaskPickerView: View {
                     .font(.caption)
                     .foregroundStyle(MacTheme.secondaryText)
                 Spacer()
-                Text("\(store.upcomingTasks().count) 项")
+                Text("\(startableTasks.count) 项可启动待办")
                     .font(.caption)
                     .foregroundStyle(MacTheme.secondaryText)
             }
 
-            ForEach(store.upcomingTasks().prefix(3)) { task in
-                let isSelected = engine.selectedTaskID == task.id
-                Button {
-                    guard !engine.isRunning else { return }
-                    engine.selectTask(task)
-                } label: {
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(Color(hex: task.accentHex))
-                            .frame(width: 8, height: 8)
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(task.title)
-                                .font(.subheadline)
-                                .foregroundStyle(MacTheme.primaryText)
+            if startableTasks.isEmpty {
+                Text("暂无可启动待办，仍可启动自由专注。")
+                    .font(.caption)
+                    .foregroundStyle(MacTheme.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel("暂无可启动待办，仍可启动自由专注")
+            } else {
+                ForEach(startableTasks.prefix(3)) { task in
+                    let isSelected = engine.selectedTaskID == task.id
+                    Button {
+                        guard !engine.isRunning else { return }
+                        engine.selectTask(task)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(Color(hex: task.accentHex))
+                                .frame(width: 8, height: 8)
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(task.title)
+                                    .font(.subheadline)
+                                    .foregroundStyle(MacTheme.primaryText)
+                                    .lineLimit(1)
+                                MacMiniTaskCategoryBadgeView(task: task)
+                            }
+                            .layoutPriority(1)
+                            Spacer()
+                            Text(taskContextText(for: task))
+                                .font(.caption)
+                                .foregroundStyle(MacTheme.secondaryText)
+                                .monospacedDigit()
                                 .lineLimit(1)
-                            MacMiniTaskCategoryBadgeView(task: task)
                         }
-                        .layoutPriority(1)
-                        Spacer()
-                        Text(taskContextText(for: task))
-                            .font(.caption)
-                            .foregroundStyle(MacTheme.secondaryText)
-                            .monospacedDigit()
-                            .lineLimit(1)
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .background(rowBackground(for: task), in: RoundedRectangle(cornerRadius: 8))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText(isSelected: isSelected))")
+                        .accessibilityHint(selectionHintText(isSelected: isSelected))
+                        .accessibilityInputLabels(selectionInputLabels(for: task))
+                        .accessibilityAddTraits(selectionAccessibilityTraits(isSelected: isSelected))
                     }
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 10)
-                    .background(rowBackground(for: task), in: RoundedRectangle(cornerRadius: 8))
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText(isSelected: isSelected))")
-                    .accessibilityHint(selectionHintText(isSelected: isSelected))
-                    .accessibilityInputLabels(selectionInputLabels(for: task))
-                    .accessibilityAddTraits(selectionAccessibilityTraits(isSelected: isSelected))
+                    .buttonStyle(.plain)
+                    .disabled(engine.isRunning)
                 }
-                .buttonStyle(.plain)
-                .disabled(engine.isRunning)
             }
         }
         .padding(12)

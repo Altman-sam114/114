@@ -62,9 +62,9 @@ Agent A 写给 Agent B 的提示词必须明确：
 
 - 本轮固定使用 `main` 作为唯一上传、提交、推送和云端验证分支。
 - 开始前执行 `git fetch origin`、`git switch main`、`git pull --ff-only origin main`，并确认无无关 diff。
-- 本地默认只跑 `md/test/test.md` 要求的轻量检查；除非人工明确要求，不默认跑完整本机 Xcode build。
+- 当前硬性约束下不运行本地项目测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；只做静态审阅，最终测试和验收全部由 push 后的 GitHub Actions 提供。
 - 完成后按版本号提交本轮相关文件，并 `git push origin main` 触发 `.github/workflows/ci-results.yml`。
-- Agent B 输出必须包含本地检查命令、结果、commit SHA、push 状态、workflow run 信息和 artifact 名称。
+- Agent B 输出必须说明未运行本地测试，包含静态审阅范围、commit SHA、push 状态、workflow run 信息和 artifact 名称。
 - Agent C 必须用 `gh auth login` 后查询最新 `origin/main` 对应精确 workflow run API 和 artifacts API。两份原始响应分别先写 `run-api.json.part`、`artifacts-api.json.part`，成功且非空后无覆盖原子改名；run JSON 结构化核对 attempt、workflow、状态、结论和仓库，artifacts JSON 结构化核对唯一 artifact 的 id、name、size、digest、expired 和 workflow run 身份。
 - Agent C 每次使用全新 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 目录。原始 JSON 必须非空、不超过 1 MiB、为普通文件且不是 symlink；原始 ZIP 使用同一 JSON 中的唯一 id 下载到 `.zip.part` 并进行有限重试，size、SHA-256 和 ZIP 结构全部通过后，才在同一文件系统无覆盖原子改名并解包到全新目录。已有目录或目标文件存在时默认停止并更换唯一目录，禁止删除或覆盖。
 - Agent C 必须将解包目录、原始 ZIP、两份原始 API JSON 和 API size/digest 一并交给 validator 第四模式；v1.2 起核对十四项 run metadata（含 push/actor/triggering actor/head repository 来源）、八项 artifact metadata、三项 archive、manifest、failure summary、JUnit、主日志、`.xcresult` 和项目专属快照。前三种较弱模式仅用于兼容，不能替代最新原始证据验收。
@@ -81,6 +81,11 @@ Agent A 写给 Agent B 的提示词必须明确：
 6. 写清 `main` push 后的云端结果包验收标准。
 
 ## 当前实现轮次
+
+- v1.4：`md/prompt/v1（持续优化）/v1.4（可启动待办一致性与Archive目录绑定）.md`。
+- UI 范围：日程保留停用任务展示，计时队列、计划启动、日程接力和 TimerEngine 使用统一的 startable 查询；空闲选择失效时回到自由专注，运行中/暂停中保留快照。
+- CI 范围：完整 archive 模式把原始 ZIP 与 validator 自建临时解包树逐路径绑定，比较类型、大小和 SHA-256，并拒绝不安全 ZIP 条目；目标基线 `131 PASS / 0 FAIL`。
+- 状态：实现与文档待 `origin/main` GitHub Actions 及 Agent C 最新 artifact 复判；未运行任何本地测试或检查。
 
 - v0.98：`md/prompt/v0（持续优化）/v0.98（日程分类空态互斥与CI失败摘要直出）.md`。
 - UI 范围：iOS/macOS 日程分类筛选结果非空时显示摘要，结果为空时只显示现有双操作分类空态，保持新增预填、清除筛选与辅助功能接线。

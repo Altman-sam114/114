@@ -4,7 +4,7 @@
 
 ## 核心数据流
 
-读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和测试脚本。已有分类选择和计时队列展开只属于 View 草稿/瞬态，不新增持久化或计时状态；run/artifacts 原始 API JSON 与 ZIP 由独立证据链交给 validator 复判。
+读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和云端测试脚本。日程使用完整 `upcomingTasks()`，计时消费使用 `startableTasks()`；已有分类选择和计时队列展开只属于 View 草稿/瞬态，不新增持久化或计时状态；run/artifacts 原始 API JSON 与 ZIP 由独立证据链交给 validator 复判。
 
 ```mermaid
 flowchart TD
@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["测试入口<br/>verify_project.sh / validate_ci_artifact.rb<br/>已有分类复用/搜索与计时队列契约<br/>四种validator模式<br/>run十四项、artifact八项、ZIP三项检查<br/>授权触发来源、安全边界、字段篡改、marker缺失fixture<br/>manifest/index/JUnit/build/快照复判"]
+  S --> T["云端测试入口<br/>verify_project.sh / validate_ci_artifact.rb<br/>startableTasks与计时边界契约<br/>四种validator模式<br/>run十四项、artifact八项、ZIP三项与目录绑定检查<br/>授权触发来源、安全边界、字段篡改、marker缺失fixture<br/>manifest/index/JUnit/build/快照复判"]
 ```
 
 ## 计时执行流
@@ -36,7 +36,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["用户点击开始<br/>或从计划项开始"] --> B["TimerEngine.start / startPlanItem<br/>读取任务、模式、设置"]
+  A["用户点击开始<br/>或从计划项开始"] --> B["TimerEngine.start / startPlanItem<br/>最终复核 startableTask<br/>读取任务、模式、设置"]
   B --> C["创建 ActiveTimerSnapshot<br/>sessionID、taskID、startedAt、endAt、plannedSeconds"]
   C --> D["写入 FocusStore.activeTimer<br/>触发 UserDefaults JSON 保存"]
   D --> E["启动 1 秒 ticker<br/>按真实系统时间计算 remainingSeconds"]
@@ -50,7 +50,7 @@ flowchart TD
   H -->|完成| L["completeCurrentSession<br/>记录 FocusSession"]
   L --> M["专注模式更新任务轮次<br/>更新计划项和任务完成状态"]
   M --> N["按 completionSound 播放 App 内提示音/振动<br/>结束 Live Activity<br/>清空 activeTimer"]
-  N --> O["计算下一模式<br/>短休/长休/专注"]
+  N --> O["计算下一模式<br/>短休/长休/专注<br/>空闲 reconcile 失效选择"]
   O --> P{"自动流转开启?"}
   P -->|是| B
   P -->|否| Q["回到空闲状态<br/>等待用户下一次操作"]
@@ -131,7 +131,7 @@ flowchart TD
   A --> P["md/prompt/版本目录<br/>写给 Agent B 的详细实现提示词<br/>包含 main push、CI、artifact 要求"]
   P --> B0["Agent B<br/>git fetch origin<br/>git switch main<br/>git pull --ff-only origin main"]
   B0 --> B1["Agent B 实现<br/>按现有架构小步修改<br/>同步必要文档"]
-  B1 --> L["本地轻量检查<br/>git diff --check<br/>YAML/plist/脚本语法检查"]
+  B1 --> L["静态审阅<br/>本机不运行项目测试或构建"]
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
   PUSH --> CI["GitHub Actions<br/>checkout@v5 / upload-artifact@v6<br/>静态检查、verify_project、Mac build、iOS build"]
@@ -145,7 +145,7 @@ flowchart TD
   API --> META["包外metadata安全与身份<br/>不超过1MiB、普通文件、非symlink<br/>run十四项 + artifact八项<br/>attempt与授权触发来源复判"]
   META --> DL["用同一artifact id下载<br/>写入.zip.part并有限重试<br/>默认拒绝覆盖或删除"]
   DL --> ZIP["校验size、SHA-256、unzip -t<br/>全部通过后同文件系统原子改名<br/>解包到全新目录"]
-  ZIP --> C["Agent C validator第四模式<br/>解包目录+原始ZIP+两份原始API JSON<br/>run十四项+artifact八项+archive三项<br/>push/actor/triggering actor/head repository<br/>marker/PASS、manifest与build"]
+  ZIP --> C["Agent C validator第四模式<br/>解包目录+原始ZIP+两份原始API JSON<br/>run十四项+artifact八项+archive三项+目录绑定<br/>push/actor/triggering actor/head repository<br/>安全条目、逐路径类型/大小/SHA-256<br/>marker/PASS、manifest与build"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>run context无重复/无额外字段<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}
   PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]
@@ -168,7 +168,7 @@ flowchart TD
   H["人工输入 agentx 总目标 X<br/>范围、约束、验收标准"] --> X0["Agent X<br/>理解总目标和当前状态"]
   X0 --> X1["拆分本轮小目标<br/>版本、边界、非目标、风险"]
   X1 --> A["Agent A<br/>写 md/prompt 版本化提示词<br/>包含验证、CI、artifact、Agent C 要求"]
-  A --> B["Agent B<br/>按提示词实现<br/>本地轻量检查、commit、push origin/main"]
+  A --> B["Agent B<br/>按提示词实现<br/>静态审阅、commit、push origin/main"]
   B --> CI["GitHub Actions<br/>ci-results.yml<br/>运行静态检查、verify_project、Mac/iOS build"]
   CI --> ART["最新未加密 artifact<br/>manifest、artifact index、run context、JUnit、failure summary/错误摘录、日志、xcresult、快照 manifest、项目产物"]
   ART --> C["Agent C<br/>run/artifacts API JSON分别以.part无覆盖原子改名<br/>结构化核对run与唯一artifact身份<br/>同一id下载ZIP .part并有限重试<br/>以两份JSON、原始ZIP和全新解包目录第四模式复判"]

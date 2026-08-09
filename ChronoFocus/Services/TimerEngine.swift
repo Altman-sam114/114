@@ -20,12 +20,14 @@ final class TimerEngine: ObservableObject {
     private let liveActivities: TimerLiveActivityServicing
     private var ticker: Timer?
     private var lastLiveActivityUpdate = Date.distantPast
+    private var cancellables: Set<AnyCancellable> = []
 
     init(store: FocusStore, notifications: TimerNotificationServicing, liveActivities: TimerLiveActivityServicing) {
         self.store = store
         self.notifications = notifications
         self.liveActivities = liveActivities
         restoreFromStore()
+        observeTaskChanges()
     }
 
     var progress: Double {
@@ -53,15 +55,25 @@ final class TimerEngine: ObservableObject {
 
     func selectTask(_ task: FocusTask?) {
         guard !isRunning else { return }
-        selectedTaskID = task?.id
-        currentTaskTitle = task?.title ?? "自由专注"
+        guard let requestedID = task?.id else {
+            setIdleSelectedTask(nil)
+            return
+        }
+        guard let currentTask = store.startableTask(for: requestedID) else {
+            reconcileIdleSelectedTask()
+            return
+        }
+        setIdleSelectedTask(currentTask)
     }
 
     func startPlanItem(_ item: PomodoroPlanItem) {
-        guard !isRunning, let task = store.task(for: item.taskID) else { return }
+        guard !isRunning else { return }
+        guard let task = store.startableTask(for: item.taskID) else {
+            reconcileIdleSelectedTask()
+            return
+        }
         mode = .focus
-        selectedTaskID = task.id
-        currentTaskTitle = task.title
+        setIdleSelectedTask(task)
         store.markPlanItemStarted(item)
         syncIdleDuration()
         start()
@@ -79,8 +91,22 @@ final class TimerEngine: ObservableObject {
 
     func syncIdleDuration() {
         guard !isRunning else { return }
+        reconcileIdleSelectedTask()
         plannedSeconds = store.settings.seconds(for: mode)
         remainingSeconds = plannedSeconds
+    }
+
+    func reconcileIdleSelectedTask() {
+        guard !isRunning, !isPaused else { return }
+        guard let selectedTaskID else {
+            setIdleSelectedTask(nil)
+            return
+        }
+        guard let task = store.startableTask(for: selectedTaskID) else {
+            setIdleSelectedTask(nil)
+            return
+        }
+        setIdleSelectedTask(task)
     }
 
     func handleSettingsChange() {
@@ -137,7 +163,8 @@ final class TimerEngine: ObservableObject {
             return
         }
 
-        let task = store.task(for: selectedTaskID)
+        reconcileIdleSelectedTask()
+        let task = store.startableTask(for: selectedTaskID)
         let taskTitle = task?.title ?? "自由专注"
         let category = task?.category ?? "自由"
         let planned = store.settings.seconds(for: mode)
@@ -373,9 +400,25 @@ final class TimerEngine: ObservableObject {
         isRunning = false
         isPaused = false
         mode = nextMode
-        currentTaskTitle = store.task(for: selectedTaskID)?.title ?? "自由专注"
+        reconcileIdleSelectedTask()
         plannedSeconds = store.settings.seconds(for: nextMode)
         remainingSeconds = plannedSeconds
+    }
+
+    private func observeTaskChanges() {
+        store.$tasks
+            .dropFirst()
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.reconcileIdleSelectedTask()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func setIdleSelectedTask(_ task: FocusTask?) {
+        selectedTaskID = task?.id
+        currentTaskTitle = task?.title ?? "自由专注"
     }
 
     private func updateIdleTimerPolicy() {

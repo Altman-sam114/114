@@ -1151,7 +1151,7 @@ ios_consumer_source = function_slices_matching(ios_timer_handoff_source, "handof
   slice.include?("engine.selectTask(")
 end
 raise "iOS timer handoff consumer source missing" unless ios_consumer_source
-raise "iOS timer handoff must re-query FocusStore launchable tasks" unless ios_consumer_source.include?("store.upcomingTasks()") && ios_consumer_source.include?("isEnabled")
+raise "iOS timer handoff must re-query FocusStore launchable tasks" unless ios_consumer_source.include?("store.startableTasks()") && ios_consumer_source.include?("store.startableTask(for:")
 raise "iOS timer handoff must restore category context" unless ios_consumer_source.include?("selectedTaskCategory") && ios_consumer_source.include?("request.category")
 raise "iOS timer handoff preferred task validation missing" unless ios_consumer_source.include?("preferredTaskID") && ios_consumer_source.match?(/\.id\s*==\s*preferredTaskID|preferredTaskID\s*==\s*\w+\.id/)
 raise "iOS invalid preferred timer handoff must clear stale selection" unless ios_consumer_source.match?(/request\.preferredTaskID\s*!=\s*nil[\s\S]{0,180}?engine\.selectTask\(nil\)/)
@@ -1202,7 +1202,7 @@ end
 raise "Mac timer handoff consumer source missing" unless mac_consumer_source
 mac_resolver_source = function_slices_matching(mac_timer_handoff_source, "resolveMacTimerHandoffTask").first
 raise "Mac timer handoff task resolver source missing" unless mac_resolver_source
-raise "Mac timer handoff must re-query FocusStore launchable tasks" unless mac_consumer_source.include?("store.upcomingTasks()") && mac_consumer_source.include?("isEnabled")
+raise "Mac timer handoff must re-query FocusStore launchable tasks" unless mac_consumer_source.include?("store.startableTasks()") && mac_consumer_source.include?("store.startableTask(for:")
 raise "Mac timer handoff must restore category context" unless mac_consumer_source.include?("selectedCategory") && mac_consumer_source.include?("request.category")
 raise "Mac timer handoff preferred task validation missing" unless mac_consumer_source.include?("resolveMacTimerHandoffTask(") && mac_resolver_source.include?("preferredTaskID") && mac_resolver_source.match?(/\.id\s*==\s*preferredTaskID|preferredTaskID\s*==\s*\w+\.id/) && mac_resolver_source.match?(/\.category\s*==\s*request\.category/)
 raise "Mac invalid preferred timer handoff must clear stale selection" unless mac_consumer_source.match?(/request\.preferredTaskID\s*!=\s*nil[\s\S]{0,180}?engine\.selectTask\(nil\)/)
@@ -1224,6 +1224,25 @@ raise "Mac timer handoff Voice Control labels missing" unless mac_schedule_hando
 raise "Mac running-state accessibility guidance missing" unless mac_schedule_handoff_source.include?("计时运行中不可切换当前待办")
 raise "Mac timer handoff snapshot request wiring missing" unless mac_snapshot_source.match?(/let\s+timerHandoffRequest\s*=\s*MacTimerHandoffRequest\([\s\S]{0,300}?preferredTaskID:\s*timerHandoffTask\.id/) && mac_snapshot_source.match?(/MacTimerDetailView\([\s\S]{0,500}?timerHandoffRequest:\s*timerHandoffRequest/)
 puts "Schedule to timer handoff contracts verified."
+
+focus_store_startable_source = File.read("ChronoFocus/Services/FocusStore.swift")
+timer_engine_startable_source = File.read("ChronoFocus/Services/TimerEngine.swift")
+timer_view_startable_source = File.read("ChronoFocus/Views/TimerView.swift")
+mac_timer_startable_source = File.read("ChronoFocusMac/Views/MacTimerDetailView.swift")
+mac_mini_startable_source = File.read("ChronoFocusMac/Views/MacMiniTimerView.swift")
+mac_snapshot_startable_source = File.read("scripts/render_mac_snapshots.swift")
+mac_core_startable_source = File.read("scripts/test_mac_core.swift")
+raise "FocusStore upcomingTasks API missing" unless focus_store_startable_source.include?("func upcomingTasks()")
+raise "FocusStore startableTasks API missing" unless focus_store_startable_source.include?("func startableTasks()")
+raise "FocusStore startableTask lookup API missing" unless focus_store_startable_source.include?("func startableTask(for id: UUID?)")
+raise "TimerEngine startable boundary missing" unless timer_engine_startable_source.include?("store.startableTask(for: selectedTaskID)") && timer_engine_startable_source.include?("func reconcileIdleSelectedTask()")
+raise "TimerEngine task-change reconciliation missing" unless timer_engine_startable_source.include?("observeTaskChanges()") && timer_engine_startable_source.include?("guard !isRunning, !isPaused")
+raise "iOS timer queue must use startable tasks" unless timer_view_startable_source.include?("store.startableTasks()") && timer_view_startable_source.include?("store.startableTask(for:")
+raise "Mac timer queue must use startable tasks" unless mac_timer_startable_source.include?("store.startableTasks()") && mac_timer_startable_source.include?("store.startableTask(for:")
+raise "Mac mini timer queue must use startable tasks" unless mac_mini_startable_source.include?("store.startableTasks()")
+raise "Mac snapshot handoff fixture must use startable tasks" unless mac_snapshot_startable_source.include?("store.startableTasks()")
+raise "Mac core startable boundary tests missing" unless mac_core_startable_source.include?("runStartableTaskTests") && mac_core_startable_source.include?("runTimerEngineBoundaryTests")
+puts "Startable task consistency contracts verified."
 
 mac_mini_quick_panel_source = source_slice(
   "ChronoFocusMac/Views/MacMiniTimerView.swift",
@@ -1450,15 +1469,15 @@ raise "Mac schedule quick-add request wiring missing" unless mac_detail_content_
 raise "Mac timer snapshot-compatible default action missing" unless mac_timer_view_source.match?(/init\s*\(\s*onAddTaskInCategory:\s*@escaping\s*\(String\)\s*->\s*Void\s*=\s*\{\s*_\s+in\s*\}/)
 raise "Mac timer snapshot category injection missing" unless mac_timer_view_source.include?("initialTaskCategory: String? = nil") && mac_timer_view_source.include?("initialTaskCategory: initialTaskCategory")
 raise "Mac timer category queue action wiring missing" unless mac_timer_view_source.include?("MacTaskQueueView(") && mac_timer_view_source.include?("onAddTaskInCategory: onAddTaskInCategory")
-raise "Mac timer category filter state missing" unless mac_task_queue_source.include?("selectedCategory") && mac_task_queue_source.include?("visibleTasks") && mac_task_queue_source.include?("upcomingTasks")
+raise "Mac timer category filter state missing" unless mac_task_queue_source.include?("selectedCategory") && mac_task_queue_source.include?("visibleTasks") && mac_task_queue_source.include?("startableTasks")
 raise "Mac timer category filter bar missing" unless mac_task_queue_source.include?("MacCategoryFilterBar(")
-raise "Mac timer category count must expose filtered and total counts" unless mac_task_queue_source.match?(/\\\(visibleTasks\.count\)\/\\\(upcomingTasks\.count\)/) && mac_task_queue_source.include?("Text(taskQueueCountText)")
+raise "Mac timer category count must expose filtered and total counts" unless mac_task_queue_source.match?(/\\\(visibleTasks\.count\)\/\\\(startableTasks\.count\)/) && mac_task_queue_source.include?("Text(taskQueueCountText)")
 raise "Mac timer category empty state missing" unless mac_task_queue_source.include?("MacTimerCategoryEmptyStateView(") && mac_timer_source.include?("struct MacTimerCategoryEmptyStateView")
 raise "Mac timer category empty state add action missing" unless mac_task_queue_source.include?("onAddTaskInCategory") && mac_timer_source.include?("新增此分类")
 raise "Mac timer category empty state clear action missing" unless mac_task_queue_source.match?(/selectedCategory\s*=\s*nil/) && mac_timer_source.include?("清除筛选")
 raise "Mac timer non-empty category context view missing" unless mac_timer_source.include?("struct MacTimerCategoryContextView") && mac_task_queue_source.include?("MacTimerCategoryContextView(")
 raise "Mac timer non-empty category context must remain exclusive from empty state" unless mac_task_queue_source.match?(/else\s+if\s+visibleTasks\.isEmpty,\s*let\s+selectedCategory\s*\{[\s\S]*?MacTimerCategoryEmptyStateView\([\s\S]*?\}\s+else\s+\{\s*if\s+let\s+selectedCategory\s*\{\s*MacTimerCategoryContextView\(/) && mac_task_queue_source.scan(/MacTimerCategoryContextView\(/).length == 1
-raise "Mac timer non-empty category context counts missing" unless mac_task_queue_source.match?(/MacTimerCategoryContextView\([\s\S]*?filteredCount:\s*visibleTasks\.count,[\s\S]*?totalCount:\s*upcomingTasks\.count/)
+raise "Mac timer non-empty category context counts missing" unless mac_task_queue_source.match?(/MacTimerCategoryContextView\([\s\S]*?filteredCount:\s*visibleTasks\.count,[\s\S]*?totalCount:\s*startableTasks\.count/)
 raise "Mac timer non-empty category context add action missing" unless mac_task_queue_source.include?("onAddTaskInCategory(selectedCategory)")
 raise "Mac timer non-empty category context clear action missing" unless mac_task_queue_source.match?(/MacTimerCategoryContextView\([\s\S]*?self\.selectedCategory\s*=\s*nil/)
 raise "Mac timer category context adaptive action layout missing" unless mac_timer_category_context_source.include?("ViewThatFits(in: .horizontal)")
@@ -1602,6 +1621,8 @@ grep -q "missingRequiredCount" scripts/validate_ci_artifact.rb
 grep -q "require \"find\"" scripts/validate_ci_artifact.rb
 grep -q "require \"digest\"" scripts/validate_ci_artifact.rb
 grep -q "require \"open3\"" scripts/validate_ci_artifact.rb
+grep -q "require \"tmpdir\"" scripts/validate_ci_artifact.rb
+grep -q "require \"zlib\"" scripts/validate_ci_artifact.rb
 grep -q -- "--archive ZIP" scripts/validate_ci_artifact.rb
 grep -q -- "--archive-size BYTES" scripts/validate_ci_artifact.rb
 grep -q -- "--archive-digest DIGEST" scripts/validate_ci_artifact.rb
@@ -1622,6 +1643,10 @@ grep -q "Open3.capture3(\*\[\"unzip\", \"-t\", archive_path\])" scripts/validate
 grep -q "artifact archive byte count" scripts/validate_ci_artifact.rb
 grep -q "artifact archive sha256 digest" scripts/validate_ci_artifact.rb
 grep -q "artifact archive zip integrity" scripts/validate_ci_artifact.rb
+grep -q "artifact archive extracted directory binding" scripts/validate_ci_artifact.rb
+grep -q "zip_parse_archive" scripts/validate_ci_artifact.rb
+grep -q "archive_directory_snapshot" scripts/validate_ci_artifact.rb
+grep -q "archive_compare_directory_snapshots" scripts/validate_ci_artifact.rb
 grep -q "artifact metadata response shape" scripts/validate_ci_artifact.rb
 grep -q "artifact metadata unique artifact" scripts/validate_ci_artifact.rb
 grep -q "artifact metadata id" scripts/validate_ci_artifact.rb
@@ -1669,6 +1694,7 @@ grep -q "Existing category reuse contracts verified." scripts/validate_ci_artifa
 grep -q "Existing category usage context contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Existing category search contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Schedule to timer handoff contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Startable task consistency contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI workflow run API metadata contracts verified." scripts/validate_ci_artifact.rb
 grep -q "CI workflow run provenance contracts verified." scripts/validate_ci_artifact.rb
 grep -q "verify_ci_failure_summary_output()" scripts/verify_project.sh
@@ -1724,6 +1750,7 @@ grep -q "negative_mac_schedule_category_empty_state_marker_fixture" scripts/veri
 grep -q "negative_mac_calendar_range_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_timer_category_empty_state_marker_fixture" scripts/verify_project.sh
 grep -q "negative_timer_task_queue_expansion_marker_fixture" scripts/verify_project.sh
+grep -q "negative_startable_task_consistency_marker_fixture" scripts/verify_project.sh
 grep -q "negative_declaration_boundary_resilience_marker_fixture" scripts/verify_project.sh
 grep -q "negative_mac_timer_category_queue_marker_fixture" scripts/verify_project.sh
 grep -q "negative_ci_action_node24_marker_fixture" scripts/verify_project.sh
@@ -1751,6 +1778,10 @@ grep -q "negative_timer_action_marker_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_archive_digest_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_archive_size_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_archive_zip_fixture" scripts/verify_project.sh
+grep -q "artifact_archive_directory_mismatch_fixture" scripts/verify_project.sh
+grep -q "negative_archive_traversal_fixture" scripts/verify_project.sh
+grep -q "negative_archive_duplicate_path_fixture" scripts/verify_project.sh
+grep -q "negative_archive_special_file_fixture" scripts/verify_project.sh
 grep -q "artifact_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_metadata_symlink_fixture" scripts/verify_project.sh
 grep -q "negative_artifact_metadata_digest_fixture" scripts/verify_project.sh
@@ -1792,6 +1823,7 @@ grep -q "FAIL verify_project mac schedule category empty state action contracts"
 grep -q "FAIL verify_project mac calendar range empty state quick add contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project timer category empty state action contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project timer task queue expansion contracts" scripts/verify_project.sh
+grep -q "FAIL verify_project startable task consistency contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project declaration boundary resilience contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project mac timer category queue contracts" scripts/verify_project.sh
 grep -q "FAIL verify_project ci action Node.js 24 contracts" scripts/verify_project.sh
@@ -1799,6 +1831,7 @@ grep -q "FAIL verify_project ci failure summary output contracts" scripts/verify
 grep -q "FAIL artifact archive sha256 digest" scripts/verify_project.sh
 grep -q "FAIL artifact archive byte count" scripts/verify_project.sh
 grep -q "FAIL artifact archive zip integrity" scripts/verify_project.sh
+grep -q "FAIL artifact archive extracted directory binding" scripts/verify_project.sh
 grep -q "FAIL artifact metadata response shape" scripts/verify_project.sh
 grep -q "FAIL artifact metadata unique artifact" scripts/verify_project.sh
 grep -q "FAIL artifact metadata id" scripts/verify_project.sh
@@ -2111,12 +2144,84 @@ for _ in range(5):
         break
     last_size = new_size
 PY
-ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >/dev/null
+printf 'Startable task consistency contracts verified.\n' >> "$artifact_fixture/verify_project.log"
+python3 - "$artifact_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+for entry in index["entries"]:
+    relative = entry["path"][len("ci-results/"):] if entry["path"].startswith("ci-results/") else entry["path"]
+    path = root / relative
+    if entry.get("kind") == "file":
+        entry["byteCount"] = path.stat().st_size
+    elif entry.get("kind") == "directory":
+        files = [child for child in path.rglob("*") if child.is_file()]
+        entry["fileCount"] = len(files)
+        entry["recursiveByteCount"] = sum(child.stat().st_size for child in files)
+index["totals"]["fileByteCount"] = sum(entry.get("byteCount", 0) for entry in index["entries"])
+index["totals"]["directoryRecursiveByteCount"] = sum(entry.get("recursiveByteCount", 0) for entry in index["entries"])
+index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+negative_startable_task_consistency_marker_fixture="$(mktemp -d)"
+negative_startable_task_consistency_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_startable_task_consistency_marker_fixture"/
+python3 - "$negative_startable_task_consistency_marker_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+marker = "Startable task consistency contracts verified.\n"
+content = verify_log_path.read_text(encoding="utf-8")
+if content.count(marker) != 1:
+    raise SystemExit("startable task consistency marker fixture must contain exactly one marker")
+verify_log_path.write_text(content.replace(marker, "", 1), encoding="utf-8")
+
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+for entry in index["entries"]:
+    relative = entry["path"][len("ci-results/"):] if entry["path"].startswith("ci-results/") else entry["path"]
+    path = root / relative
+    if entry.get("kind") == "file":
+        entry["byteCount"] = path.stat().st_size
+    elif entry.get("kind") == "directory":
+        files = [child for child in path.rglob("*") if child.is_file()]
+        entry["fileCount"] = len(files)
+        entry["recursiveByteCount"] = sum(child.stat().st_size for child in files)
+index["totals"]["fileByteCount"] = sum(entry.get("byteCount", 0) for entry in index["entries"])
+index["totals"]["directoryRecursiveByteCount"] = sum(entry.get("recursiveByteCount", 0) for entry in index["entries"])
+index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+if ruby scripts/validate_ci_artifact.rb "$negative_startable_task_consistency_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_startable_task_consistency_marker_output" 2>&1; then
+  echo "Expected negative startable task consistency marker fixture to fail validation" >&2
+  cat "$negative_startable_task_consistency_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project startable task consistency contracts" "$negative_startable_task_consistency_marker_output"
+if grep -q "PASS verify_project startable task consistency contracts" "$negative_startable_task_consistency_marker_output" || [[ "$(grep -c '^FAIL ' "$negative_startable_task_consistency_marker_output")" -ne 1 ]]; then
+  echo "Expected startable task consistency marker fixture to fail only its target contract" >&2
+  cat "$negative_startable_task_consistency_marker_output" >&2
+  exit 1
+fi
+rm -rf "$negative_startable_task_consistency_marker_fixture"
+rm -f "$negative_startable_task_consistency_marker_output"
+directory_only_output="$(mktemp)"
+ruby scripts/validate_ci_artifact.rb "$artifact_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$directory_only_output"
+if grep -q "PASS artifact archive extracted directory binding" "$directory_only_output"; then
+  echo "Directory-only validation must not fabricate an archive binding PASS" >&2
+  exit 1
+fi
+rm -f "$directory_only_output"
 artifact_archive_fixture_dir="$(mktemp -d)"
 artifact_archive_fixture="$artifact_archive_fixture_dir/chronofocus-ci-fixture.zip"
 (
   cd "$artifact_fixture"
-  zip -qry "$artifact_archive_fixture" .
+  zip -qry "$artifact_archive_fixture" *
 )
 ruby - "$artifact_archive_fixture" <<'RUBY'
 path = ARGV.fetch(0)
@@ -2147,8 +2252,109 @@ ruby scripts/validate_ci_artifact.rb \
 grep -q "PASS artifact archive byte count" "$artifact_archive_success_output"
 grep -q "PASS artifact archive sha256 digest" "$artifact_archive_success_output"
 grep -q "PASS artifact archive zip integrity" "$artifact_archive_success_output"
+grep -q "PASS artifact archive extracted directory binding" "$artifact_archive_success_output"
 grep -q "PASS verify_project ci artifact archive integrity contracts" "$artifact_archive_success_output"
 rm -f "$artifact_archive_success_output"
+
+artifact_archive_directory_mismatch_fixture="$(mktemp -d)"
+cp -R "$artifact_fixture"/. "$artifact_archive_directory_mismatch_fixture"/
+python3 - "$artifact_archive_directory_mismatch_fixture/xcode-version.log" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+content = path.read_bytes()
+original = b"Xcode 16.0\n"
+replacement = b"Xcode 16.1\n"
+if original not in content or len(original) != len(replacement):
+    raise SystemExit("equal-length archive binding mismatch fixture replacement failed")
+path.write_bytes(content.replace(original, replacement, 1))
+PY
+artifact_archive_directory_mismatch_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb \
+  "$artifact_archive_directory_mismatch_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --archive "$artifact_archive_fixture" \
+  --archive-size "$artifact_archive_size" \
+  --archive-digest "$artifact_archive_digest" \
+  >"$artifact_archive_directory_mismatch_output" 2>&1; then
+  echo "Expected equal-length extracted directory mismatch to fail validation" >&2
+  cat "$artifact_archive_directory_mismatch_output" >&2
+  exit 1
+fi
+grep -q "PASS artifact archive byte count" "$artifact_archive_directory_mismatch_output"
+grep -q "PASS artifact archive sha256 digest" "$artifact_archive_directory_mismatch_output"
+grep -q "PASS artifact archive zip integrity" "$artifact_archive_directory_mismatch_output"
+grep -q "FAIL artifact archive extracted directory binding" "$artifact_archive_directory_mismatch_output"
+if grep -q "PASS artifact archive extracted directory binding" "$artifact_archive_directory_mismatch_output" || [[ "$(grep -c '^FAIL ' "$artifact_archive_directory_mismatch_output")" -ne 1 ]]; then
+  echo "Expected the equal-length mismatch fixture to fail only archive binding" >&2
+  cat "$artifact_archive_directory_mismatch_output" >&2
+  exit 1
+fi
+rm -rf "$artifact_archive_directory_mismatch_fixture"
+rm -f "$artifact_archive_directory_mismatch_output"
+
+negative_archive_traversal_fixture="$artifact_archive_fixture_dir/negative-traversal.zip"
+negative_archive_duplicate_path_fixture="$artifact_archive_fixture_dir/negative-duplicate-path.zip"
+negative_archive_special_file_fixture="$artifact_archive_fixture_dir/negative-special-file.zip"
+python3 - "$negative_archive_traversal_fixture" "$negative_archive_duplicate_path_fixture" "$negative_archive_special_file_fixture" <<'PY'
+import stat
+import sys
+import zipfile
+
+traversal_path, duplicate_path, special_path = sys.argv[1:]
+with zipfile.ZipFile(traversal_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    archive.writestr("../escape.txt", b"escape")
+
+with zipfile.ZipFile(duplicate_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    archive.writestr("duplicate.txt", b"first")
+    archive.writestr("duplicate.txt", b"second")
+
+special = zipfile.ZipInfo("special-link")
+special.create_system = 3
+special.external_attr = (stat.S_IFLNK | 0o777) << 16
+special.compress_type = zipfile.ZIP_STORED
+with zipfile.ZipFile(special_path, "w") as archive:
+    archive.writestr(special, b"target")
+PY
+
+run_negative_archive_binding_fixture() {
+  local archive_path="$1"
+  local description="$2"
+  local output_path
+  local archive_size
+  local archive_digest
+  output_path="$(mktemp)"
+  archive_size="$(wc -c < "$archive_path" | tr -d '[:space:]')"
+  archive_digest="$(ruby -rdigest -e 'puts "sha256:#{Digest::SHA256.file(ARGV.fetch(0)).hexdigest}"' "$archive_path")"
+  if ruby scripts/validate_ci_artifact.rb \
+    "$artifact_fixture" \
+    --commit fixture-sha \
+    --run-id 12345 \
+    --attempt 1 \
+    --archive "$archive_path" \
+    --archive-size "$archive_size" \
+    --archive-digest "$archive_digest" \
+    >"$output_path" 2>&1; then
+    echo "Expected $description archive fixture to fail binding validation" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
+  grep -q "PASS artifact archive zip integrity" "$output_path"
+  grep -q "FAIL artifact archive extracted directory binding" "$output_path"
+  if grep -q "PASS artifact archive extracted directory binding" "$output_path"; then
+    echo "Expected $description archive fixture not to pass binding validation" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
+  rm -f "$output_path"
+}
+
+run_negative_archive_binding_fixture "$negative_archive_traversal_fixture" "traversal"
+run_negative_archive_binding_fixture "$negative_archive_duplicate_path_fixture" "duplicate path"
+run_negative_archive_binding_fixture "$negative_archive_special_file_fixture" "special file"
 
 artifact_metadata_fixture="$artifact_archive_fixture_dir/artifacts-api.json"
 ruby -rjson - "$artifact_metadata_fixture" "$artifact_archive_size" "$artifact_archive_digest" <<'RUBY'
@@ -2196,6 +2402,7 @@ grep -q "PASS artifact metadata workflow run" "$artifact_metadata_success_output
 grep -q "PASS artifact archive byte count" "$artifact_metadata_success_output"
 grep -q "PASS artifact archive sha256 digest" "$artifact_metadata_success_output"
 grep -q "PASS artifact archive zip integrity" "$artifact_metadata_success_output"
+grep -q "PASS artifact archive extracted directory binding" "$artifact_metadata_success_output"
 grep -q "PASS verify_project ci artifact API metadata contracts" "$artifact_metadata_success_output"
 rm -f "$artifact_metadata_success_output"
 
@@ -2238,6 +2445,7 @@ assert_archive_passes() {
   grep -q "PASS artifact archive byte count" "$output_path"
   grep -q "PASS artifact archive sha256 digest" "$output_path"
   grep -q "PASS artifact archive zip integrity" "$output_path"
+  grep -q "PASS artifact archive extracted directory binding" "$output_path"
 }
 
 assert_artifact_metadata_passes() {

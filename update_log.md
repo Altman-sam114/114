@@ -38,8 +38,8 @@
 - v0.99 已实现 iOS 计时队列默认 4 项、展开/收起、分类与数量变化重置及运行中只读浏览边界；artifact validator 已增加原始 API JSON 的参数安全、结构化唯一 artifact 复判、八项 metadata PASS、UI/API marker 和含独立零计数在内的负向 fixture。修复 commit `c65693fe49e0c6ade7ff9751c5dda00103a9c37b` 的 run `30191096124` 与原始 artifact 已由 Agent C 复判通过，validator 为 `109 PASS / 0 FAIL`。
 - v1.0 已让 iOS 待办新增/编辑与 macOS 快速新增接入非预设“已有分类”复用，分类只更新 View 草稿并按任务首次出现复用代表色，不新增持久化；artifact validator 已增加 `--run-metadata` 第四模式和十项 workflow run API 独立复判。实现 commit `7ccf408b82ce2ead457e5bce679f5cee1ac9ae33` 的 run `30192906663` 与原始 artifact 已由 Agent C 复判通过，validator 为 `121 PASS / 0 FAIL`。
 - v1.1 已让 iOS/macOS 已有分类按规范化 key 显示当前任务数量，session-only 分类显示“历史”；新增独立云端 marker/PASS 和负向 fixture，不新增持久化。修复 commit `46546e703668025a43ed467cafc46571916ad7eb` 的 run `30193805133` 与原始 artifact 已由 Agent C 复判为 `122 PASS / 0 FAIL`。
-- v1.2 当前实现中：iOS/macOS 已有分类达到 6 项时提供规范化即时搜索、结果计数、清除和无结果反馈；Run API 完整模式增加 push/actor/triggering actor/head repository 四项授权来源复判。当前 commit、run、artifact 和 Agent C 结论为 `pending`。
-- 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 基于最新 `origin/main` 实现、本地轻量检查、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。
+- v1.2 已闭环：iOS/macOS 已有分类达到 6 项时提供规范化即时搜索、结果计数、清除和无结果反馈；Run API 完整模式增加 push/actor/triggering actor/head repository 四项授权来源复判。最终证据 commit、run、artifact 和 Agent C 结论见下方 v1.2 历史记录。
+- 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 只做静态审阅后基于最新 `origin/main` 实现、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。本轮禁止本地项目测试、validator、Xcode、`xcodebuild`、`simctl` 和 Simulator。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest overallOutcome、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index artifactName、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context 精确键集、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/总结果/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、日程分类空态操作 contract marker、Mac 日程分类空态操作 contract marker、Mac 快速新增和标题分类上下文 contract marker、分类输入上下文 contract marker、待办保存分类 contract marker、待办取消分类 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、统计分类投入次数 contract marker、统计分类投入排行 contract marker、统计分类投入排序依据 contract marker、统计分类投入空态 contract marker、统计分类投入元信息可读性 contract marker、统计分类投入占比可读性 contract marker、统计最近记录分类 contract marker、统计计划回顾分类 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
 - v0.93 的当前云端覆盖还包括 `Mac calendar range empty state quick add contracts verified.` marker、`PASS verify_project mac calendar range empty state quick add contracts` 复判和 `negative_mac_calendar_range_empty_state_marker_fixture` 拒绝路径。
 
@@ -65,7 +65,7 @@
 核心变更：
 
 - iOS/macOS 日程分类摘要可通过带 UUID 的瞬态请求切到计时、恢复分类并选择首个当前可启动任务；任务行可携带 preferred task id 精确接力。
-- 计时端消费时重新查询 `FocusStore.upcomingTasks()`；精确目标已完成、停用或删除时清除旧选择，运行中只恢复分类筛选。所有选择统一进入 `TimerEngine.selectTask(_:)`，不会自动开始或持久化请求。
+- 计时端消费时重新查询 `FocusStore.startableTasks()`；精确目标已完成、停用或删除时清除旧选择，运行中只恢复分类筛选。所有选择统一进入 `TimerEngine.selectTask(_:)`，不会自动开始或持久化请求。
 - 分类摘要采用自适应布局，任务行和摘要接力入口补齐分类/任务上下文、运行中提示、VoiceOver 与 Voice Control 标签。
 - Mac 快照覆盖日程接力入口与计时分类/selected 终态；云端验证新增 `Schedule to timer handoff contracts verified.`、对应 validator PASS 和 marker 缺失负向 fixture，预期基线为 `129 PASS / 0 FAIL`。
 
@@ -90,11 +90,45 @@
 - 首次修复 commit `ab1974f943dfc6869c9a44849b2f9552585310e6` 的 run `30322395891`（attempt `1`）、job `90160800368` 已输出 `Schedule to timer handoff contracts verified.`，两端 build 和结果包上传成功；随后另一条旧 contract 因 `MacTaskListPanelView` 调用已封装到 `taskListPanel` helper、仍以旧调用位置到 `.onChange` 为切片而失败。
 - Agent C 在全新目录 `/private/tmp/chronofocus-c-review-30322395891-186a98e0-026c-4515-8e75-0b4be83aba5f/` 核对 artifact `chronofocus-ci-v0.10-main-ab1974f-run30322395891-attempt1`（id `8674495274`，size `93522`，digest `sha256:1f787f3fac1e14f42dd6c63ef57c6160ebbe9e7e72cafb332b2d05bb38fe2d58`，`expired=false`）；failure summary 仍只指向 `projectVerification`，现改为直接验证 helper 内的 callback 接线。
 - 第二次修复 commit `a5d5a85ac7095fe5718f45ba3c310c7252acb56d` 的 run `30322671653`（attempt `1`）、job `90161605749` 全步骤成功。Agent C 在 `/private/tmp/chronofocus-c-review-30322671653-ee8dcfd5-fe47-4ba7-8498-dca9bc14f086/` 原子落盘并复判 artifact `chronofocus-ci-v0.10-main-a5d5a85-run30322671653-attempt1`（id `8674620314`，size `14323974`，digest `sha256:58caa79f3d136235ddce0b6fba7201b5ed2ce3b0712d59a36b351ea4d052f1d3`，`expired=false`）为 `129 PASS / 0 FAIL`；JUnit 为 `4 tests / 0 failures / 0 errors`，annotations 为 `0`，Mac/iOS build 均成功。
-- `detail-schedule.png` 清晰显示“产品”分类摘要的“转到计时”入口，`detail-timer.png` 显示“产品”筛选、`1/3` 计数和 selected 目标任务；两张快照均无重叠、空白占位或截断。独立 Agent C 判定实现验收通过，证据文档 commit 仍须单独 push 和云端复判。
+- `detail-schedule.png` 清晰显示“产品”分类摘要的“转到计时”入口，`detail-timer.png` 显示“产品”筛选、`1/3` 计数和 selected 目标任务；两张快照均无重叠、空白占位或截断。独立 Agent C 判定实现验收通过。
+
+- 最终证据 commit `2477407c21faf2e131e456fd19113344465b64d9` 的 GitHub Actions run `30323180673`（attempt `1`）成功；Agent C 在全新目录复判 artifact `8674780603`，validator 为 `129 PASS / 0 FAIL`，JUnit 为 `4 tests / 0 failures / 0 errors`，annotations 为 `0`，v1.3 正式闭环。
 
 遗留事项：
 
 - 静态快照只能证明入口和消费终态布局，真实点击、Tab/SplitView 重建与交互时序仍需源码 contract、双平台云端构建和 Agent C artifact 共同验收。
+
+### v1.4 / 可启动待办一致性与 Archive 目录绑定
+
+日期：2026-08-09
+
+核心变更：
+
+- 保留 `FocusStore.upcomingTasks()` 的未完成排序和停用任务展示语义，新增 `startableTasks()` / `startableTask(for:)` 作为计时队列、计划启动和日程接力的统一可启动查询。
+- `TimerEngine.selectTask(_:)`、`startPlanItem(_:)` 和 `start()` 重新从 store 复核任务；空闲任务变化、停止和完成后集中 reconcile 失效选择，运行中/暂停中不清除 `ActiveTimerSnapshot`。
+- iOS/macOS 计时队列和 handoff 使用 startable 查询；CI validator 完整 archive 模式在自建临时目录安全解包原始 ZIP，逐路径比较类型、大小和 SHA-256，并拒绝 traversal、重复路径、前缀冲突、symlink 与特殊文件。
+
+关键文件：
+
+- `ChronoFocus/Services/FocusStore.swift`
+- `ChronoFocus/Services/TimerEngine.swift`
+- `ChronoFocus/Views/TimerView.swift`
+- `ChronoFocusMac/Views/MacTimerDetailView.swift`
+- `ChronoFocusMac/Views/MacMiniTimerView.swift`
+- `scripts/test_mac_core.swift`
+- `scripts/render_mac_snapshots.swift`
+- `scripts/validate_ci_artifact.rb`
+- `scripts/verify_project.sh`
+- `md/prompt/v1（持续优化）/v1.4（可启动待办一致性与Archive目录绑定）.md`
+
+验证结果：
+
+- 按当前硬性约束未运行任何本地测试、项目验证脚本、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；等待本轮 `origin/main` GitHub Actions 和 Agent C 最新 artifact 第四模式复判。
+- 目标新增 `Startable task consistency contracts verified.` 与 `PASS artifact archive extracted directory binding`，完整第四模式预期为 `131 PASS / 0 FAIL`。
+
+遗留事项：
+
+- 云端 run、artifact、JUnit、Mac/iOS build、快照和 archive 目录绑定结果尚未产生，不能提前宣布 v1.4 通过。
 
 ### v1.2 / 已有分类搜索与 Run 来源复判
 

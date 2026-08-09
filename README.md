@@ -48,17 +48,17 @@ Pro 权益使用 StoreKit 2，iOS 和 macOS 共用商品 ID `com.example.ChronoF
 
 手工验证时，先用 StoreKit 配置或 sandbox 账号解锁 Pro，再在系统日历中创建一个从今天零点起 45 天范围内的非全天事件，回到日程页执行日历同步，确认待办列表出现同标题任务、分类为来源日历名称，并且重新同步不会重复创建同一外部事件。拒绝日历权限或移除商品配置时，应看到对应状态文案，而不是崩溃或静默失败。
 
-## 本地验证
+## 云端验证（唯一测试路径）
 
-项目主结构验证入口：
+项目主结构验证入口仅由 GitHub Actions 执行，本机不得运行：
 
 ```bash
 bash scripts/verify_project.sh
 ```
 
-Agent C 的完整云端 artifact 复判支持 validator 第四模式：目录、原始 ZIP 三参数、`artifacts-api.json` 和 `run-api.json` 一起传入。精确 run 响应与 artifacts 响应都先写入全新唯一目录中的 `.part`，成功且非空后无覆盖原子改名；ZIP 也先下载为 `.zip.part`，核对 API size、SHA-256 和 ZIP 结构后才改名并解包。Validator 对 run API 复判既有十项身份/状态，并从 v1.2 起增加 push event、actor、triggering actor 和 head repository 四项授权来源。v1.1 最终证据 commit `db27324eb1a3ddf1fcf7672fdd66c1a326194946` 的 run `30194008859`（attempt `1`）及 artifact `8629538360` 已由 Agent C 复判为 `122 PASS / 0 FAIL`。
+Agent C 的完整云端 artifact 复判支持 validator 第四模式：目录、原始 ZIP 三参数、`artifacts-api.json` 和 `run-api.json` 一起传入。精确 run 响应与 artifacts 响应都先写入全新唯一目录中的 `.part`，成功且非空后无覆盖原子改名；ZIP 也先下载为 `.zip.part`，核对 API size、SHA-256 和 ZIP 结构后才改名并解包。Validator 对 run API 复判既有十项身份/状态，并从 v1.2 起增加 push event、actor、triggering actor 和 head repository 四项授权来源。v1.4 起完整模式还逐路径绑定原始 ZIP 与 validator 自建临时解包树、比较类型/大小/SHA-256，拒绝 traversal、重复路径、前缀冲突、symlink 和特殊文件。
 
-可单独构建 Mac 版：
+以下构建和 simulator 命令仅记录 GitHub Actions 的云端执行入口，本机禁止执行：
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
@@ -124,11 +124,13 @@ v0.98 起，iOS 与 macOS 日程待办列表统一采用分类摘要/空态互�
 
 v0.99 起，iOS 计时页待办队列默认展示当前分类筛选结果的前 4 项，超过 4 项时提供“显示其余 N 项”与“收起”；分类变化或筛选结果数量变化会恢复收起。展开/收起只是 `TimerView` 的瞬态浏览状态，运行中仍可浏览全部待办，但任务行继续禁用，不能切换当前任务；控制保持至少 44pt 点击高度并提供动态 VoiceOver 与 Voice Control 语义。CI artifact validator 可额外接收原始 artifacts API JSON，结构化复判唯一 artifact 的八项 metadata 检查，并以 `Timer task queue expansion contracts verified.`、`CI artifact API metadata contracts verified.` 及对应 PASS/负向 fixture 锁定行为。修复 commit `c65693fe49e0c6ade7ff9751c5dda00103a9c37b` 的最新云端 run `30191096124` 与原始 artifact 已由 Agent C 复判为 `109 PASS / 0 FAIL`，包括独立 `total_count=0` 拒绝覆盖、八项 metadata、三项 archive 和 Mac/iOS build。
 
+v1.4（当前进行中）统一“可启动待办”与日程展示语义：`upcomingTasks()` 继续保留未完成停用任务供日程管理，计时队列、计划项、日程接力和 TimerEngine 最终防线统一使用 `startableTasks()` / `startableTask(for:)`；空闲失效选择收敛为“自由专注”，运行中/暂停中保留 `ActiveTimerSnapshot`。本轮同时为完整 artifact 复判增加原始 ZIP 与自建解包目录的逐路径绑定，目标新增 `Startable task consistency contracts verified.` 和 `PASS artifact archive extracted directory binding`，完整第四模式预期 `131 PASS / 0 FAIL`。所有测试和验收只走 GitHub Actions。
+
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
 ## 协作与云端验证
 
-项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 完成本地轻量检查后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、artifact index、run context、artifact 名称、manifest/index artifactName、manifest overallOutcome、JUnit、failure summary 错误摘录、日志、分类可访问 contract marker、Mac/iOS `.xcresult`、Mac 快照和各阶段 outcome，再确认最新 `origin/main` 是否通过。
+项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 只做静态审阅后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、artifact index、run context、artifact 名称、manifest/index artifactName、manifest overallOutcome、JUnit、failure summary 错误摘录、日志、分类可访问 contract marker、Mac/iOS `.xcresult`、Mac 快照和各阶段 outcome，再确认最新 `origin/main` 是否通过。
 
 `Final CI status` 会在判断四个阶段 outcome 前，通过 `tee` 把现有 failure summary 同时写入步骤 stdout 和 Step Summary；失败 run 可直接从失败步骤日志查看同一摘要，artifact 中仍只保留原有 `ci-failure-summary.md`，不增加副本或清单项。
 

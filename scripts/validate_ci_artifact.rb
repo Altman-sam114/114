@@ -3,15 +3,22 @@
 
 require "json"
 require "digest"
+require "fileutils"
 require "find"
 require "open3"
 require "optparse"
 require "rexml/document"
 require "time"
+require "tmpdir"
+require "zlib"
 
 EXPECTED_CI_PROCESS_VERSION = "v0.10"
 MAX_ARTIFACT_METADATA_BYTES = 1_048_576
 MAX_RUN_METADATA_BYTES = MAX_ARTIFACT_METADATA_BYTES
+MAX_ARCHIVE_ENTRY_COUNT = 100_000
+MAX_ARCHIVE_ENTRY_NAME_BYTES = 4_096
+MAX_ARCHIVE_SINGLE_FILE_BYTES = 4 * 1024 * 1024 * 1024
+MAX_ARCHIVE_TOTAL_UNCOMPRESSED_BYTES = 8 * 1024 * 1024 * 1024
 EXPECTED_WORKFLOW_RUN_NAME = "ChronoFocus CI Results"
 EXPECTED_WORKFLOW_RUN_PATH = ".github/workflows/ci-results.yml"
 EXPECTED_WORKFLOW_RUN_REPOSITORY = "Altman-sam114/114"
@@ -403,6 +410,441 @@ rescue ArgumentError
   false
 end
 
+ZipArchiveEntry = Struct.new(
+  :raw_name,
+  :path,
+  :kind,
+  :compression_method,
+  :compressed_size,
+  :uncompressed_size,
+  :crc32,
+  :flags,
+  :local_data_offset,
+  keyword_init: true
+).freeze
+
+def zip_read_exact(io, length, context)
+  value = io.read(length)
+  raise "#{context} is truncated" unless value && value.bytesize == length
+
+  value
+end
+
+def zip_parse_zip64_extra(extra, required_fields)
+  values = {}
+  offset = 0
+  while offset < extra.bytesize
+    raise "ZIP extra field header is truncated" if extra.bytesize - offset < 4
+
+    field_id, field_size = extra.byteslice(offset, 4).unpack("vv")
+    offset += 4
+    raise "ZIP extra field is truncated" if offset + field_size > extra.bytesize
+
+    if field_id == 0x0001
+      payload = extra.byteslice(offset, field_size)
+      payload_offset = 0
+      required_fields.each do |field|
+        break if values.key?(field)
+        raise "ZIP64 extra field is truncated" if payload_offset + 8 > payload.bytesize
+
+        values[field] = payload.byteslice(payload_offset, 8).unpack1("Q<")
+        payload_offset += 8
+      end
+    end
+    offset += field_size
+  end
+
+  missing = required_fields.reject { |field| values.key?(field) }
+  raise "ZIP64 extra field is missing #{missing.join(", ")}" unless missing.empty?
+
+  values
+end
+
+def zip_entry_kind(raw_name, external_attributes)
+  directory_marker = raw_name.end_with?("/")
+  unix_mode = (external_attributes >> 16) & 0xffff
+  unix_type = unix_mode & 0xf000
+
+  kind =
+    if unix_type != 0
+      case unix_type
+      when 0x4000
+        "directory"
+      when 0x8000
+        "file"
+      else
+        raise "ZIP entry #{raw_name.inspect} has an unsupported special file type"
+      end
+    elsif directory_marker || (external_attributes & 0x10).positive?
+      "directory"
+    else
+      "file"
+    end
+
+  if directory_marker && kind != "directory"
+    raise "ZIP entry #{raw_name.inspect} has a file type with a directory marker"
+  end
+
+  kind
+end
+
+def zip_normalize_entry_path(raw_name, kind)
+  raise "ZIP entry name is empty" if raw_name.empty?
+  raise "ZIP entry name contains NUL" if raw_name.include?("\0")
+  raise "ZIP entry name contains a backslash" if raw_name.include?("\\")
+  raise "ZIP entry name is absolute" if raw_name.start_with?("/")
+  raise "ZIP entry name uses a drive path" if raw_name.match?(/\A[A-Za-z]:/)
+
+  name = raw_name.dup
+  name = name.byteslice(0, name.bytesize - 1) if kind == "directory" && name.end_with?("/")
+  components = name.split("/", -1)
+  if components.empty? || components.any? { |component| component.empty? || component == "." || component == ".." }
+    raise "ZIP entry #{raw_name.inspect} contains an invalid path component"
+  end
+
+  components.join("/")
+end
+
+def zip_parse_archive(path)
+  File.open(path, "rb") do |io|
+    archive_size = io.stat.size
+    raise "ZIP archive is empty" if archive_size.zero?
+
+    tail_length = [archive_size, 65_557].min
+    io.seek(archive_size - tail_length)
+    tail = zip_read_exact(io, tail_length, "ZIP archive tail")
+    eocd_relative_offset = tail.rindex("PK\x05\x06".b)
+    raise "ZIP end-of-central-directory record is missing" unless eocd_relative_offset
+
+    eocd_offset = archive_size - tail_length + eocd_relative_offset
+    io.seek(eocd_offset)
+    eocd = zip_read_exact(io, 22, "ZIP end-of-central-directory record")
+    raise "ZIP end-of-central-directory signature is invalid" unless eocd.byteslice(0, 4) == "PK\x05\x06".b
+
+    comment_length = eocd.byteslice(20, 2).unpack1("v")
+    raise "ZIP end-of-central-directory comment is truncated" unless eocd_offset + 22 + comment_length == archive_size
+
+    disk_number, central_disk_number, entries_on_disk_32, entry_count_32, central_size_32, central_offset_32 =
+      eocd.byteslice(4, 16).unpack("vvvvVV")
+    zip64_required = [entries_on_disk_32, entry_count_32, central_size_32, central_offset_32].any? do |value|
+      value == 0xffff || value == 0xffff_ffff
+    end
+
+    if zip64_required
+      locator_offset = eocd_offset - 20
+      raise "ZIP64 locator is missing" if locator_offset.negative?
+
+      io.seek(locator_offset)
+      locator = zip_read_exact(io, 20, "ZIP64 locator")
+      raise "ZIP64 locator signature is invalid" unless locator.byteslice(0, 4) == "PK\x06\x07".b
+
+      locator_disk, zip64_offset, total_disks = locator.byteslice(4, 16).unpack("VQ<V")
+      raise "multi-disk ZIP archives are not supported" unless locator_disk.zero? && total_disks == 1
+
+      io.seek(zip64_offset)
+      zip64_header = zip_read_exact(io, 12, "ZIP64 end-of-central-directory header")
+      raise "ZIP64 end-of-central-directory signature is invalid" unless zip64_header.byteslice(0, 4) == "PK\x06\x06".b
+
+      zip64_record_size = zip64_header.byteslice(4, 8).unpack1("Q<")
+      raise "ZIP64 end-of-central-directory record is too short" if zip64_record_size < 44
+      raise "ZIP64 end-of-central-directory record is out of bounds" if zip64_offset + 12 + zip64_record_size > locator_offset
+
+      zip64_record = zip_read_exact(io, zip64_record_size, "ZIP64 end-of-central-directory record")
+      zip64_disk_number = zip64_record.byteslice(4, 4).unpack1("V")
+      zip64_central_disk_number = zip64_record.byteslice(8, 4).unpack1("V")
+      entries_on_disk = zip64_record.byteslice(12, 8).unpack1("Q<")
+      entry_count = zip64_record.byteslice(20, 8).unpack1("Q<")
+      central_size = zip64_record.byteslice(28, 8).unpack1("Q<")
+      central_offset = zip64_record.byteslice(36, 8).unpack1("Q<")
+      raise "multi-disk ZIP archives are not supported" unless zip64_disk_number.zero? && zip64_central_disk_number.zero?
+      raise "ZIP entry count differs between disks" unless entries_on_disk == entry_count
+    else
+      raise "multi-disk ZIP archives are not supported" unless disk_number.zero? && central_disk_number.zero?
+      raise "ZIP entry count differs between disks" unless entries_on_disk_32 == entry_count_32
+
+      entry_count = entry_count_32
+      central_size = central_size_32
+      central_offset = central_offset_32
+    end
+
+    raise "ZIP archive has too many entries" if entry_count > MAX_ARCHIVE_ENTRY_COUNT
+    central_end = central_offset + central_size
+    raise "ZIP central directory is out of bounds" if central_offset.negative? || central_end > eocd_offset || central_end != eocd_offset
+
+    entries = []
+    raw_names = {}
+    paths = {}
+    total_uncompressed_size = 0
+    io.seek(central_offset)
+    entry_count.times do
+      fixed = zip_read_exact(io, 46, "ZIP central directory entry")
+      raise "ZIP central directory entry signature is invalid" unless fixed.byteslice(0, 4) == "PK\x01\x02".b
+
+      flags = fixed.byteslice(8, 2).unpack1("v")
+      compression_method = fixed.byteslice(10, 2).unpack1("v")
+      crc32 = fixed.byteslice(16, 4).unpack1("V")
+      compressed_size_32 = fixed.byteslice(20, 4).unpack1("V")
+      uncompressed_size_32 = fixed.byteslice(24, 4).unpack1("V")
+      name_length = fixed.byteslice(28, 2).unpack1("v")
+      extra_length = fixed.byteslice(30, 2).unpack1("v")
+      comment_length = fixed.byteslice(32, 2).unpack1("v")
+      disk_start_16 = fixed.byteslice(34, 2).unpack1("v")
+      external_attributes = fixed.byteslice(38, 4).unpack1("V")
+      local_offset_32 = fixed.byteslice(42, 4).unpack1("V")
+
+      raise "ZIP entry name is too long" if name_length > MAX_ARCHIVE_ENTRY_NAME_BYTES
+      raw_name = zip_read_exact(io, name_length, "ZIP entry name")
+      extra = zip_read_exact(io, extra_length, "ZIP entry extra data")
+      zip_read_exact(io, comment_length, "ZIP entry comment")
+      raise "encrypted ZIP entries are not supported" if (flags & 0x41).positive?
+      raise "ZIP entry starts on another disk" unless disk_start_16.zero? || disk_start_16 == 0xffff
+
+      required_zip64_fields = []
+      required_zip64_fields << :uncompressed_size if uncompressed_size_32 == 0xffff_ffff
+      required_zip64_fields << :compressed_size if compressed_size_32 == 0xffff_ffff
+      required_zip64_fields << :local_offset if local_offset_32 == 0xffff_ffff
+      required_zip64_fields << :disk_start if disk_start_16 == 0xffff
+      zip64_values = required_zip64_fields.empty? ? {} : zip_parse_zip64_extra(extra, required_zip64_fields)
+      uncompressed_size = uncompressed_size_32 == 0xffff_ffff ? zip64_values.fetch(:uncompressed_size) : uncompressed_size_32
+      compressed_size = compressed_size_32 == 0xffff_ffff ? zip64_values.fetch(:compressed_size) : compressed_size_32
+      local_offset = local_offset_32 == 0xffff_ffff ? zip64_values.fetch(:local_offset) : local_offset_32
+      disk_start = disk_start_16 == 0xffff ? zip64_values.fetch(:disk_start) : disk_start_16
+      raise "ZIP entry starts on another disk" unless disk_start.zero?
+      raise "ZIP entry uses an unsupported compression method" unless [0, 8].include?(compression_method)
+      raise "ZIP entry is larger than the supported single-file limit" if uncompressed_size > MAX_ARCHIVE_SINGLE_FILE_BYTES
+      total_uncompressed_size += uncompressed_size
+      raise "ZIP archive exceeds the supported total extraction limit" if total_uncompressed_size > MAX_ARCHIVE_TOTAL_UNCOMPRESSED_BYTES
+
+      kind = zip_entry_kind(raw_name, external_attributes)
+      path_name = zip_normalize_entry_path(raw_name, kind)
+      raise "ZIP archive contains a duplicate raw entry path" if raw_names.key?(raw_name)
+      raise "ZIP archive contains a duplicate normalized entry path" if paths.key?(path_name)
+      raw_names[raw_name] = true
+      paths[path_name] = kind
+      if kind == "directory" && (compressed_size != 0 || uncompressed_size != 0)
+        raise "ZIP directory entry contains file data"
+      end
+
+      central_position = io.pos
+      io.seek(local_offset)
+      local_header = zip_read_exact(io, 30, "ZIP local file header")
+      raise "ZIP local file header signature is invalid" unless local_header.byteslice(0, 4) == "PK\x03\x04".b
+
+      local_flags = local_header.byteslice(6, 2).unpack1("v")
+      local_method = local_header.byteslice(8, 2).unpack1("v")
+      local_name_length = local_header.byteslice(26, 2).unpack1("v")
+      local_extra_length = local_header.byteslice(28, 2).unpack1("v")
+      local_name = zip_read_exact(io, local_name_length, "ZIP local entry name")
+      zip_read_exact(io, local_extra_length, "ZIP local entry extra data")
+      raise "ZIP local and central entry names differ" unless local_name == raw_name
+      raise "ZIP local and central entry flags differ" unless local_flags == flags
+      raise "ZIP local and central compression methods differ" unless local_method == compression_method
+
+      local_data_offset = io.pos
+      data_end = local_data_offset + compressed_size
+      raise "ZIP entry data is out of bounds" if local_data_offset > central_offset || data_end > central_offset
+      io.seek(central_position)
+
+      entries << ZipArchiveEntry.new(
+        raw_name: raw_name,
+        path: path_name,
+        kind: kind,
+        compression_method: compression_method,
+        compressed_size: compressed_size,
+        uncompressed_size: uncompressed_size,
+        crc32: crc32,
+        flags: flags,
+        local_data_offset: local_data_offset
+      )
+    end
+    raise "ZIP central directory entry count does not match its size" unless io.pos == central_end
+
+    entries.each do |entry|
+      components = entry.path.split("/")
+      components.each_index do |index|
+        parent = components[0, index].join("/")
+        next if parent.empty?
+        raise "ZIP archive contains a file/directory prefix conflict" if paths[parent] == "file"
+      end
+    end
+
+    entries
+  end
+end
+
+def archive_ensure_directory(root, relative_path)
+  current = root
+  relative_path.split("/").each do |component|
+    current = File.join(current, component)
+    begin
+      stat = File.lstat(current)
+      raise "archive extraction encountered a symlink" if stat.symlink?
+      raise "archive extraction path is not a directory" unless stat.directory?
+    rescue Errno::ENOENT
+      Dir.mkdir(current, 0o700)
+    end
+  end
+end
+
+def archive_target_path(root, relative_path)
+  expanded_root = File.expand_path(root)
+  target = File.expand_path(File.join(root, *relative_path.split("/")))
+  root_prefix = "#{expanded_root}#{File::SEPARATOR}"
+  raise "archive extraction path escapes its temporary root" unless target.start_with?(root_prefix)
+
+  target
+end
+
+def archive_write_chunk(output, chunk, written, expected_size)
+  return written if chunk.nil? || chunk.empty?
+
+  next_written = written + chunk.bytesize
+  raise "ZIP entry expanded beyond its declared size" if next_written > expected_size
+
+  output.write(chunk)
+  next_written
+end
+
+def archive_extract_entry(io, entry, root)
+  target = archive_target_path(root, entry.path)
+  if entry.kind == "directory"
+    archive_ensure_directory(root, entry.path)
+    return
+  end
+
+  archive_ensure_directory(root, File.dirname(entry.path)) unless File.dirname(entry.path) == "."
+  begin
+    File.lstat(target)
+    raise "ZIP archive extraction would overwrite an existing path"
+  rescue Errno::ENOENT
+    # The target is created exclusively below.
+  end
+
+  io.seek(entry.local_data_offset)
+  File.open(target, File::WRONLY | File::CREAT | File::EXCL, 0o600) do |output|
+    remaining = entry.compressed_size
+    written = 0
+    crc32 = 0
+    case entry.compression_method
+    when 0
+      while remaining.positive?
+        chunk_length = [remaining, 1_048_576].min
+        chunk = zip_read_exact(io, chunk_length, "ZIP stored entry data")
+        remaining -= chunk.bytesize
+        written = archive_write_chunk(output, chunk, written, entry.uncompressed_size)
+        crc32 = Zlib.crc32(chunk, crc32)
+      end
+    when 8
+      inflater = Zlib::Inflate.new(-Zlib::MAX_WBITS)
+      begin
+        while remaining.positive?
+          chunk_length = [remaining, 1_048_576].min
+          chunk = zip_read_exact(io, chunk_length, "ZIP deflated entry data")
+          remaining -= chunk.bytesize
+          output_chunk = inflater.inflate(chunk)
+          written = archive_write_chunk(output, output_chunk, written, entry.uncompressed_size)
+          crc32 = Zlib.crc32(output_chunk, crc32)
+        end
+        output_chunk = inflater.finish
+        written = archive_write_chunk(output, output_chunk, written, entry.uncompressed_size)
+        crc32 = Zlib.crc32(output_chunk, crc32)
+        raise "ZIP deflate stream is incomplete" unless inflater.finished?
+        raise "ZIP deflate stream contains trailing data" unless inflater.unused.to_s.empty?
+      ensure
+        inflater.close
+      end
+    end
+    raise "ZIP entry size does not match its central directory metadata" unless written == entry.uncompressed_size
+    raise "ZIP entry CRC-32 does not match its central directory metadata" unless crc32 == entry.crc32
+  end
+end
+
+def archive_extract_to_temporary_directory(archive_path, entries, destination)
+  File.open(archive_path, "rb") do |io|
+    entries.sort_by(&:path).each { |entry| archive_extract_entry(io, entry, destination) }
+  end
+end
+
+def archive_sha256_file(path, expected_size)
+  digest = Digest::SHA256.new
+  File.open(path, "rb") do |io|
+    stat = io.stat
+    raise "artifact directory file is not a regular single-link file" unless stat.file? && stat.nlink == 1
+    raise "artifact directory file size changed during binding" unless stat.size == expected_size
+
+    while (chunk = io.read(1_048_576))
+      digest.update(chunk)
+    end
+  end
+  digest.hexdigest
+end
+
+def archive_directory_snapshot(root)
+  root_stat = File.lstat(root)
+  raise "artifact directory root must be a regular directory" if root_stat.symlink? || !root_stat.directory?
+
+  snapshot = {}
+  total_size = 0
+  walk = lambda do |directory, prefix|
+    Dir.children(directory).sort.each do |name|
+      child = File.join(directory, name)
+      relative_path = prefix.empty? ? name : "#{prefix}/#{name}"
+      stat = File.lstat(child)
+      raise "artifact directory contains a symlink" if stat.symlink?
+      raise "artifact directory contains an unsupported special file" unless stat.directory? || stat.file?
+      raise "artifact directory contains too many entries" if snapshot.length >= MAX_ARCHIVE_ENTRY_COUNT
+
+      if stat.directory?
+        snapshot[relative_path] = { "kind" => "directory" }
+        walk.call(child, relative_path)
+      else
+        raise "artifact directory contains a hard link" unless stat.nlink == 1
+        raise "artifact directory file exceeds the supported single-file limit" if stat.size > MAX_ARCHIVE_SINGLE_FILE_BYTES
+
+        total_size += stat.size
+        raise "artifact directory exceeds the supported total extraction limit" if total_size > MAX_ARCHIVE_TOTAL_UNCOMPRESSED_BYTES
+
+        snapshot[relative_path] = {
+          "kind" => "file",
+          "size" => stat.size,
+          "sha256" => archive_sha256_file(child, stat.size)
+        }
+      end
+    end
+  end
+  walk.call(root, "")
+  snapshot
+end
+
+def archive_compare_directory_snapshots(expected, actual)
+  all_paths = (expected.keys | actual.keys).sort
+  mismatches = all_paths.filter_map do |path|
+    if !expected.key?(path)
+      "extra #{path}"
+    elsif !actual.key?(path)
+      "missing #{path}"
+    elsif expected[path] != actual[path]
+      "different #{path}"
+    end
+  end
+  return true if mismatches.empty?
+
+  raise "archive extracted directory differs from the original ZIP (#{mismatches.first(8).join(", ")})"
+end
+
+def validate_archive_extracted_directory_binding(archive_path, artifact_dir, archive_integrity_ok)
+  raise "archive integrity checks failed; archive binding was skipped" unless archive_integrity_ok
+
+  entries = zip_parse_archive(archive_path)
+  Dir.mktmpdir("chronofocus-archive-binding-") do |temporary_directory|
+    archive_extract_to_temporary_directory(archive_path, entries, temporary_directory)
+    expected = archive_directory_snapshot(artifact_dir)
+    actual = archive_directory_snapshot(temporary_directory)
+    archive_compare_directory_snapshots(expected, actual)
+  end
+  true
+end
+
 begin
 artifact_dir = resolve_artifact_dir(artifact_arg)
 checks = []
@@ -413,10 +855,14 @@ expected_archive_size = archive_path ? Integer(options["archive_size"], 10) : ni
 expected_archive_digest = archive_path ? options["archive_digest"].downcase : nil
 actual_archive_size = archive_path ? File.size(archive_path) : nil
 actual_archive_digest = archive_path ? "sha256:#{Digest::SHA256.file(archive_path).hexdigest}" : nil
+archive_integrity_ok = false
 
 if archive_path
-  check(checks, "artifact archive byte count") { actual_archive_size == expected_archive_size }
-  check(checks, "artifact archive sha256 digest") { actual_archive_digest == expected_archive_digest }
+  archive_byte_count_ok = actual_archive_size == expected_archive_size
+  archive_digest_ok = actual_archive_digest == expected_archive_digest
+  archive_zip_integrity_ok = false
+  check(checks, "artifact archive byte count") { archive_byte_count_ok }
+  check(checks, "artifact archive sha256 digest") { archive_digest_ok }
   check(checks, "artifact archive zip integrity") do
     stdout, stderr, status = Open3.capture3(*["unzip", "-t", archive_path])
     unless status.success?
@@ -424,7 +870,12 @@ if archive_path
       raise(detail.empty? ? "unzip -t exited with status #{status.exitstatus}" : detail[0, 500])
     end
 
+    archive_zip_integrity_ok = true
     true
+  end
+  archive_integrity_ok = archive_byte_count_ok && archive_digest_ok && archive_zip_integrity_ok
+  check(checks, "artifact archive extracted directory binding") do
+    validate_archive_extracted_directory_binding(archive_path, artifact_dir, archive_integrity_ok)
   end
 end
 
@@ -867,6 +1318,9 @@ check(checks, "verify_project existing category search contracts") do
 end
 check(checks, "verify_project schedule to timer handoff contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Schedule to timer handoff contracts verified.")
+end
+check(checks, "verify_project startable task consistency contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Startable task consistency contracts verified.")
 end
 check(checks, "verify_project mac mini quick panel accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Mac mini quick panel accessibility contracts verified.")

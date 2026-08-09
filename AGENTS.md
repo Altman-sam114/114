@@ -31,7 +31,7 @@ ChronoFocus 是一个 SwiftUI 番茄钟 App 原型，包含 iOS 主 App、iOS Li
 - 不做无关重构，不回滚用户或其他 Agent 的改动，不伪造测试结果。
 - 手写文件修改使用 `apply_patch`；大规模格式化或构建产物生成可以使用项目脚本。
 - 默认协作分支是 `main`，也是唯一上传、提交、推送和云端验证分支；现存 `smalldata_test` 只记录现状，不纳入默认流程。
-- 默认验证策略是本地轻量检查 + `origin/main` 云端重验证；除非人工明确要求，不默认在本机跑完整 Xcode build。
+- 当前总目标的硬性验证策略是云端唯一：不得在本机运行项目测试、`bash scripts/verify_project.sh`、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；只允许做静态审阅后提交并由 `origin/main` 的 GitHub Actions 验证。
 
 ## 4. 核心架构边界
 
@@ -122,7 +122,7 @@ Agent B 按 Agent A 提示词小步实现。
 - 同步最新 `origin/main`，确认在 `main` 上工作且没有无关 diff。
 - 阅读相关源码、脚本和测试。
 - 按现有架构实现，不扩大范围。
-- 根据 `md/test/test.md` 选择本地轻量检查；除非人工明确要求，不默认跑完整本机 Xcode build。
+- 当前硬性约束下不运行本地项目测试或检查；只做静态审阅，完成后提交并 push 到 `origin/main`，由 GitHub Actions 产生唯一测试证据。
 - 更新 `README.md`、`update_log.md`、`md/test/test.md`、`md/flow/*` 或脚本中受影响的部分。
 - 按版本号提交本轮相关文件，push 到 `origin/main` 触发 GitHub Actions。
 - 输出改动说明、关键文件、本地检查命令和结果、云端 run/artifact 信息、未跑测试原因、已知风险、后续建议。
@@ -196,11 +196,11 @@ Agent X 是可选的主控调度角色，不直接替代 Agent A、Agent B 或 A
 ## 6. 测试规则
 
 - 每次实现前先读 `md/test/test.md`。
-- 默认从最小可证明本地轻量检查开始，并通过 `origin/main` GitHub Actions 做重验证。
-- 每次改动后至少运行文档或代码对应的最低本地验证命令。
+- 当前总目标只接受 `origin/main` GitHub Actions 的测试与验收结果；本地仅可阅读源码、审查 diff 和准备提交，不得执行项目测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator。
+- 每次改动后必须 push 到 `origin/main`，等待对应 GitHub Actions 完成，并由 Agent C 复判最新原始 artifact；不得用本地命令结果替代云端证据。
 - 代码变更不得只说“已验证”，必须写出实际命令和结果。
-- 文档-only 修改可只跑 `git diff --check` 和必要静态结构检查，但必须说明未跑完整业务测试的原因。
-- 涉及 macOS UI、状态栏、小窗、详细窗口、共享模型、通知、StoreKit、EventKit 时，本地至少跑轻量检查；默认由云端 `ci-results.yml` 跑 `bash scripts/verify_project.sh` 和 Mac Xcode 构建。
+- 文档或代码改动都不在本机执行测试；静态结构只能人工审阅，最终仍以云端 workflow 和 artifact 为准。
+- 涉及 macOS UI、状态栏、小窗、详细窗口、共享模型、通知、StoreKit、EventKit 时，全部由云端 `ci-results.yml` 执行项目验证、Mac build 和 iOS generic build；本机不得运行对应命令。
 - 只有人工明确要求“本机测试”“本地 build”“本地 xcodebuild”时，才把完整本机构建作为默认路径。
 
 ## 7. 文档规则

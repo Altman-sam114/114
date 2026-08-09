@@ -67,7 +67,7 @@ struct MacSnapshotRenderer {
         try assertNoMissingControlPlaceholders(at: timerNormalQueueURL)
         print(timerNormalQueueURL.path)
 
-        guard let timerHandoffTask = store.upcomingTasks().first(where: { $0.category == "产品" && $0.isEnabled }) else {
+        guard let timerHandoffTask = store.startableTasks().first(where: { $0.category == "产品" }) else {
             throw SnapshotError("Mac schedule to timer handoff fixture requires an enabled 产品 task")
         }
         let timerHandoffRequest = MacTimerHandoffRequest(
@@ -76,7 +76,7 @@ struct MacSnapshotRenderer {
         )
         guard let resolvedTimerHandoffTask = resolveMacTimerHandoffTask(
             timerHandoffRequest,
-            from: store.upcomingTasks().filter(\.isEnabled)
+            from: store.startableTasks()
         ) else {
             throw SnapshotError("Mac schedule to timer handoff fixture could not resolve its request")
         }
@@ -125,7 +125,7 @@ struct MacSnapshotRenderer {
             print(detailURL.path)
         }
 
-        guard store.upcomingTasks().allSatisfy({ $0.category != "工作" }) else {
+        guard store.startableTasks().allSatisfy({ $0.category != "工作" }) else {
             throw SnapshotError("Mac timer category empty fixture requires zero 工作 tasks")
         }
 
@@ -159,7 +159,7 @@ struct MacSnapshotRenderer {
         print(timerCategoryEmptyURL.path)
         print(timerCategoryEmptyNarrowURL.path)
 
-        guard store.upcomingTasks().contains(where: { $0.category == "产品" }) else {
+        guard store.startableTasks().contains(where: { $0.category == "产品" }) else {
             throw SnapshotError("Mac timer category context fixture requires 产品 tasks")
         }
 

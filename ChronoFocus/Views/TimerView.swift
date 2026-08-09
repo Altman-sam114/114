@@ -28,7 +28,7 @@ struct TimerView: View {
     }
 
     private var upcomingTasks: [FocusTask] {
-        store.upcomingTasks()
+        store.startableTasks()
     }
 
     private var filteredUpcomingTasks: [FocusTask] {
@@ -88,9 +88,9 @@ struct TimerView: View {
 
     private var taskPickerCountText: String {
         if selectedTaskCategory != nil {
-            return "\(filteredUpcomingTasks.count)/\(upcomingTasks.count) 项待办"
+            return "\(filteredUpcomingTasks.count)/\(upcomingTasks.count) 项可启动待办"
         }
-        return "\(upcomingTasks.count) 项待办"
+        return "\(upcomingTasks.count) 项可启动待办"
     }
 
     private func taskCount(in category: String?) -> Int {
@@ -190,11 +190,13 @@ struct TimerView: View {
         selectedTaskCategory = request.category
         isTaskQueueExpanded = false
 
-        let startableTasks = store.upcomingTasks().filter(\.isEnabled)
+        let startableTasks = store.startableTasks()
         let categoryTasks = startableTasks.filter { $0.category == request.category }
         let targetTask: FocusTask?
         if let preferredTaskID = request.preferredTaskID {
-            targetTask = categoryTasks.first { $0.id == preferredTaskID }
+            targetTask = store.startableTask(for: preferredTaskID).flatMap { task in
+                task.category == request.category ? task : nil
+            }
         } else {
             targetTask = categoryTasks.first
         }
@@ -205,7 +207,7 @@ struct TimerView: View {
             } else if request.preferredTaskID != nil {
                 engine.selectTask(nil)
             } else if let selectedTaskID = engine.selectedTaskID,
-                      !categoryTasks.contains(where: { $0.id == selectedTaskID }) {
+                      store.startableTask(for: selectedTaskID)?.category != request.category {
                 engine.selectTask(nil)
             }
         }
@@ -449,7 +451,7 @@ struct TimerView: View {
                         onClear: clearTaskCategoryFilter
                     )
                 } else if upcomingTasks.isEmpty {
-                    Text("暂无待办，仍可启动自由专注。")
+                    Text("暂无可启动待办，仍可启动自由专注。")
                         .foregroundStyle(AppTheme.secondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
@@ -786,7 +788,7 @@ private struct TimerSelectedTaskCategorySummaryView: View {
                 .stroke(tint.opacity(0.36), lineWidth: 1)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("当前筛选\(category)分类，\(filteredCount)/\(totalCount)项待办，可新增此分类待办或清除筛选")
+        .accessibilityLabel("当前筛选\(category)分类，\(filteredCount)/\(totalCount)项可启动待办，可新增此分类待办或清除筛选")
     }
 }
 

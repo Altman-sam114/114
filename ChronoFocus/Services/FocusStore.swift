@@ -283,6 +283,15 @@ final class FocusStore: ObservableObject {
             }
     }
 
+    func startableTasks() -> [FocusTask] {
+        upcomingTasks().filter(\.isEnabled)
+    }
+
+    func startableTask(for id: UUID?) -> FocusTask? {
+        guard let id else { return nil }
+        return startableTasks().first { $0.id == id }
+    }
+
     @discardableResult
     func generatePomodoroPlanFromSchedule(referenceDate: Date = Date()) -> [PomodoroPlanItem] {
         let sortedTasks = upcomingTasks().filter(\.isEnabled)
