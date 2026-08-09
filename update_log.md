@@ -98,6 +98,34 @@
 
 - 静态快照只能证明入口和消费终态布局，真实点击、Tab/SplitView 重建与交互时序仍需源码 contract、双平台云端构建和 Agent C artifact 共同验收。
 
+### v1.4.1 / CI fixture archive binding 稳定性
+
+日期：2026-08-09
+
+核心变更：
+
+- 将 `scripts/verify_project.sh` 的 artifact index 复算改为 fixed-point：重新计算所有 required entry，包含自引用 `ci-artifact-index.json` 的实际 byteCount，直到写入内容稳定后才生成 archive。
+- 正向 run-metadata fixture 从最终 baseline 复制出独立冻结目录，再由同一目录生成 ZIP、size/digest 和 artifact metadata；validator 的目录、archive、metadata 参数不再依赖会被重赋值的共享变量。
+- archive-backed 的 existing category reuse/usage/search、schedule-to-timer handoff、CI workflow run API metadata/provenance 负向 fixture 各自重新生成匹配 archive 和 metadata，并保留只允许目标 contract FAIL 的断言；不改 Swift、validator 安全检查或 artifact 结构。
+
+关键文件：
+
+- `scripts/verify_project.sh`
+- `scripts/validate_ci_artifact.rb`（只读，未修改）
+- `md/test/test.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（持续优化）/v1.4.1（CI fixture archive binding稳定性）.md`
+
+验证结果：
+
+- 按当前硬性约束未运行任何本地测试、`verify_project.sh`、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；仅完成静态源码审阅，等待推送后的 GitHub Actions。
+- 本轮基于 `origin/main` 提交 `5067079755039c12423c96870c24c560918d8ad2` 的云端 run `31294009115`；该 run 的失败 artifact 为项目验证失败结果包，名称/id/digest 由 Agent C 以原始 artifacts API 核对，不能作为通过证据。
+- 云端失败首要证据是 run-metadata 正向 fixture 的 archive binding 与 index required local metadata 连带失败；本轮修复完成后仍需由最新 `origin/main` run 证明 `131 PASS / 0 FAIL`。
+
+遗留事项：
+
+- 本轮修复尚未完成云端验证；提交并 push 后，Agent C 必须使用最新 run 的原始 run API、artifacts API、ZIP 和完整第四模式复判，未通过时继续在 `main` 追加最小修复。
+
 ### v1.4 / 可启动待办一致性与 Archive 目录绑定
 
 日期：2026-08-09

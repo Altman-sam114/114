@@ -87,6 +87,10 @@ Agent A 写给 Agent B 的提示词必须明确：
 - CI 范围：完整 archive 模式把原始 ZIP 与 validator 自建临时解包树逐路径绑定，比较类型、大小和 SHA-256，并拒绝不安全 ZIP 条目；目标基线 `131 PASS / 0 FAIL`。
 - 状态：首次实现 commit `3779f26` 的 run `31291481389` 因提示词 EOF 空行和旧 iOS handoff contract 失败，Mac/iOS build 与 artifact 上传成功；已追加最小修复，等待新的 `origin/main` GitHub Actions 及 Agent C 最新 artifact 复判。未运行任何本地项目测试或检查。
 
+- v1.4.1：`md/prompt/v1（持续优化）/v1.4.1（CI fixture archive binding稳定性）.md`。
+- 范围：只修复 CI fixture 的 fixed-point index、冻结 run-metadata 目录/ZIP/metadata 同源绑定，以及 archive-backed marker 负向 fixture 的单失败隔离；不改 UI、Swift、validator 安全语义或 artifact 结构。
+- 状态：基于 commit `5067079` 的云端 run `31294009115` 项目验证失败结果包，当前修复待提交推送；未运行任何本地测试、validator、构建或模拟器，预期恢复 `131 PASS / 0 FAIL` 后由 Agent C 复判。
+
 - v0.98：`md/prompt/v0（持续优化）/v0.98（日程分类空态互斥与CI失败摘要直出）.md`。
 - UI 范围：iOS/macOS 日程分类筛选结果非空时显示摘要，结果为空时只显示现有双操作分类空态，保持新增预填、清除筛选与辅助功能接线。
 - CI 范围：`Final CI status` 通过 `tee` 将同一 failure summary 同时输出到步骤 stdout 与 Step Summary；新增 `CI failure summary output contracts verified.`、对应 validator PASS、`cat` 回退 fixture 和 marker 缺失 fixture，不改变 artifact 结构。

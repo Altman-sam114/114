@@ -2146,33 +2146,65 @@ for _ in range(5):
         break
     last_size = new_size
 PY
-printf 'Startable task consistency contracts verified.\n' >> "$artifact_fixture/verify_project.log"
-python3 - "$artifact_fixture" <<'PY'
+stabilize_artifact_fixture_index() {
+  python3 - "$1" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
 index_path = root / "ci-artifact-index.json"
-index = json.loads(index_path.read_text(encoding="utf-8"))
-for entry in index["entries"]:
-    relative = entry["path"][len("ci-results/"):] if entry["path"].startswith("ci-results/") else entry["path"]
-    path = root / relative
-    if entry.get("kind") == "file":
-        entry["byteCount"] = path.stat().st_size
-    elif entry.get("kind") == "directory":
-        files = [child for child in path.rglob("*") if child.is_file()]
-        entry["fileCount"] = len(files)
-        entry["recursiveByteCount"] = sum(child.stat().st_size for child in files)
-index["totals"]["fileByteCount"] = sum(entry.get("byteCount", 0) for entry in index["entries"])
-index["totals"]["directoryRecursiveByteCount"] = sum(entry.get("recursiveByteCount", 0) for entry in index["entries"])
-index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+for _ in range(20):
+    previous = index_path.read_text(encoding="utf-8")
+    index = json.loads(previous)
+    for entry in index["entries"]:
+        contract_path = entry["path"]
+        prefix = "ci-results/"
+        relative_path = contract_path[len(prefix):] if contract_path.startswith(prefix) else contract_path
+        local_path = root / relative_path
+        entry["exists"] = local_path.exists()
+        if local_path.is_file():
+            entry["kind"] = "file"
+            entry["byteCount"] = local_path.stat().st_size
+            entry.pop("fileCount", None)
+            entry.pop("recursiveByteCount", None)
+        elif local_path.is_dir():
+            files = [child for child in local_path.rglob("*") if child.is_file()]
+            entry["kind"] = "directory"
+            entry.pop("byteCount", None)
+            entry["fileCount"] = len(files)
+            entry["recursiveByteCount"] = sum(child.stat().st_size for child in files)
+        else:
+            entry["kind"] = "missing"
+            entry.pop("byteCount", None)
+            entry.pop("fileCount", None)
+            entry.pop("recursiveByteCount", None)
+    index["totals"] = {
+        "entryCount": len(index["entries"]),
+        "missingRequiredCount": sum(
+            1 for entry in index["entries"]
+            if entry["required"] and not entry["exists"]
+        ),
+        "fileByteCount": sum(entry.get("byteCount", 0) for entry in index["entries"]),
+        "directoryRecursiveByteCount": sum(
+            entry.get("recursiveByteCount", 0) for entry in index["entries"]
+        ),
+    }
+    encoded = json.dumps(index, ensure_ascii=False, indent=2) + "\n"
+    if encoded == previous:
+        break
+    index_path.write_text(encoded, encoding="utf-8")
+else:
+    raise SystemExit("artifact fixture index did not stabilize")
 PY
+}
+printf 'Startable task consistency contracts verified.\n' >> "$artifact_fixture/verify_project.log"
+stabilize_artifact_fixture_index "$artifact_fixture"
 negative_startable_task_consistency_marker_fixture="$(mktemp -d)"
 negative_startable_task_consistency_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_startable_task_consistency_marker_fixture"/
 python3 - "$negative_startable_task_consistency_marker_fixture" <<'PY'
-import json
 import sys
 from pathlib import Path
 
@@ -2183,22 +2215,8 @@ content = verify_log_path.read_text(encoding="utf-8")
 if content.count(marker) != 1:
     raise SystemExit("startable task consistency marker fixture must contain exactly one marker")
 verify_log_path.write_text(content.replace(marker, "", 1), encoding="utf-8")
-
-index_path = root / "ci-artifact-index.json"
-index = json.loads(index_path.read_text(encoding="utf-8"))
-for entry in index["entries"]:
-    relative = entry["path"][len("ci-results/"):] if entry["path"].startswith("ci-results/") else entry["path"]
-    path = root / relative
-    if entry.get("kind") == "file":
-        entry["byteCount"] = path.stat().st_size
-    elif entry.get("kind") == "directory":
-        files = [child for child in path.rglob("*") if child.is_file()]
-        entry["fileCount"] = len(files)
-        entry["recursiveByteCount"] = sum(child.stat().st_size for child in files)
-index["totals"]["fileByteCount"] = sum(entry.get("byteCount", 0) for entry in index["entries"])
-index["totals"]["directoryRecursiveByteCount"] = sum(entry.get("recursiveByteCount", 0) for entry in index["entries"])
-index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
+stabilize_artifact_fixture_index "$negative_startable_task_consistency_marker_fixture"
 if ruby scripts/validate_ci_artifact.rb "$negative_startable_task_consistency_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_startable_task_consistency_marker_output" 2>&1; then
   echo "Expected negative startable task consistency marker fixture to fail validation" >&2
   cat "$negative_startable_task_consistency_marker_output" >&2
@@ -2221,11 +2239,15 @@ fi
 rm -f "$directory_only_output"
 artifact_archive_fixture_dir="$(mktemp -d)"
 artifact_archive_fixture="$artifact_archive_fixture_dir/chronofocus-ci-fixture.zip"
-(
-  cd "$artifact_fixture"
-  zip -qry "$artifact_archive_fixture" *
-)
-ruby - "$artifact_archive_fixture" <<'RUBY'
+create_fixture_archive() {
+  local fixture_root="$1"
+  local archive_path="$2"
+  stabilize_artifact_fixture_index "$fixture_root"
+  (
+    cd "$fixture_root"
+    zip -qry "$archive_path" *
+  )
+  ruby - "$archive_path" <<'RUBY'
 path = ARGV.fetch(0)
 data = File.binread(path)
 eocd_offset = data.rindex("PK\x05\x06".b)
@@ -2239,6 +2261,8 @@ data[eocd_offset + 20, 2] = [comment.bytesize].pack("v")
 data = data.byteslice(0, eocd_offset + 22) + comment
 File.binwrite(path, data)
 RUBY
+}
+create_fixture_archive "$artifact_fixture" "$artifact_archive_fixture"
 artifact_archive_size="$(wc -c < "$artifact_archive_fixture" | tr -d '[:space:]')"
 artifact_archive_digest="$(ruby -rdigest -e 'puts "sha256:#{Digest::SHA256.file(ARGV.fetch(0)).hexdigest}"' "$artifact_archive_fixture")"
 artifact_archive_success_output="$(mktemp)"
@@ -2375,22 +2399,26 @@ require_validator_marker() {
 
 report_artifact_fixture_state() {
   local label="$1"
+  local fixture_root="${2:-$artifact_fixture}"
   echo "Artifact fixture state: $label"
   printf "verify_project.log bytes: "
-  wc -c < "$artifact_fixture/verify_project.log" | tr -d '[:space:]'
+  wc -c < "$fixture_root/verify_project.log" | tr -d '[:space:]'
   printf "verify_project.log sha256: "
-  shasum -a 256 "$artifact_fixture/verify_project.log" | awk '{print $1}'
+  shasum -a 256 "$fixture_root/verify_project.log" | awk '{print $1}'
   printf "ci-artifact-index.json bytes: "
-  wc -c < "$artifact_fixture/ci-artifact-index.json" | tr -d '[:space:]'
-  if grep -Fq "Existing category reuse contracts verified." "$artifact_fixture/verify_project.log"; then
+  wc -c < "$fixture_root/ci-artifact-index.json" | tr -d '[:space:]'
+  if grep -Fq "Existing category reuse contracts verified." "$fixture_root/verify_project.log"; then
     echo "existing category reuse marker: present"
   else
     echo "existing category reuse marker: missing"
   fi
 }
 
-artifact_metadata_fixture="$artifact_archive_fixture_dir/artifacts-api.json"
-ruby -rjson - "$artifact_metadata_fixture" "$artifact_archive_size" "$artifact_archive_digest" <<'RUBY'
+write_artifact_metadata_fixture() {
+  local metadata_path="$1"
+  local archive_size="$2"
+  local archive_digest="$3"
+  ruby -rjson - "$metadata_path" "$archive_size" "$archive_digest" <<'RUBY'
 path, archive_size, archive_digest = ARGV
 payload = {
   "total_count" => 1,
@@ -2413,6 +2441,27 @@ payload = {
 }
 File.write(path, JSON.pretty_generate(payload) + "\n", encoding: "UTF-8")
 RUBY
+}
+
+bind_fixture_archive() {
+  local fixture_root="$1"
+  local archive_path="$2"
+  local metadata_path="$3"
+  local size_variable="$4"
+  local digest_variable="$5"
+  local archive_size
+  local archive_digest
+
+  create_fixture_archive "$fixture_root" "$archive_path"
+  archive_size="$(wc -c < "$archive_path" | tr -d '[:space:]')"
+  archive_digest="$(ruby -rdigest -e 'puts "sha256:#{Digest::SHA256.file(ARGV.fetch(0)).hexdigest}"' "$archive_path")"
+  write_artifact_metadata_fixture "$metadata_path" "$archive_size" "$archive_digest"
+  printf -v "$size_variable" '%s' "$archive_size"
+  printf -v "$digest_variable" '%s' "$archive_digest"
+}
+
+artifact_metadata_fixture="$artifact_archive_fixture_dir/artifacts-api.json"
+write_artifact_metadata_fixture "$artifact_metadata_fixture" "$artifact_archive_size" "$artifact_archive_digest"
 artifact_metadata_success_output="$(mktemp)"
 if ! ruby scripts/validate_ci_artifact.rb \
   "$artifact_fixture" \
@@ -2447,36 +2496,16 @@ done
 rm -f "$artifact_metadata_success_output"
 report_artifact_fixture_state "after artifact metadata success"
 
+run_metadata_fixture_root="$(mktemp -d)"
+cp -R "$artifact_fixture"/. "$run_metadata_fixture_root"/
 run_metadata_archive_fixture="$artifact_archive_fixture_dir/chronofocus-ci-run-metadata-fixture.zip"
-(
-  cd "$artifact_fixture"
-  zip -qry "$run_metadata_archive_fixture" *
-)
-ruby - "$run_metadata_archive_fixture" <<'RUBY'
-path = ARGV.fetch(0)
-data = File.binread(path)
-eocd_offset = data.rindex("PK\x05\x06".b)
-raise "ZIP run metadata fixture end record missing" unless eocd_offset
-
-existing_comment_length = data.byteslice(eocd_offset + 20, 2)&.unpack1("v").to_i
-raise "ZIP run metadata fixture end record bounds invalid" unless eocd_offset + 22 + existing_comment_length == data.bytesize
-
-comment = "chronofocus-run-metadata-fixture-comment".b
-data[eocd_offset + 20, 2] = [comment.bytesize].pack("v")
-data = data.byteslice(0, eocd_offset + 22) + comment
-File.binwrite(path, data)
-RUBY
-artifact_archive_fixture="$run_metadata_archive_fixture"
-artifact_archive_size="$(wc -c < "$artifact_archive_fixture" | tr -d '[:space:]')"
-artifact_archive_digest="$(ruby -rdigest -e 'puts "sha256:#{Digest::SHA256.file(ARGV.fetch(0)).hexdigest}"' "$artifact_archive_fixture")"
-ruby -rjson - "$artifact_metadata_fixture" "$artifact_archive_size" "$artifact_archive_digest" <<'RUBY'
-path, archive_size, archive_digest = ARGV
-payload = JSON.parse(File.read(path, encoding: "UTF-8"))
-artifact = payload.fetch("artifacts").fetch(0)
-artifact["size_in_bytes"] = Integer(archive_size, 10)
-artifact["digest"] = archive_digest
-File.write(path, JSON.pretty_generate(payload) + "\n", encoding: "UTF-8")
-RUBY
+run_metadata_artifact_metadata_fixture="$artifact_archive_fixture_dir/run-metadata-artifacts-api.json"
+bind_fixture_archive \
+  "$run_metadata_fixture_root" \
+  "$run_metadata_archive_fixture" \
+  "$run_metadata_artifact_metadata_fixture" \
+  run_metadata_archive_size \
+  run_metadata_archive_digest
 
 run_metadata_fixture="$artifact_archive_fixture_dir/run-api.json"
 ruby -rjson - "$run_metadata_fixture" <<'RUBY'
@@ -2559,21 +2588,21 @@ assert_run_metadata_passes_except() {
 
 run_metadata_success_output="$(mktemp)"
 if ! ruby scripts/validate_ci_artifact.rb \
-  "$artifact_fixture" \
+  "$run_metadata_fixture_root" \
   --commit fixture-sha \
   --run-id 12345 \
   --attempt 1 \
-  --archive "$artifact_archive_fixture" \
-  --archive-size "$artifact_archive_size" \
-  --archive-digest "$artifact_archive_digest" \
-  --artifact-metadata "$artifact_metadata_fixture" \
+  --archive "$run_metadata_archive_fixture" \
+  --archive-size "$run_metadata_archive_size" \
+  --archive-digest "$run_metadata_archive_digest" \
+  --artifact-metadata "$run_metadata_artifact_metadata_fixture" \
   --run-metadata "$run_metadata_fixture" \
   >"$run_metadata_success_output" 2>&1; then
   echo "Run metadata success fixture validator failed" >&2
   cat "$run_metadata_success_output" >&2
   exit 1
 fi
-report_artifact_fixture_state "before run metadata success"
+report_artifact_fixture_state "before run metadata success" "$run_metadata_fixture_root"
 assert_archive_passes "$run_metadata_success_output"
 assert_artifact_metadata_passes "$run_metadata_success_output"
 assert_run_metadata_passes_except "$run_metadata_success_output"
@@ -3723,15 +3752,23 @@ verify_log_path.write_text(
     encoding="utf-8",
 )
 PY
+negative_existing_category_reuse_archive_fixture="$artifact_archive_fixture_dir/negative-existing-category-reuse.zip"
+negative_existing_category_reuse_metadata_fixture="$artifact_archive_fixture_dir/negative-existing-category-reuse-artifacts-api.json"
+bind_fixture_archive \
+  "$negative_existing_category_reuse_marker_fixture" \
+  "$negative_existing_category_reuse_archive_fixture" \
+  "$negative_existing_category_reuse_metadata_fixture" \
+  negative_existing_category_reuse_archive_size \
+  negative_existing_category_reuse_archive_digest
 if ruby scripts/validate_ci_artifact.rb \
   "$negative_existing_category_reuse_marker_fixture" \
   --commit fixture-sha \
   --run-id 12345 \
   --attempt 1 \
-  --archive "$artifact_archive_fixture" \
-  --archive-size "$artifact_archive_size" \
-  --archive-digest "$artifact_archive_digest" \
-  --artifact-metadata "$artifact_metadata_fixture" \
+  --archive "$negative_existing_category_reuse_archive_fixture" \
+  --archive-size "$negative_existing_category_reuse_archive_size" \
+  --archive-digest "$negative_existing_category_reuse_archive_digest" \
+  --artifact-metadata "$negative_existing_category_reuse_metadata_fixture" \
   --run-metadata "$run_metadata_fixture" \
   >"$negative_existing_category_reuse_marker_output" 2>&1; then
   echo "Expected negative existing category reuse marker fixture to fail validation" >&2
@@ -3742,6 +3779,11 @@ grep -q "FAIL verify_project existing category reuse contracts" "$negative_exist
 assert_archive_passes "$negative_existing_category_reuse_marker_output"
 assert_artifact_metadata_passes "$negative_existing_category_reuse_marker_output"
 assert_run_metadata_passes_except "$negative_existing_category_reuse_marker_output"
+if [[ "$(grep -c '^FAIL ' "$negative_existing_category_reuse_marker_output")" -ne 1 ]]; then
+  echo "Expected only the existing category reuse contract to fail" >&2
+  cat "$negative_existing_category_reuse_marker_output" >&2
+  exit 1
+fi
 rm -rf "$negative_existing_category_reuse_marker_fixture"
 rm -f "$negative_existing_category_reuse_marker_output"
 
@@ -3793,15 +3835,23 @@ for _ in range(10):
 else:
     raise SystemExit("Existing category usage marker fixture index did not stabilize")
 PY
+negative_existing_category_usage_archive_fixture="$artifact_archive_fixture_dir/negative-existing-category-usage.zip"
+negative_existing_category_usage_metadata_fixture="$artifact_archive_fixture_dir/negative-existing-category-usage-artifacts-api.json"
+bind_fixture_archive \
+  "$negative_existing_category_usage_marker_fixture" \
+  "$negative_existing_category_usage_archive_fixture" \
+  "$negative_existing_category_usage_metadata_fixture" \
+  negative_existing_category_usage_archive_size \
+  negative_existing_category_usage_archive_digest
 if ruby scripts/validate_ci_artifact.rb \
   "$negative_existing_category_usage_marker_fixture" \
   --commit fixture-sha \
   --run-id 12345 \
   --attempt 1 \
-  --archive "$artifact_archive_fixture" \
-  --archive-size "$artifact_archive_size" \
-  --archive-digest "$artifact_archive_digest" \
-  --artifact-metadata "$artifact_metadata_fixture" \
+  --archive "$negative_existing_category_usage_archive_fixture" \
+  --archive-size "$negative_existing_category_usage_archive_size" \
+  --archive-digest "$negative_existing_category_usage_archive_digest" \
+  --artifact-metadata "$negative_existing_category_usage_metadata_fixture" \
   --run-metadata "$run_metadata_fixture" \
   >"$negative_existing_category_usage_marker_output" 2>&1; then
   echo "Expected negative existing category usage context marker fixture to fail validation" >&2
@@ -3869,15 +3919,23 @@ for _ in range(10):
 else:
     raise SystemExit("Existing category search marker fixture index did not stabilize")
 PY
+negative_existing_category_search_archive_fixture="$artifact_archive_fixture_dir/negative-existing-category-search.zip"
+negative_existing_category_search_metadata_fixture="$artifact_archive_fixture_dir/negative-existing-category-search-artifacts-api.json"
+bind_fixture_archive \
+  "$negative_existing_category_search_marker_fixture" \
+  "$negative_existing_category_search_archive_fixture" \
+  "$negative_existing_category_search_metadata_fixture" \
+  negative_existing_category_search_archive_size \
+  negative_existing_category_search_archive_digest
 if ruby scripts/validate_ci_artifact.rb \
   "$negative_existing_category_search_marker_fixture" \
   --commit fixture-sha \
   --run-id 12345 \
   --attempt 1 \
-  --archive "$artifact_archive_fixture" \
-  --archive-size "$artifact_archive_size" \
-  --archive-digest "$artifact_archive_digest" \
-  --artifact-metadata "$artifact_metadata_fixture" \
+  --archive "$negative_existing_category_search_archive_fixture" \
+  --archive-size "$negative_existing_category_search_archive_size" \
+  --archive-digest "$negative_existing_category_search_archive_digest" \
+  --artifact-metadata "$negative_existing_category_search_metadata_fixture" \
   --run-metadata "$run_metadata_fixture" \
   >"$negative_existing_category_search_marker_output" 2>&1; then
   echo "Expected negative existing category search marker fixture to fail validation" >&2
@@ -3944,15 +4002,23 @@ for _ in range(10):
 else:
     raise SystemExit("Schedule to timer handoff marker fixture index did not stabilize")
 PY
+negative_schedule_timer_handoff_archive_fixture="$artifact_archive_fixture_dir/negative-schedule-timer-handoff.zip"
+negative_schedule_timer_handoff_metadata_fixture="$artifact_archive_fixture_dir/negative-schedule-timer-handoff-artifacts-api.json"
+bind_fixture_archive \
+  "$negative_schedule_timer_handoff_marker_fixture" \
+  "$negative_schedule_timer_handoff_archive_fixture" \
+  "$negative_schedule_timer_handoff_metadata_fixture" \
+  negative_schedule_timer_handoff_archive_size \
+  negative_schedule_timer_handoff_archive_digest
 if ruby scripts/validate_ci_artifact.rb \
   "$negative_schedule_timer_handoff_marker_fixture" \
   --commit fixture-sha \
   --run-id 12345 \
   --attempt 1 \
-  --archive "$artifact_archive_fixture" \
-  --archive-size "$artifact_archive_size" \
-  --archive-digest "$artifact_archive_digest" \
-  --artifact-metadata "$artifact_metadata_fixture" \
+  --archive "$negative_schedule_timer_handoff_archive_fixture" \
+  --archive-size "$negative_schedule_timer_handoff_archive_size" \
+  --archive-digest "$negative_schedule_timer_handoff_archive_digest" \
+  --artifact-metadata "$negative_schedule_timer_handoff_metadata_fixture" \
   --run-metadata "$run_metadata_fixture" \
   >"$negative_schedule_timer_handoff_marker_output" 2>&1; then
   echo "Expected negative schedule to timer handoff marker fixture to fail validation" >&2
@@ -3989,15 +4055,23 @@ verify_log_path.write_text(
     encoding="utf-8",
 )
 PY
+negative_ci_workflow_run_api_metadata_archive_fixture="$artifact_archive_fixture_dir/negative-ci-workflow-run-api-metadata.zip"
+negative_ci_workflow_run_api_metadata_fixture="$artifact_archive_fixture_dir/negative-ci-workflow-run-api-metadata-artifacts-api.json"
+bind_fixture_archive \
+  "$negative_ci_workflow_run_api_metadata_marker_fixture" \
+  "$negative_ci_workflow_run_api_metadata_archive_fixture" \
+  "$negative_ci_workflow_run_api_metadata_fixture" \
+  negative_ci_workflow_run_api_metadata_archive_size \
+  negative_ci_workflow_run_api_metadata_archive_digest
 if ruby scripts/validate_ci_artifact.rb \
   "$negative_ci_workflow_run_api_metadata_marker_fixture" \
   --commit fixture-sha \
   --run-id 12345 \
   --attempt 1 \
-  --archive "$artifact_archive_fixture" \
-  --archive-size "$artifact_archive_size" \
-  --archive-digest "$artifact_archive_digest" \
-  --artifact-metadata "$artifact_metadata_fixture" \
+  --archive "$negative_ci_workflow_run_api_metadata_archive_fixture" \
+  --archive-size "$negative_ci_workflow_run_api_metadata_archive_size" \
+  --archive-digest "$negative_ci_workflow_run_api_metadata_archive_digest" \
+  --artifact-metadata "$negative_ci_workflow_run_api_metadata_fixture" \
   --run-metadata "$run_metadata_fixture" \
   >"$negative_ci_workflow_run_api_metadata_marker_output" 2>&1; then
   echo "Expected negative CI workflow run API metadata marker fixture to fail validation" >&2
@@ -4005,9 +4079,15 @@ if ruby scripts/validate_ci_artifact.rb \
   exit 1
 fi
 grep -q "FAIL verify_project ci workflow run API metadata contracts" "$negative_ci_workflow_run_api_metadata_marker_output"
+grep -q "PASS verify_project existing category reuse contracts" "$negative_ci_workflow_run_api_metadata_marker_output"
 assert_archive_passes "$negative_ci_workflow_run_api_metadata_marker_output"
 assert_artifact_metadata_passes "$negative_ci_workflow_run_api_metadata_marker_output"
 assert_run_metadata_passes_except "$negative_ci_workflow_run_api_metadata_marker_output"
+if [[ "$(grep -c '^FAIL ' "$negative_ci_workflow_run_api_metadata_marker_output")" -ne 1 ]]; then
+  echo "Expected only the CI workflow run API metadata contract to fail" >&2
+  cat "$negative_ci_workflow_run_api_metadata_marker_output" >&2
+  exit 1
+fi
 rm -rf "$negative_ci_workflow_run_api_metadata_marker_fixture"
 rm -f "$negative_ci_workflow_run_api_metadata_marker_output"
 
@@ -4059,15 +4139,23 @@ for _ in range(10):
 else:
     raise SystemExit("CI workflow run provenance marker fixture index did not stabilize")
 PY
+negative_ci_workflow_run_provenance_archive_fixture="$artifact_archive_fixture_dir/negative-ci-workflow-run-provenance.zip"
+negative_ci_workflow_run_provenance_metadata_fixture="$artifact_archive_fixture_dir/negative-ci-workflow-run-provenance-artifacts-api.json"
+bind_fixture_archive \
+  "$negative_ci_workflow_run_provenance_marker_fixture" \
+  "$negative_ci_workflow_run_provenance_archive_fixture" \
+  "$negative_ci_workflow_run_provenance_metadata_fixture" \
+  negative_ci_workflow_run_provenance_archive_size \
+  negative_ci_workflow_run_provenance_archive_digest
 if ruby scripts/validate_ci_artifact.rb \
   "$negative_ci_workflow_run_provenance_marker_fixture" \
   --commit fixture-sha \
   --run-id 12345 \
   --attempt 1 \
-  --archive "$artifact_archive_fixture" \
-  --archive-size "$artifact_archive_size" \
-  --archive-digest "$artifact_archive_digest" \
-  --artifact-metadata "$artifact_metadata_fixture" \
+  --archive "$negative_ci_workflow_run_provenance_archive_fixture" \
+  --archive-size "$negative_ci_workflow_run_provenance_archive_size" \
+  --archive-digest "$negative_ci_workflow_run_provenance_archive_digest" \
+  --artifact-metadata "$negative_ci_workflow_run_provenance_metadata_fixture" \
   --run-metadata "$run_metadata_fixture" \
   >"$negative_ci_workflow_run_provenance_marker_output" 2>&1; then
   echo "Expected negative CI workflow run provenance marker fixture to fail validation" >&2
