@@ -1473,13 +1473,13 @@ raise "Mac timer snapshot category injection missing" unless mac_timer_view_sour
 raise "Mac timer category queue action wiring missing" unless mac_timer_view_source.include?("MacTaskQueueView(") && mac_timer_view_source.include?("onAddTaskInCategory: onAddTaskInCategory")
 raise "Mac timer category filter state missing" unless mac_task_queue_source.include?("selectedCategory") && mac_task_queue_source.include?("visibleTasks") && mac_task_queue_source.include?("startableTasks")
 raise "Mac timer category filter bar missing" unless mac_task_queue_source.include?("MacCategoryFilterBar(")
-raise "Mac timer category count must expose filtered and total counts" unless mac_task_queue_source.match?(/\\\(visibleTasks\.count\)\/\\\(startableTasks\.count\)/) && mac_task_queue_source.include?("Text(taskQueueCountText)")
+raise "Mac timer category count must expose filtered and total counts" unless mac_task_queue_source.include?("\\(filteredTasks.count)/\\(startableTasks.count)") && mac_task_queue_source.include?("Text(taskQueueCountText)")
 raise "Mac timer category empty state missing" unless mac_task_queue_source.include?("MacTimerCategoryEmptyStateView(") && mac_timer_source.include?("struct MacTimerCategoryEmptyStateView")
 raise "Mac timer category empty state add action missing" unless mac_task_queue_source.include?("onAddTaskInCategory") && mac_timer_source.include?("新增此分类")
 raise "Mac timer category empty state clear action missing" unless mac_task_queue_source.match?(/selectedCategory\s*=\s*nil/) && mac_timer_source.include?("清除筛选")
 raise "Mac timer non-empty category context view missing" unless mac_timer_source.include?("struct MacTimerCategoryContextView") && mac_task_queue_source.include?("MacTimerCategoryContextView(")
-raise "Mac timer non-empty category context must remain exclusive from empty state" unless mac_task_queue_source.match?(/else\s+if\s+visibleTasks\.isEmpty,\s*let\s+selectedCategory\s*\{[\s\S]*?MacTimerCategoryEmptyStateView\([\s\S]*?\}\s+else\s+\{\s*if\s+let\s+selectedCategory\s*\{\s*MacTimerCategoryContextView\(/) && mac_task_queue_source.scan(/MacTimerCategoryContextView\(/).length == 1
-raise "Mac timer non-empty category context counts missing" unless mac_task_queue_source.match?(/MacTimerCategoryContextView\([\s\S]*?filteredCount:\s*visibleTasks\.count,[\s\S]*?totalCount:\s*startableTasks\.count/)
+raise "Mac timer non-empty category context must remain exclusive from empty state" unless mac_task_queue_source.match?(/else\s+if\s+filteredTasks\.isEmpty,\s*let\s+selectedCategory\s*\{[\s\S]*?MacTimerCategoryEmptyStateView\([\s\S]*?\}\s+else\s+\{\s*if\s+let\s+selectedCategory\s*\{\s*MacTimerCategoryContextView\(/) && mac_task_queue_source.scan(/MacTimerCategoryContextView\(/).length == 1
+raise "Mac timer non-empty category context counts missing" unless mac_task_queue_source.match?(/MacTimerCategoryContextView\([\s\S]*?filteredCount:\s*filteredTasks\.count,[\s\S]*?totalCount:\s*startableTasks\.count/)
 raise "Mac timer non-empty category context add action missing" unless mac_task_queue_source.include?("onAddTaskInCategory(selectedCategory)")
 raise "Mac timer non-empty category context clear action missing" unless mac_task_queue_source.match?(/MacTimerCategoryContextView\([\s\S]*?self\.selectedCategory\s*=\s*nil/)
 raise "Mac timer category context adaptive action layout missing" unless mac_timer_category_context_source.include?("ViewThatFits(in: .horizontal)")
@@ -1495,6 +1495,24 @@ raise "Mac schedule snapshot-compatible consume default missing" unless mac_sche
 raise "Mac schedule quick-add request identity consumption missing" unless mac_schedule_view_source.include?(".task(id: quickAddRequest?.id)")
 raise "Mac schedule quick-add category preparation missing" unless mac_schedule_view_source.match?(/prepareQuickAdd\s*\(\s*quickAddRequest\.category\s*\)/)
 raise "Mac schedule quick-add request consumption missing" unless mac_schedule_view_source.include?("onConsumeQuickAddRequest(quickAddRequest.id)")
+raise "Mac timer queue expanded state missing" unless mac_task_queue_source.include?("@State private var isTaskQueueExpanded = false")
+raise "Mac timer queue collapsed limit must remain 7" unless mac_task_queue_source.match?(/private\s+let\s+collapsedTaskLimit\s*=\s*7/)
+raise "Mac timer queue filtered task source missing" unless mac_task_queue_source.include?("private var filteredTasks: [FocusTask]")
+raise "Mac timer queue visible task derivation missing" unless mac_task_queue_source.include?("isTaskQueueExpanded ? filteredTasks : Array(filteredTasks.prefix(collapsedTaskLimit))")
+raise "Mac timer queue must render visible tasks" unless mac_task_queue_source.include?("ForEach(visibleTasks)")
+raise "Mac timer queue hidden task count missing" unless mac_task_queue_source.include?("max(filteredTasks.count - collapsedTaskLimit, 0)")
+raise "Mac timer queue toggle count guard missing" unless mac_task_queue_source.match?(/if\s+filteredTasks\.count\s*>\s*collapsedTaskLimit\s*\{/)
+raise "Mac timer queue toggle action missing" unless mac_task_queue_source.include?("isTaskQueueExpanded.toggle()")
+raise "Mac timer queue toggle titles missing" unless mac_task_queue_source.include?("taskQueueToggleTitle") && mac_task_queue_source.include?('isTaskQueueExpanded ? "chevron.up" : "chevron.down"')
+raise "Mac timer queue toggle accessibility labels missing" unless mac_task_queue_source.include?("taskQueueToggleAccessibilityLabel") && mac_task_queue_source.include?("taskQueueToggleAccessibilityValue") && mac_task_queue_source.include?("taskQueueToggleAccessibilityHint") && mac_task_queue_source.include?("taskQueueToggleInputLabels")
+raise "Mac timer queue toggle 44pt target missing" unless mac_task_queue_source.include?(".frame(maxWidth: .infinity, minHeight: 44)")
+raise "Mac timer queue must collapse when category changes" unless mac_task_queue_source.match?(/\.onChange\(of:\s*selectedCategory\)\s*\{[^}]*isTaskQueueExpanded\s*=\s*false[^}]*\}/m)
+raise "Mac timer queue must collapse when filtered count changes" unless mac_task_queue_source.match?(/\.onChange\(of:\s*filteredTasks\.count\)\s*\{[^}]*isTaskQueueExpanded\s*=\s*false[^}]*\}/m)
+raise "Mac timer queue toggle labels must describe both states" unless mac_task_queue_source.include?("显示其余\\(hiddenTaskCount)项待办") && mac_task_queue_source.include?("已展开，显示全部 \\(filteredTasks.count) 项") && mac_task_queue_source.include?("收起后仅显示前 \\(collapsedTaskLimit) 项待办")
+mac_timer_queue_toggle_source = mac_task_queue_source[/if\s+filteredTasks\.count\s*>\s*collapsedTaskLimit[\s\S]*?\.accessibilityInputLabels\(taskQueueToggleInputLabels\)/]
+raise "Mac timer queue toggle accessibility source missing" unless mac_timer_queue_toggle_source
+raise "Mac timer queue toggle must remain available while running" if mac_timer_queue_toggle_source.include?(".disabled(engine.isRunning)")
+raise "Mac timer queue handoff must reset expansion" unless mac_task_queue_source.match?(/selectedCategory\s*=\s*request\.category[\s\S]{0,120}isTaskQueueExpanded\s*=\s*false/)
 mac_snapshot_source = File.read("scripts/render_mac_snapshots.swift")
 mac_timer_category_context_narrow_snapshot_source = segment_slice(
   mac_snapshot_source,
@@ -1503,6 +1521,7 @@ mac_timer_category_context_narrow_snapshot_source = segment_slice(
   "Mac timer category context narrow snapshot source missing"
 )
 raise "Mac timer normal queue snapshot coverage missing" unless mac_snapshot_source.include?("chronofocus-mac-timer-normal-queue.png") && mac_snapshot_source.include?("content: AnyView(MacTimerDetailView())")
+raise "Mac timer queue overflow snapshot fixture missing" unless mac_snapshot_source.include?("Mac timer queue overflow fixture requires more than seven startable tasks") && mac_snapshot_source.include?("for index in 1...6") && mac_snapshot_source.include?("category: \"队列验证\"")
 raise "Mac timer handoff snapshot coverage missing" unless mac_snapshot_source.match?(/"detail-timer\.png",\s*\.timer,\s*AnyView\(MacTimerDetailView\([\s\S]{0,500}?initialTaskCategory:\s*"产品",[\s\S]{0,500}?timerHandoffRequest:\s*timerHandoffRequest/) && mac_snapshot_source.include?("resolveMacTimerHandoffTask(")
 raise "Mac timer category empty snapshot fixture missing" unless mac_snapshot_source.include?("MacTimerDetailView(initialTaskCategory: \"工作\")") && mac_snapshot_source.include?("allSatisfy({ $0.category != \"工作\" })")
 raise "Mac timer category empty narrow snapshot fixture missing" unless mac_snapshot_source.include?("MacTimerCategoryEmptyStateView(") && mac_snapshot_source.include?(".frame(width: 220)")

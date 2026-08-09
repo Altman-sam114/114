@@ -359,6 +359,9 @@ private struct MacTaskQueueView: View {
     @EnvironmentObject private var engine: TimerEngine
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
     @State private var selectedCategory: String?
+    @State private var isTaskQueueExpanded = false
+
+    private let collapsedTaskLimit = 7
 
     let currentTint: Color
     let onAddTaskInCategory: (String) -> Void
@@ -383,15 +386,63 @@ private struct MacTaskQueueView: View {
         store.startableTasks()
     }
 
-    private var visibleTasks: [FocusTask] {
+    private var filteredTasks: [FocusTask] {
         guard let selectedCategory else { return startableTasks }
         return startableTasks.filter { $0.category == selectedCategory }
     }
 
+    private var visibleTasks: [FocusTask] {
+        isTaskQueueExpanded ? filteredTasks : Array(filteredTasks.prefix(collapsedTaskLimit))
+    }
+
     private var taskQueueCountText: String {
-        guard !startableTasks.isEmpty else { return "0 项可启动待办" }
-        guard selectedCategory != nil else { return "\(startableTasks.count) 项可启动待办" }
-        return "\(visibleTasks.count)/\(startableTasks.count) 项可启动待办"
+        guard !filteredTasks.isEmpty else { return "0 项可启动待办" }
+        guard selectedCategory != nil else { return "\(filteredTasks.count) 项可启动待办" }
+        return "\(filteredTasks.count)/\(startableTasks.count) 项可启动待办"
+    }
+
+    private var hiddenTaskCount: Int {
+        max(filteredTasks.count - collapsedTaskLimit, 0)
+    }
+
+    private var taskQueueToggleTitle: String {
+        isTaskQueueExpanded ? "收起" : "显示其余 \(hiddenTaskCount) 项"
+    }
+
+    private var taskQueueToggleAccessibilityLabel: String {
+        isTaskQueueExpanded ? "收起待办列表" : "显示其余\(hiddenTaskCount)项待办"
+    }
+
+    private var taskQueueToggleAccessibilityValue: String {
+        if isTaskQueueExpanded {
+            return "已展开，显示全部 \(filteredTasks.count) 项"
+        }
+        return "已收起，显示 \(collapsedTaskLimit) 项，共 \(filteredTasks.count) 项"
+    }
+
+    private var taskQueueToggleAccessibilityHint: String {
+        if isTaskQueueExpanded {
+            return "收起后仅显示前 \(collapsedTaskLimit) 项待办"
+        }
+
+        let browsingHint = "展开后可查看其余 \(hiddenTaskCount) 项待办"
+        return engine.isRunning ? "\(browsingHint)，计时运行中待办仍不可切换" : browsingHint
+    }
+
+    private var taskQueueToggleInputLabels: [Text] {
+        if isTaskQueueExpanded {
+            return [
+                Text(taskQueueToggleTitle),
+                Text("收起待办"),
+                Text("收起待办列表")
+            ]
+        }
+        return [
+            Text(taskQueueToggleTitle),
+            Text("显示更多待办"),
+            Text("显示更多"),
+            Text("展开待办")
+        ]
     }
 
     var body: some View {
@@ -422,7 +473,7 @@ private struct MacTaskQueueView: View {
                         .font(.caption)
                         .foregroundStyle(MacTheme.secondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                } else if visibleTasks.isEmpty, let selectedCategory {
+                } else if filteredTasks.isEmpty, let selectedCategory {
                     MacTimerCategoryEmptyStateView(
                         category: selectedCategory,
                         isSnapshotRendering: isSnapshotRendering,
@@ -437,7 +488,7 @@ private struct MacTaskQueueView: View {
                     if let selectedCategory {
                         MacTimerCategoryContextView(
                             category: selectedCategory,
-                            filteredCount: visibleTasks.count,
+                            filteredCount: filteredTasks.count,
                             totalCount: startableTasks.count,
                             isSnapshotRendering: isSnapshotRendering,
                             onAddTask: {
@@ -449,7 +500,7 @@ private struct MacTaskQueueView: View {
                         )
                     }
 
-                    ForEach(visibleTasks.prefix(7)) { task in
+                    ForEach(visibleTasks) { task in
                         Button {
                             guard !engine.isRunning else { return }
                             engine.selectTask(task)
@@ -469,11 +520,39 @@ private struct MacTaskQueueView: View {
                             Text("\(task.category)分类待办")
                         ])
                     }
+
+                    if filteredTasks.count > collapsedTaskLimit {
+                        Button {
+                            isTaskQueueExpanded.toggle()
+                        } label: {
+                            Label(
+                                taskQueueToggleTitle,
+                                systemImage: isTaskQueueExpanded ? "chevron.up" : "chevron.down"
+                            )
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(currentTint)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
+                        .accessibilityLabel(taskQueueToggleAccessibilityLabel)
+                        .accessibilityValue(taskQueueToggleAccessibilityValue)
+                        .accessibilityHint(taskQueueToggleAccessibilityHint)
+                        .accessibilityInputLabels(taskQueueToggleInputLabels)
+                    }
                 }
             }
         }
         .task(id: timerHandoffRequest?.id) {
             consumeTimerHandoffRequest()
+        }
+        .onChange(of: selectedCategory) { _, _ in
+            isTaskQueueExpanded = false
+        }
+        .onChange(of: filteredTasks.count) { _, _ in
+            isTaskQueueExpanded = false
         }
     }
 
@@ -487,6 +566,7 @@ private struct MacTaskQueueView: View {
         defer { onConsumeTimerHandoffRequest(request.id) }
 
         selectedCategory = request.category
+        isTaskQueueExpanded = false
         guard !engine.isRunning else { return }
 
         let startableTasks = store.startableTasks()

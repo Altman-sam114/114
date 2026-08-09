@@ -62,6 +62,9 @@ struct MacSnapshotRenderer {
         .environmentObject(calendarSync)
         .environment(\.macSnapshotRendering, true)
         .frame(width: 1100, height: 720)
+        guard store.startableTasks().count > 7 else {
+            throw SnapshotError("Mac timer queue overflow fixture requires more than seven startable tasks")
+        }
         try render(timerNormalQueueView, to: timerNormalQueueURL)
         try assertNonBlankImage(at: timerNormalQueueURL)
         try assertNoMissingControlPlaceholders(at: timerNormalQueueURL)
@@ -242,6 +245,16 @@ struct MacSnapshotRenderer {
             estimatedRounds: 1,
             accentHex: "#A78BFA"
         )
+
+        for index in 1...6 {
+            _ = store.addTask(
+                title: "队列浏览任务 \(index)",
+                category: "队列验证",
+                dueDate: now.addingTimeInterval(Double(14_400 + index * 900)),
+                estimatedRounds: 1,
+                accentHex: index.isMultiple(of: 2) ? "#FF9F43" : "#54A0FF"
+            )
+        }
 
         let sessionCategories = [
             "产品",

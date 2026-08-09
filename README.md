@@ -23,6 +23,7 @@
 - macOS 版提供状态栏剩余时间、弹出式极简计时器、带分类和时间上下文的当前待办、可直达日程/统计/设置且按钮会读出动作和当前选中状态的快捷面板、详细功能窗口、日历日期格状态和 Voice Control 输入标签、日程分类摘要/任务行到计时的一次性接力、任务行完成/启用/删除操作任务名和分类语义、计划生成/清空操作会读出当前未完成轮数，计划项显示分类 badge 且开始按钮读出任务名/时间段/轮次/分类、分类筛选快速新增预填提示，快速新增任务名称输入框会读出当前将新增到的分类并支持按分类 Voice Control 输入，分类输入框显示当前分类上下文并支持分类名 Voice Control 输入标签，快速新增提交按钮会读出当前分类和预计轮次，连续快速新增时保留刚使用的分类、未筛选任务行和小窗分类 badge 支持分类名 Voice Control 输入标签并优先使用预设色，计时队列的非空分类筛选态常驻显示分类名与筛选数/总数，可就地新增此分类或清除筛选；接力消费会重新验证当前可启动任务，运行中只恢复分类筛选，不替换任务或自动开始。该状态隐藏任务行重复分类 badge，但整行仍保留任务名、分类名、选中/运行状态和 Voice Control 语义，当前任务选择行和计时主控按钮会读出当前任务、分类和运行中状态，并支持任务名和分类名 Voice Control 输入标签，统计最近记录显示分类 badge 并读出任务/分类/模式/时间/时长，带分类名可访问语义和稳定点击区的筛选摘要新增/清除按钮和筛选/总数计数、桌面通知、触觉反馈、Pro 统计和 Mac 日历同步。
 - macOS 日历面板当前范围没有待办时，可直接把当前选中日期带入左侧快速新增；原有时分会保留，并自动聚焦任务名称。
 - macOS 快速新增同样保留自由文本和 5 个预设，并提供与 iOS 相同来源、去重顺序、任务数量/“历史”状态、即时搜索和代表色规则的“已有分类”选择；外部分类预填会清除旧搜索，点击只修改快速新增草稿，快照渲染路径与真实控件共享过滤结果。
+- macOS 计时详情队列默认显示前 7 项；超过 7 项时可展开查看全部或收起，按钮显示准确的剩余数量并提供 VoiceOver label/value/hint 与 Voice Control input labels。分类切换、筛选结果数量变化、分类上下文清除和日程接力恢复都会回到收起态；运行中仍可展开浏览，但任务行继续不可切换。
 - 通知权限未授权时可在 App 内请求；用户拒绝后会引导到系统设置。
 - 所有核心数据使用 `UserDefaults` JSON 持久化，重启后可恢复。
 
@@ -124,7 +125,9 @@ v0.98 起，iOS 与 macOS 日程待办列表统一采用分类摘要/空态互�
 
 v0.99 起，iOS 计时页待办队列默认展示当前分类筛选结果的前 4 项，超过 4 项时提供“显示其余 N 项”与“收起”；分类变化或筛选结果数量变化会恢复收起。展开/收起只是 `TimerView` 的瞬态浏览状态，运行中仍可浏览全部待办，但任务行继续禁用，不能切换当前任务；控制保持至少 44pt 点击高度并提供动态 VoiceOver 与 Voice Control 语义。CI artifact validator 可额外接收原始 artifacts API JSON，结构化复判唯一 artifact 的八项 metadata 检查，并以 `Timer task queue expansion contracts verified.`、`CI artifact API metadata contracts verified.` 及对应 PASS/负向 fixture 锁定行为。修复 commit `c65693fe49e0c6ade7ff9751c5dda00103a9c37b` 的最新云端 run `30191096124` 与原始 artifact 已由 Agent C 复判为 `109 PASS / 0 FAIL`，包括独立 `total_count=0` 拒绝覆盖、八项 metadata、三项 archive 和 Mac/iOS build。
 
-v1.4（当前进行中）统一“可启动待办”与日程展示语义：`upcomingTasks()` 继续保留未完成停用任务供日程管理，计时队列、计划项、日程接力和 TimerEngine 最终防线统一使用 `startableTasks()` / `startableTask(for:)`；空闲失效选择收敛为“自由专注”，运行中/暂停中保留 `ActiveTimerSnapshot`。本轮同时为完整 artifact 复判增加原始 ZIP 与自建解包目录的逐路径绑定，目标新增 `Startable task consistency contracts verified.` 和 `PASS artifact archive extracted directory binding`，完整第四模式预期 `131 PASS / 0 FAIL`。所有测试和验收只走 GitHub Actions。
+v1.4 系列统一“可启动待办”与日程展示语义：`upcomingTasks()` 继续保留未完成停用任务供日程管理，计时队列、计划项、日程接力和 TimerEngine 最终防线统一使用 `startableTasks()` / `startableTask(for:)`；空闲失效选择收敛为“自由专注”，运行中/暂停中保留 `ActiveTimerSnapshot`。本轮同时为完整 artifact 复判增加原始 ZIP 与自建解包目录的逐路径绑定，目标新增 `Startable task consistency contracts verified.` 和 `PASS artifact archive extracted directory binding`，完整第四模式预期 `131 PASS / 0 FAIL`。所有测试和验收只走 GitHub Actions。
+
+v1.4.4（当前进行中）为 macOS 计时详情队列增加 7 项默认折叠、完整筛选结果与可见前缀分离、展开/收起状态重置和辅助功能语义；快照 fixture 只用于云端运行期验证队列溢出，正式五张快照清单不变。实现尚待 push 后由最新 `origin/main` GitHub Actions artifact 验收。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 

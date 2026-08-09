@@ -125,6 +125,38 @@
 
 - v1.4.3 的 Mac core 修复已完成云端验收；总目标仍未完成，下一轮转入 Mac 计时页队列展开/收起、分类切换重置和辅助功能优化。
 
+### v1.4.4 / Mac 计时队列展开与筛选重置
+
+日期：2026-08-09
+
+核心变更：
+
+- `MacTaskQueueView` 将完整 `filteredTasks` 与默认可见的 `visibleTasks` 分离；未筛选和分类筛选都以 7 项为折叠阈值，超过阈值显示展开/收起按钮和准确的剩余数量。
+- 分类切换、完整筛选结果数量变化和 handoff 恢复收起；运行中仍可展开浏览，但任务行继续通过既有边界禁止切换。计数、分类上下文条和空态继续使用完整筛选结果。
+- 展开/收起按钮保持至少 44pt 点击区，并提供两态 VoiceOver label/value/hint、动态剩余数和 Voice Control input labels；快照 fixture 增加队列验证任务以确保云端运行期队列超过 7 项，正式五张快照 manifest 清单不变。
+- 复用既有 `Mac timer category queue contracts verified.` marker、validator PASS 和负向 fixture，不新增重复验收合同。
+
+关键文件：
+
+- `ChronoFocusMac/Views/MacTimerDetailView.swift`
+- `scripts/render_mac_snapshots.swift`
+- `scripts/verify_project.sh`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v1（持续优化）/v1.4.4（Mac计时队列展开与筛选重置）.md`
+
+验证结果：
+
+- 未运行任何本地测试、`verify_project.sh`、validator、Swift 编译器、Xcode、`xcodebuild`、`simctl` 或 Simulator；仅完成静态 diff 审阅。浏览器未使用。
+- v1.4.4 改动当前待在 `main` 上提交并 push；尚无对应的 GitHub Actions run、artifact、digest 或 Agent C 结论，不能提前宣称通过。
+
+遗留事项：
+
+- push 后必须只用 `gh` 获取最新 `origin/main` 对应 run/artifact，并按完整第四模式核对 Mac queue marker、Mac/iOS build、JUnit、五张正式快照、manifest、run metadata 和 archive 证据。
+- 总目标仍未完成；云端验收通过后继续下一轮 UI/CI 优化，失败则在 `main` 追加最小修复。
+
 ### v1.4.2 / Mac core CI 编译接线
 
 日期：2026-08-09

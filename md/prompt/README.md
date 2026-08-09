@@ -99,6 +99,10 @@ Agent A 写给 Agent B 的提示词必须明确：
 - 范围：仅调整停用任务触发自动计划重生成后的 Mac core 断言，接受计划项合法消失或开始时间保持不变；不改产品逻辑、UI、CI workflow、validator 或 artifact 结构。
 - 状态：commit `9efdec763716e722fd1985feb5551a1dc5da2850` 的 run `31296565259`（attempt `1`）已成功。Agent C 使用 `gh` 核对 artifact `chronofocus-ci-v0.10-main-9efdec7-run31296565259-attempt1`（id `9033169188`，size `14359355`，digest `sha256:f6b2eaab0e8428cf7e7e5142ec606b4464359c76a0f79d222201f1f182ee6481`，`expired=false`），原始 ZIP、manifest、index、run context、JUnit、日志、`.xcresult` 和 Mac 快照均匹配；未运行本地测试或 validator。
 
+- v1.4.4：`md/prompt/v1（持续优化）/v1.4.4（Mac计时队列展开与筛选重置）.md`。
+- 范围：macOS 计时队列从完整筛选结果派生默认前 7 项，超过阈值支持展开/收起；分类、完整筛选数量变化和 handoff 重置展开状态，运行中仍可浏览但任务行不可切换，并补齐两态 44pt、VoiceOver 和 Voice Control 语义。快照 fixture 只证明云端运行期 overflow，正式五张 manifest 清单不变；复用既有 Mac queue marker，不新增 validator contract。
+- 状态：实现和文档待在 `main` 提交并 push；当前尚无 v1.4.4 对应 run/artifact，等待最新 `origin/main` 云端 artifact 复判。禁止本地测试、validator、Xcode、`xcodebuild`、`simctl`、Simulator 和浏览器。
+
 - v0.98：`md/prompt/v0（持续优化）/v0.98（日程分类空态互斥与CI失败摘要直出）.md`。
 - UI 范围：iOS/macOS 日程分类筛选结果非空时显示摘要，结果为空时只显示现有双操作分类空态，保持新增预填、清除筛选与辅助功能接线。
 - CI 范围：`Final CI status` 通过 `tee` 将同一 failure summary 同时输出到步骤 stdout 与 Step Summary；新增 `CI failure summary output contracts verified.`、对应 validator PASS、`cat` 回退 fixture 和 marker 缺失 fixture，不改变 artifact 结构。
