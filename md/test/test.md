@@ -198,6 +198,8 @@ xcrun --sdk macosx swiftc \
   -module-cache-path /tmp/chrono_focus_mac_core_module_cache \
   ChronoFocus/Models/AppModels.swift \
   ChronoFocus/Services/FocusStore.swift \
+  ChronoFocus/Services/TimerEngine.swift \
+  ChronoFocus/Services/TimerPlatformServices.swift \
   Shared/SharedExtensions.swift \
   scripts/test_mac_core.swift \
   -o /tmp/chrono_focus_mac_core_tests
@@ -207,6 +209,7 @@ xcrun --sdk macosx swiftc \
 当前基线：
 
 - `scripts/test_mac_core.swift` 应输出 `Mac core tests passed.`，并覆盖分类清洗、默认分类顺序、筛选排序和 fallback 元数据。
+- Mac core 云端编译输入固定为 `AppModels.swift`、`FocusStore.swift`、`TimerEngine.swift`、`TimerPlatformServices.swift`、`SharedExtensions.swift` 和 `test_mac_core.swift`；本轮只由 `origin/main` 的 GitHub Actions 执行，不在本机运行该命令或其他项目测试。
 - `git diff --check` 不应输出错误。
 - workflow YAML 解析应输出 `yaml ok`。
 

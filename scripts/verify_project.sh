@@ -5156,6 +5156,8 @@ xcrun --sdk macosx swiftc \
   -module-cache-path /tmp/chrono_focus_mac_core_module_cache \
   ChronoFocus/Models/AppModels.swift \
   ChronoFocus/Services/FocusStore.swift \
+  ChronoFocus/Services/TimerEngine.swift \
+  ChronoFocus/Services/TimerPlatformServices.swift \
   Shared/SharedExtensions.swift \
   scripts/test_mac_core.swift \
   -o /tmp/chrono_focus_mac_core_tests

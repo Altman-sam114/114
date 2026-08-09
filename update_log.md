@@ -98,6 +98,30 @@
 
 - 静态快照只能证明入口和消费终态布局，真实点击、Tab/SplitView 重建与交互时序仍需源码 contract、双平台云端构建和 Agent C artifact 共同验收。
 
+### v1.4.2 / Mac core CI 编译接线
+
+日期：2026-08-09
+
+核心变更：
+
+- 云端 run `31295311282`（attempt `1`、`main`、`push`、head `b9d857e725a76ed15b6f83c3f5dc89920f3cf7bf`）的 `Project verification` 因 Mac core `swiftc` 源列表遗漏共享计时依赖而失败；精确错误为 `scripts/test_mac_core.swift:178:22: error: cannot find 'TimerEngine' in scope`，失败摘要同时指出命令在 `verify_project.sh` 第 5161 行退出。
+- 仅在 `scripts/verify_project.sh` 的 Mac core 编译列表中、`FocusStore.swift` 后加入 `TimerEngine.swift` 和 `TimerPlatformServices.swift`，与已有 Mac snapshot 编译顺序一致；不修改 Swift、UI、测试断言、validator 或 workflow 行为。
+
+关键文件：
+
+- `scripts/verify_project.sh`
+- `md/test/test.md`
+- `md/prompt/v1（持续优化）/v1.4.2（Mac core CI 编译接线）.md`
+
+验证结果：
+
+- 按当前硬性约束未运行任何本地测试、`verify_project.sh`、validator、Swift 编译器、Xcode、`xcodebuild`、`simctl` 或 Simulator；仅完成静态审阅，最终只接受推送到 `origin/main` 后的 GitHub Actions 和 Agent C 原始 artifact 复判。
+- run `31295311282` 的 Static checks、Mac build、iOS build 和结果包上传成功，`Project verification` 与最终 CI 状态失败；该 run 仅作为本轮失败背景，不能作为通过证据。
+
+遗留事项：
+
+- 本轮提交并 push 后，必须等待新 commit 对应的 GitHub Actions 完成，并由 Agent C 使用 `gh` 核对最新 run、artifact、日志和结果包；在最新云端验收通过前不得宣称 v1.4.2 完成。
+
 ### v1.4.1 / CI fixture archive binding 稳定性
 
 日期：2026-08-09
@@ -119,8 +143,9 @@
 验证结果：
 
 - 按当前硬性约束未运行任何本地测试、`verify_project.sh`、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；仅完成静态源码审阅，等待推送后的 GitHub Actions。
-- 本轮基于 `origin/main` 提交 `5067079755039c12423c96870c24c560918d8ad2` 的云端 run `31294009115`；该 run 的失败 artifact 为项目验证失败结果包，名称/id/digest 由 Agent C 以原始 artifacts API 核对，不能作为通过证据。
+- 本轮基于 `origin/main` 提交 `5067079755039c12423c96870c24c560918d8ad2` 的云端 run `31294009115`；失败 artifact 为 `chronofocus-ci-v0.10-main-5067079-run31294009115-attempt1`（id `9032353778`，digest `sha256:4e479b44699ae9ca0bf429bf0d5f89ba60684aa51d5c775ba50871ad211c0a24`，`expired=false`），不能作为通过证据。
 - 云端失败首要证据是 run-metadata 正向 fixture 的 archive binding 与 index required local metadata 连带失败；本轮修复完成后仍需由最新 `origin/main` run 证明 `131 PASS / 0 FAIL`。
+- 修复提交 `b9d857e725a76ed15b6f83c3f5dc89920f3cf7bf` 已推送到 `origin/main`，触发云端 run `31295311282`；状态检查时 `Project verification` 和 macOS build 已通过，iOS generic build 仍在运行，未将该 run 宣称为最终通过。
 
 遗留事项：
 
