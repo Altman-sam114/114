@@ -749,7 +749,7 @@ def archive_extract_entry(io, entry, root)
         written = archive_write_chunk(output, output_chunk, written, entry.uncompressed_size)
         crc32 = Zlib.crc32(output_chunk, crc32)
         raise "ZIP deflate stream is incomplete" unless inflater.finished?
-        raise "ZIP deflate stream contains trailing data" unless inflater.unused.to_s.empty?
+        raise "ZIP deflate stream contains trailing data" unless inflater.total_in == entry.compressed_size
       ensure
         inflater.close
       end
