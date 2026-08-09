@@ -2242,7 +2242,7 @@ RUBY
 artifact_archive_size="$(wc -c < "$artifact_archive_fixture" | tr -d '[:space:]')"
 artifact_archive_digest="$(ruby -rdigest -e 'puts "sha256:#{Digest::SHA256.file(ARGV.fetch(0)).hexdigest}"' "$artifact_archive_fixture")"
 artifact_archive_success_output="$(mktemp)"
-ruby scripts/validate_ci_artifact.rb \
+if ! ruby scripts/validate_ci_artifact.rb \
   "$artifact_fixture" \
   --commit fixture-sha \
   --run-id 12345 \
@@ -2250,7 +2250,10 @@ ruby scripts/validate_ci_artifact.rb \
   --archive "$artifact_archive_fixture" \
   --archive-size "$artifact_archive_size" \
   --archive-digest "$artifact_archive_digest" \
-  >"$artifact_archive_success_output"
+  >"$artifact_archive_success_output" 2>&1; then
+  cat "$artifact_archive_success_output"
+  exit 1
+fi
 grep -q "PASS artifact archive byte count" "$artifact_archive_success_output"
 grep -q "PASS artifact archive sha256 digest" "$artifact_archive_success_output"
 grep -q "PASS artifact archive zip integrity" "$artifact_archive_success_output"
