@@ -133,6 +133,7 @@
 - `ERR` 诊断在后续云端复核前静态定位到模拟器 resolver 的 `--print-build-command` fixture：旧 grep 对 Shellwords 转义的等号/空格反斜杠层数过严，`set -o pipefail` 因此提前退出；已改为读取完整命令并用固定字符串核对 xcodebuild、工程名和目标 UDID。
 - 2026-08-09：为 archive 正向 fixture 增加云端失败明细输出；当 `validate_ci_artifact.rb` 失败时保留逐项 `PASS/FAIL` 结果，便于下一次 GitHub Actions 精确定位，不改变成功路径或本地测试策略。
 - 2026-08-09：云端 run `31292833139` 的唯一失败为 macOS Ruby 缺少 `Zlib::Inflate#unused`；archive binding 改用 `total_in` 与 central directory 压缩字节数核对，保留 trailing-data 检查，等待新的 `main` run。
+- 2026-08-09：云端 run `31292991751` 在负向 duplicate ZIP fixture 生成处被 macOS Python 3.14 的重复条目 warning 打断，构建与主 validator 路径未失败；fixture 仅抑制该已知 warning，并在 archive 负向断言失败时输出完整 validator 结果，等待新的 `main` run。
 - 已追加修复：移除 v1.4 提示词 EOF 空行、让 iOS handoff 静态 contract 接受直接 startable lookup，并增加 CI fixture 失败行号诊断；等待新的 `origin/main` run、快照和 archive 目录绑定结果。
 
 ### v1.2 / 已有分类搜索与 Run 来源复判

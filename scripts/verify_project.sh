@@ -2307,12 +2307,14 @@ negative_archive_special_file_fixture="$artifact_archive_fixture_dir/negative-sp
 python3 - "$negative_archive_traversal_fixture" "$negative_archive_duplicate_path_fixture" "$negative_archive_special_file_fixture" <<'PY'
 import stat
 import sys
+import warnings
 import zipfile
 
 traversal_path, duplicate_path, special_path = sys.argv[1:]
 with zipfile.ZipFile(traversal_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
     archive.writestr("../escape.txt", b"escape")
 
+warnings.filterwarnings("ignore", message=r"Duplicate name: 'duplicate\.txt'")
 with zipfile.ZipFile(duplicate_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
     archive.writestr("duplicate.txt", b"first")
     archive.writestr("duplicate.txt", b"second")
@@ -2347,10 +2349,10 @@ run_negative_archive_binding_fixture() {
     cat "$output_path" >&2
     exit 1
   fi
-  grep -q "PASS artifact archive zip integrity" "$output_path"
-  grep -q "FAIL artifact archive extracted directory binding" "$output_path"
-  if grep -q "PASS artifact archive extracted directory binding" "$output_path"; then
-    echo "Expected $description archive fixture not to pass binding validation" >&2
+  if ! grep -q "PASS artifact archive zip integrity" "$output_path" || \
+     ! grep -q "FAIL artifact archive extracted directory binding" "$output_path" || \
+     grep -q "PASS artifact archive extracted directory binding" "$output_path"; then
+    echo "Unexpected $description archive fixture validation output" >&2
     cat "$output_path" >&2
     exit 1
   fi
