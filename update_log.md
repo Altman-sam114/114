@@ -136,6 +136,8 @@
 - 2026-08-09：云端 run `31292991751` 在负向 duplicate ZIP fixture 生成处被 macOS Python 3.14 的重复条目 warning 打断，构建与主 validator 路径未失败；fixture 仅抑制该已知 warning，并在 archive 负向断言失败时输出完整 validator 结果，等待新的 `main` run。
 - 已追加修复：移除 v1.4 提示词 EOF 空行、让 iOS handoff 静态 contract 接受直接 startable lookup，并增加 CI fixture 失败行号诊断；等待新的 `origin/main` run、快照和 archive 目录绑定结果。
 
+- 2026-08-09：云端 run 31293195672 已消除 duplicate warning，但正向 metadata/run metadata 断言仍无明细退出；增加正向 validator 命令失败输出和缺失 marker 诊断，等待新的 main run。
+
 ### v1.2 / 已有分类搜索与 Run 来源复判
 
 日期：2026-07-26

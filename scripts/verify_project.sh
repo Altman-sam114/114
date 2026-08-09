@@ -2363,6 +2363,16 @@ run_negative_archive_binding_fixture "$negative_archive_traversal_fixture" "trav
 run_negative_archive_binding_fixture "$negative_archive_duplicate_path_fixture" "duplicate path"
 run_negative_archive_binding_fixture "$negative_archive_special_file_fixture" "special file"
 
+require_validator_marker() {
+  local output_path="$1"
+  local marker="$2"
+  if ! grep -Fq -- "$marker" "$output_path"; then
+    echo "Missing validator marker: $marker" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
+}
+
 artifact_metadata_fixture="$artifact_archive_fixture_dir/artifacts-api.json"
 ruby -rjson - "$artifact_metadata_fixture" "$artifact_archive_size" "$artifact_archive_digest" <<'RUBY'
 path, archive_size, archive_digest = ARGV
@@ -2388,7 +2398,7 @@ payload = {
 File.write(path, JSON.pretty_generate(payload) + "\n", encoding: "UTF-8")
 RUBY
 artifact_metadata_success_output="$(mktemp)"
-ruby scripts/validate_ci_artifact.rb \
+if ! ruby scripts/validate_ci_artifact.rb \
   "$artifact_fixture" \
   --commit fixture-sha \
   --run-id 12345 \
@@ -2397,20 +2407,27 @@ ruby scripts/validate_ci_artifact.rb \
   --archive-size "$artifact_archive_size" \
   --archive-digest "$artifact_archive_digest" \
   --artifact-metadata "$artifact_metadata_fixture" \
-  >"$artifact_metadata_success_output"
-grep -q "PASS artifact metadata response shape" "$artifact_metadata_success_output"
-grep -q "PASS artifact metadata unique artifact" "$artifact_metadata_success_output"
-grep -q "PASS artifact metadata id" "$artifact_metadata_success_output"
-grep -q "PASS artifact metadata name" "$artifact_metadata_success_output"
-grep -q "PASS artifact metadata byte count" "$artifact_metadata_success_output"
-grep -q "PASS artifact metadata sha256 digest" "$artifact_metadata_success_output"
-grep -q "PASS artifact metadata not expired" "$artifact_metadata_success_output"
-grep -q "PASS artifact metadata workflow run" "$artifact_metadata_success_output"
-grep -q "PASS artifact archive byte count" "$artifact_metadata_success_output"
-grep -q "PASS artifact archive sha256 digest" "$artifact_metadata_success_output"
-grep -q "PASS artifact archive zip integrity" "$artifact_metadata_success_output"
-grep -q "PASS artifact archive extracted directory binding" "$artifact_metadata_success_output"
-grep -q "PASS verify_project ci artifact API metadata contracts" "$artifact_metadata_success_output"
+  >"$artifact_metadata_success_output" 2>&1; then
+  echo "Artifact metadata success fixture validator failed" >&2
+  cat "$artifact_metadata_success_output" >&2
+  exit 1
+fi
+for marker in \
+  "PASS artifact metadata response shape" \
+  "PASS artifact metadata unique artifact" \
+  "PASS artifact metadata id" \
+  "PASS artifact metadata name" \
+  "PASS artifact metadata byte count" \
+  "PASS artifact metadata sha256 digest" \
+  "PASS artifact metadata not expired" \
+  "PASS artifact metadata workflow run" \
+  "PASS artifact archive byte count" \
+  "PASS artifact archive sha256 digest" \
+  "PASS artifact archive zip integrity" \
+  "PASS artifact archive extracted directory binding" \
+  "PASS verify_project ci artifact API metadata contracts"; do
+  require_validator_marker "$artifact_metadata_success_output" "$marker"
+done
 rm -f "$artifact_metadata_success_output"
 
 run_metadata_fixture="$artifact_archive_fixture_dir/run-api.json"
@@ -2449,22 +2466,22 @@ RUBY
 
 assert_archive_passes() {
   local output_path="$1"
-  grep -q "PASS artifact archive byte count" "$output_path"
-  grep -q "PASS artifact archive sha256 digest" "$output_path"
-  grep -q "PASS artifact archive zip integrity" "$output_path"
-  grep -q "PASS artifact archive extracted directory binding" "$output_path"
+  require_validator_marker "$output_path" "PASS artifact archive byte count"
+  require_validator_marker "$output_path" "PASS artifact archive sha256 digest"
+  require_validator_marker "$output_path" "PASS artifact archive zip integrity"
+  require_validator_marker "$output_path" "PASS artifact archive extracted directory binding"
 }
 
 assert_artifact_metadata_passes() {
   local output_path="$1"
-  grep -q "PASS artifact metadata response shape" "$output_path"
-  grep -q "PASS artifact metadata unique artifact" "$output_path"
-  grep -q "PASS artifact metadata id" "$output_path"
-  grep -q "PASS artifact metadata name" "$output_path"
-  grep -q "PASS artifact metadata byte count" "$output_path"
-  grep -q "PASS artifact metadata sha256 digest" "$output_path"
-  grep -q "PASS artifact metadata not expired" "$output_path"
-  grep -q "PASS artifact metadata workflow run" "$output_path"
+  require_validator_marker "$output_path" "PASS artifact metadata response shape"
+  require_validator_marker "$output_path" "PASS artifact metadata unique artifact"
+  require_validator_marker "$output_path" "PASS artifact metadata id"
+  require_validator_marker "$output_path" "PASS artifact metadata name"
+  require_validator_marker "$output_path" "PASS artifact metadata byte count"
+  require_validator_marker "$output_path" "PASS artifact metadata sha256 digest"
+  require_validator_marker "$output_path" "PASS artifact metadata not expired"
+  require_validator_marker "$output_path" "PASS artifact metadata workflow run"
 }
 
 assert_run_metadata_passes_except() {
@@ -2487,13 +2504,13 @@ assert_run_metadata_passes_except() {
     "triggering actor" \
     "head repository"; do
     if [[ "$check_name" != "$excluded_check" ]]; then
-      grep -q "PASS workflow run metadata $check_name" "$output_path"
+      require_validator_marker "$output_path" "PASS workflow run metadata $check_name"
     fi
   done
 }
 
 run_metadata_success_output="$(mktemp)"
-ruby scripts/validate_ci_artifact.rb \
+if ! ruby scripts/validate_ci_artifact.rb \
   "$artifact_fixture" \
   --commit fixture-sha \
   --run-id 12345 \
@@ -2503,16 +2520,23 @@ ruby scripts/validate_ci_artifact.rb \
   --archive-digest "$artifact_archive_digest" \
   --artifact-metadata "$artifact_metadata_fixture" \
   --run-metadata "$run_metadata_fixture" \
-  >"$run_metadata_success_output"
+  >"$run_metadata_success_output" 2>&1; then
+  echo "Run metadata success fixture validator failed" >&2
+  cat "$run_metadata_success_output" >&2
+  exit 1
+fi
 assert_archive_passes "$run_metadata_success_output"
 assert_artifact_metadata_passes "$run_metadata_success_output"
 assert_run_metadata_passes_except "$run_metadata_success_output"
-grep -q "PASS verify_project existing category reuse contracts" "$run_metadata_success_output"
-grep -q "PASS verify_project existing category usage context contracts" "$run_metadata_success_output"
-grep -q "PASS verify_project existing category search contracts" "$run_metadata_success_output"
-grep -q "PASS verify_project schedule to timer handoff contracts" "$run_metadata_success_output"
-grep -q "PASS verify_project ci workflow run API metadata contracts" "$run_metadata_success_output"
-grep -q "PASS verify_project ci workflow run provenance contracts" "$run_metadata_success_output"
+for marker in \
+  "PASS verify_project existing category reuse contracts" \
+  "PASS verify_project existing category usage context contracts" \
+  "PASS verify_project existing category search contracts" \
+  "PASS verify_project schedule to timer handoff contracts" \
+  "PASS verify_project ci workflow run API metadata contracts" \
+  "PASS verify_project ci workflow run provenance contracts"; do
+  require_validator_marker "$run_metadata_success_output" "$marker"
+done
 rm -f "$run_metadata_success_output"
 
 negative_artifact_metadata_argument_group_output="$(mktemp)"
