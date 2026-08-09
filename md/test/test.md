@@ -10,6 +10,18 @@
 - 云端失败时，Agent B 根据结果包里的 failure summary、JUnit、日志和 manifest 修复，并在 `main` 上追加修复 commit 后重新 push。
 - 云端环境缺依赖时，最终回复必须说明没跑哪个测试、缺什么依赖、是否影响验收、需要人工提供什么。
 
+## v1.4.5 日期格分类计数
+
+本轮只验证日程日期格与当前分类筛选上下文的一致性，不改变 `FocusStore` 持久化、`TimerEngine` 或日期范围的既有边界：
+
+- 混合分类任务落在同一自然日时，iOS 周条/月格和 macOS 日/周/月日期格在未筛选时显示该日期全量计数，选中分类后只显示该分类计数，清除或切换分类后重新派生当前值。
+- 日期格仍只统计带 `dueDate` 且与格子同一自然日的任务；列表范围、无截止日期任务和日/周/月选择规则不被日期格计数反向改变。
+- iOS `ScheduleView` 与 macOS `MacCalendarPanelView` 的日期格视觉数字、范围计数和列表筛选必须使用同一 `selectedCategory` 语义；macOS 面板从父级 binding 接收筛选，不写入 `FocusStore` 或 `TimerEngine`。
+- iOS `CalendarDayButton` 和 macOS `MacCalendarDayCell` 的 label 在筛选时读出分类名和分类日期计数，未筛选时保留全量计数；日期、selected/muted 状态、hint、selected trait 和 Voice Control 日期 labels 继续存在。
+- `verify_project.sh` 的 `Schedule calendar category context contracts verified.` marker 必须在正向云端日志出现；只移除该 marker 的 negative fixture 必须只拒绝本轮合同。`validate_ci_artifact.rb` 对应 PASS 只作为结果包结构化辅助证据。
+
+本轮不在本机执行测试、验证脚本、validator、Swift/Xcode 构建或配置检查。提交后只接受最新 `origin/main` 的 `ci-results.yml` run、原始 run/artifacts API JSON、原始 ZIP 和 Agent C validator 第四模式复判；正式 Mac 快照 manifest 仍必须精确保持五张。
+
 ## Agent X 循环验证规则
 
 Agent X 只负责主控调度，不改变每轮验证责任。每一个由 Agent X 拆出的轮次仍按 Agent A -> Agent B -> Agent C 闭环执行：

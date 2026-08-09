@@ -204,7 +204,10 @@ struct MacScheduleDetailView: View {
                     if isSnapshotRendering {
                         taskListPanel
                     }
-                    MacCalendarPanelView(onAddTaskAtDate: prepareQuickAdd(at:))
+                    MacCalendarPanelView(
+                        selectedCategory: $selectedCategory,
+                        onAddTaskAtDate: prepareQuickAdd(at:)
+                    )
                     MacCalendarSyncPanelView()
                     MacPlanPanelView()
                     if !isSnapshotRendering {
@@ -280,6 +283,10 @@ struct MacScheduleDetailView: View {
         dateComponents.hour = timeComponents.hour
         dateComponents.minute = timeComponents.minute
         dueDate = calendar.date(from: dateComponents) ?? date
+        if let selectedCategory {
+            category = selectedCategory
+            accentHex = TaskCategoryPreset.matching(selectedCategory)?.accentHex ?? "#3DE8C5"
+        }
         isTaskTitleFocused = true
     }
 }
@@ -717,6 +724,7 @@ private struct MacStaticTaskEnablePillView: View {
 
 private struct MacCalendarPanelView: View {
     @EnvironmentObject private var store: FocusStore
+    @Binding var selectedCategory: String?
     @State private var selectedDate = Date()
     @State private var calendarMode: CalendarDisplayMode = .week
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
@@ -727,6 +735,7 @@ private struct MacCalendarPanelView: View {
     private var visibleTasks: [FocusTask] {
         store.tasks
             .filter { task in
+                guard matchesSelectedCategory(task) else { return false }
                 guard let date = task.dueDate else {
                     return calendarMode == .day && calendar.isDate(task.createdAt, inSameDayAs: selectedDate)
                 }
@@ -748,6 +757,13 @@ private struct MacCalendarPanelView: View {
                 case (nil, nil): return $0.createdAt > $1.createdAt
                 }
             }
+    }
+
+    private var calendarRangeCountText: String {
+        guard let selectedCategory else {
+            return "\(visibleTasks.count) 项"
+        }
+        return "\(selectedCategory)分类 \(visibleTasks.count) 项"
     }
 
     private var calendarTitle: String {
@@ -829,9 +845,11 @@ private struct MacCalendarPanelView: View {
                     }
 
                     Spacer()
-                    Text("\(visibleTasks.count) 项")
+                    Text(calendarRangeCountText)
                         .font(.caption)
                         .foregroundStyle(MacTheme.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
                 }
                 .buttonStyle(.bordered)
 
@@ -841,6 +859,7 @@ private struct MacCalendarPanelView: View {
                             date: date,
                             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                             isMuted: calendarMode == .month && !calendar.isDate(date, equalTo: selectedDate, toGranularity: .month),
+                            selectedCategory: selectedCategory,
                             taskCount: taskCount(on: date)
                         ) {
                             selectedDate = date
@@ -852,6 +871,7 @@ private struct MacCalendarPanelView: View {
                 if visibleTasks.isEmpty {
                     MacCalendarRangeEmptyStateView(
                         selectedDate: selectedDate,
+                        selectedCategory: selectedCategory,
                         isSnapshotRendering: isSnapshotRendering,
                         onAddTask: {
                             onAddTaskAtDate(selectedDate)
@@ -869,8 +889,13 @@ private struct MacCalendarPanelView: View {
     private func taskCount(on date: Date) -> Int {
         store.tasks.filter { task in
             guard let dueDate = task.dueDate else { return false }
-            return calendar.isDate(dueDate, inSameDayAs: date)
+            return calendar.isDate(dueDate, inSameDayAs: date) && matchesSelectedCategory(task)
         }.count
+    }
+
+    private func matchesSelectedCategory(_ task: FocusTask) -> Bool {
+        guard let selectedCategory else { return true }
+        return task.category == selectedCategory
     }
 
     private func moveSelection(by value: Int) {
@@ -889,6 +914,7 @@ private struct MacCalendarPanelView: View {
 
 private struct MacCalendarRangeEmptyStateView: View {
     let selectedDate: Date
+    let selectedCategory: String?
     let isSnapshotRendering: Bool
     let onAddTask: () -> Void
 
@@ -899,21 +925,50 @@ private struct MacCalendarRangeEmptyStateView: View {
         return formatter.string(from: selectedDate)
     }
 
+    private var titleText: String {
+        guard let selectedCategory else {
+            return "当前范围暂无待办"
+        }
+        return "当前范围暂无\(selectedCategory)分类待办"
+    }
+
+    private var descriptionText: String {
+        guard let selectedCategory else {
+            return "可直接为\(selectedDateText)准备快速新增。"
+        }
+        return "可直接为\(selectedDateText)准备\(selectedCategory)分类快速新增。"
+    }
+
+    private var addButtonAccessibilityLabel: String {
+        guard let selectedCategory else {
+            return "新增\(selectedDateText)待办"
+        }
+        return "新增\(selectedDateText)\(selectedCategory)分类待办"
+    }
+
+    private var addButtonAccessibilityHint: String {
+        let baseHint = "将左侧快速新增截止日期设为\(selectedDateText)，并聚焦任务名称"
+        guard selectedCategory != nil else {
+            return baseHint
+        }
+        return "\(baseHint)，归入当前筛选分类"
+    }
+
     private var addButtonInputLabels: [Text] {
         [
             Text("新增到此日期"),
-            Text("新增\(selectedDateText)待办"),
+            Text(addButtonAccessibilityLabel),
             Text("\(selectedDateText)新增待办")
         ]
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("当前范围暂无待办", systemImage: "calendar.badge.plus")
+            Label(titleText, systemImage: "calendar.badge.plus")
                 .font(.subheadline.bold())
                 .foregroundStyle(MacTheme.primaryText)
 
-            Text("可直接为\(selectedDateText)准备快速新增。")
+            Text(descriptionText)
                 .font(.caption)
                 .foregroundStyle(MacTheme.secondaryText)
 
@@ -923,7 +978,7 @@ private struct MacCalendarRangeEmptyStateView: View {
                     symbolName: "plus.circle.fill",
                     tint: .cyan,
                     isProminent: true,
-                    accessibilityLabelText: "新增\(selectedDateText)待办"
+                    accessibilityLabelText: addButtonAccessibilityLabel
                 )
             } else {
                 Button("新增到此日期", systemImage: "plus.circle.fill", action: onAddTask)
@@ -933,15 +988,15 @@ private struct MacCalendarRangeEmptyStateView: View {
                     .padding(.horizontal, 12)
                     .frame(minWidth: 132, minHeight: 36)
                     .background(Color.cyan, in: Capsule())
-                    .accessibilityLabel("新增\(selectedDateText)待办")
-                    .accessibilityHint("将左侧快速新增截止日期设为\(selectedDateText)，并聚焦任务名称")
+                    .accessibilityLabel(addButtonAccessibilityLabel)
+                    .accessibilityHint(addButtonAccessibilityHint)
                     .accessibilityInputLabels(addButtonInputLabels)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("当前范围暂无待办，可新增到\(selectedDateText)")
+        .accessibilityLabel("\(titleText)，可新增到\(selectedDateText)")
     }
 }
 
@@ -949,6 +1004,7 @@ private struct MacCalendarDayCell: View {
     let date: Date
     let isSelected: Bool
     let isMuted: Bool
+    let selectedCategory: String?
     let taskCount: Int
     let action: () -> Void
 
@@ -974,6 +1030,13 @@ private struct MacCalendarDayCell: View {
         return states.isEmpty ? "" : "，\(states.joined(separator: "，"))"
     }
 
+    private var accessibilityCountText: String {
+        guard let selectedCategory else {
+            return "\(taskCount)项待办"
+        }
+        return "当前筛选\(selectedCategory)分类，\(taskCount)项待办"
+    }
+
     private var accessibilityHintText: String {
         isSelected ? "当前正在查看此日期的待办" : "选择此日期查看待办"
     }
@@ -996,9 +1059,13 @@ private struct MacCalendarDayCell: View {
                 Text(dayText)
                     .font(.subheadline.bold())
                     .monospacedDigit()
-                Circle()
-                    .fill(taskCount > 0 ? (isSelected ? Color.black.opacity(0.8) : Color.cyan) : Color.clear)
-                    .frame(width: 5, height: 5)
+                Text("\(taskCount)")
+                    .font(.caption2.weight(.semibold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .foregroundStyle(isSelected ? Color.black.opacity(0.8) : (taskCount > 0 ? Color.cyan : MacTheme.secondaryText))
+                    .frame(maxWidth: .infinity)
             }
             .foregroundStyle(isSelected ? Color.black.opacity(0.82) : (isMuted ? MacTheme.secondaryText : MacTheme.primaryText))
             .frame(maxWidth: .infinity)
@@ -1011,7 +1078,7 @@ private struct MacCalendarDayCell: View {
             .opacity(isMuted ? 0.48 : 1)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(accessibilityDateText)，\(taskCount)项待办\(accessibilityStateText)")
+        .accessibilityLabel("\(accessibilityDateText)，\(accessibilityCountText)\(accessibilityStateText)")
         .accessibilityHint(accessibilityHintText)
         .accessibilityAddTraits(accessibilityTraits)
         .accessibilityInputLabels(voiceControlInputLabels)

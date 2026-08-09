@@ -405,6 +405,7 @@ struct ScheduleView: View {
                 CalendarDayButton(
                     date: date,
                     isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                    selectedCategory: selectedCategory,
                     taskCount: taskCount(on: date)
                 ) {
                     selectedDate = date
@@ -420,6 +421,7 @@ struct ScheduleView: View {
                     date: date,
                     isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                     isMuted: !calendar.isDate(date, equalTo: selectedDate, toGranularity: .month),
+                    selectedCategory: selectedCategory,
                     taskCount: taskCount(on: date)
                 ) {
                     selectedDate = date
@@ -444,7 +446,7 @@ struct ScheduleView: View {
     private func taskCount(on date: Date) -> Int {
         store.tasks.filter { task in
             guard let dueDate = task.dueDate else { return false }
-            return calendar.isDate(dueDate, inSameDayAs: date)
+            return calendar.isDate(dueDate, inSameDayAs: date) && matchesSelectedCategory(task)
         }.count
     }
 
@@ -682,6 +684,7 @@ private struct CalendarDayButton: View {
     let date: Date
     let isSelected: Bool
     var isMuted = false
+    let selectedCategory: String?
     let taskCount: Int
     let action: () -> Void
 
@@ -707,6 +710,13 @@ private struct CalendarDayButton: View {
         return states.isEmpty ? "" : "，\(states.joined(separator: "，"))"
     }
 
+    private var accessibilityCountText: String {
+        guard let selectedCategory else {
+            return "\(taskCount)项待办"
+        }
+        return "当前筛选\(selectedCategory)分类，\(taskCount)项待办"
+    }
+
     private var accessibilityHintText: String {
         isSelected ? "当前正在查看此日期的待办" : "选择此日期查看待办"
     }
@@ -729,9 +739,13 @@ private struct CalendarDayButton: View {
                 Text(dayText)
                     .font(.system(size: 17, weight: .bold, design: .rounded))
                     .foregroundStyle(isSelected ? .black : (isMuted ? AppTheme.secondaryText : AppTheme.primaryText))
-                Circle()
-                    .fill(taskCount > 0 ? (isSelected ? .black : .cyan) : .clear)
-                    .frame(width: 5, height: 5)
+                Text("\(taskCount)")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .foregroundStyle(isSelected ? Color.black.opacity(0.82) : (taskCount > 0 ? Color.cyan : AppTheme.secondaryText))
+                    .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 54)
@@ -743,7 +757,7 @@ private struct CalendarDayButton: View {
             .opacity(isMuted ? 0.55 : 1)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(accessibilityDateText)，\(taskCount)项待办\(accessibilityStateText)")
+        .accessibilityLabel("\(accessibilityDateText)，\(accessibilityCountText)\(accessibilityStateText)")
         .accessibilityHint(accessibilityHintText)
         .accessibilityAddTraits(accessibilityTraits)
         .accessibilityInputLabels(voiceControlInputLabels)

@@ -101,7 +101,11 @@ Agent A 写给 Agent B 的提示词必须明确：
 
 - v1.4.4：`md/prompt/v1（持续优化）/v1.4.4（Mac计时队列展开与筛选重置）.md`。
 - 范围：macOS 计时队列从完整筛选结果派生默认前 7 项，超过阈值支持展开/收起；分类、完整筛选数量变化和 handoff 重置展开状态，运行中仍可浏览但任务行不可切换，并补齐两态 44pt、VoiceOver 和 Voice Control 语义。快照 fixture 只证明云端运行期 overflow，正式五张 manifest 清单不变；复用既有 Mac queue marker，不新增 validator contract。
-- 状态：commit `a6726b3e2407d051f734171f386434ef7ada16c5` 的 run `31298401138`（attempt `1`）已成功。Agent C 使用 `gh` 复判 artifact `chronofocus-ci-v0.10-main-a6726b3-run31298401138-attempt1`（id `9033793197`，size `14357432`，digest `sha256:dde6abb328968acdcb5aae8013f23e0de932b4ed5fba8802bf9642a28f65a387`，`expired=false`）为 `131 PASS / 0 FAIL`，JUnit `4/0/0`；正式五张快照、archive、artifact metadata、run metadata 和所有既有 contracts 均通过。该证据不得复用为后续版本结论，后续仍禁止本地项目测试、Xcode、`xcodebuild`、`simctl`、Simulator 和浏览器。
+- 状态：实现 commit `a6726b3e2407d051f734171f386434ef7ada16c5` 的 run `31298401138`（attempt `1`）已成功；文档收尾 commit `9a1253a9e33122ef7c93ec24769d5ce8a95c3dcc` 的 run `31299100036`（attempt `1`）也已成功。Agent C 使用 `gh` 复判最新 artifact `chronofocus-ci-v0.10-main-9a1253a-run31299100036-attempt1`（id `9033963477`，size `14358537`，digest `sha256:30692dcbfc4b1fe0bd80baa0ffe30a001c57c69e2539e97d08abc6a78f75471a`，`expired=false`）为 `131 PASS / 0 FAIL`，JUnit `4/0/0`；正式五张快照、archive、artifact metadata、run metadata 和所有 contracts 均通过。该证据不得复用为后续版本结论，后续仍禁止本地项目测试、Xcode、`xcodebuild`、`simctl`、Simulator 和浏览器。
+
+- v1.4.5：`md/prompt/v1（持续优化）/v1.4.5（日程日期格分类计数一致性）.md`。
+- 范围：iOS/macOS 日程日期格、范围计数、列表和空态共享当前分类筛选；日期格只在有分类筛选时统计该分类，未筛选时保留全量 `dueDate` 自然日计数，日期格可访问标签与视觉计数使用同一上下文；快照 fixture 将任务固定到同一自然日，不改变正式五张 manifest 清单或 validator 安全语义。
+- 状态：实现与文档待在 `main` 提交并 push；当前尚无 v1.4.5 对应 run/artifact，等待最新 `origin/main` 云端 artifact 第四模式复判。禁止本地项目测试、validator、Xcode、`xcodebuild`、`simctl`、Simulator、浏览器及本地解析检查。
 
 - v0.98：`md/prompt/v0（持续优化）/v0.98（日程分类空态互斥与CI失败摘要直出）.md`。
 - UI 范围：iOS/macOS 日程分类筛选结果非空时显示摘要，结果为空时只显示现有双操作分类空态，保持新增预填、清除筛选与辅助功能接线。

@@ -125,6 +125,40 @@
 
 - v1.4.3 的 Mac core 修复已完成云端验收；总目标仍未完成，下一轮转入 Mac 计时页队列展开/收起、分类切换重置和辅助功能优化。
 
+### v1.4.5 / 日程日期格分类计数一致性
+
+日期：2026-08-09
+
+核心变更：
+
+- iOS `ScheduleView` 的周条/月格日期计数继续按 `dueDate` 和自然日匹配，并追加当前 `selectedCategory` 谓词；日期格显示的数字和日期格可访问标签复用同一计数，未筛选时保持全量行为。
+- macOS `MacCalendarPanelView` 通过父级 `Binding` 接收同一个 `selectedCategory`，让范围任务、范围计数和日期格计数使用相同分类上下文；日期格保留 selected、muted、hint、selected trait 和 Voice Control 语义。
+- macOS 日历范围空态和范围计数补充当前分类上下文，按日期快速新增会同步当前筛选分类和代表色；快照 fixture 将混合分类任务固定在同一自然日，避免云端跨午夜造成日期格证据不稳定。
+- `verify_project.sh` 增加最小日期格分类上下文源码合同、PASS marker 和只移除该 marker 的 negative fixture；artifact validator 只复判该 marker，不改变既有 archive/run metadata 安全语义。
+
+关键文件：
+
+- `ChronoFocus/Views/ScheduleView.swift`
+- `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `scripts/render_mac_snapshots.swift`
+- `scripts/verify_project.sh`
+- `scripts/validate_ci_artifact.rb`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（持续优化）/v1.4.5（日程日期格分类计数一致性）.md`
+
+验证结果：
+
+- 未运行任何本地项目测试、验证脚本、validator、Swift/`swiftc`、Xcode、`xcodebuild`、`simctl`、Simulator、浏览器、`git diff --check` 或本地 YAML/plist/JSON 检查；只做静态阅读和普通 diff 审阅。
+- 本轮云端验证尚未开始；提交并 push 后，必须由 GitHub Actions 为最新 `origin/main` 生成结果包，再由 Agent C 使用最新 run/artifacts 原始 JSON、原始 ZIP 和 validator 第四模式复判。不得复用 v1.4.4 证据。
+
+遗留事项：
+
+- 等待本轮 push 对应的 `.github/workflows/ci-results.yml` run 和 artifact；在 Agent C 完成最新包外身份、archive、日志、构建和正式五张快照复判前，不宣称 v1.4.5 或总目标完成。
+
 ### v1.4.4 / Mac 计时队列展开与筛选重置
 
 日期：2026-08-09
@@ -152,6 +186,7 @@
 - 未运行任何本地项目测试、`verify_project.sh`、Swift 编译器、Xcode、`xcodebuild`、`simctl` 或 Simulator；项目测试和构建全部由 GitHub Actions 执行，浏览器未使用。Agent C 只对云端结果包做包外结构复判。
 - commit `a6726b3e2407d051f734171f386434ef7ada16c5` 已 push 到 `origin/main`。对应 GitHub Actions run `31298401138`（attempt `1`、`main`、`push`、job `93207079671`）的 Static checks、Project verification、Mac build、iOS build、manifest、artifact 上传和 Final CI status 全部成功；`verify_project.log` 含 `Mac timer category queue contracts verified.`、`Mac core tests passed.` 和 `Project structure verified.`，两端 build 日志均含 `BUILD SUCCEEDED`，JUnit 为 `4 tests / 0 failures / 0 errors`。
 - Agent C 使用 `gh` 在全新目录 `/private/tmp/chronofocus-c-review-31298401138-9Fj6eb/` 保存原始 run/artifacts API JSON 和 ZIP。唯一 artifact 为 `chronofocus-ci-v0.10-main-a6726b3-run31298401138-attempt1`（id `9033793197`，size `14357432`，digest `sha256:dde6abb328968acdcb5aae8013f23e0de932b4ed5fba8802bf9642a28f65a387`，`expired=false`）；完整第四模式 validator 复判为 `131 PASS / 0 FAIL`，archive、artifact metadata、run metadata、manifest/index/run context、JUnit、日志、两端 `.xcresult`、五张正式 Mac 快照及快照 manifest 均通过。
+- 文档收尾 commit `9a1253a9e33122ef7c93ec24769d5ce8a95c3dcc` 的 run `31299100036`（attempt `1`、`main`、`push`）也通过；Agent C 在全新目录 `/private/tmp/chronofocus-c-review-31299100036-1z2Ihr/` 复判唯一 artifact `chronofocus-ci-v0.10-main-9a1253a-run31299100036-attempt1`（id `9033963477`，size `14358537`，digest `sha256:30692dcbfc4b1fe0bd80baa0ffe30a001c57c69e2539e97d08abc6a78f75471a`，`expired=false`）为 `131 PASS / 0 FAIL`，JUnit `4/0/0`；该 run 作为本轮 v1.4.5 起点，不替代后续最新 commit 的独立验收。
 
 遗留事项：
 

@@ -222,10 +222,15 @@ struct MacSnapshotRenderer {
         store.settings.dailyGoalMinutes = 120
 
         let now = Date()
+        let calendar = Calendar.current
+        let snapshotDay = calendar.startOfDay(for: now)
+        let snapshotDueDate: (Int, Int) -> Date = { hour, minute in
+            calendar.date(bySettingHour: hour, minute: minute, second: 0, of: snapshotDay) ?? now
+        }
         _ = store.addTask(
             title: "整理 Mac 版番茄钟界面",
             category: "产品",
-            dueDate: now.addingTimeInterval(3600),
+            dueDate: snapshotDueDate(9, 0),
             estimatedRounds: 3,
             accentHex: "#3DE8C5",
             isEnabled: true,
@@ -234,14 +239,14 @@ struct MacSnapshotRenderer {
         _ = store.addTask(
             title: "接入日历同步验收",
             category: "工程",
-            dueDate: now.addingTimeInterval(7200),
+            dueDate: snapshotDueDate(10, 0),
             estimatedRounds: 2,
             accentHex: "#54A0FF"
         )
         _ = store.addTask(
             title: "统计报表视觉检查",
             category: "复盘",
-            dueDate: now.addingTimeInterval(10800),
+            dueDate: snapshotDueDate(11, 0),
             estimatedRounds: 1,
             accentHex: "#A78BFA"
         )
@@ -250,7 +255,7 @@ struct MacSnapshotRenderer {
             _ = store.addTask(
                 title: "队列浏览任务 \(index)",
                 category: "队列验证",
-                dueDate: now.addingTimeInterval(Double(14_400 + index * 900)),
+                dueDate: snapshotDueDate(12 + index / 4, (index % 4) * 15),
                 estimatedRounds: 1,
                 accentHex: index.isMultiple(of: 2) ? "#FF9F43" : "#54A0FF"
             )

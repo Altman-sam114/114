@@ -1265,6 +1265,9 @@ end
 check(checks, "verify_project category accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Category chip accessibility contracts verified.")
 end
+check(checks, "verify_project schedule calendar category context contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Schedule calendar category context contracts verified.")
+end
 check(checks, "verify_project schedule task action accessibility contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Schedule task action accessibility contracts verified.")
 end
