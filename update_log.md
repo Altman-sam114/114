@@ -149,13 +149,13 @@
 
 验证结果：
 
-- 未运行任何本地测试、`verify_project.sh`、validator、Swift 编译器、Xcode、`xcodebuild`、`simctl` 或 Simulator；仅完成静态 diff 审阅。浏览器未使用。
-- v1.4.4 改动当前待在 `main` 上提交并 push；尚无对应的 GitHub Actions run、artifact、digest 或 Agent C 结论，不能提前宣称通过。
+- 未运行任何本地项目测试、`verify_project.sh`、Swift 编译器、Xcode、`xcodebuild`、`simctl` 或 Simulator；项目测试和构建全部由 GitHub Actions 执行，浏览器未使用。Agent C 只对云端结果包做包外结构复判。
+- commit `a6726b3e2407d051f734171f386434ef7ada16c5` 已 push 到 `origin/main`。对应 GitHub Actions run `31298401138`（attempt `1`、`main`、`push`、job `93207079671`）的 Static checks、Project verification、Mac build、iOS build、manifest、artifact 上传和 Final CI status 全部成功；`verify_project.log` 含 `Mac timer category queue contracts verified.`、`Mac core tests passed.` 和 `Project structure verified.`，两端 build 日志均含 `BUILD SUCCEEDED`，JUnit 为 `4 tests / 0 failures / 0 errors`。
+- Agent C 使用 `gh` 在全新目录 `/private/tmp/chronofocus-c-review-31298401138-9Fj6eb/` 保存原始 run/artifacts API JSON 和 ZIP。唯一 artifact 为 `chronofocus-ci-v0.10-main-a6726b3-run31298401138-attempt1`（id `9033793197`，size `14357432`，digest `sha256:dde6abb328968acdcb5aae8013f23e0de932b4ed5fba8802bf9642a28f65a387`，`expired=false`）；完整第四模式 validator 复判为 `131 PASS / 0 FAIL`，archive、artifact metadata、run metadata、manifest/index/run context、JUnit、日志、两端 `.xcresult`、五张正式 Mac 快照及快照 manifest 均通过。
 
 遗留事项：
 
-- push 后必须只用 `gh` 获取最新 `origin/main` 对应 run/artifact，并按完整第四模式核对 Mac queue marker、Mac/iOS build、JUnit、五张正式快照、manifest、run metadata 和 archive 证据。
-- 总目标仍未完成；云端验收通过后继续下一轮 UI/CI 优化，失败则在 `main` 追加最小修复。
+- v1.4.4 已完成本轮云端闭环；总目标仍未完成，下一轮继续推进 UI 分类体验或 CI 证据强度优化。
 
 ### v1.4.2 / Mac core CI 编译接线
 

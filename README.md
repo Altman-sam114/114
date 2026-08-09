@@ -127,7 +127,7 @@ v0.99 起，iOS 计时页待办队列默认展示当前分类筛选结果的前 
 
 v1.4 系列统一“可启动待办”与日程展示语义：`upcomingTasks()` 继续保留未完成停用任务供日程管理，计时队列、计划项、日程接力和 TimerEngine 最终防线统一使用 `startableTasks()` / `startableTask(for:)`；空闲失效选择收敛为“自由专注”，运行中/暂停中保留 `ActiveTimerSnapshot`。本轮同时为完整 artifact 复判增加原始 ZIP 与自建解包目录的逐路径绑定，目标新增 `Startable task consistency contracts verified.` 和 `PASS artifact archive extracted directory binding`，完整第四模式预期 `131 PASS / 0 FAIL`。所有测试和验收只走 GitHub Actions。
 
-v1.4.4（当前进行中）为 macOS 计时详情队列增加 7 项默认折叠、完整筛选结果与可见前缀分离、展开/收起状态重置和辅助功能语义；快照 fixture 只用于云端运行期验证队列溢出，正式五张快照清单不变。实现尚待 push 后由最新 `origin/main` GitHub Actions artifact 验收。
+v1.4.4 已为 macOS 计时详情队列增加 7 项默认折叠、完整筛选结果与可见前缀分离、展开/收起状态重置和辅助功能语义；快照 fixture 只用于云端运行期验证队列溢出，正式五张快照清单不变。commit `a6726b3e2407d051f734171f386434ef7ada16c5` 的 GitHub Actions run `31298401138`（attempt `1`）及 artifact `chronofocus-ci-v0.10-main-a6726b3-run31298401138-attempt1` 已由 Agent C 以完整第四模式复判为 `131 PASS / 0 FAIL`，JUnit 为 `4/0/0`；项目测试和构建只走 GitHub Actions，Agent C 仅复判该云端 artifact。
 
 项目包含共享的 `ChronoFocus`、`ChronoFocusLiveActivity` 和 `ChronoFocusMac` schemes，换机器打开 Xcode 后不依赖用户私有 scheme。
 
