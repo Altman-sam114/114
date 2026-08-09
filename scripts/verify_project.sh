@@ -2447,6 +2447,37 @@ done
 rm -f "$artifact_metadata_success_output"
 report_artifact_fixture_state "after artifact metadata success"
 
+run_metadata_archive_fixture="$artifact_archive_fixture_dir/chronofocus-ci-run-metadata-fixture.zip"
+(
+  cd "$artifact_fixture"
+  zip -qry "$run_metadata_archive_fixture" *
+)
+ruby - "$run_metadata_archive_fixture" <<'RUBY'
+path = ARGV.fetch(0)
+data = File.binread(path)
+eocd_offset = data.rindex("PK\x05\x06".b)
+raise "ZIP run metadata fixture end record missing" unless eocd_offset
+
+existing_comment_length = data.byteslice(eocd_offset + 20, 2)&.unpack1("v").to_i
+raise "ZIP run metadata fixture end record bounds invalid" unless eocd_offset + 22 + existing_comment_length == data.bytesize
+
+comment = "chronofocus-run-metadata-fixture-comment".b
+data[eocd_offset + 20, 2] = [comment.bytesize].pack("v")
+data = data.byteslice(0, eocd_offset + 22) + comment
+File.binwrite(path, data)
+RUBY
+artifact_archive_fixture="$run_metadata_archive_fixture"
+artifact_archive_size="$(wc -c < "$artifact_archive_fixture" | tr -d '[:space:]')"
+artifact_archive_digest="$(ruby -rdigest -e 'puts "sha256:#{Digest::SHA256.file(ARGV.fetch(0)).hexdigest}"' "$artifact_archive_fixture")"
+ruby -rjson - "$artifact_metadata_fixture" "$artifact_archive_size" "$artifact_archive_digest" <<'RUBY'
+path, archive_size, archive_digest = ARGV
+payload = JSON.parse(File.read(path, encoding: "UTF-8"))
+artifact = payload.fetch("artifacts").fetch(0)
+artifact["size_in_bytes"] = Integer(archive_size, 10)
+artifact["digest"] = archive_digest
+File.write(path, JSON.pretty_generate(payload) + "\n", encoding: "UTF-8")
+RUBY
+
 run_metadata_fixture="$artifact_archive_fixture_dir/run-api.json"
 ruby -rjson - "$run_metadata_fixture" <<'RUBY'
 path = ARGV.fetch(0)
