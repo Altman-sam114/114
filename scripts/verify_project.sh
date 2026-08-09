@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+trap 'status=$?; printf "verify_project failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2; exit "$status"' ERR
+
 if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 fi

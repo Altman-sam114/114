@@ -129,7 +129,8 @@
 
 遗留事项：
 
-- 已追加修复：移除 v1.4 提示词 EOF 空行，并让 iOS handoff 静态 contract 接受直接 startable lookup；等待新的 `origin/main` run、快照和 archive 目录绑定结果。
+- 第二次修复 commit `d070cdaa2311f633116351c0db1f28e73dc6ce18` 的 run `31291716728`（attempt `1`）静态检查和 Mac/iOS build 成功，但 `verify_project.sh` 在 CI 结果包 fixture 阶段静默退出，artifact index 缺少快照目录及五张 PNG。为保留失败语义并让下一次云端失败精确报告 Bash 行号和命令，追加 `ERR` 诊断 trap；artifact `9031627225`（size `93271`，digest `sha256:e9552ff8753bde27fee66b42c559f58838a0006baf7af4c7dae53361e9291d91`）及原始证据保留，不能作为 v1.4 通过结论。
+- 已追加修复：移除 v1.4 提示词 EOF 空行、让 iOS handoff 静态 contract 接受直接 startable lookup，并增加 CI fixture 失败行号诊断；等待新的 `origin/main` run、快照和 archive 目录绑定结果。
 
 ### v1.2 / 已有分类搜索与 Run 来源复判
 
