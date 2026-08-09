@@ -85,7 +85,7 @@ Agent A 写给 Agent B 的提示词必须明确：
 - v1.4：`md/prompt/v1（持续优化）/v1.4（可启动待办一致性与Archive目录绑定）.md`。
 - UI 范围：日程保留停用任务展示，计时队列、计划启动、日程接力和 TimerEngine 使用统一的 startable 查询；空闲选择失效时回到自由专注，运行中/暂停中保留快照。
 - CI 范围：完整 archive 模式把原始 ZIP 与 validator 自建临时解包树逐路径绑定，比较类型、大小和 SHA-256，并拒绝不安全 ZIP 条目；目标基线 `131 PASS / 0 FAIL`。
-- 状态：实现与文档待 `origin/main` GitHub Actions 及 Agent C 最新 artifact 复判；未运行任何本地测试或检查。
+- 状态：首次实现 commit `3779f26` 的 run `31291481389` 因提示词 EOF 空行和旧 iOS handoff contract 失败，Mac/iOS build 与 artifact 上传成功；已追加最小修复，等待新的 `origin/main` GitHub Actions 及 Agent C 最新 artifact 复判。未运行任何本地项目测试或检查。
 
 - v0.98：`md/prompt/v0（持续优化）/v0.98（日程分类空态互斥与CI失败摘要直出）.md`。
 - UI 范围：iOS/macOS 日程分类筛选结果非空时显示摘要，结果为空时只显示现有双操作分类空态，保持新增预填、清除筛选与辅助功能接线。

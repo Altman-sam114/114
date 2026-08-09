@@ -1153,7 +1153,7 @@ end
 raise "iOS timer handoff consumer source missing" unless ios_consumer_source
 raise "iOS timer handoff must re-query FocusStore launchable tasks" unless ios_consumer_source.include?("store.startableTasks()") && ios_consumer_source.include?("store.startableTask(for:")
 raise "iOS timer handoff must restore category context" unless ios_consumer_source.include?("selectedTaskCategory") && ios_consumer_source.include?("request.category")
-raise "iOS timer handoff preferred task validation missing" unless ios_consumer_source.include?("preferredTaskID") && ios_consumer_source.match?(/\.id\s*==\s*preferredTaskID|preferredTaskID\s*==\s*\w+\.id/)
+raise "iOS timer handoff preferred task validation missing" unless ios_consumer_source.include?("preferredTaskID") && (ios_consumer_source.match?(/\.id\s*==\s*preferredTaskID|preferredTaskID\s*==\s*\w+\.id/) || ios_consumer_source.include?("store.startableTask(for: preferredTaskID)"))
 raise "iOS invalid preferred timer handoff must clear stale selection" unless ios_consumer_source.match?(/request\.preferredTaskID\s*!=\s*nil[\s\S]{0,180}?engine\.selectTask\(nil\)/)
 raise "iOS timer handoff running-state protection missing" unless ios_consumer_source.include?("engine.isRunning")
 raise "iOS timer handoff must select through TimerEngine" unless ios_consumer_source.include?("engine.selectTask(")

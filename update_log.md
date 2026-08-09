@@ -125,10 +125,11 @@
 
 - 按当前硬性约束未运行任何本地测试、项目验证脚本、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；等待本轮 `origin/main` GitHub Actions 和 Agent C 最新 artifact 第四模式复判。
 - 目标新增 `Startable task consistency contracts verified.` 与 `PASS artifact archive extracted directory binding`，完整第四模式预期为 `131 PASS / 0 FAIL`。
+- 首次实现 commit `3779f26ebc4c0cae2983b7269508e020840a5ce3` 的 run `31291481389`（attempt `1`）中，Mac/iOS build、artifact upload 和 core 项目阶段通过，但静态检查发现 v1.4 提示词 EOF 多余空行，项目验证发现 iOS handoff contract 未接受直接 `startableTask(for: preferredTaskID)` 查询；`Final CI status` 因两阶段失败而失败。artifact `9031543584`（size `93583`，digest `sha256:67a997e59ac0767ba406530b5bdfeb758ce47ab589e4005036902656b2c854fd`）及原始证据保留，不能作为 v1.4 通过结论。
 
 遗留事项：
 
-- 云端 run、artifact、JUnit、Mac/iOS build、快照和 archive 目录绑定结果尚未产生，不能提前宣布 v1.4 通过。
+- 已追加修复：移除 v1.4 提示词 EOF 空行，并让 iOS handoff 静态 contract 接受直接 startable lookup；等待新的 `origin/main` run、快照和 archive 目录绑定结果。
 
 ### v1.2 / 已有分类搜索与 Run 来源复判
 
