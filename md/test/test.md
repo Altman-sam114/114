@@ -210,6 +210,7 @@ xcrun --sdk macosx swiftc \
 
 - `scripts/test_mac_core.swift` 应输出 `Mac core tests passed.`，并覆盖分类清洗、默认分类顺序、筛选排序和 fallback 元数据。
 - Mac core 云端编译输入固定为 `AppModels.swift`、`FocusStore.swift`、`TimerEngine.swift`、`TimerPlatformServices.swift`、`SharedExtensions.swift` 和 `test_mac_core.swift`；本轮只由 `origin/main` 的 GitHub Actions 执行，不在本机运行该命令或其他项目测试。
+- 无效计划项边界必须接受停用任务触发自动计划重生成后原 item 消失，或 item 仍存在且 `scheduledStart` 保持原值；只有 item 仍存在且计划开始字段被改写时失败，同时继续要求 `activeTimer == nil`。
 - `git diff --check` 不应输出错误。
 - workflow YAML 解析应输出 `yaml ok`。
 

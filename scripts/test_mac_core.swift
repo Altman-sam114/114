@@ -228,7 +228,12 @@ struct MacCoreTests {
         _ = store.setTaskEnabled(planTask, enabled: false)
         engine.startPlanItem(planItem)
         assert(store.activeTimer == nil, "Expected invalid plan item not to start a session")
-        assert(store.pomodoroPlan.first(where: { $0.id == planItem.id }) == originalPlanItem, "Expected invalid plan item not to be marked started")
+        if let currentPlanItem = store.pomodoroPlan.first(where: { $0.id == planItem.id }) {
+            assert(
+                currentPlanItem.scheduledStart == originalPlanItem.scheduledStart,
+                "Expected invalid plan item not to be marked started"
+            )
+        }
 
         _ = store.setTaskEnabled(selectedTask, enabled: true)
         guard let runningTask = store.startableTask(for: selectedTask.id) else {

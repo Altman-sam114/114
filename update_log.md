@@ -98,6 +98,31 @@
 
 - 静态快照只能证明入口和消费终态布局，真实点击、Tab/SplitView 重建与交互时序仍需源码 contract、双平台云端构建和 Agent C artifact 共同验收。
 
+### v1.4.3 / Mac core 计划失效断言
+
+日期：2026-08-09
+
+核心变更：
+
+- 云端 run `31296048491`（attempt `1`、`main`、`push`、head `3c79ca4731809b3daf4bb754f1e2e444eb1a569f`）的 Static checks、Mac build 和 iOS build 成功，但 `Project verification` 失败；失败摘要精确指出 `chrono_focus_mac_core_tests/test_mac_core.swift:231: Assertion failed: Expected invalid plan item not to be marked started`，随后 `scripts/verify_project.sh:5164` 执行 Mac core 测试进程时退出，最终 CI 状态为 failure。
+- 根因是 `FocusStore.setTaskEnabled(planTask, enabled: false)` 在自动生成计划开启时触发计划重生成，停用任务对应的原计划 item 可能被合法移除；原断言把 item 缺失误判为计划项被标记开始。
+- 仅调整 `scripts/test_mac_core.swift` 的无效计划项断言：继续要求 `activeTimer == nil`；若 item 仍存在则只检查 `scheduledStart` 未相对 `originalPlanItem` 改变，item 缺失或保持原开始时间均通过。
+
+关键文件：
+
+- `scripts/test_mac_core.swift`
+- `md/test/test.md`
+- `update_log.md`
+
+验证结果：
+
+- 未运行任何本地测试、`verify_project.sh`、validator、Swift 编译器、Xcode、`xcodebuild`、`simctl` 或 Simulator；仅完成静态审阅和云端失败日志核对。
+- 本轮修复必须提交并 push 到 `origin/main`，后续只接受新 commit 对应的 GitHub Actions run 和 Agent C 原始 artifact 复判；run `31296048491` 仅作为失败背景，不作为通过证据。
+
+遗留事项：
+
+- 等待新 `origin/main` run 完成，并由 Agent C 使用 `gh` 核对最新 run、artifact、日志和完整结果包；在最新云端验收通过前不得宣称 v1.4.3 或总目标完成。
+
 ### v1.4.2 / Mac core CI 编译接线
 
 日期：2026-08-09
