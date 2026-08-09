@@ -4920,7 +4920,9 @@ with open(sys.argv[1], "w", encoding="utf-8") as handle:
 PY
 ruby scripts/resolve_ios_simulator_destination.rb --simctl-json "$simctl_fixture" | grep -q "platform=iOS Simulator,id=22222222-2222-2222-2222-222222222222"
 ruby scripts/resolve_ios_simulator_destination.rb --simctl-json "$simctl_fixture" --name "iPhone 16" | grep -q "platform=iOS Simulator,id=11111111-1111-1111-1111-111111111111"
-ruby scripts/resolve_ios_simulator_destination.rb --simctl-json "$simctl_fixture" --print-build-command | grep -q "xcodebuild .*ChronoFocus.xcodeproj.*platform\\\\=iOS\\\\ Simulator,id\\\\=22222222-2222-2222-2222-222222222222"
+simulator_build_command="$(ruby scripts/resolve_ios_simulator_destination.rb --simctl-json "$simctl_fixture" --print-build-command)"
+grep -Fq -- "xcodebuild -project ChronoFocus.xcodeproj" <<< "$simulator_build_command"
+grep -Fq -- "22222222-2222-2222-2222-222222222222" <<< "$simulator_build_command"
 rm -f "$simctl_fixture"
 grep -q "IOS_SCHEME: ChronoFocus" .github/workflows/ci-results.yml
 grep -q "generic/platform=iOS" .github/workflows/ci-results.yml
