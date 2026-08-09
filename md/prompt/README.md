@@ -105,7 +105,7 @@ Agent A 写给 Agent B 的提示词必须明确：
 
 - v1.4.5：`md/prompt/v1（持续优化）/v1.4.5（日程日期格分类计数一致性）.md`。
 - 范围：iOS/macOS 日程日期格、范围计数、列表和空态共享当前分类筛选；日期格只在有分类筛选时统计该分类，未筛选时保留全量 `dueDate` 自然日计数，日期格可访问标签与视觉计数使用同一上下文；快照 fixture 将任务固定到同一自然日，不改变正式五张 manifest 清单或 validator 安全语义。
-- 状态：实现与文档待在 `main` 提交并 push；当前尚无 v1.4.5 对应 run/artifact，等待最新 `origin/main` 云端 artifact 第四模式复判。禁止本地项目测试、validator、Xcode、`xcodebuild`、`simctl`、Simulator、浏览器及本地解析检查。
+- 状态：实现 commit `574aca66297352337aaf25ff1cd74baf8d46f711` 已 push；对应 run `31301194613`（attempt `1`）和 artifact `chronofocus-ci-v0.10-main-574aca6-run31301194613-attempt1`（id `9034579834`，size `14366865`，digest `sha256:13d67bf9c213c32e6b5258a47f662dd7917712d57a8e4b5f3cf20a21c8421558`，`expired=false`）经 Agent C 使用 `gh` 和 validator 第四模式复判为 `132 PASS / 0 FAIL`，JUnit `4/0/0`；正式五张快照和日期计数视觉检查均通过。后续文档同步仍必须基于最新 `origin/main` 重新执行云端验收。禁止本地项目测试、validator、Xcode、`xcodebuild`、`simctl`、Simulator、浏览器及本地解析检查。
 
 - v0.98：`md/prompt/v0（持续优化）/v0.98（日程分类空态互斥与CI失败摘要直出）.md`。
 - UI 范围：iOS/macOS 日程分类筛选结果非空时显示摘要，结果为空时只显示现有双操作分类空态，保持新增预填、清除筛选与辅助功能接线。
