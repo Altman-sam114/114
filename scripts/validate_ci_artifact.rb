@@ -23,6 +23,7 @@ EXPECTED_WORKFLOW_RUN_NAME = "ChronoFocus CI Results"
 EXPECTED_WORKFLOW_RUN_PATH = ".github/workflows/ci-results.yml"
 EXPECTED_WORKFLOW_RUN_REPOSITORY = "Altman-sam114/114"
 EXPECTED_WORKFLOW_RUN_EVENT = "push"
+EXPECTED_WORKFLOW_RUN_EVENTS = %w[push workflow_dispatch].freeze
 EXPECTED_WORKFLOW_RUN_ACTOR = "Altman-sam114"
 EXPECTED_WORKFLOW_RUN_HEAD_REPOSITORY = "Altman-sam114/114"
 
@@ -45,6 +46,7 @@ EXPECTED_INDEX_ENTRIES = {
   "ci-results/ios-xcodebuild.log" => "file",
   "ci-results/xcode-version.log" => "file",
   "ci-results/ci-run-context.txt" => "file",
+  "ci-results/ci-stage-outcomes.json" => "file",
   "ci-results/ChronoFocusMac.xcresult" => "directory",
   "ci-results/ChronoFocus-iOS.xcresult" => "directory",
   "ci-results/project-reports/mac-snapshots" => "directory",
@@ -65,7 +67,8 @@ EXPECTED_MANIFEST_PATHS = {
   "macBuildLogPath" => "ci-results/xcodebuild.log",
   "iosBuildLogPath" => "ci-results/ios-xcodebuild.log",
   "failureSummaryPath" => "ci-results/ci-failure-summary.md",
-  "artifactIndexPath" => "ci-results/ci-artifact-index.json"
+  "artifactIndexPath" => "ci-results/ci-artifact-index.json",
+  "stageOutcomesPath" => "ci-results/ci-stage-outcomes.json"
 }.freeze
 
 EXPECTED_MANIFEST_METADATA = {
@@ -96,7 +99,8 @@ EXPECTED_SUMMARY_ENTRIES = [
   "Xcode result bundle: `ci-results/ChronoFocusMac.xcresult`",
   "iOS build: `ci-results/ios-xcodebuild.log`",
   "iOS Xcode result bundle: `ci-results/ChronoFocus-iOS.xcresult`",
-  "Mac snapshots: `ci-results/project-reports/mac-snapshots/`"
+  "Mac snapshots: `ci-results/project-reports/mac-snapshots/`",
+  "Stage outcomes: `ci-results/ci-stage-outcomes.json`"
 ].freeze
 
 EXPECTED_SUMMARY_OUTCOMES = {
@@ -125,6 +129,7 @@ EXPECTED_ARTIFACT_ROOT_ENTRIES = %w[
   ios-xcodebuild.log
   xcode-version.log
   ci-run-context.txt
+  ci-stage-outcomes.json
   ChronoFocusMac.xcresult
   ChronoFocus-iOS.xcresult
   project-reports
@@ -184,12 +189,38 @@ EXPECTED_RUN_CONTEXT_KEYS = %w[
   runAttempt
 ].freeze
 
+EXPECTED_STAGE_NAMES = %w[
+  checkout
+  prepareMetadata
+  selectXcode
+  staticChecks
+  projectVerification
+  macBuild
+  iosBuild
+].freeze
+
+EXPECTED_STAGE_OUTCOMES = %w[success failure skipped cancelled unknown].freeze
+FAILURE_REQUIRED_ARTIFACT_PATHS = %w[
+  ci-artifact-manifest.json
+  ci-artifact-index.json
+  ci-failure-summary.md
+  junit.xml
+  ci-run-context.txt
+  ci-stage-outcomes.json
+].freeze
+FAILURE_ONLY_ARTIFACT_ROOT_ENTRIES = %w[prepare-metadata.log].freeze
+FAILURE_ONLY_INDEX_ENTRIES = {
+  "ci-results/prepare-metadata.log" => "file"
+}.freeze
+
 options = {
-  "branch" => "main"
+  "branch" => "main",
+  "failure_mode" => false,
+  "expected_event" => EXPECTED_WORKFLOW_RUN_EVENT
 }
 
 parser = OptionParser.new do |opts|
-  opts.banner = "Usage: ruby scripts/validate_ci_artifact.rb ARTIFACT_DIR --commit SHA --run-id ID --attempt N [--branch main] [--archive ZIP --archive-size BYTES --archive-digest sha256:HEX [--artifact-metadata JSON [--run-metadata JSON]]]"
+  opts.banner = "Usage: ruby scripts/validate_ci_artifact.rb ARTIFACT_DIR --commit SHA --run-id ID --attempt N [--branch main] [--expected-event push|workflow_dispatch] [--failure-mode] [--archive ZIP --archive-size BYTES --archive-digest sha256:HEX --artifact-metadata JSON --run-metadata JSON]"
   opts.on("--commit SHA", "Expected commit SHA") { |value| options["commit"] = value }
   opts.on("--run-id ID", "Expected GitHub Actions run id") { |value| options["run_id"] = value }
   opts.on("--attempt N", "Expected GitHub Actions run attempt") { |value| options["attempt"] = value }
@@ -199,6 +230,8 @@ parser = OptionParser.new do |opts|
   opts.on("--archive-digest DIGEST", "Expected artifact ZIP digest in sha256:HEX format") { |value| options["archive_digest"] = value }
   opts.on("--artifact-metadata JSON", "Raw GitHub run artifacts API response") { |value| options["artifact_metadata"] = value }
   opts.on("--run-metadata JSON", "Raw GitHub workflow run API response") { |value| options["run_metadata"] = value }
+  opts.on("--expected-event EVENT", "Expected workflow run event; workflow_dispatch requires --failure-mode") { |value| options["expected_event"] = value }
+  opts.on("--failure-mode", "Validate an explicitly failed CI result package") { options["failure_mode"] = true }
 end
 
 begin
@@ -212,6 +245,16 @@ end
 
 if options.key?("run_metadata") && options["run_metadata"].empty?
   warn "#{parser}\n--run-metadata requires a non-empty JSON file path"
+  exit 2
+end
+
+unless EXPECTED_WORKFLOW_RUN_EVENTS.include?(options["expected_event"])
+  warn "#{parser}\n--expected-event must be one of: #{EXPECTED_WORKFLOW_RUN_EVENTS.join(", ")}"
+  exit 2
+end
+
+if options["expected_event"] != EXPECTED_WORKFLOW_RUN_EVENT && !options["failure_mode"]
+  warn "#{parser}\n--expected-event workflow_dispatch requires --failure-mode"
   exit 2
 end
 
@@ -247,6 +290,13 @@ end
 if options.key?("run_metadata") &&
    (provided_archive_options.length != archive_option_names.length || !options.key?("artifact_metadata"))
   warn "#{parser}\n--run-metadata requires --archive, --archive-size, --archive-digest, and --artifact-metadata"
+  exit 2
+end
+
+if options["failure_mode"] &&
+   (provided_archive_options.length != archive_option_names.length ||
+    !options.key?("artifact_metadata") || !options.key?("run_metadata"))
+  warn "#{parser}\n--failure-mode requires --archive, --archive-size, --archive-digest, --artifact-metadata, and --run-metadata"
   exit 2
 end
 
@@ -857,6 +907,23 @@ actual_archive_size = archive_path ? File.size(archive_path) : nil
 actual_archive_digest = archive_path ? "sha256:#{Digest::SHA256.file(archive_path).hexdigest}" : nil
 archive_integrity_ok = false
 
+if options["failure_mode"]
+  load File.join(__dir__, "validate_ci_failure_artifact.rb")
+  failure_checks = validate_failure_profile(
+    options: options,
+    artifact_dir: artifact_dir,
+    archive_path: archive_path,
+    expected_archive_size: expected_archive_size,
+    expected_archive_digest: expected_archive_digest,
+    artifact_metadata_path: artifact_metadata_path,
+    run_metadata_path: run_metadata_path
+  )
+  failure_checks.each do |name, ok, detail|
+    puts "#{ok ? "PASS" : "FAIL"} #{name}#{detail ? " - #{detail}" : ""}"
+  end
+  exit(failure_checks.all? { |_, ok, _| ok } ? 0 : 1)
+end
+
 if archive_path
   archive_byte_count_ok = actual_archive_size == expected_archive_size
   archive_digest_ok = actual_archive_digest == expected_archive_digest
@@ -1021,7 +1088,7 @@ if run_metadata_path
   check(checks, "workflow run metadata event") do
     run_metadata.is_a?(Hash) &&
       run_metadata["event"].is_a?(String) &&
-      run_metadata["event"] == EXPECTED_WORKFLOW_RUN_EVENT
+      run_metadata["event"] == options["expected_event"]
   end
   check(checks, "workflow run metadata actor") do
     actor = run_metadata.is_a?(Hash) ? run_metadata["actor"] : nil
@@ -1054,12 +1121,14 @@ mac_build_log_path = File.join(artifact_dir, "xcodebuild.log")
 ios_build_log_path = File.join(artifact_dir, "ios-xcodebuild.log")
 xcode_version_log_path = File.join(artifact_dir, "xcode-version.log")
 snapshot_manifest_path = File.join(artifact_dir, "project-reports", "mac-snapshots", "manifest.json")
+stage_outcomes_path = File.join(artifact_dir, "ci-stage-outcomes.json")
 
 manifest = read_json(manifest_path)
 index = read_json(index_path)
 run_context = read_key_values(context_path)
 run_context_entries = read_key_value_entries(context_path)
 snapshot_manifest = read_json(snapshot_manifest_path)
+stage_outcomes = read_json(stage_outcomes_path)
 junit = REXML::Document.new(File.read(junit_path, encoding: "UTF-8")).root
 
 check(checks, "artifact dir exists") { File.directory?(artifact_dir) }
@@ -1090,6 +1159,31 @@ check(checks, "manifest overall outcome") do
       "failure"
     end
   manifest["overallOutcome"] == expected_overall_outcome
+end
+check(checks, "stage outcomes shape") do
+  stage_outcomes.is_a?(Hash) &&
+    stage_outcomes["stages"].is_a?(Array) &&
+    stage_outcomes["stages"].map { |stage| stage["name"] } == EXPECTED_STAGE_NAMES &&
+    stage_outcomes["stages"].all? { |stage| stage["outcome"] == "success" } &&
+    stage_outcomes["overallOutcome"] == "success" &&
+    stage_outcomes["failedStages"] == [] &&
+    stage_outcomes["firstFailedStage"].nil?
+end
+check(checks, "stage outcomes identity") do
+  stage_outcomes["version"] == EXPECTED_CI_PROCESS_VERSION &&
+    stage_outcomes["artifactName"] == manifest["artifactName"] &&
+    stage_outcomes["branch"] == manifest["branch"] &&
+    stage_outcomes["commitSha"] == manifest["commitSha"] &&
+    stage_outcomes["runId"] == manifest["runId"] &&
+    stage_outcomes["runAttempt"] == manifest["runAttempt"] &&
+    iso8601_timestamp?(stage_outcomes["createdAt"])
+end
+check(checks, "stage outcomes manifest binding") do
+  manifest["stageOutcomesPath"] == "ci-results/ci-stage-outcomes.json" &&
+    manifest["stageOutcomes"] == stage_outcomes["stages"] &&
+    manifest["failureMode"] == "none" &&
+    manifest["failedStages"] == [] &&
+    manifest["firstFailedStage"].nil?
 end
 check(checks, "run context fields") do
   %w[artifactName branch commitSha runId runAttempt].all? { |key| !run_context[key].to_s.empty? }
@@ -1381,6 +1475,9 @@ check(checks, "verify_project ci action Node.js 24 contracts") do
 end
 check(checks, "verify_project ci failure summary output contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("CI failure summary output contracts verified.")
+end
+check(checks, "verify_project ci failure artifact resilience contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("CI failure artifact resilience contracts verified.")
 end
 check(checks, "verify_project ci artifact archive integrity contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("CI artifact archive integrity contracts verified.")

@@ -195,6 +195,39 @@
 
 - v1.4.6 已完成一轮 Agent A→B→C 云端闭环，但总目标仍未完成；下一轮继续寻找 UI 分类体验或 CI 证据强度的独立优化点。
 
+### v1.4.7 / CI 失败结果包韧性
+
+日期：2026-08-23
+
+核心变更：
+
+- `.github/workflows/ci-results.yml` 为 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build 和 iOS build 建立七阶段 outcome，增加 `ci-stage-outcomes.json`、fallback 身份、最小结果包兜底和仅 `workflow_dispatch` 可触发的受控失败注入；artifact 上传继续先于 `Final CI status`，失败 job 仍明确返回非零。
+- `scripts/validate_ci_artifact.rb` 增加显式 `--failure-mode`，失败 profile 强制完整 archive/artifact/run 包外证据；`--expected-event` 默认要求授权 `push`，受控 dispatch 失败必须显式选择 `workflow_dispatch`，不放宽 success profile。
+- `scripts/validate_ci_failure_artifact.rb`、`scripts/verify_project.sh` 和成功/失败 fixture 增加阶段、可选缺失产物、fallback、失败摘要、事件来源和 workflow 接线合同；同步更新测试、流程、README 与提示词索引。
+- 提交前静态修订补齐 bootstrap 与 finalizer 分离传播、`skipped` 的非成功语义、上传前残缺结果文件重建，以及 manifest/index/stage 的 fallback 与失败状态三方绑定。
+
+关键文件：
+
+- `.github/workflows/ci-results.yml`
+- `scripts/validate_ci_artifact.rb`
+- `scripts/validate_ci_failure_artifact.rb`
+- `scripts/verify_project.sh`
+- `md/prompt/v1（持续优化）/v1.4.7（CI失败结果包韧性）.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `README.md`
+- `md/prompt/README.md`
+
+验证结果：
+
+- 当前仅完成静态审阅和文档同步；未运行本地测试、validator、项目验证脚本、YAML 解析、Xcode、`xcodebuild`、`simctl` 或 Simulator。
+- v1.4.7 尚未提交、推送或产生新的 GitHub Actions run/artifact；正常 push 与显式 `workflow_dispatch` failure profile 仍待云端验证，不能复用 v1.4.6 证据。
+
+遗留事项：
+
+- 提交前需确认仅本轮文件进入 commit，并使用 `gh` 验收最新正常 push 和受控失败 run 的原始 API JSON、ZIP 与 validator 第四模式；之后继续下一轮 UI 分类优化。
+
 ### v1.4.4 / Mac 计时队列展开与筛选重置
 
 日期：2026-08-09

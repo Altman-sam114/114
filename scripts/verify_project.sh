@@ -47,7 +47,7 @@ upload_step = source[upload_start...final_start]
 final_step = source[final_start..]
 tee_line = 'tee -a "$GITHUB_STEP_SUMMARY" < ci-results/ci-failure-summary.md'
 legacy_cat_line = 'cat ci-results/ci-failure-summary.md >> "$GITHUB_STEP_SUMMARY"'
-failure_condition = 'if [[ "$STATIC_OUTCOME" != "success" || "$PROJECT_VERIFY_OUTCOME" != "success" || "$BUILD_OUTCOME" != "success" || "$IOS_BUILD_OUTCOME" != "success" ]]; then'
+failure_condition = 'if [[ "$CHECKOUT_OUTCOME" != "success" || "$PREPARE_METADATA_OUTCOME" != "success" || "$SELECT_XCODE_OUTCOME" != "success" || "$STATIC_OUTCOME" != "success" || "$PROJECT_VERIFY_OUTCOME" != "success" || "$BUILD_OUTCOME" != "success" || "$IOS_BUILD_OUTCOME" != "success" ]]; then'
 
 raise "Final CI status must keep if: always()" unless final_step.match?(/^        if: always\(\)$/)
 raise "Final CI status must keep shell: bash" unless final_step.match?(/^        shell: bash$/)
@@ -58,11 +58,16 @@ raise "Final CI status must not use the legacy cat-only summary output" if sourc
 tee_index = final_step.index(tee_line)
 condition_index = final_step.index(failure_condition)
 exit_index = final_step.index("            exit 1\n")
-raise "Final CI status must preserve the four-stage failure condition" unless condition_index
+raise "Final CI status must preserve the seven-stage failure condition" unless condition_index
 raise "Final CI status must preserve exit 1" unless exit_index
 raise "Final CI status must output the failure summary before outcome evaluation" unless tee_index < condition_index && condition_index < exit_index
 
 expected_env = {
+  "CHECKOUT_OUTCOME" => "${{ inputs.failure_mode == 'checkout' && 'failure' || steps.checkout.outcome }}",
+  "PREPARE_METADATA_OUTCOME" => "${{ steps.prepare_metadata.outcome }}",
+  "BOOTSTRAP_OUTCOME" => "${{ steps.bootstrap_result_package.outcome }}",
+  "FINALIZER_OUTCOME" => "${{ steps.ensure_result_package.outcome }}",
+  "SELECT_XCODE_OUTCOME" => "${{ steps.select_xcode.outcome }}",
   "STATIC_OUTCOME" => "${{ steps.static_checks.outcome }}",
   "PROJECT_VERIFY_OUTCOME" => "${{ steps.project_verification.outcome }}",
   "BUILD_OUTCOME" => "${{ steps.mac_build.outcome }}",
@@ -76,6 +81,57 @@ raise "Agent C artifact upload must keep if: always()" unless upload_step.match?
 raise "Agent C artifact upload must keep actions\/upload-artifact@v6" unless upload_step.match?(/^        uses: actions\/upload-artifact@v6$/)
 raise "Agent C artifact upload must keep the ci-results root path" unless upload_step.scan(/^          path: ci-results$/).length == 1
 raise "Failure summary must keep exactly one artifact file writer" unless source.scan('(result_dir / "ci-failure-summary.md").write_text').length == 1
+RUBY
+}
+
+verify_ci_failure_artifact_resilience() {
+  local workflow_path="$1"
+
+  ruby - "$workflow_path" <<'RUBY'
+path = ARGV.fetch(0)
+source = File.read(path)
+step = lambda do |name|
+  heading = "      - name: #{name}\n"
+  start = source.index(heading)
+  raise "Missing workflow step #{name}" unless start
+  finish = source.index("\n      - name: ", start + heading.length) || source.length
+  source[start...finish]
+end
+
+checkout = step.call("Checkout")
+prepare = step.call("Prepare result metadata")
+select_xcode = step.call("Select Xcode")
+package = step.call("Ensure minimal result package")
+post_prepare = [
+  step.call("Static checks"),
+  step.call("Project verification"),
+  step.call("Build ChronoFocusMac"),
+  step.call("Build ChronoFocus iOS")
+]
+manifest = step.call("Create CI manifest and summaries")
+upload = step.call("Upload Agent C result package")
+final = step.call("Final CI status")
+
+raise "Checkout must have a stable id" unless checkout.match?(/^        id: checkout$/)
+raise "Checkout failure boundary missing" unless checkout.match?(/^        if: always\(\)$/) && checkout.match?(/^        continue-on-error: true$/) && checkout.match?(/^[[:space:]]+ref: \$\{\{ inputs\.failure_mode == 'checkout'/)
+raise "Prepare metadata fallback wiring missing" unless prepare.match?(/^        id: prepare_metadata$/) && prepare.match?(/^        if: always\(\)$/) && prepare.match?(/^        continue-on-error: true$/) && prepare.match?(/^[[:space:]]+FALLBACK_ARTIFACT_NAME=/)
+raise "Select Xcode resilience wiring missing" unless select_xcode.match?(/^        id: select_xcode$/) && select_xcode.match?(/^        if: always\(\)$/) && select_xcode.match?(/^        continue-on-error: true$/)
+post_prepare.each do |body|
+  raise "Post-prepare stage must always run and continue" unless body.match?(/^        if: always\(\)$/) && body.match?(/^        continue-on-error: true$/)
+end
+raise "Manifest stage outcome wiring missing" unless manifest.match?(/^        id: create_manifest$/) && manifest.match?(/^        if: always\(\)$/) && manifest.match?(/^        continue-on-error: true$/) && manifest.match?(/^[[:space:]]+stage_outcome_path\.write_text\(/) && manifest.include?("failedStages")
+raise "Minimal result package finalizer wiring missing" unless package.match?(/^        if: always\(\)$/) && package.match?(/^        continue-on-error: true$/) && package.include?("ci-stage-outcomes.json") && package.include?("ci-artifact-index.json")
+raise "Minimal result package fallback selection missing" unless package.include?("SCAFFOLD_OUTCOME: ${{ steps.bootstrap_result_package.outcome }}") && package.include?("if [[ \"${SCAFFOLD_OUTCOME}\" != \"success\" || -z \"${ARTIFACT_NAME:-}\" ]]") && package.include?("export ARTIFACT_NAME=\"$FALLBACK_ARTIFACT_NAME\"") && package.include?("fallbackArtifactUsed") && package.include?("non_success = [name for name, value in outcomes if value != \"success\"]") && package.include?("overall = \"success\" if not non_success else \"failure\"")
+raise "Workflow dispatch failure input missing" unless source.include?("failure_mode:") && source.include?("prepareMetadata") && source.include?("projectVerification")
+raise "Artifact upload contract missing" unless upload.match?(/^        id: upload_artifact$/) && upload.match?(/^        if: always\(\)$/) && upload.match?(/^        uses: actions\/upload-artifact@v6$/) && upload.scan(/^          path: ci-results$/).length == 1 && upload.match?(/^          if-no-files-found: error$/)
+raise "Fallback artifact name expression missing" unless upload.include?("steps.ensure_result_package.outputs.artifact_name || env.FALLBACK_ARTIFACT_NAME")
+raise "Workflow must not introduce encryption" if source.match?(/encrypt|password|gpg|openssl|zip\s+-P/i)
+raise "Artifact upload must precede final status" unless source.index("Upload Agent C result package") < source.index("Final CI status")
+raise "Final status must evaluate all seven stage outcomes and package outcomes" unless final.include?("CHECKOUT_OUTCOME") && final.include?("PREPARE_METADATA_OUTCOME") && final.include?("SELECT_XCODE_OUTCOME") && final.include?("STATIC_OUTCOME") && final.include?("PROJECT_VERIFY_OUTCOME") && final.include?("BUILD_OUTCOME") && final.include?("IOS_BUILD_OUTCOME") && final.include?("BOOTSTRAP_OUTCOME") && final.include?("FINALIZER_OUTCOME") && final.include?("CREATE_MANIFEST_OUTCOME") && final.include?("UPLOAD_OUTCOME")
+raise "Final status summary tee missing" unless final.include?('tee -a "$GITHUB_STEP_SUMMARY" < ci-results/ci-failure-summary.md')
+raise "Stage outcome writer and fallback wiring missing" unless source.scan("stage_outcome_path.write_text").length == 1 && package.include?("write_json_if_incomplete(") && package.include?("stage_path")
+
+puts "CI failure artifact resilience contracts verified."
 RUBY
 }
 
@@ -1803,6 +1859,12 @@ grep -q "EXPECTED_INDEX_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_SUMMARY_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_STATIC_CHECK_MARKERS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_ARTIFACT_ROOT_ENTRIES" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_STAGE_NAMES" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_WORKFLOW_RUN_EVENTS" scripts/validate_ci_artifact.rb
+grep -q "FAILURE_REQUIRED_ARTIFACT_PATHS" scripts/validate_ci_artifact.rb
+grep -q "validate_ci_failure_artifact.rb" scripts/validate_ci_artifact.rb
+grep -q -- "--expected-event" scripts/validate_ci_artifact.rb
+grep -q -- "--failure-mode" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_JUNIT_TESTCASES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_JUNIT_OUTCOMES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_RUN_CONTEXT_KEYS" scripts/validate_ci_artifact.rb
@@ -2011,6 +2073,47 @@ files = {
 for relative_path, content in files.items():
     (root / relative_path).write_text(content, encoding="utf-8")
 
+verify_log_path = root / "verify_project.log"
+verify_log = verify_log_path.read_text(encoding="utf-8")
+verify_log = verify_log.replace(
+    "CI failure summary output contracts verified.\n",
+    "CI failure summary output contracts verified.\nCI failure artifact resilience contracts verified.\n",
+)
+verify_log_path.write_text(verify_log, encoding="utf-8")
+
+stage_outcomes = {
+    "version": "v0.10",
+    "artifactName": f"chronofocus-ci-v0.10-main-fixture-run{run_id}-attempt{attempt}",
+    "branch": "main",
+    "commitSha": commit,
+    "runId": run_id,
+    "runAttempt": attempt,
+    "createdAt": "2026-07-04T00:00:00Z",
+    "overallOutcome": "success",
+    "failureMode": "none",
+    "fallbackArtifactName": f"chronofocus-ci-v0.10-main-{commit}-run{run_id}-attempt{attempt}",
+    "fallbackArtifactUsed": False,
+    "firstFailedStage": None,
+    "failedStages": [],
+    "nonSuccessStages": [],
+    "stages": [
+        {"name": name, "outcome": "success"}
+        for name in [
+            "checkout",
+            "prepareMetadata",
+            "selectXcode",
+            "staticChecks",
+            "projectVerification",
+            "macBuild",
+            "iosBuild",
+        ]
+    ],
+}
+(root / "ci-stage-outcomes.json").write_text(
+    json.dumps(stage_outcomes, ensure_ascii=False, indent=2) + "\n",
+    encoding="utf-8",
+)
+
 (root / "ChronoFocusMac.xcresult" / "Info.plist").write_text("mac result\n", encoding="utf-8")
 (root / "ChronoFocus-iOS.xcresult" / "Info.plist").write_text("ios result\n", encoding="utf-8")
 
@@ -2057,6 +2160,8 @@ summary = f"""# ChronoFocus CI Failure Summary
 - iOS build: `ci-results/ios-xcodebuild.log`
 - iOS Xcode result bundle: `ci-results/ChronoFocus-iOS.xcresult`
 - Mac snapshots: `ci-results/project-reports/mac-snapshots/`
+- First failed stage: `none`
+- Stage outcomes: `ci-results/ci-stage-outcomes.json`
 
 All CI stages passed.
 """
@@ -2100,7 +2205,15 @@ manifest = {
     "iosBuildLogPath": "ci-results/ios-xcodebuild.log",
     "failureSummaryPath": "ci-results/ci-failure-summary.md",
     "artifactIndexPath": "ci-results/ci-artifact-index.json",
+    "stageOutcomesPath": "ci-results/ci-stage-outcomes.json",
     "overallOutcome": "success",
+    "failureMode": "none",
+    "fallbackArtifactName": f"chronofocus-ci-v0.10-main-{commit}-run{run_id}-attempt{attempt}",
+    "fallbackArtifactUsed": False,
+    "firstFailedStage": None,
+    "failedStages": [],
+    "nonSuccessStages": [],
+    "stageOutcomes": stage_outcomes["stages"],
     "staticChecksOutcome": "success",
     "projectVerificationOutcome": "success",
     "buildOutcome": "success",
@@ -2160,6 +2273,7 @@ index_paths = [
     "ci-results/ios-xcodebuild.log",
     "ci-results/xcode-version.log",
     "ci-results/ci-run-context.txt",
+    "ci-results/ci-stage-outcomes.json",
     "ci-results/ChronoFocusMac.xcresult",
     "ci-results/ChronoFocus-iOS.xcresult",
     "ci-results/project-reports/mac-snapshots",
@@ -2204,6 +2318,15 @@ for _ in range(5):
         "runId": run_id,
         "runAttempt": attempt,
         "createdAt": "2026-07-04T00:00:00Z",
+        "overallOutcome": "success",
+        "failureMode": "none",
+        "fallbackArtifactName": f"chronofocus-ci-v0.10-main-{commit}-run{run_id}-attempt{attempt}",
+        "fallbackArtifactUsed": False,
+        "stageOutcomes": stage_outcomes["stages"],
+        "firstFailedStage": None,
+        "failedStages": [],
+        "nonSuccessStages": [],
+        "missingArtifactPaths": [],
         "entries": [metadata(path) for path in index_paths],
     }
     index["totals"] = {
@@ -2217,6 +2340,10 @@ for _ in range(5):
             entry.get("recursiveByteCount", 0) for entry in index["entries"]
         ),
     }
+    index["missingArtifactPaths"] = [
+        entry["path"] for entry in index["entries"]
+        if not entry["required"] and not entry["exists"]
+    ]
     index_path.write_text(
         json.dumps(index, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -2271,6 +2398,10 @@ for _ in range(20):
             entry.get("recursiveByteCount", 0) for entry in index["entries"]
         ),
     }
+    index["missingArtifactPaths"] = [
+        entry["path"] for entry in index["entries"]
+        if not entry["required"] and not entry["exists"]
+    ]
     encoded = json.dumps(index, ensure_ascii=False, indent=2) + "\n"
     if encoded == previous:
         break
@@ -2649,6 +2780,195 @@ payload = {
 }
 File.write(path, JSON.pretty_generate(payload) + "\n", encoding: "UTF-8")
 RUBY
+
+failure_fixture_root="$(mktemp -d)"
+cp -R "$artifact_fixture"/. "$failure_fixture_root"/
+rm -rf "$failure_fixture_root/ChronoFocusMac.xcresult" \
+  "$failure_fixture_root/ChronoFocus-iOS.xcresult" \
+  "$failure_fixture_root/project-reports"
+python3 - "$failure_fixture_root" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+stage_path = root / "ci-stage-outcomes.json"
+stage = json.loads(stage_path.read_text(encoding="utf-8"))
+stage["overallOutcome"] = "failure"
+stage["failureMode"] = "selectXcode"
+stage["firstFailedStage"] = "selectXcode"
+stage["failedStages"] = ["selectXcode"]
+stage["nonSuccessStages"] = ["selectXcode"]
+for item in stage["stages"]:
+    if item["name"] == "selectXcode":
+        item["outcome"] = "failure"
+stage_path.write_text(json.dumps(stage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+manifest_path = root / "ci-artifact-manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+manifest["overallOutcome"] = "failure"
+manifest["failureMode"] = "selectXcode"
+manifest["firstFailedStage"] = "selectXcode"
+manifest["failedStages"] = ["selectXcode"]
+manifest["nonSuccessStages"] = ["selectXcode"]
+manifest["stageOutcomes"] = stage["stages"]
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+summary_path = root / "ci-failure-summary.md"
+summary = summary_path.read_text(encoding="utf-8")
+summary = summary.replace("- Overall outcome: `success`", "- Overall outcome: `failure`")
+summary = summary.replace("- First failed stage: `none`", "- First failed stage: `selectXcode`")
+summary = summary.replace(
+    "\nAll CI stages passed.\n",
+    "\n## Failed Stages\n\n- `selectXcode`: `failure`\n\n## Failure Excerpts\n\n### `selectXcode`\n\n```text\nInjected Xcode selection failure.\n```\n",
+)
+summary_path.write_text(summary, encoding="utf-8")
+
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+required = {
+    "ci-results/ci-artifact-manifest.json",
+    "ci-results/ci-artifact-index.json",
+    "ci-results/ci-failure-summary.md",
+    "ci-results/junit.xml",
+    "ci-results/ci-run-context.txt",
+    "ci-results/ci-stage-outcomes.json",
+}
+for entry in index["entries"]:
+    entry["required"] = entry["path"] in required
+index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+stabilize_artifact_fixture_index "$failure_fixture_root"
+failure_archive_fixture="$artifact_archive_fixture_dir/chronofocus-ci-failure-fixture.zip"
+failure_artifact_metadata_fixture="$artifact_archive_fixture_dir/failure-artifacts-api.json"
+bind_fixture_archive \
+  "$failure_fixture_root" \
+  "$failure_archive_fixture" \
+  "$failure_artifact_metadata_fixture" \
+  failure_archive_size \
+  failure_archive_digest
+failure_run_metadata_fixture="$artifact_archive_fixture_dir/failure-run-api.json"
+cp "$run_metadata_fixture" "$failure_run_metadata_fixture"
+python3 - "$failure_run_metadata_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = json.loads(path.read_text(encoding="utf-8"))
+payload["conclusion"] = "failure"
+path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+failure_validation_output="$(mktemp)"
+if ! ruby scripts/validate_ci_artifact.rb \
+  "$failure_fixture_root" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --expected-event push \
+  --failure-mode \
+  --archive "$failure_archive_fixture" \
+  --archive-size "$failure_archive_size" \
+  --archive-digest "$failure_archive_digest" \
+  --artifact-metadata "$failure_artifact_metadata_fixture" \
+  --run-metadata "$failure_run_metadata_fixture" \
+  >"$failure_validation_output" 2>&1; then
+  echo "Failure artifact positive fixture validator failed" >&2
+  cat "$failure_validation_output" >&2
+  exit 1
+fi
+grep -q "PASS failure artifact stage failure state" "$failure_validation_output"
+grep -q "PASS failure artifact index optional entries" "$failure_validation_output"
+grep -q "PASS failure artifact run metadata identity" "$failure_validation_output"
+rm -f "$failure_validation_output"
+
+failure_negative_index_fixture="$(mktemp -d)"
+cp -R "$failure_fixture_root"/. "$failure_negative_index_fixture"/
+python3 - "$failure_negative_index_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+path = root / "ci-artifact-index.json"
+payload = json.loads(path.read_text(encoding="utf-8"))
+payload["stageOutcomes"][0]["outcome"] = "failure"
+path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+stabilize_artifact_fixture_index "$failure_negative_index_fixture"
+failure_negative_index_archive_fixture="$artifact_archive_fixture_dir/chronofocus-ci-failure-index-negative.zip"
+failure_negative_index_artifact_metadata_fixture="$artifact_archive_fixture_dir/failure-index-negative-artifacts-api.json"
+bind_fixture_archive \
+  "$failure_negative_index_fixture" \
+  "$failure_negative_index_archive_fixture" \
+  "$failure_negative_index_artifact_metadata_fixture" \
+  failure_negative_index_archive_size \
+  failure_negative_index_archive_digest
+failure_negative_index_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb \
+  "$failure_negative_index_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --expected-event push \
+  --failure-mode \
+  --archive "$failure_negative_index_archive_fixture" \
+  --archive-size "$failure_negative_index_archive_size" \
+  --archive-digest "$failure_negative_index_archive_digest" \
+  --artifact-metadata "$failure_negative_index_artifact_metadata_fixture" \
+  --run-metadata "$failure_run_metadata_fixture" \
+  >"$failure_negative_index_output" 2>&1; then
+  echo "Expected failure index binding fixture to fail validation" >&2
+  cat "$failure_negative_index_output" >&2
+  exit 1
+fi
+grep -q "FAIL failure artifact index outcomes" "$failure_negative_index_output"
+if [[ "$(grep -c '^FAIL ' "$failure_negative_index_output")" -ne 1 ]]; then
+  echo "Expected failure index binding fixture to fail only its target contract" >&2
+  cat "$failure_negative_index_output" >&2
+  exit 1
+fi
+rm -rf "$failure_negative_index_fixture"
+rm -f "$failure_negative_index_output"
+
+failure_negative_run_fixture="$artifact_archive_fixture_dir/failure-run-success-negative.json"
+cp "$failure_run_metadata_fixture" "$failure_negative_run_fixture"
+python3 - "$failure_negative_run_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = json.loads(path.read_text(encoding="utf-8"))
+payload["conclusion"] = "success"
+path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+failure_negative_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb \
+  "$failure_fixture_root" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --expected-event push \
+  --failure-mode \
+  --archive "$failure_archive_fixture" \
+  --archive-size "$failure_archive_size" \
+  --archive-digest "$failure_archive_digest" \
+  --artifact-metadata "$failure_artifact_metadata_fixture" \
+  --run-metadata "$failure_negative_run_fixture" \
+  >"$failure_negative_output" 2>&1; then
+  echo "Expected failure run conclusion fixture to fail validation" >&2
+  cat "$failure_negative_output" >&2
+  exit 1
+fi
+grep -q "FAIL failure artifact run metadata identity" "$failure_negative_output"
+if [[ "$(grep -c '^FAIL ' "$failure_negative_output")" -ne 1 ]]; then
+  echo "Expected failure run conclusion fixture to fail only its target contract" >&2
+  cat "$failure_negative_output" >&2
+  exit 1
+fi
+rm -f "$failure_negative_output"
+rm -rf "$failure_fixture_root"
 
 assert_archive_passes() {
   local output_path="$1"
@@ -5219,6 +5539,61 @@ grep -q "recursiveByteCount" .github/workflows/ci-results.yml
 
 verify_ci_action_versions .github/workflows/ci-results.yml
 verify_ci_failure_summary_output .github/workflows/ci-results.yml
+verify_ci_failure_artifact_resilience .github/workflows/ci-results.yml
+
+ci_resilience_prepare_fixture="$(mktemp)"
+ci_resilience_prepare_output="$(mktemp)"
+cp .github/workflows/ci-results.yml "$ci_resilience_prepare_fixture"
+ruby -e 'path = ARGV.fetch(0); source = File.read(path); marker = "      - name: Prepare result metadata"; start = source.index(marker); finish = source.index("\n      - name: ", start + marker.length); slice = source[start...finish]; updated = slice.sub("        continue-on-error: true\n", ""); raise "prepare resilience fixture replacement missing" if updated == slice; File.write(path, source[0...start] + updated + source[finish..])' "$ci_resilience_prepare_fixture"
+if verify_ci_failure_artifact_resilience "$ci_resilience_prepare_fixture" >"$ci_resilience_prepare_output" 2>&1; then
+  echo "Expected prepare resilience fixture to fail" >&2
+  exit 1
+fi
+grep -q "Prepare metadata fallback wiring missing" "$ci_resilience_prepare_output"
+if [[ "$(grep -c "Prepare metadata fallback wiring missing" "$ci_resilience_prepare_output")" -ne 1 ]]; then
+  cat "$ci_resilience_prepare_output" >&2
+  exit 1
+fi
+rm -f "$ci_resilience_prepare_fixture" "$ci_resilience_prepare_output"
+
+ci_resilience_fallback_fixture="$(mktemp)"
+ci_resilience_fallback_output="$(mktemp)"
+cp .github/workflows/ci-results.yml "$ci_resilience_fallback_fixture"
+ruby - "$ci_resilience_fallback_fixture" <<'RUBY'
+path = ARGV.fetch(0)
+source = File.read(path)
+marker = "      - name: Ensure minimal result package"
+start = source.index(marker)
+finish = source.index("\n      - name: ", start + marker.length)
+slice = source[start...finish]
+updated = slice.sub('if [[ "${SCAFFOLD_OUTCOME}" != "success"', 'if [[ "${SCAFFOLD_OUTCOME}" != "ok"')
+raise "fallback resilience fixture replacement missing" if updated == slice
+File.write(path, source[0...start] + updated + source[finish..])
+RUBY
+if verify_ci_failure_artifact_resilience "$ci_resilience_fallback_fixture" >"$ci_resilience_fallback_output" 2>&1; then
+  echo "Expected fallback resilience fixture to fail" >&2
+  exit 1
+fi
+grep -q "Minimal result package fallback selection missing" "$ci_resilience_fallback_output"
+if [[ "$(grep -c "Minimal result package fallback selection missing" "$ci_resilience_fallback_output")" -ne 1 ]]; then
+  cat "$ci_resilience_fallback_output" >&2
+  exit 1
+fi
+rm -f "$ci_resilience_fallback_fixture" "$ci_resilience_fallback_output"
+
+ci_resilience_encryption_fixture="$(mktemp)"
+ci_resilience_encryption_output="$(mktemp)"
+cp .github/workflows/ci-results.yml "$ci_resilience_encryption_fixture"
+printf '\n      # password fixture\n' >> "$ci_resilience_encryption_fixture"
+if verify_ci_failure_artifact_resilience "$ci_resilience_encryption_fixture" >"$ci_resilience_encryption_output" 2>&1; then
+  echo "Expected encryption resilience fixture to fail" >&2
+  exit 1
+fi
+grep -q "Workflow must not introduce encryption" "$ci_resilience_encryption_output"
+if [[ "$(grep -c '^FAIL ' "$ci_resilience_encryption_output")" -ne 0 ]]; then
+  exit 1
+fi
+rm -f "$ci_resilience_encryption_fixture" "$ci_resilience_encryption_output"
 
 checkout_v4_workflow_fixture="$(mktemp)"
 checkout_v4_workflow_output="$(mktemp)"
@@ -5255,6 +5630,7 @@ rm -f "$ci_failure_summary_cat_workflow_fixture" "$ci_failure_summary_cat_workfl
 
 echo "CI action Node.js 24 contracts verified."
 echo "CI failure summary output contracts verified."
+echo "CI failure artifact resilience contracts verified."
 echo "CI artifact archive integrity contracts verified."
 echo "CI artifact API metadata contracts verified."
 echo "CI workflow run API metadata contracts verified."

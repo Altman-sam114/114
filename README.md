@@ -61,6 +61,8 @@ bash scripts/verify_project.sh
 
 Agent C 的完整云端 artifact 复判支持 validator 第四模式：目录、原始 ZIP 三参数、`artifacts-api.json` 和 `run-api.json` 一起传入。精确 run 响应与 artifacts 响应都先写入全新唯一目录中的 `.part`，成功且非空后无覆盖原子改名；ZIP 也先下载为 `.zip.part`，核对 API size、SHA-256 和 ZIP 结构后才改名并解包。Validator 对 run API 复判既有十项身份/状态，并从 v1.2 起增加 push event、actor、triggering actor 和 head repository 四项授权来源。v1.4 起完整模式还逐路径绑定原始 ZIP 与 validator 自建临时解包树、比较类型/大小/SHA-256，拒绝 traversal、重复路径、前缀冲突、symlink 和特殊文件。
 
+当前 CI 结果包还记录 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build、iOS build 七阶段 outcome，并在失败时保留可识别的未加密 fallback 包；artifact 上传发生在 `Final CI status` 之前，失败 job 仍返回 failure。成功包仍必须通过原有完整合同。失败包只能显式使用 `--failure-mode`，默认 run event 为授权 `push`；GitHub Actions 的受控 `workflow_dispatch` 失败必须额外传 `--expected-event workflow_dispatch`，不能把 dispatch 伪装为 push。所有测试、构建和结果包验收仍只由 GitHub Actions/`gh` 执行，本机不运行项目测试、validator、Xcode 或模拟器。
+
 以下构建和 simulator 命令仅记录 GitHub Actions 的云端执行入口，本机禁止执行：
 
 ```bash

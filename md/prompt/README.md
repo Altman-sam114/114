@@ -67,7 +67,7 @@ Agent A 写给 Agent B 的提示词必须明确：
 - Agent B 输出必须说明未运行本地测试，包含静态审阅范围、commit SHA、push 状态、workflow run 信息和 artifact 名称。
 - Agent C 必须用 `gh auth login` 后查询最新 `origin/main` 对应精确 workflow run API 和 artifacts API。两份原始响应分别先写 `run-api.json.part`、`artifacts-api.json.part`，成功且非空后无覆盖原子改名；run JSON 结构化核对 attempt、workflow、状态、结论和仓库，artifacts JSON 结构化核对唯一 artifact 的 id、name、size、digest、expired 和 workflow run 身份。
 - Agent C 每次使用全新 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 目录。原始 JSON 必须非空、不超过 1 MiB、为普通文件且不是 symlink；原始 ZIP 使用同一 JSON 中的唯一 id 下载到 `.zip.part` 并进行有限重试，size、SHA-256 和 ZIP 结构全部通过后，才在同一文件系统无覆盖原子改名并解包到全新目录。已有目录或目标文件存在时默认停止并更换唯一目录，禁止删除或覆盖。
-- Agent C 必须将解包目录、原始 ZIP、两份原始 API JSON 和 API size/digest 一并交给 validator 第四模式；v1.2 起核对十四项 run metadata（含 push/actor/triggering actor/head repository 来源）、八项 artifact metadata、三项 archive、manifest、failure summary、JUnit、主日志、`.xcresult` 和项目专属快照。前三种较弱模式仅用于兼容，不能替代最新原始证据验收。
+- Agent C 必须将解包目录、原始 ZIP、两份原始 API JSON 和 API size/digest 一并交给 validator 第四模式；v1.2 起核对十四项 run metadata（默认含 push/actor/triggering actor/head repository 来源）、八项 artifact metadata、三项 archive、manifest、failure summary、JUnit、主日志、`.xcresult` 和项目专属快照。v1.4.7 的显式 failure profile 仍要求完整第四模式；受控 `workflow_dispatch` 只能额外传 `--expected-event workflow_dispatch`，不能伪装成 push。前三种较弱模式仅用于兼容，不能替代最新原始证据验收。
 - Agent C 发现失败或结果包不一致时，退回 Agent B 在 `main` 追加修复 commit，不做回滚式处理。
 - 本轮不引入 `smalldata_test`、`develop`、`codeb/...`、PR 合并流，也不照搬 AITRANS 的漫画探针、GGUF、模型 Release、`test/1.png` 等项目特例。
 
@@ -81,6 +81,10 @@ Agent A 写给 Agent B 的提示词必须明确：
 6. 写清 `main` push 后的云端结果包验收标准。
 
 ## 当前实现轮次
+
+- v1.4.7：`md/prompt/v1（持续优化）/v1.4.7（CI失败结果包韧性）.md`。
+- 范围：CI 记录 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build、iOS build 七阶段 outcome；失败时通过 fallback manifest/index/stage/summary/JUnit 生成可识别未加密 artifact；validator 增加显式 `--failure-mode` 和 `--expected-event`，成功 profile 保持严格完整包合同。
+- 状态：当前工作区静态实现与文档同步尚未提交；未运行任何本地测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator，等待推送 `origin/main` 后由 GitHub Actions 和 Agent C 复判正常 push 及受控 dispatch failure run。
 
 - v1.4：`md/prompt/v1（持续优化）/v1.4（可启动待办一致性与Archive目录绑定）.md`。
 - UI 范围：日程保留停用任务展示，计时队列、计划启动、日程接力和 TimerEngine 使用统一的 startable 查询；空闲选择失效时回到自由专注，运行中/暂停中保留快照。

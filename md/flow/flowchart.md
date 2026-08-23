@@ -4,7 +4,7 @@
 
 ## 核心数据流
 
-读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和云端测试脚本。日程使用完整 `upcomingTasks()`，计时消费使用 `startableTasks()`；已有分类选择、iOS/Mac 日期格分类计数和 iOS/Mac 计时队列展开都只属于 View 草稿/瞬态，不新增持久化或计时状态；日期格未筛选时显示全量 `dueDate` 自然日计数，选中分类时与列表共享该分类谓词；Mac 队列从完整筛选结果派生默认前 7 项，Mac 日历范围列表从完整 `visibleTasks` 派生默认前 4 项，分类、日期、范围或结果变化时恢复收起；run/artifacts 原始 API JSON 与 ZIP 由独立证据链交给 validator 复判。
+读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和云端测试脚本。日程使用完整 `upcomingTasks()`，计时消费使用 `startableTasks()`；已有分类选择、iOS/Mac 日期格分类计数和 iOS/Mac 计时队列展开都只属于 View 草稿/瞬态，不新增持久化或计时状态；日期格未筛选时显示全量 `dueDate` 自然日计数，选中分类时与列表共享该分类谓词；Mac 队列从完整筛选结果派生默认前 7 项，Mac 日历范围列表从完整 `visibleTasks` 派生默认前 4 项，分类、日期、范围或结果变化时恢复收起；CI 由七阶段 outcome、成功/失败双 profile 和包外 run/artifact API + ZIP 证据链交给 validator 复判。
 
 ```mermaid
 flowchart TD
@@ -27,7 +27,7 @@ flowchart TD
   V --> OUT["屏幕渲染<br/>iOS App / Mac Popover / Mac 详情窗口 / 菜单栏时间"]
   N --> OUT2["系统输出<br/>本地通知、桌面通知、提示音、振动"]
   L --> OUT3["锁屏/通知栏/灵动岛<br/>或 Mac 空实现"]
-  S --> T["云端测试入口<br/>verify_project.sh / validate_ci_artifact.rb<br/>startableTasks与计时边界契约<br/>四种validator模式<br/>run十四项、artifact八项、ZIP三项与目录绑定检查<br/>授权触发来源、安全边界、字段篡改、marker缺失fixture<br/>manifest/index/JUnit/build/快照复判"]
+  S --> T["云端测试入口<br/>verify_project.sh / validate_ci_artifact.rb<br/>startableTasks与计时边界契约<br/>七阶段 outcome 与 fallback 结果包<br/>success 四种模式 + failure 第四模式<br/>run十四项、artifact八项、ZIP三项与目录绑定检查<br/>push来源严格复判；dispatch失败需显式 expected-event<br/>授权触发来源、安全边界、字段篡改、marker缺失fixture<br/>manifest/index/stage/JUnit/build/快照复判"]
 ```
 
 ## 计时执行流
@@ -135,17 +135,19 @@ flowchart TD
   L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
   G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
   PUSH --> CI["GitHub Actions<br/>checkout@v5 / upload-artifact@v6<br/>静态检查、verify_project、Mac build、iOS build"]
-  CI --> ART["先上传未加密 CI 结果包<br/>manifest、index、run context、JUnit、failure summary唯一副本<br/>Mac/iOS日志与xcresult、快照和contract marker"]
-  ART --> SUM["Final CI status<br/>读取既有failure summary<br/>tee到stdout与Step Summary<br/>再判断四阶段outcome"]
-  SUM --> RESULT{"四阶段是否全部成功?"}
+  CI --> ART["先上传未加密 CI 结果包<br/>manifest、index、run context、stage outcomes、JUnit、failure summary唯一副本<br/>Mac/iOS日志与xcresult、快照和contract marker<br/>失败时按optional/missing记录未生成产物"]
+  ART --> SUM["Final CI status<br/>读取既有failure summary<br/>tee到stdout与Step Summary<br/>再判断七阶段、writer和upload outcome"]
+  SUM --> RESULT{"七阶段是否全部成功?"}
   RESULT -->|是| OK["run success"]
   RESULT -->|否| FAIL["run failure<br/>步骤日志直接包含失败摘要"]
+  DISPATCH["workflow_dispatch<br/>failure_mode注入"] --> CI
+  DISPATCH -.仅显式复判.-> EXPECTED_EVENT["validator --failure-mode<br/>--expected-event workflow_dispatch<br/>不得伪装成 push"]
   ART --> RUNAPI["精确run API原始JSON<br/>run-api.json.part -> run-api.json<br/>成功非空后无覆盖原子改名"]
   RUNAPI --> API["artifacts API原始JSON<br/>artifacts-api.json.part -> artifacts-api.json<br/>结构化取得唯一artifact"]
   API --> META["包外metadata安全与身份<br/>不超过1MiB、普通文件、非symlink<br/>run十四项 + artifact八项<br/>attempt与授权触发来源复判"]
   META --> DL["用同一artifact id下载<br/>写入.zip.part并有限重试<br/>默认拒绝覆盖或删除"]
   DL --> ZIP["校验size、SHA-256、unzip -t<br/>全部通过后同文件系统原子改名<br/>解包到全新目录"]
-  ZIP --> C["Agent C validator第四模式<br/>解包目录+原始ZIP+两份原始API JSON<br/>run十四项+artifact八项+archive三项+目录绑定<br/>push/actor/triggering actor/head repository<br/>安全条目、逐路径类型/大小/SHA-256<br/>marker/PASS、manifest与build"]
+  ZIP --> C["Agent C validator第四模式<br/>success或显式failure profile<br/>解包目录+原始ZIP+两份原始API JSON<br/>run十四项+artifact八项+archive三项+目录绑定<br/>push/actor/triggering actor/head repository<br/>安全条目、逐路径类型/大小/SHA-256<br/>marker/PASS、manifest/stage与build"]
   C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>run context无重复/无额外字段<br/>artifact 名称、日志和项目专属产物"]
   V --> PASS{"验收通过?"}
   PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]

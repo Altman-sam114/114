@@ -36,6 +36,17 @@
 
 本轮不在本机执行测试、验证脚本、validator、Swift/Xcode 构建或配置检查。只接受最新 `origin/main` 的 GitHub Actions run、原始 API JSON、原始 ZIP 和 Agent C 第四模式复判，包含 Mac/iOS build、Mac core、JUnit `4/0/0`、五张快照与快照 manifest。
 
+## v1.4.7 CI 失败结果包韧性
+
+本轮只改变 CI 失败证据链，不改变 Swift 产品逻辑或成功包的严格合同：
+
+- workflow 记录七个稳定阶段：`checkout`、`prepareMetadata`、`selectXcode`、`staticChecks`、`projectVerification`、`macBuild`、`iosBuild`，并在 `ci-stage-outcomes.json`、manifest、index 和 failure summary 中交叉绑定；上传始终先于 `Final CI status`，失败 job 仍必须非零结束。
+- 成功 profile 继续要求完整两端 `.xcresult`、五张正式 Mac PNG、JUnit 四个 testcase 且 `4/0/0`；失败 profile 必须显式传 `--failure-mode`，并始终使用完整 archive、artifact metadata、run metadata 第四模式，不能用目录-only 或包内字段替代包外证据。
+- `--expected-event` 默认是 `push`。受控 `workflow_dispatch` 失败只能显式传 `--expected-event workflow_dispatch --failure-mode`，事件不得被伪装成 push；默认 push 验收仍严格核对授权账号、仓库、head SHA、attempt 和 artifact 身份。
+- 受控失败注入只由 GitHub Actions `workflow_dispatch` 执行，至少覆盖 checkout 边界、metadata preparation、Xcode selection 和一个后续阶段；失败 artifact 允许尚未生成的日志、结果包或快照缺失，但必须保留精确 allowlist、optional/missing entry、stage outcome、summary、JUnit、原始 ZIP 目录绑定和未加密检查。
+
+本轮不在本机执行任何测试、validator、`verify_project.sh`、YAML 解析、Swift/`swiftc`、Xcode、`xcodebuild`、`simctl` 或 Simulator。Agent C 只使用 `gh` 获取最新 run/artifacts API、原始 ZIP 和全新证据目录，再分别以 success profile 与显式 failure profile 复判。
+
 ## Agent X 循环验证规则
 
 Agent X 只负责主控调度，不改变每轮验证责任。每一个由 Agent X 拆出的轮次仍按 Agent A -> Agent B -> Agent C 闭环执行：
@@ -133,7 +144,7 @@ ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id>-
   --run-metadata /private/tmp/chronofocus-c-review-<run_id>-<unique>/run-api.json
 ```
 
-`--archive`、`--archive-size`、`--archive-digest` 必须全有或全无。完整参数组会针对同一个原始 ZIP 输出 `PASS artifact archive byte count`、`PASS artifact archive sha256 digest`、`PASS artifact archive zip integrity` 和 `PASS artifact archive extracted directory binding`；后者逐路径比较 validator 自建临时解包树与传入目录的类型、大小和 SHA-256，并拒绝 traversal、重复路径、前缀冲突、symlink 和特殊文件。Validator 保留四种模式：目录-only、archive-only、archive + artifact metadata、archive + artifact metadata + run metadata。`--artifact-metadata` 必须依附完整 archive 参数；`--run-metadata` 还必须同时具备完整 archive 参数与 artifact metadata，缺少任一前置输入都以参数错误退出。
+`--archive`、`--archive-size`、`--archive-digest` 必须全有或全无。完整参数组会针对同一个原始 ZIP 输出 `PASS artifact archive byte count`、`PASS artifact archive sha256 digest`、`PASS artifact archive zip integrity` 和 `PASS artifact archive extracted directory binding`；后者逐路径比较 validator 自建临时解包树与传入目录的类型、大小和 SHA-256，并拒绝 traversal、重复路径、前缀冲突、symlink 和特殊文件。Validator 保留四种 success 模式：目录-only、archive-only、archive + artifact metadata、archive + artifact metadata + run metadata；显式 `--failure-mode` 只接受完整 archive + artifact metadata + run metadata，并支持可选 `--expected-event workflow_dispatch`。`--artifact-metadata` 必须依附完整 archive 参数；`--run-metadata` 还必须同时具备完整 archive 参数与 artifact metadata，缺少任一前置输入都以参数错误退出。
 
 Agent C 必须从精确 workflow run endpoint 和 run artifacts endpoint 获取最新 run 的两份原始响应，分别写入全新目录的 `run-api.json.part`、`artifacts-api.json.part`，成功且非空、最终文件不存在时才在同一文件系统无覆盖原子改名。两份 metadata 都必须是非空普通文件、拒绝 symlink 且不超过 `1_048_576` bytes，由 `JSON.parse` 结构化复判，不得复制进 artifact 解包目录。再使用 artifacts JSON 中的唯一 id 下载 `<artifact-name>.zip.part`，启用失败即退出、跟随重定向和有限重试；在 `.part` 上核对 size、SHA-256 与 `unzip -t`，全部通过且最终 ZIP 不存在后才原子改名。任何既有目录、JSON、`.part`、最终 ZIP 或解包目录默认拒绝覆盖、删除或复用，失败证据必须保留。
 
