@@ -9,26 +9,42 @@ struct MacMiniTimerView: View {
     @State private var isShowingQuickPanel = false
 
     let openDetails: (MacDetailSection) -> Void
+    var onQuickPanelChange: (Bool) -> Void = { _ in }
+
+    private var currentTintHex: String {
+        if let snapshot = store.activeTimer {
+            return snapshot.tintHex
+        }
+        if let task = store.task(for: engine.selectedTaskID) {
+            return store.representativeAccentHex(for: task.category)
+        }
+        return engine.mode.tintHex
+    }
 
     private var currentTint: Color {
-        if let task = store.task(for: engine.selectedTaskID) {
-            return Color(hex: task.accentHex)
-        }
-        return Color(hex: engine.mode.tintHex)
+        Color(hex: currentTintHex)
+    }
+
+    private var shouldShowQuickPanel: Bool {
+        isShowingQuickPanel || snapshotShowsQuickPanel
     }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             VStack(spacing: 16) {
-                MacMiniHeaderView(isShowingQuickPanel: $isShowingQuickPanel)
+                MacMiniHeaderView(isShowingQuickPanel: Binding(
+                    get: { shouldShowQuickPanel },
+                    set: { isShowingQuickPanel = $0 }
+                ))
                 MacMiniClockView(currentTint: currentTint)
-                MacMiniControlsView(currentTint: currentTint)
+                MacMiniControlsView(currentTint: currentTint, currentTintHex: currentTintHex)
                 MacMiniTaskPickerView(currentTint: currentTint)
             }
 
-            if isShowingQuickPanel {
+            if shouldShowQuickPanel {
                 MacMiniQuickPanelView(
                     currentTint: currentTint,
+                    currentTintHex: currentTintHex,
                     openDetails: { section in
                         isShowingQuickPanel = false
                         openDetails(section)
@@ -40,9 +56,12 @@ struct MacMiniTimerView: View {
             }
         }
         .padding(20)
-        .frame(width: isShowingQuickPanel ? 560 : 430, height: 500)
+        .frame(width: shouldShowQuickPanel ? 560 : 430, height: 500)
         .background(MacTheme.background)
-        .animation(.smooth(duration: 0.22), value: isShowingQuickPanel)
+        .animation(.smooth(duration: 0.22), value: shouldShowQuickPanel)
+        .onChange(of: isShowingQuickPanel) { _, isShowing in
+            onQuickPanelChange(isShowing)
+        }
         .onAppear {
             if snapshotShowsQuickPanel {
                 isShowingQuickPanel = true
@@ -52,16 +71,25 @@ struct MacMiniTimerView: View {
 }
 
 private struct MacMiniHeaderView: View {
+    @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
     @Binding var isShowingQuickPanel: Bool
+
+    private var displayedModeTitle: String {
+        store.activeTimer?.mode.title ?? engine.mode.title
+    }
+
+    private var displayedTaskTitle: String {
+        store.activeTimer?.taskTitle ?? engine.currentTaskTitle
+    }
 
     var body: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(engine.mode.title)
+                Text(displayedModeTitle)
                     .font(.headline)
                     .foregroundStyle(MacTheme.primaryText)
-                Text(engine.currentTaskTitle)
+                Text(displayedTaskTitle)
                     .font(.subheadline)
                     .foregroundStyle(MacTheme.secondaryText)
                     .lineLimit(1)
@@ -72,20 +100,21 @@ private struct MacMiniHeaderView: View {
             Button {
                 isShowingQuickPanel.toggle()
             } label: {
-                Text("...")
-                    .font(.headline)
-                    .monospaced()
+                Image(systemName: "ellipsis")
+                    .font(.headline.weight(.bold))
                     .foregroundStyle(MacTheme.primaryText)
                     .frame(width: 28, height: 24)
                     .background(isShowingQuickPanel ? Color.white.opacity(0.18) : MacTheme.panel, in: Capsule())
             }
             .buttonStyle(.plain)
+            .frame(width: 44, height: 44)
             .accessibilityLabel(isShowingQuickPanel ? "关闭快捷面板" : "打开快捷面板")
         }
     }
 }
 
 private struct MacMiniClockView: View {
+    @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
 
     let currentTint: Color
@@ -101,11 +130,18 @@ private struct MacMiniClockView: View {
 
             MacMiniFlowProgressView(progress: engine.progress, tint: currentTint)
 
-            Text(engine.isRunning ? (engine.isPaused ? "已暂停" : "专注中") : "准备开始")
+            Text(timerStatusText)
                 .font(.caption)
                 .foregroundStyle(MacTheme.secondaryText)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var timerStatusText: String {
+        if let snapshot = store.activeTimer {
+            return snapshot.isPaused ? "已暂停" : "专注中"
+        }
+        return engine.isRunning ? (engine.isPaused ? "已暂停" : "专注中") : "准备开始"
     }
 
 }
@@ -164,6 +200,7 @@ private struct MacMiniControlsView: View {
     @EnvironmentObject private var engine: TimerEngine
 
     let currentTint: Color
+    let currentTintHex: String
 
     var body: some View {
         HStack(spacing: 12) {
@@ -185,9 +222,29 @@ private struct MacMiniControlsView: View {
 
             Button(primaryTitle, systemImage: primarySymbol, action: toggleTimer)
                 .labelStyle(.iconOnly)
-                .buttonStyle(MacIconButtonStyle(tint: currentTint, filled: true, size: 74))
+                .buttonStyle(MacIconButtonStyle(
+                    tint: currentTint,
+                    filled: true,
+                    foreground: Color(hex: TaskCategoryPreset.contrastTextHex(on: currentTintHex)),
+                    size: 74
+                ))
                 .accessibilityLabel(primaryTimerActionLabel)
                 .accessibilityInputLabels(timerActionInputLabels(primaryTimerActionInputCommand))
+
+            if engine.isRunning && engine.isCurrentTaskOpenEnded {
+                Button("完成当前待办", systemImage: "checkmark.seal.fill") {
+                    engine.finishCurrentTask()
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(MacIconButtonStyle(
+                    tint: currentTint,
+                    filled: true,
+                    foreground: Color(hex: TaskCategoryPreset.contrastTextHex(on: currentTintHex)),
+                    size: 52
+                ))
+                .accessibilityLabel("完成\(timerActionContext)待办")
+                .accessibilityInputLabels(timerActionInputLabels("完成"))
+            }
         }
     }
 
@@ -196,6 +253,9 @@ private struct MacMiniControlsView: View {
     }
 
     private var timerActionContext: String {
+        if let snapshot = store.activeTimer {
+            return "\(snapshot.taskTitle)，\(snapshot.category)分类"
+        }
         if let task = timerActionTask {
             return "\(task.title)，\(task.category)分类"
         }
@@ -227,7 +287,7 @@ private struct MacMiniControlsView: View {
     private func timerActionInputLabels(_ action: String) -> [Text] {
         var labels = [
             Text(action),
-            Text("\(action)\(engine.currentTaskTitle)")
+            Text("\(action)\(store.activeTimer?.taskTitle ?? engine.currentTaskTitle)")
         ]
         if let task = timerActionTask {
             labels.append(Text("\(action)\(task.title)"))
@@ -285,7 +345,7 @@ private struct MacMiniTaskPickerView: View {
                     } label: {
                         HStack(spacing: 10) {
                             Circle()
-                                .fill(Color(hex: task.accentHex))
+                                .fill(Color(hex: store.representativeAccentHex(for: task.category)))
                                 .frame(width: 8, height: 8)
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(task.title)
@@ -362,6 +422,8 @@ private struct MacMiniTaskPickerView: View {
 }
 
 private struct MacMiniTaskCategoryBadgeView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let task: FocusTask
 
     private var categoryPreset: TaskCategoryPreset? {
@@ -369,7 +431,7 @@ private struct MacMiniTaskCategoryBadgeView: View {
     }
 
     private var tint: Color {
-        Color(hex: categoryPreset?.accentHex ?? task.accentHex)
+        Color(hex: store.representativeAccentHex(for: task.category))
     }
 
     private var symbolName: String {
@@ -401,12 +463,14 @@ private struct MacMiniQuickPanelView: View {
     @EnvironmentObject private var notifications: MacNotificationService
 
     let currentTint: Color
+    let currentTintHex: String
     let openDetails: (MacDetailSection) -> Void
 
     private let quickFocusMinutes = [15, 25, 45]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 12) {
             Label("快捷操作", systemImage: "bolt.fill")
                 .font(.headline)
                 .foregroundStyle(MacTheme.primaryText)
@@ -417,7 +481,7 @@ private struct MacMiniQuickPanelView: View {
                         title: mode.title,
                         value: mode == engine.mode ? "当前" : "",
                         systemImage: mode.symbolName,
-                        tint: Color(hex: mode.tintHex),
+                        tintHex: mode.tintHex,
                         isSelected: mode == engine.mode,
                         accessibilityLabelText: modeAccessibilityLabel(for: mode),
                         accessibilityHintText: modeAccessibilityHint(for: mode),
@@ -441,7 +505,11 @@ private struct MacMiniQuickPanelView: View {
                         store.settings.focusMinutes = minute
                         engine.syncIdleDuration()
                     }
-                    .buttonStyle(MacMiniPillButtonStyle(isSelected: store.settings.focusMinutes == minute, tint: currentTint))
+                    .buttonStyle(MacMiniPillButtonStyle(
+                        isSelected: store.settings.focusMinutes == minute,
+                        tint: currentTint,
+                        foreground: Color(hex: TaskCategoryPreset.contrastTextHex(on: currentTintHex))
+                    ))
                     .disabled(engine.isRunning)
                     .accessibilityLabel(focusDurationAccessibilityLabel(for: minute))
                     .accessibilityHint(focusDurationAccessibilityHint(for: minute))
@@ -457,7 +525,7 @@ private struct MacMiniQuickPanelView: View {
                     title: "铃声",
                     value: store.settings.completionSound.title,
                     systemImage: "bell.and.waves.left.and.right.fill",
-                    tint: .orange,
+                    tintHex: "#FF9500",
                     isSelected: false,
                     accessibilityLabelText: "切换到点铃声，当前\(store.settings.completionSound.title)",
                     accessibilityHintText: "切换番茄钟结束时播放的提示音",
@@ -474,7 +542,7 @@ private struct MacMiniQuickPanelView: View {
                     title: "试听",
                     value: premium.isProUnlocked ? "" : "Pro",
                     systemImage: "speaker.wave.2.fill",
-                    tint: .cyan,
+                    tintHex: "#00C7FF",
                     isSelected: false,
                     accessibilityLabelText: "试听\(store.settings.completionSound.title)到点铃声",
                     accessibilityHintText: premium.isProUnlocked || !store.settings.completionSound.isPro ? "播放当前到点提示音" : "当前 Pro 音色未解锁，暂不可试听",
@@ -499,7 +567,7 @@ private struct MacMiniQuickPanelView: View {
                 title: "日程",
                 value: "",
                 systemImage: "calendar",
-                tint: .blue,
+                tintHex: "#54A0FF",
                 isSelected: false,
                 accessibilityLabelText: "打开日程详情",
                 accessibilityHintText: "打开详细窗口并切换到日程",
@@ -511,7 +579,7 @@ private struct MacMiniQuickPanelView: View {
                 title: "统计",
                 value: "",
                 systemImage: "chart.xyaxis.line",
-                tint: .mint,
+                tintHex: "#3DE8C5",
                 isSelected: false,
                 accessibilityLabelText: "打开统计详情",
                 accessibilityHintText: "打开详细窗口并切换到统计",
@@ -523,7 +591,7 @@ private struct MacMiniQuickPanelView: View {
                 title: "设置",
                 value: "更多",
                 systemImage: "slider.horizontal.3",
-                tint: .purple,
+                tintHex: "#A78BFA",
                 isSelected: false,
                 accessibilityLabelText: "打开设置详情",
                 accessibilityHintText: "打开详细窗口并切换到设置",
@@ -533,7 +601,8 @@ private struct MacMiniQuickPanelView: View {
             }
         }
         .padding(14)
-        .frame(width: 210)
+        }
+        .frame(width: 210, maxHeight: 410)
         .background(Color(red: 0.10, green: 0.14, blue: 0.20).opacity(0.98), in: RoundedRectangle(cornerRadius: 8))
         .overlay {
             RoundedRectangle(cornerRadius: 8)
@@ -607,7 +676,7 @@ private struct MacMiniQuickButton: View {
     let title: String
     let value: String
     let systemImage: String
-    let tint: Color
+    let tintHex: String
     let isSelected: Bool
     var accessibilityLabelText: String? = nil
     var accessibilityHintText: String? = nil
@@ -615,25 +684,34 @@ private struct MacMiniQuickButton: View {
     var accessibilityTraits: AccessibilityTraits = []
     let action: () -> Void
 
+    private var tint: Color {
+        Color(hex: tintHex)
+    }
+
+    private var selectedText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
+    }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 9) {
                 Image(systemName: systemImage)
                     .font(.subheadline.bold())
-                    .foregroundStyle(tint)
+                    .foregroundStyle(isSelected ? selectedText : tint)
                     .frame(width: 22)
                 Text(title)
                     .font(.subheadline.bold())
-                    .foregroundStyle(MacTheme.primaryText)
+                    .foregroundStyle(isSelected ? selectedText : MacTheme.primaryText)
                 Spacer()
                 if !value.isEmpty {
                     Text(value)
                         .font(.caption.bold())
-                        .foregroundStyle(isSelected ? Color.black.opacity(0.78) : MacTheme.secondaryText)
+                        .foregroundStyle(isSelected ? selectedText.opacity(0.82) : MacTheme.secondaryText)
                 }
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 9)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .background(isSelected ? tint : Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -647,13 +725,14 @@ private struct MacMiniQuickButton: View {
 private struct MacMiniPillButtonStyle: ButtonStyle {
     let isSelected: Bool
     let tint: Color
+    let foreground: Color
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.caption.bold())
             .monospacedDigit()
-            .foregroundStyle(isSelected ? Color.black.opacity(0.82) : MacTheme.primaryText)
-            .frame(maxWidth: .infinity)
+            .foregroundStyle(isSelected ? foreground : MacTheme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.vertical, 7)
             .background(isSelected ? tint : Color.white.opacity(configuration.isPressed ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 8))
     }
@@ -662,12 +741,13 @@ private struct MacMiniPillButtonStyle: ButtonStyle {
 private struct MacIconButtonStyle: ButtonStyle {
     let tint: Color
     let filled: Bool
+    var foreground: Color? = nil
     var size: CGFloat = 52
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: size > 60 ? 24 : 16, weight: .semibold))
-            .foregroundStyle(filled ? Color.black.opacity(0.86) : tint)
+            .foregroundStyle(filled ? (foreground ?? MacTheme.primaryText) : tint)
             .frame(width: size, height: size)
             .background(
                 filled ? tint : tint.opacity(configuration.isPressed ? 0.20 : 0.10),

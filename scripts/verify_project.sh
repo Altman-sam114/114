@@ -67,6 +67,8 @@ expected_env = {
   "PREPARE_METADATA_OUTCOME" => "${{ steps.prepare_metadata.outcome }}",
   "BOOTSTRAP_OUTCOME" => "${{ steps.bootstrap_result_package.outcome }}",
   "FINALIZER_OUTCOME" => "${{ steps.ensure_result_package.outcome }}",
+  "RECOVERY_OUTCOME" => "${{ steps.recover_result_package.outcome }}",
+  "CREATE_MANIFEST_OUTCOME" => "${{ steps.create_manifest.outcome }}",
   "SELECT_XCODE_OUTCOME" => "${{ steps.select_xcode.outcome }}",
   "STATIC_OUTCOME" => "${{ steps.static_checks.outcome }}",
   "PROJECT_VERIFY_OUTCOME" => "${{ steps.project_verification.outcome }}",
@@ -77,7 +79,7 @@ expected_env.each do |name, expression|
   raise "Final CI status missing #{name} outcome mapping" unless final_step.include?("          #{name}: #{expression}")
 end
 
-raise "Agent C artifact upload must keep if: always()" unless upload_step.match?(/^        if: always\(\)$/)
+raise "Agent C artifact upload must run after finalized artifact identity" unless upload_step.match?(/^        if: always\(\) && steps\.final_artifact\.outcome == 'success'$/)
 raise "Agent C artifact upload must keep actions\/upload-artifact@v6" unless upload_step.match?(/^        uses: actions\/upload-artifact@v6$/)
 raise "Agent C artifact upload must keep the ci-results root path" unless upload_step.scan(/^          path: ci-results$/).length == 1
 raise "Failure summary must keep exactly one artifact file writer" unless source.scan('(result_dir / "ci-failure-summary.md").write_text').length == 1
@@ -109,6 +111,8 @@ post_prepare = [
   step.call("Build ChronoFocus iOS")
 ]
 manifest = step.call("Create CI manifest and summaries")
+recovery = step.call("Recover fallback result package")
+final_artifact = step.call("Finalize uploaded artifact identity")
 upload = step.call("Upload Agent C result package")
 final = step.call("Final CI status")
 
@@ -121,15 +125,31 @@ post_prepare.each do |body|
 end
 raise "Manifest stage outcome wiring missing" unless manifest.match?(/^        id: create_manifest$/) && manifest.match?(/^        if: always\(\)$/) && manifest.match?(/^        continue-on-error: true$/) && manifest.match?(/^[[:space:]]+stage_outcome_path\.write_text\(/) && manifest.include?("failedStages")
 raise "Minimal result package finalizer wiring missing" unless package.match?(/^        if: always\(\)$/) && package.match?(/^        continue-on-error: true$/) && package.include?("ci-stage-outcomes.json") && package.include?("ci-artifact-index.json")
-raise "Minimal result package fallback selection missing" unless package.include?("SCAFFOLD_OUTCOME: ${{ steps.bootstrap_result_package.outcome }}") && package.include?("if [[ \"${SCAFFOLD_OUTCOME}\" != \"success\" || -z \"${ARTIFACT_NAME:-}\" ]]") && package.include?("export ARTIFACT_NAME=\"$FALLBACK_ARTIFACT_NAME\"") && package.include?("fallbackArtifactUsed") && package.include?("non_success = [name for name, value in outcomes if value != \"success\"]") && package.include?("overall = \"success\" if not non_success else \"failure\"")
+raise "Finalizer recovery wiring missing" unless recovery.match?(/^        id: recover_result_package$/) && recovery.match?(/^        if: always\(\) && steps\.ensure_result_package\.outcome != 'success'$/) && recovery.include?("scripts/recover_ci_result_package.py") && recovery.include?("FALLBACK_ARTIFACT_NAME")
+raise "Finalized artifact identity binding missing" unless final_artifact.match?(/^        id: final_artifact$/) && final_artifact.match?(/^        if: always\(\) && \(steps\.ensure_result_package\.outcome == 'success' \|\| steps\.recover_result_package\.outcome == 'success'\)$/) && final_artifact.include?("ci-run-context.txt") && final_artifact.include?("ci-artifact-manifest.json") && final_artifact.include?("ci-artifact-index.json") && final_artifact.include?("artifactName") && final_artifact.include?("expected_identity") && final_artifact.include?("Finalized package field") && final_artifact.include?("stage.get(\"stages\")")
+raise "Minimal result package fallback selection missing" unless package.include?("SCAFFOLD_OUTCOME") && package.include?("CREATE_MANIFEST_OUTCOME") && package.include?("package_outcomes") && package.include?("failedPackageStages") && package.include?("execution_stage_names") && package.include?("ordered_non_success") && package.include?("overall = \"success\" if not all_non_success else \"failure\"") && package.include?("ensureResultPackageOutcome") && package.include?("recoveryOutcome")
 raise "Workflow dispatch failure input missing" unless source.include?("failure_mode:") && source.include?("prepareMetadata") && source.include?("projectVerification")
-raise "Artifact upload contract missing" unless upload.match?(/^        id: upload_artifact$/) && upload.match?(/^        if: always\(\)$/) && upload.match?(/^        uses: actions\/upload-artifact@v6$/) && upload.scan(/^          path: ci-results$/).length == 1 && upload.match?(/^          if-no-files-found: error$/)
-raise "Fallback artifact name expression missing" unless upload.include?("steps.ensure_result_package.outputs.artifact_name || env.FALLBACK_ARTIFACT_NAME")
+raise "Artifact upload contract missing" unless upload.match?(/^        id: upload_artifact$/) && upload.match?(/^        if: always\(\) && steps\.final_artifact\.outcome == 'success'$/) && upload.match?(/^        uses: actions\/upload-artifact@v6$/) && upload.scan(/^          path: ci-results$/).length == 1 && upload.match?(/^          if-no-files-found: error$/)
+raise "Fallback artifact name expression missing" unless final_artifact.include?("RECOVERY_ARTIFACT_NAME") && final_artifact.include?("ENSURE_ARTIFACT_NAME") && upload.include?("steps.final_artifact.outputs.artifact_name")
 raise "Workflow must not introduce encryption" if source.match?(/encrypt|password|gpg|openssl|zip\s+-P/i)
 raise "Artifact upload must precede final status" unless source.index("Upload Agent C result package") < source.index("Final CI status")
-raise "Final status must evaluate all seven stage outcomes and package outcomes" unless final.include?("CHECKOUT_OUTCOME") && final.include?("PREPARE_METADATA_OUTCOME") && final.include?("SELECT_XCODE_OUTCOME") && final.include?("STATIC_OUTCOME") && final.include?("PROJECT_VERIFY_OUTCOME") && final.include?("BUILD_OUTCOME") && final.include?("IOS_BUILD_OUTCOME") && final.include?("BOOTSTRAP_OUTCOME") && final.include?("FINALIZER_OUTCOME") && final.include?("CREATE_MANIFEST_OUTCOME") && final.include?("UPLOAD_OUTCOME")
+raise "Finalized artifact identity must precede upload" unless source.index("Finalize uploaded artifact identity") < source.index("Upload Agent C result package")
+raise "Final status must evaluate all seven stage outcomes and package outcomes" unless final.include?("CHECKOUT_OUTCOME") && final.include?("PREPARE_METADATA_OUTCOME") && final.include?("SELECT_XCODE_OUTCOME") && final.include?("STATIC_OUTCOME") && final.include?("PROJECT_VERIFY_OUTCOME") && final.include?("BUILD_OUTCOME") && final.include?("IOS_BUILD_OUTCOME") && final.include?("BOOTSTRAP_OUTCOME") && final.include?("FINALIZER_OUTCOME") && final.include?("RECOVERY_OUTCOME") && final.include?("CREATE_MANIFEST_OUTCOME") && final.include?("UPLOAD_OUTCOME")
 raise "Final status summary tee missing" unless final.include?('tee -a "$GITHUB_STEP_SUMMARY" < ci-results/ci-failure-summary.md')
-raise "Stage outcome writer and fallback wiring missing" unless source.scan("stage_outcome_path.write_text").length == 1 && package.include?("write_json_if_incomplete(") && package.include?("stage_path")
+raise "Stage outcome writer and fallback wiring missing" unless source.scan("stage_outcome_path.write_text").length == 1 && package.include?("write_json_if_incomplete(") && package.include?("stage_path") && package.include?("index_created_at") && package.include?("actual_entries == entries") && package.include?("missing_required_paths") && package.include?("if missing_required_paths:") && !package.include?("overall == \"success\" and missing_required_paths") && package.include?("paths.append(\"ci-results/prepare-metadata.log\")") && !package.include?("required.add(\"ci-results/prepare-metadata.log\")") && package.include?("projectSpecificReports") && package.include?("f\"- Checkout: `{dict(outcomes)['checkout']}`\")" ) && package.include?("f\"- Prepare result metadata: `{dict(outcomes)['prepareMetadata']}`\")" ) && package.include?("f\"- Select Xcode: `{dict(outcomes)['selectXcode']}`\")" )
+raise "Final artifact missing-required guard must cover every outcome" unless final_artifact.include?("if missing_required != 0:") && !final_artifact.include?("if value.get(\"overallOutcome\") == \"success\" and missing_required != 0:")
+recovery_source = File.read("scripts/recover_ci_result_package.py")
+raise "Recovery required artifact guard missing" unless recovery_source.include?("Recovered fallback package is missing required paths") && recovery_source.include?("fallback_name = f\"chronofocus-ci-")
+required_entry_contract = [
+  "entry.get(\"required\") is True",
+  "entry.get(\"exists\") is True",
+  "entry.get(\"kind\") == \"file\"",
+  "isinstance(entry.get(\"byteCount\"), int)",
+  "entry[\"byteCount\"] > 0",
+  "path.is_symlink()"
+]
+raise "Recovery required artifact shape guard missing" unless required_entry_contract.all? { |marker| recovery_source.include?(marker) }
+raise "Fallback artifact slug normalization missing" unless source.include?("branch_slug") && source.include?("fallback_artifact_name") && source.include?("branch_slug}-{commit_sha}")
 
 puts "CI failure artifact resilience contracts verified."
 RUBY
@@ -189,6 +209,7 @@ required_files=(
   "ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusMac.xcscheme"
   "scripts/test_mac_core.swift"
   "scripts/render_mac_snapshots.swift"
+  "scripts/recover_ci_result_package.py"
   "scripts/validate_ci_artifact.rb"
   "scripts/resolve_ios_simulator_destination.rb"
 )
@@ -334,7 +355,8 @@ grep -q "当前筛选" ChronoFocus/Views/TimerView.swift
 grep -q "clearTaskCategoryFilter" ChronoFocus/Views/TimerView.swift
 grep -q "TimerTaskCategoryFilterBar" ChronoFocus/Views/TimerView.swift
 grep -q "TimerTaskCategoryBadge" ChronoFocus/Views/TimerView.swift
-grep -q "TaskCategoryPreset.prioritizedFilterOptions(categories: categories)" ChronoFocus/Views/TimerView.swift
+grep -q "TaskCategoryPreset.prioritizedFilterOptions(" ChronoFocus/Views/TimerView.swift
+grep -q "accentProvider:" ChronoFocus/Views/TimerView.swift
 ruby <<'RUBY'
 def source_slice(path, earlier, later, message)
   source = File.read(path)
@@ -554,7 +576,7 @@ mac_calendar_quick_add_source = source_slice(
 )
 raise "Mac calendar quick add must preserve hour and minute" unless mac_calendar_quick_add_source.include?("calendar.dateComponents([.hour, .minute], from: dueDate)") && mac_calendar_quick_add_source.include?("calendar.dateComponents([.year, .month, .day], from: date)") && mac_calendar_quick_add_source.include?("dateComponents.hour = timeComponents.hour") && mac_calendar_quick_add_source.include?("dateComponents.minute = timeComponents.minute")
 raise "Mac calendar quick add must update due date and focus title" unless mac_calendar_quick_add_source.include?("dueDate = calendar.date(from: dateComponents) ?? date") && mac_calendar_quick_add_source.include?("isTaskTitleFocused = true")
-raise "Mac calendar quick add must preserve the selected category context" unless mac_calendar_quick_add_source.include?("if let selectedCategory") && mac_calendar_quick_add_source.include?("category = selectedCategory") && mac_calendar_quick_add_source.include?("TaskCategoryPreset.matching(selectedCategory)?.accentHex")
+raise "Mac calendar quick add must preserve the selected category context" unless mac_calendar_quick_add_source.include?("if let selectedCategory") && mac_calendar_quick_add_source.include?("category = selectedCategory") && mac_calendar_quick_add_source.include?("store.representativeAccentHex(for: selectedCategory")
 mac_calendar_panel_source = source_slice(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "private struct MacCalendarPanelView",
@@ -677,7 +699,7 @@ raise "PomodoroPlanRow source missing" unless pomodoro_plan_row
 raise "iOS plan start accessibility label missing task, time, round, and category" unless pomodoro_plan_row.include?(".accessibilityLabel(\"开始\\(item.taskTitle)计划番茄钟，\\(item.timeRangeText)，第 \\(item.roundNumber) 轮，\\(item.category)分类\")")
 raise "iOS plan start Voice Control labels missing task context" unless pomodoro_plan_row.include?("Text(\"开始\\(item.taskTitle)\")") && pomodoro_plan_row.include?("Text(\"\\(item.taskTitle)第 \\(item.roundNumber) 轮\")") && pomodoro_plan_row.include?("Text(\"\\(item.category)分类开始\")")
 raise "iOS plan category badge preset missing" unless pomodoro_plan_row.include?("private var categoryPreset: TaskCategoryPreset?") && pomodoro_plan_row.include?("TaskCategoryPreset.matching(item.category)")
-raise "iOS plan category badge tint fallback missing" unless pomodoro_plan_row.include?("private var categoryTint: Color") && pomodoro_plan_row.include?("categoryPreset?.accentHex ?? item.accentHex")
+raise "iOS plan category badge tint fallback missing" unless pomodoro_plan_row.include?("private var categoryTint: Color") && pomodoro_plan_row.include?("store.representativeAccentHex(for: item.category)")
 raise "iOS plan category badge symbol fallback missing" unless pomodoro_plan_row.include?("private var categorySymbolName: String") && pomodoro_plan_row.include?("categoryPreset?.symbolName ?? \"tag.fill\"")
 raise "iOS plan category badge visible label missing" unless pomodoro_plan_row.include?("Label(item.category, systemImage: categorySymbolName)")
 raise "iOS plan category badge accessibility missing" unless pomodoro_plan_row.include?(".accessibilityLabel(\"\\(item.category)分类\")") && pomodoro_plan_row.include?(".accessibilityInputLabels([Text(item.category), Text(\"\\(item.category)分类\")])")
@@ -966,7 +988,7 @@ raise "Mac plan start Voice Control labels missing task context" unless mac_plan
 puts "Plan start action accessibility contracts verified."
 raise "Mac plan category badge view missing" unless mac_plan_source.include?("MacPlanCategoryBadgeView(item: item)")
 raise "Mac plan category badge preset missing" unless mac_plan_source.include?("private var categoryPreset: TaskCategoryPreset?") && mac_plan_source.include?("TaskCategoryPreset.matching(item.category)")
-raise "Mac plan category badge tint fallback missing" unless mac_plan_source.include?("private var categoryTint: Color") && mac_plan_source.include?("categoryPreset?.accentHex ?? item.accentHex")
+raise "Mac plan category badge tint fallback missing" unless mac_plan_source.include?("private var categoryTint: Color") && mac_plan_source.include?("store.representativeAccentHex(for: item.category)")
 raise "Mac plan category badge symbol fallback missing" unless mac_plan_source.include?("private var categorySymbolName: String") && mac_plan_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"")
 raise "Mac plan category badge visible label missing" unless mac_plan_source.include?("Label(item.category, systemImage: categorySymbolName)")
 raise "Mac plan category badge accessibility missing" unless mac_plan_source.include?(".accessibilityLabel(\"\\(item.category)分类\")") && mac_plan_source.include?(".accessibilityInputLabels([Text(item.category), Text(\"\\(item.category)分类\")])")
@@ -1009,7 +1031,7 @@ task_editor_category_source = source_slice(
 )
 raise "Task editor category display helper missing fallback" unless task_editor_category_source.include?("private var categoryDisplayName: String") && task_editor_category_source.include?("trimmedCategory.isEmpty ? \"未分类\" : trimmedCategory")
 raise "Task editor category preset helper missing" unless task_editor_category_source.include?("private var categoryPreset: TaskCategoryPreset?") && task_editor_category_source.include?("TaskCategoryPreset.matching(categoryDisplayName)")
-raise "Task editor category tint helper missing" unless task_editor_category_source.include?("private var categoryTint: Color") && task_editor_category_source.include?("categoryPreset?.accentHex ?? accentHex")
+raise "Task editor category tint helper missing" unless task_editor_category_source.include?("private var categoryTint: Color") && task_editor_category_source.include?("store.representativeAccentHex(for: categoryDisplayName, preferred: accentHex)")
 raise "Task editor category symbol helper missing" unless task_editor_category_source.include?("private var categorySymbolName: String") && task_editor_category_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"")
 raise "Task editor category input accessibility label missing current category" unless task_editor_category_source.include?("private var categoryInputAccessibilityLabel: String") && task_editor_category_source.include?("\"待办分类，当前\\(categoryDisplayName)分类\"")
 raise "Task editor category input Voice Control labels missing current category" unless task_editor_category_source.include?("private var categoryInputLabels: [Text]") && task_editor_category_source.include?("Text(\"待办分类\")") && task_editor_category_source.include?("Text(\"\\(categoryDisplayName)分类\")")
@@ -1035,7 +1057,7 @@ mac_quick_add_category_context_source = source_slice(
   "Mac quick add category input source missing"
 )
 raise "Mac quick add category preset helper missing" unless mac_quick_add_category_context_source.include?("private var quickAddCategoryPreset: TaskCategoryPreset?") && mac_quick_add_category_context_source.include?("TaskCategoryPreset.matching(quickAddCategoryName)")
-raise "Mac quick add category tint helper missing" unless mac_quick_add_category_context_source.include?("private var quickAddCategoryTint: Color") && mac_quick_add_category_context_source.include?("quickAddCategoryPreset?.accentHex ?? accentHex")
+raise "Mac quick add category tint helper missing" unless mac_quick_add_category_context_source.include?("private var quickAddCategoryTint: Color") && mac_quick_add_category_context_source.include?("store.representativeAccentHex(for: quickAddCategoryName, preferred: accentHex)")
 raise "Mac quick add category symbol helper missing" unless mac_quick_add_category_context_source.include?("private var quickAddCategorySymbolName: String") && mac_quick_add_category_context_source.include?("quickAddCategoryPreset?.symbolName ?? \"tag.fill\"")
 raise "Mac quick add prefilled helper missing" unless mac_quick_add_category_context_source.include?("private var isQuickAddCategoryPrefilled: Bool") && mac_quick_add_category_context_source.include?("selectedCategory?.trimmingCharacters")
 raise "Mac quick add category input accessibility label missing current category" unless mac_quick_add_category_context_source.include?("private var quickAddCategoryInputAccessibilityLabel: String") && mac_quick_add_category_context_source.include?("\"快速新增分类，当前\\(quickAddCategoryName)分类\"")
@@ -1045,6 +1067,38 @@ raise "Mac quick add category context view call missing" unless mac_quick_add_ca
 raise "Mac quick add category context visible labels missing" unless mac_quick_add_category_context_source.include?("已预填「\\(category)」分类") && mac_quick_add_category_context_source.include?("当前分类：\\(category)")
 raise "Mac quick add category context accessibility missing" unless mac_quick_add_category_context_source.include?("快速新增已预填\\(category)分类") && mac_quick_add_category_context_source.include?("快速新增当前分类\\(category)") && mac_quick_add_category_context_source.include?("Text(\"\\(category)分类\")") && mac_quick_add_category_context_source.include?("Text(\"当前分类\\(category)\")")
 puts "Category input context contracts verified."
+
+category_appearance_model_source = File.read("ChronoFocus/Models/AppModels.swift")
+category_appearance_store_source = File.read("ChronoFocus/Services/FocusStore.swift")
+raise "Category appearance fallback missing" unless category_appearance_model_source.include?("static let fallbackAccentHex = \"#3DE8C5\"") && category_appearance_model_source.include?("static func accentHex(for category: String, preferred: String? = nil)") && category_appearance_model_source.include?("static func contrastTextHex(on value: String?) -> String")
+raise "Category filter option representative color storage missing" unless category_appearance_model_source.include?("let accentHex: String") && category_appearance_model_source.include?("accentHex: accentProvider(category)")
+raise "FocusStore representative category color query missing" unless category_appearance_store_source.include?("func representativeAccentHex(for category: String, preferred: String? = nil)") && category_appearance_store_source.include?("TaskCategoryPreset.matching(category)") && category_appearance_store_source.include?("for task in tasks where Self.categoryComparisonKey(for: task.category) == categoryKey") && category_appearance_store_source.include?("TaskCategoryPreset.usableAccentHex(task.accentHex)")
+raise "Category breakdown must reuse representative color" unless category_appearance_store_source.include?("let accent = representativeAccentHex(for: category)")
+[
+  File.read("ChronoFocus/Views/ScheduleView.swift"),
+  File.read("ChronoFocus/Views/TimerView.swift"),
+  File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift"),
+  File.read("ChronoFocusMac/Views/MacTimerDetailView.swift"),
+  File.read("ChronoFocusMac/Views/MacMiniTimerView.swift"),
+  File.read("ChronoFocus/Views/AnalyticsView.swift"),
+  File.read("ChronoFocusMac/Views/MacAnalyticsDetailView.swift")
+].each do |source|
+  raise "Category appearance representative color wiring missing" unless source.include?("store.representativeAccentHex(for:")
+end
+raise "iOS category filter representative color provider missing" unless File.read("ChronoFocus/Views/ScheduleView.swift").include?("accentProvider: { category in store.representativeAccentHex(for: category) }") && File.read("ChronoFocus/Views/TimerView.swift").include?("accentProvider: { category in store.representativeAccentHex(for: category) }")
+raise "Mac category filter representative color provider missing" unless File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift").include?("accentProvider: { category in store.representativeAccentHex(for: category) }")
+raise "Running timer UI must use the persisted snapshot accent" unless File.read("ChronoFocus/Views/TimerView.swift").include?("if let snapshot = store.activeTimer") && File.read("ChronoFocus/Views/TimerView.swift").include?("Color(hex: snapshot.tintHex)") && File.read("ChronoFocusMac/Views/MacTimerDetailView.swift").include?("if let snapshot = store.activeTimer") && File.read("ChronoFocusMac/Views/MacMiniTimerView.swift").include?("if let snapshot = store.activeTimer")
+[
+  File.read("ChronoFocus/Views/ScheduleView.swift"),
+  File.read("ChronoFocus/Views/TimerView.swift"),
+  File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift")
+].each do |source|
+  raise "All category filter chip must use the shared fallback" unless source.include?("tintHex: TaskCategoryPreset.fallbackAccentHex")
+end
+puts "Category appearance contracts verified."
+
+raise "Category breakdown normalization missing" unless category_appearance_store_source.include?("displayNamesByKey") && category_appearance_store_source.include?("sessionsByKey") && category_appearance_store_source.include?("categoryOrder") && category_appearance_store_source.include?("Self.normalizedCategory(session.category)")
+puts "Category breakdown normalization contracts verified."
 
 ios_existing_category_source = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
@@ -1059,7 +1113,7 @@ mac_existing_category_source = source_slice(
   "Mac existing category source missing"
 )
 raise "iOS existing categories must come from store.taskCategories" unless ios_existing_category_source.include?("return store.taskCategories.compactMap")
-raise "Mac existing categories must come from store.taskCategories" unless mac_existing_category_source.include?("macExistingCategoryOptions(categories: store.taskCategories, tasks: store.tasks)")
+raise "Mac existing categories must come from store.taskCategories" unless mac_existing_category_source.include?("macExistingCategoryOptions(") && mac_existing_category_source.include?("categories: store.taskCategories") && mac_existing_category_source.include?("tasks: store.tasks") && mac_existing_category_source.include?("representativeAccentProvider: { store.representativeAccentHex(for: $0) }")
 raise "iOS existing categories must preserve free text and preset controls" unless ios_existing_category_source.include?("TextField(\"分类\", text: $category)") && ios_existing_category_source.include?("TaskCategoryPresetPicker(category: $category, accentHex: $accentHex)")
 raise "Mac existing categories must preserve free text and preset controls" unless mac_existing_category_source.include?("TextField(\"分类\", text: $category)") && mac_existing_category_source.include?("MacCategoryPresetPicker(category: $category, accentHex: $accentHex)")
 preset_source = source_slice("ChronoFocus/Models/AppModels.swift", "struct TaskCategoryPreset", "struct FocusTask", "Task category preset source missing")
@@ -1071,9 +1125,9 @@ raise "iOS category comparison must use POSIX folding" unless ios_existing_categ
 raise "Mac category comparison must use POSIX folding" unless mac_existing_category_source.include?(folding_options) && mac_existing_category_source.include?("Locale(identifier: \"en_US_POSIX\")")
 raise "iOS existing categories must preserve stable first occurrence order" unless ios_existing_category_source.include?("return store.taskCategories.compactMap") && ios_existing_category_source.include?("seenKeys.insert(comparisonKey).inserted")
 raise "Mac existing categories must preserve stable first occurrence order" unless mac_existing_category_source.include?("for category in categories") && mac_existing_category_source.include?("seenKeys.insert(comparisonKey).inserted") && mac_existing_category_source.include?("options.append(")
-raise "iOS representative color must use the first matching store task" unless ios_existing_category_source.include?("store.tasks.first { task in") && ios_existing_category_source.include?("accentHex = matchingTask.accentHex")
-raise "Mac representative color must use the first matching task" unless mac_existing_category_source.include?("let representativeAccentHex = tasks.first {") && mac_existing_category_source.include?("accentHex = representativeAccentHex")
-raise "iOS existing category selection must only update form drafts" unless ios_existing_category_source.include?("category = option.name") && ios_existing_category_source.include?("if let matchingTask = firstTask(matching: option)")
+raise "iOS representative color must use the shared store query" unless ios_existing_category_source.include?("private func existingCategoryTint(for option: ExistingCategoryOption)") && ios_existing_category_source.include?("store.representativeAccentHex(for: option.name)")
+raise "Mac representative color must use the shared provider" unless mac_existing_category_source.include?("representativeAccentProvider: { store.representativeAccentHex(for: $0) }") && mac_existing_category_source.include?("representativeAccentHex: representativeAccentHex")
+raise "iOS existing category selection must only update form drafts" unless ios_existing_category_source.include?("category = option.name") && ios_existing_category_source.include?("accentHex = store.representativeAccentHex(for: option.name)")
 raise "Mac existing category selection must only update form drafts" unless mac_existing_category_source.include?("category = option.displayName") && mac_existing_category_source.include?("if let representativeAccentHex = option.representativeAccentHex")
 ios_select_source = segment_slice(ios_existing_category_source, "private func selectExistingCategory", "private func save()", "iOS existing category selection source missing")
 mac_select_source = segment_slice(mac_existing_category_source, "private func selectExistingCategory", "private func prepareQuickAdd(at date:", "Mac existing category selection source missing")
@@ -1125,7 +1179,7 @@ raise "Mac existing category search threshold must be six" unless File.read("Chr
 ios_existing_category_search_key_source = segment_slice(
   ios_existing_category_source,
   "private func existingCategorySearchKey",
-  "private func firstTask",
+  "private func existingCategoryTint",
   "iOS existing category search key source missing"
 )
 mac_existing_category_search_key_source = segment_slice(
@@ -1381,6 +1435,9 @@ raise "Mac mini focus duration helpers missing" unless mac_mini_quick_panel_sour
 raise "Mac mini sound quick button accessibility missing" unless mac_mini_quick_panel_source.include?("accessibilityLabelText: \"切换到点铃声，当前\\(store.settings.completionSound.title)\"") && mac_mini_quick_panel_source.include?("Text(\"切换铃声\")") && mac_mini_quick_panel_source.include?("Text(\"到点铃声\")")
 raise "Mac mini preview quick button accessibility missing" unless mac_mini_quick_panel_source.include?("accessibilityLabelText: \"试听\\(store.settings.completionSound.title)到点铃声\"") && mac_mini_quick_panel_source.include?("当前 Pro 音色未解锁，暂不可试听") && mac_mini_quick_panel_source.include?("Text(\"试听铃声\")")
 raise "Mac mini detail quick button accessibility missing" unless mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开日程详情\"") && mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开统计详情\"") && mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开设置详情\"") && mac_mini_quick_panel_source.include?("Text(\"打开日程详情\")") && mac_mini_quick_panel_source.include?("Text(\"打开统计详情\")") && mac_mini_quick_panel_source.include?("Text(\"打开设置详情\")")
+mac_mini_root_source = File.read("ChronoFocusMac/Views/MacMiniTimerView.swift")
+raise "Mac mini quick panel snapshot state must be deterministic" unless mac_mini_root_source.include?("snapshotShowsQuickPanel") && mac_mini_root_source.include?("shouldShowQuickPanel")
+raise "Mac mini quick panel must scroll within the popover" unless mac_mini_root_source.include?("ScrollView(.vertical, showsIndicators: false)") && mac_mini_root_source.include?(".frame(width: 210, maxHeight: 410)")
 puts "Mac mini quick panel accessibility contracts verified."
 
 [
@@ -1464,13 +1521,13 @@ puts "Analytics category share percent readability contracts verified."
 
 ios_analytics_source = File.read("ChronoFocus/Views/AnalyticsView.swift")
 raise "iOS analytics recent session category badge missing" unless ios_analytics_source.include?("RecentSessionCategoryBadge(category: session.category)") && ios_analytics_source.include?("private struct RecentSessionCategoryBadge")
-raise "iOS analytics recent session category preset missing" unless ios_analytics_source.include?("TaskCategoryPreset.matching(category)") && ios_analytics_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"") && ios_analytics_source.include?("Color(hex: categoryPreset?.accentHex ?? \"#7C8CF8\")")
+raise "iOS analytics recent session category preset missing" unless ios_analytics_source.include?("TaskCategoryPreset.matching(category)") && ios_analytics_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"") && ios_analytics_source.include?("store.representativeAccentHex(for: category)")
 raise "iOS analytics recent session accessibility label missing" unless ios_analytics_source.include?("private func recentSessionAccessibilityLabel(for session: FocusSession) -> String") && ios_analytics_source.include?("return \"\\(session.taskTitle)，\\(session.category)分类，\\(session.mode.title)，\\(session.startedAt.scheduleTimeText)，\\(session.actualSeconds.hourMinuteText)，\\(completionText)\"") && ios_analytics_source.include?(".accessibilityLabel(recentSessionAccessibilityLabel(for: session))")
 raise "iOS analytics recent session Voice Control labels missing" unless ios_analytics_source.include?(".accessibilityInputLabels([") && ios_analytics_source.include?("Text(session.category)") && ios_analytics_source.include?("Text(\"\\(session.category)分类\")") && ios_analytics_source.include?("Text(\"\\(session.category)分类记录\")")
 raise "iOS analytics recent session category badge accessibility missing" unless ios_analytics_source.include?(".accessibilityLabel(\"\\(category)分类\")") && ios_analytics_source.include?(".accessibilityInputLabels([Text(category), Text(\"\\(category)分类\")])")
 
 raise "iOS analytics plan review category badge missing" unless ios_analytics_source.include?("AnalyticsPlanReviewCategoryBadge(item: item)") && ios_analytics_source.include?("private struct AnalyticsPlanReviewCategoryBadge")
-raise "iOS analytics plan review category preset missing" unless ios_analytics_source.include?("TaskCategoryPreset.matching(item.category)") && ios_analytics_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"") && ios_analytics_source.include?("Color(hex: categoryPreset?.accentHex ?? item.accentHex)")
+raise "iOS analytics plan review category preset missing" unless ios_analytics_source.include?("TaskCategoryPreset.matching(item.category)") && ios_analytics_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"") && ios_analytics_source.include?("store.representativeAccentHex(for: item.category)")
 raise "iOS analytics plan review category badge visible label missing" unless ios_analytics_source.include?("Label(item.category, systemImage: categorySymbolName)")
 raise "iOS analytics plan review accessibility label missing" unless ios_analytics_source.include?("private func planReviewAccessibilityLabel(for item: PomodoroPlanItem) -> String") && ios_analytics_source.include?("\\(item.taskTitle)，\\(item.category)分类，计划开始 \\(item.scheduledStart.scheduleTimeText)，第 \\(item.roundNumber) 轮") && ios_analytics_source.include?(".accessibilityLabel(planReviewAccessibilityLabel(for: item))")
 raise "iOS analytics plan review Voice Control labels missing" unless ios_analytics_source.include?("Text(item.taskTitle)") && ios_analytics_source.include?("Text(item.category)") && ios_analytics_source.include?("Text(\"\\(item.category)分类\")") && ios_analytics_source.include?("Text(\"\\(item.category)分类计划\")")
@@ -1479,7 +1536,7 @@ puts "Analytics plan review category accessibility contracts verified."
 
 mac_analytics_source = File.read("ChronoFocusMac/Views/MacAnalyticsDetailView.swift")
 raise "Mac analytics recent session category badge missing" unless mac_analytics_source.include?("MacRecentSessionCategoryBadgeView(category: session.category)") && mac_analytics_source.include?("private struct MacRecentSessionCategoryBadgeView")
-raise "Mac analytics recent session category preset missing" unless mac_analytics_source.include?("TaskCategoryPreset.matching(category)") && mac_analytics_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"") && mac_analytics_source.include?("Color(hex: categoryPreset?.accentHex ?? \"#7C8CF8\")")
+raise "Mac analytics recent session category preset missing" unless mac_analytics_source.include?("TaskCategoryPreset.matching(category)") && mac_analytics_source.include?("categoryPreset?.symbolName ?? \"tag.fill\"") && mac_analytics_source.include?("store.representativeAccentHex(for: category)")
 raise "Mac analytics recent session accessibility label missing" unless mac_analytics_source.include?("private func recentSessionAccessibilityLabel(for session: FocusSession) -> String") && mac_analytics_source.include?("return \"\\(session.taskTitle)，\\(session.category)分类，\\(session.mode.title)，\\(session.startedAt.scheduleTimeText)，\\(session.actualSeconds.hourMinuteText)，\\(completionText)\"") && mac_analytics_source.include?(".accessibilityLabel(recentSessionAccessibilityLabel(for: session))")
 raise "Mac analytics recent session Voice Control labels missing" unless mac_analytics_source.include?(".accessibilityInputLabels([") && mac_analytics_source.include?("Text(session.category)") && mac_analytics_source.include?("Text(\"\\(session.category)分类\")") && mac_analytics_source.include?("Text(\"\\(session.category)分类记录\")")
 raise "Mac analytics recent session category badge accessibility missing" unless mac_analytics_source.include?(".accessibilityLabel(\"\\(category)分类\")") && mac_analytics_source.include?(".accessibilityInputLabels([Text(category), Text(\"\\(category)分类\")])")
@@ -1497,7 +1554,7 @@ assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "private func addTask()",
   "private func prepareQuickAdd(_ category: String)",
-  /let submittedCategory = category[\s\S]*?let submittedAccentHex = accentHex[\s\S]*?category = selectedCategory \?\? task\.category[\s\S]*?accentHex = TaskCategoryPreset\.matching\(category\)\?\.accentHex \?\? task\.accentHex[\s\S]*?category = selectedCategory \?\? submittedCategory[\s\S]*?accentHex = TaskCategoryPreset\.matching\(category\)\?\.accentHex \?\? submittedAccentHex/,
+  /let submittedCategory = category[\s\S]*?let submittedAccentHex = accentHex[\s\S]*?category = selectedCategory \?\? task\.category[\s\S]*?accentHex = store\.representativeAccentHex\(for: category, preferred: task\.accentHex\)[\s\S]*?category = selectedCategory \?\? submittedCategory[\s\S]*?accentHex = store\.representativeAccentHex\(for: category, preferred: submittedAccentHex\)/,
   "Mac quick add must retain submitted category after add"
 )
 
@@ -1505,7 +1562,7 @@ assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "private func prepareQuickAdd(_ category: String)",
   "private struct MacQuickAddCategoryContextView",
-  /self\.category = category[\s\S]*?accentHex = TaskCategoryPreset\.matching\(category\)\?\.accentHex \?\? "#3DE8C5"[\s\S]*?isTaskTitleFocused = true/,
+  /self\.category = category[\s\S]*?accentHex = store\.representativeAccentHex\(for: category, preferred: accentHex\)[\s\S]*?isTaskTitleFocused = true/,
   "Mac quick add category action must prefill category and focus title"
 )
 
@@ -1513,7 +1570,7 @@ assert_slice_contains(
   "ChronoFocus/Views/ScheduleView.swift",
   "private struct TaskCategoryFilterBar",
   "private struct TaskCategoryFilterChip",
-  /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory == category \? nil : category/,
+  /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory = selectedCategory\.map \{ store\.categoryMatches\(\$0, category\) \? nil : category \} \?\? category/,
   "Schedule category filter chip must toggle off the selected category"
 )
 
@@ -1521,7 +1578,7 @@ assert_slice_contains(
   "ChronoFocus/Views/TimerView.swift",
   "private struct TimerTaskCategoryFilterBar",
   "private struct TimerTaskCategoryFilterChip",
-  /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory == category \? nil : category/,
+  /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory = selectedCategory\.map \{ store\.categoryMatches\(\$0, category\) \? nil : category \} \?\? category/,
   "Timer category filter chip must toggle off the selected category"
 )
 
@@ -1529,7 +1586,7 @@ assert_slice_contains(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "struct MacCategoryFilterBar",
   "private struct MacCategoryFilterChip",
-  /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory == category \? nil : category/,
+  /toggleCategory\(option\.category\)[\s\S]*?private func toggleCategory\(_ category: String\)[\s\S]*?selectedCategory = selectedCategory\.map \{ store\.categoryMatches\(\$0, category\) \? nil : category \} \?\? category/,
   "Mac category filter chip must toggle off the selected category"
 )
 puts "Category filter toggle contracts verified."
@@ -1660,8 +1717,8 @@ grep -q "openDetails(.analytics)" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "openDetails(.settings)" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "MacMiniTaskCategoryBadgeView" ChronoFocusMac/Views/MacMiniTimerView.swift
 grep -q "taskContextText(for task: FocusTask)" ChronoFocusMac/Views/MacMiniTimerView.swift
-ruby -e 'source = File.read("ChronoFocusMac/Views/MacTimerDetailView.swift"); row = source[/struct MacTaskRowView: View[\s\S]*?struct MacPageHeaderView: View/]; raise "MacTaskRowView missing" unless row; raise "Mac task row category preset missing" unless row.include?("private var categoryPreset") && row.include?("TaskCategoryPreset.matching(task.category)"); raise "Mac task row category preset color fallback missing" unless row.include?("Color(hex: categoryPreset?.accentHex ?? task.accentHex)"); raise "Mac task row category symbol missing" unless row.include?("private var categorySymbolName") && row.include?("categoryPreset?.symbolName ?? \"tag.fill\""); raise "Mac task row category badge missing" unless row.include?("Label(task.category, systemImage: categorySymbolName)"); raise "Mac task row category accessibility label missing" unless row.include?(".accessibilityLabel(\"\\(task.category)分类\")"); raise "Mac task row category Voice Control input labels missing" unless row.include?(".accessibilityInputLabels([Text(task.category), Text(\"\\(task.category)分类\")])"); raise "Mac task row must not replace category with due date" if row.include?("task.dueDate?.scheduleTimeText ?? task.category"); raise "Mac task row must keep due date as secondary metadata" unless row.include?("if let dueDate = task.dueDate") && row.include?("dueDate.scheduleTimeText")'
-ruby -e 'source = File.read("ChronoFocusMac/Views/MacMiniTimerView.swift"); badge = source[/private struct MacMiniTaskCategoryBadgeView: View[\s\S]*?private struct MacMiniQuickPanelView: View/]; raise "MacMiniTaskCategoryBadgeView missing" unless badge; raise "Mac mini task badge category preset missing" unless badge.include?("private var categoryPreset") && badge.include?("TaskCategoryPreset.matching(task.category)"); raise "Mac mini task badge preset color fallback missing" unless badge.include?("Color(hex: categoryPreset?.accentHex ?? task.accentHex)"); raise "Mac mini task badge symbol fallback missing" unless badge.include?("categoryPreset?.symbolName ?? \"tag.fill\""); raise "Mac mini task badge accessibility label missing" unless badge.include?(".accessibilityLabel(\"\\(task.category)分类\")"); raise "Mac mini task badge Voice Control input labels missing" unless badge.include?(".accessibilityInputLabels([Text(task.category), Text(\"\\(task.category)分类\")])")'
+ruby -e 'source = File.read("ChronoFocusMac/Views/MacTimerDetailView.swift"); row = source[/struct MacTaskRowView: View[\s\S]*?struct MacPageHeaderView: View/]; raise "MacTaskRowView missing" unless row; raise "Mac task row category preset missing" unless row.include?("private var categoryPreset") && row.include?("TaskCategoryPreset.matching(task.category)"); raise "Mac task row representative color missing" unless row.include?("store.representativeAccentHex(for: task.category)"); raise "Mac task row category symbol missing" unless row.include?("private var categorySymbolName") && row.include?("categoryPreset?.symbolName ?? \"tag.fill\""); raise "Mac task row category badge missing" unless row.include?("Label(task.category, systemImage: categorySymbolName)"); raise "Mac task row category accessibility label missing" unless row.include?(".accessibilityLabel(\"\\(task.category)分类\")"); raise "Mac task row category Voice Control input labels missing" unless row.include?(".accessibilityInputLabels([Text(task.category), Text(\"\\(task.category)分类\")])"); raise "Mac task row must not replace category with due date" if row.include?("task.dueDate?.scheduleTimeText ?? task.category"); raise "Mac task row must keep due date as secondary metadata" unless row.include?("if let dueDate = task.dueDate") && row.include?("dueDate.scheduleTimeText")'
+ruby -e 'source = File.read("ChronoFocusMac/Views/MacMiniTimerView.swift"); badge = source[/private struct MacMiniTaskCategoryBadgeView: View[\s\S]*?private struct MacMiniQuickPanelView: View/]; raise "MacMiniTaskCategoryBadgeView missing" unless badge; raise "Mac mini task badge category preset missing" unless badge.include?("private var categoryPreset") && badge.include?("TaskCategoryPreset.matching(task.category)"); raise "Mac mini task badge representative color missing" unless badge.include?("store.representativeAccentHex(for: task.category)"); raise "Mac mini task badge symbol fallback missing" unless badge.include?("categoryPreset?.symbolName ?? \"tag.fill\""); raise "Mac mini task badge accessibility label missing" unless badge.include?(".accessibilityLabel(\"\\(task.category)分类\")"); raise "Mac mini task badge Voice Control input labels missing" unless badge.include?(".accessibilityInputLabels([Text(task.category), Text(\"\\(task.category)分类\")])")'
 ruby -e 'source = File.read("ChronoFocus/Views/TimerView.swift"); row = source[/private struct TaskRow: View[\s\S]*?private struct TimerTaskCategoryFilterBar: View/]; raise "Timer TaskRow missing" unless row; raise "Timer TaskRow selected state text missing" unless row.include?("已选中当前待办") && row.include?("未选中"); raise "Timer TaskRow selection hint missing" unless row.include?("这是当前番茄钟待办") && row.include?("选择此待办作为当前番茄钟任务"); raise "Timer TaskRow selected trait missing" unless row.include?("selectionAccessibilityTraits") && row.include?(".accessibilityAddTraits(selectionAccessibilityTraits)"); raise "Timer TaskRow accessibility label missing" unless row.include?(".accessibilityLabel(\"\\(task.title)，\\(task.category)分类，\\(selectionStateText)\")")'
 ruby -e 'source = File.read("ChronoFocusMac/Views/MacTimerDetailView.swift"); row = source[/struct MacTaskRowView: View[\s\S]*?struct MacPageHeaderView: View/]; raise "MacTaskRowView missing" unless row; raise "Mac task row selected state text missing" unless row.include?("已选中当前待办") && row.include?("未选中"); raise "Mac task row selection hint missing" unless row.include?("这是当前番茄钟待办") && row.include?("选择此待办作为当前番茄钟任务"); raise "Mac task row selected trait missing" unless row.include?("selectionAccessibilityTraits") && row.include?(".accessibilityAddTraits(selectionAccessibilityTraits)"); raise "Mac task row selection accessibility label missing" unless row.include?(".accessibilityLabel(\"\\(task.title)，\\(task.category)分类，\\(selectionStateText)\")")'
 ruby -e 'source = File.read("ChronoFocusMac/Views/MacMiniTimerView.swift"); picker = source[/private struct MacMiniTaskPickerView: View[\s\S]*?private struct MacMiniTaskCategoryBadgeView: View/]; raise "MacMiniTaskPickerView missing" unless picker; raise "Mac mini task selected state text missing" unless picker.include?("private func selectionStateText") && picker.include?("selectionStateText(isSelected: isSelected)") && picker.include?("已选中当前待办") && picker.include?("未选中"); raise "Mac mini task selection hint missing" unless picker.include?("private func selectionHintText") && picker.include?("selectionHintText(isSelected: isSelected)") && picker.include?("这是当前番茄钟待办") && picker.include?("选择此待办作为当前番茄钟任务"); raise "Mac mini task selected trait missing" unless picker.include?("private func selectionAccessibilityTraits") && picker.include?(".accessibilityAddTraits(selectionAccessibilityTraits(isSelected: isSelected))"); raise "Mac mini task selection accessibility label missing" unless picker.include?(".accessibilityLabel(\"\\(task.title)，\\(task.category)分类，\\(selectionStateText(isSelected: isSelected))\")")'
@@ -1790,6 +1847,8 @@ grep -q "artifact metadata byte count" scripts/validate_ci_artifact.rb
 grep -q "artifact metadata sha256 digest" scripts/validate_ci_artifact.rb
 grep -q "artifact metadata not expired" scripts/validate_ci_artifact.rb
 grep -q "artifact metadata workflow run" scripts/validate_ci_artifact.rb
+grep -q "artifact_metadata_shape_ok" scripts/validate_ci_artifact.rb
+grep -q "metadata_artifact_shape_ok" scripts/validate_ci_artifact.rb
 grep -q "workflow run metadata response shape" scripts/validate_ci_artifact.rb
 grep -q "workflow run metadata id" scripts/validate_ci_artifact.rb
 grep -q "workflow run metadata run attempt" scripts/validate_ci_artifact.rb
@@ -1804,7 +1863,10 @@ grep -q "workflow run metadata event" scripts/validate_ci_artifact.rb
 grep -q "workflow run metadata actor" scripts/validate_ci_artifact.rb
 grep -q "workflow run metadata triggering actor" scripts/validate_ci_artifact.rb
 grep -q "workflow run metadata head repository" scripts/validate_ci_artifact.rb
+grep -q "run_metadata_shape_ok" scripts/validate_ci_artifact.rb
 grep -q "Mac core tests passed." scripts/validate_ci_artifact.rb
+grep -q "Category appearance contracts verified." scripts/validate_ci_artifact.rb
+grep -q "Category breakdown normalization contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Project structure verified." scripts/validate_ci_artifact.rb
 grep -q "Category chip accessibility contracts verified." scripts/validate_ci_artifact.rb
 grep -q "Schedule calendar category context contracts verified." scripts/validate_ci_artifact.rb
@@ -1860,6 +1922,7 @@ grep -q "EXPECTED_SUMMARY_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_STATIC_CHECK_MARKERS" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_ARTIFACT_ROOT_ENTRIES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_STAGE_NAMES" scripts/validate_ci_artifact.rb
+grep -q "EXPECTED_PACKAGE_STAGE_NAMES" scripts/validate_ci_artifact.rb
 grep -q "EXPECTED_WORKFLOW_RUN_EVENTS" scripts/validate_ci_artifact.rb
 grep -q "FAILURE_REQUIRED_ARTIFACT_PATHS" scripts/validate_ci_artifact.rb
 grep -q "validate_ci_failure_artifact.rb" scripts/validate_ci_artifact.rb
@@ -1932,6 +1995,7 @@ grep -q "negative_artifact_metadata_workflow_branch_fixture" scripts/verify_proj
 grep -q "negative_ci_artifact_archive_integrity_marker_fixture" scripts/verify_project.sh
 grep -q "negative_ci_artifact_api_metadata_marker_fixture" scripts/verify_project.sh
 grep -q "negative_existing_category_reuse_marker_fixture" scripts/verify_project.sh
+grep -q "negative_category_appearance_marker_fixture" scripts/verify_project.sh
 grep -q "negative_existing_category_search_marker_fixture" scripts/verify_project.sh
 grep -q "negative_ci_workflow_run_api_metadata_marker_fixture" scripts/verify_project.sh
 grep -q "negative_ci_workflow_run_provenance_marker_fixture" scripts/verify_project.sh
@@ -1944,6 +2008,9 @@ grep -q "negative_manifest_artifact_name_fixture" scripts/verify_project.sh
 grep -q "negative_index_artifact_name_fixture" scripts/verify_project.sh
 grep -q "negative_manifest_metadata_fixture" scripts/verify_project.sh
 grep -q "negative_index_fixture" scripts/verify_project.sh
+grep -q "negative_index_stage_outcomes_fixture" scripts/verify_project.sh
+grep -q "negative_stage_outcomes_duplicate_fixture" scripts/verify_project.sh
+grep -q "failure_stage_outcomes_duplicate_fixture" scripts/verify_project.sh
 grep -q "corrupt_index_totals_fixture" scripts/verify_project.sh
 grep -q "unexpected_index_entry_fixture" scripts/verify_project.sh
 grep -q "unexpected_local_artifact_fixture" scripts/verify_project.sh
@@ -2010,6 +2077,9 @@ grep -q "FAIL index artifact name" scripts/verify_project.sh
 grep -q "FAIL manifest metadata" scripts/verify_project.sh
 grep -q "FAIL index commit" scripts/verify_project.sh
 grep -q "FAIL index totals consistency" scripts/verify_project.sh
+grep -q "FAIL index stage outcomes" scripts/verify_project.sh
+grep -q "FAIL stage outcomes duplicate fields" scripts/verify_project.sh
+grep -q "FAIL failure artifact stage outcome duplicates" scripts/verify_project.sh
 grep -q "FAIL index unexpected entries" scripts/verify_project.sh
 grep -q "FAIL unexpected local artifacts" scripts/verify_project.sh
 grep -q "FAIL index required local artifacts" scripts/verify_project.sh
@@ -2027,11 +2097,18 @@ grep -q "index required paths" scripts/validate_ci_artifact.rb
 grep -q "index required local artifacts" scripts/validate_ci_artifact.rb
 grep -q "index required local metadata" scripts/validate_ci_artifact.rb
 grep -q "index totals consistency" scripts/validate_ci_artifact.rb
+grep -q "index stage outcomes" scripts/validate_ci_artifact.rb
+grep -q "stage outcomes duplicate fields" scripts/validate_ci_artifact.rb
 grep -q "index unexpected entries" scripts/validate_ci_artifact.rb
 grep -q "unexpected local artifacts" scripts/validate_ci_artifact.rb
 grep -q "failure summary log entries" scripts/validate_ci_artifact.rb
 grep -q "failure summary identity" scripts/validate_ci_artifact.rb
 grep -q "failure summary outcomes" scripts/validate_ci_artifact.rb
+grep -q "finalizer outcome" scripts/validate_ci_artifact.rb
+grep -q "failure artifact finalizer outcome" scripts/validate_ci_failure_artifact.rb
+grep -q "failure artifact stage outcome duplicates" scripts/validate_ci_failure_artifact.rb
+grep -q "failure artifact project reports metadata" scripts/validate_ci_failure_artifact.rb
+grep -q "failure artifact missing paths metadata" scripts/validate_ci_failure_artifact.rb
 grep -q "junit metadata" scripts/validate_ci_artifact.rb
 grep -q "junit testcase names" scripts/validate_ci_artifact.rb
 grep -q "junit errors" scripts/validate_ci_artifact.rb
@@ -2063,7 +2140,7 @@ snapshot_dir.mkdir(parents=True)
 
 files = {
     "static-checks.log": "Running committed diff whitespace check...\nRunning project plist lint...\nRunning workflow YAML parse check...\nyaml ok\n",
-    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule calendar category context contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nExisting category reuse contracts verified.\nExisting category usage context contracts verified.\nExisting category search contracts verified.\nSchedule to timer handoff contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nTimer task queue expansion contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nCI artifact API metadata contracts verified.\nCI workflow run API metadata contracts verified.\nCI workflow run provenance contracts verified.\nProject structure verified.\n",
+    "verify_project.log": "Mac core tests passed.\nCategory summary action contracts verified.\nCategory chip accessibility contracts verified.\nSchedule calendar category context contracts verified.\nSchedule task action accessibility contracts verified.\nPlan start action accessibility contracts verified.\nPlan category badge contracts verified.\nMac plan category context contracts verified.\nPlan panel action accessibility contracts verified.\nSchedule toolbar add category context contracts verified.\nSchedule category empty state action contracts verified.\nMac schedule category empty state action contracts verified.\nMac calendar range empty state quick add contracts verified.\nMac quick add action accessibility contracts verified.\nMac quick add title field category context contracts verified.\nCategory input context contracts verified.\nCategory appearance contracts verified.\nExisting category reuse contracts verified.\nExisting category usage context contracts verified.\nExisting category search contracts verified.\nSchedule to timer handoff contracts verified.\nTask editor save category accessibility contracts verified.\nTask editor cancel category accessibility contracts verified.\nMac mini quick panel accessibility contracts verified.\nAnalytics category share accessibility contracts verified.\nAnalytics category share session count contracts verified.\nAnalytics category share ranking contracts verified.\nAnalytics category share sort context contracts verified.\nAnalytics category share empty state contracts verified.\nAnalytics category share metadata readability contracts verified.\nAnalytics category share percent readability contracts verified.\nAnalytics recent session category contracts verified.\nAnalytics plan review category accessibility contracts verified.\nCategory filter toggle contracts verified.\nCurrent task selection accessibility contracts verified.\nTimer action accessibility contracts verified.\nTimer category empty state action contracts verified.\nTimer task queue expansion contracts verified.\nDeclaration boundary resilience contracts verified.\nMac timer category queue contracts verified.\nCI action Node.js 24 contracts verified.\nCI failure summary output contracts verified.\nCI artifact archive integrity contracts verified.\nCI artifact API metadata contracts verified.\nCI workflow run API metadata contracts verified.\nCI workflow run provenance contracts verified.\nProject structure verified.\n",
     "xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "ios-xcodebuild.log": "** BUILD SUCCEEDED **\n",
     "xcode-version.log": "Xcode 16.0\nBuild version 16A000\n",
@@ -2078,6 +2155,10 @@ verify_log = verify_log_path.read_text(encoding="utf-8")
 verify_log = verify_log.replace(
     "CI failure summary output contracts verified.\n",
     "CI failure summary output contracts verified.\nCI failure artifact resilience contracts verified.\n",
+)
+verify_log = verify_log.replace(
+    "Category appearance contracts verified.\n",
+    "Category appearance contracts verified.\nCategory breakdown normalization contracts verified.\n",
 )
 verify_log_path.write_text(verify_log, encoding="utf-8")
 
@@ -2096,6 +2177,39 @@ stage_outcomes = {
     "firstFailedStage": None,
     "failedStages": [],
     "nonSuccessStages": [],
+    "packageStages": [
+        {"name": "bootstrap", "outcome": "success"},
+        {"name": "createManifest", "outcome": "success"},
+    ],
+    "failedPackageStages": [],
+    "nonSuccessPackageStages": [],
+    "ensureResultPackageOutcome": "success",
+    "recoveryOutcome": "skipped",
+    "missingArtifactPaths": [],
+    "stageOutcomeMap": {
+        name: "success"
+        for name in [
+            "checkout",
+            "prepareMetadata",
+            "selectXcode",
+            "staticChecks",
+            "projectVerification",
+            "macBuild",
+            "iosBuild",
+        ]
+    },
+    "stageOutcomes": {
+        name: "success"
+        for name in [
+            "checkout",
+            "prepareMetadata",
+            "selectXcode",
+            "staticChecks",
+            "projectVerification",
+            "macBuild",
+            "iosBuild",
+        ]
+    },
     "stages": [
         {"name": name, "outcome": "success"}
         for name in [
@@ -2146,10 +2260,17 @@ summary = f"""# ChronoFocus CI Failure Summary
 - Commit: `{commit}`
 - Run: `{run_id}` attempt `{attempt}`
 - Overall outcome: `success`
+- Checkout: `success`
+- Prepare result metadata: `success`
+- Select Xcode: `success`
 - Static checks: `success`
 - Project verification: `success`
 - Mac build: `success`
 - iOS build: `success`
+- Bootstrap result package: `success`
+- Create manifest: `success`
+- Ensure result package: `success`
+- Recovery result package: `skipped`
 
 ## Logs
 
@@ -2213,6 +2334,13 @@ manifest = {
     "firstFailedStage": None,
     "failedStages": [],
     "nonSuccessStages": [],
+    "packageStages": stage_outcomes["packageStages"],
+    "failedPackageStages": [],
+    "nonSuccessPackageStages": [],
+    "ensureResultPackageOutcome": "success",
+    "recoveryOutcome": "skipped",
+    "stageOutcomeMap": stage_outcomes["stageOutcomeMap"],
+    "missingArtifactPaths": [],
     "stageOutcomes": stage_outcomes["stages"],
     "staticChecksOutcome": "success",
     "projectVerificationOutcome": "success",
@@ -2326,6 +2454,12 @@ for _ in range(5):
         "firstFailedStage": None,
         "failedStages": [],
         "nonSuccessStages": [],
+        "packageStages": stage_outcomes["packageStages"],
+        "failedPackageStages": [],
+        "nonSuccessPackageStages": [],
+        "ensureResultPackageOutcome": "success",
+        "recoveryOutcome": "skipped",
+        "stageOutcomeMap": stage_outcomes["stageOutcomeMap"],
         "missingArtifactPaths": [],
         "entries": [metadata(path) for path in index_paths],
     }
@@ -2441,6 +2575,148 @@ if grep -q "PASS verify_project startable task consistency contracts" "$negative
 fi
 rm -rf "$negative_startable_task_consistency_marker_fixture"
 rm -f "$negative_startable_task_consistency_marker_output"
+negative_package_stage_index_fixture="$(mktemp -d)"
+negative_package_stage_index_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_package_stage_index_fixture"/
+python3 - "$negative_package_stage_index_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+index["packageStages"][0]["outcome"] = "failure"
+index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+stabilize_artifact_fixture_index "$negative_package_stage_index_fixture"
+if ruby scripts/validate_ci_artifact.rb "$negative_package_stage_index_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_package_stage_index_output" 2>&1; then
+  echo "Expected negative package stage index fixture to fail validation" >&2
+  cat "$negative_package_stage_index_output" >&2
+  exit 1
+fi
+grep -q "FAIL package stage outcomes" "$negative_package_stage_index_output"
+if grep -q "PASS package stage outcomes" "$negative_package_stage_index_output" || [[ "$(grep -c '^FAIL ' "$negative_package_stage_index_output")" -ne 1 ]]; then
+  echo "Expected package stage index fixture to fail only its target contract" >&2
+  cat "$negative_package_stage_index_output" >&2
+  exit 1
+fi
+rm -rf "$negative_package_stage_index_fixture"
+rm -f "$negative_package_stage_index_output"
+negative_index_stage_outcomes_fixture="$(mktemp -d)"
+negative_index_stage_outcomes_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_index_stage_outcomes_fixture"/
+python3 - "$negative_index_stage_outcomes_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+index["stageOutcomes"][0]["outcome"] = "failure"
+index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+stabilize_artifact_fixture_index "$negative_index_stage_outcomes_fixture"
+if ruby scripts/validate_ci_artifact.rb "$negative_index_stage_outcomes_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_index_stage_outcomes_output" 2>&1; then
+  echo "Expected negative index stage outcomes fixture to fail validation" >&2
+  cat "$negative_index_stage_outcomes_output" >&2
+  exit 1
+fi
+grep -q "FAIL index stage outcomes" "$negative_index_stage_outcomes_output"
+if grep -q "PASS index stage outcomes" "$negative_index_stage_outcomes_output" || [[ "$(grep -c '^FAIL ' "$negative_index_stage_outcomes_output")" -ne 1 ]]; then
+  echo "Expected index stage outcomes fixture to fail only its target contract" >&2
+  cat "$negative_index_stage_outcomes_output" >&2
+  exit 1
+fi
+rm -rf "$negative_index_stage_outcomes_fixture"
+rm -f "$negative_index_stage_outcomes_output"
+negative_stage_outcomes_duplicate_fixture="$(mktemp -d)"
+negative_stage_outcomes_duplicate_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_stage_outcomes_duplicate_fixture"/
+python3 - "$negative_stage_outcomes_duplicate_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+stage_path = root / "ci-stage-outcomes.json"
+stage = json.loads(stage_path.read_text(encoding="utf-8"))
+stage["stageOutcomes"]["checkout"] = "failure"
+stage_path.write_text(json.dumps(stage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+stabilize_artifact_fixture_index "$negative_stage_outcomes_duplicate_fixture"
+if ruby scripts/validate_ci_artifact.rb "$negative_stage_outcomes_duplicate_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_stage_outcomes_duplicate_output" 2>&1; then
+  echo "Expected negative stage outcomes duplicate fixture to fail validation" >&2
+  cat "$negative_stage_outcomes_duplicate_output" >&2
+  exit 1
+fi
+grep -q "FAIL stage outcomes duplicate fields" "$negative_stage_outcomes_duplicate_output"
+if grep -q "PASS stage outcomes duplicate fields" "$negative_stage_outcomes_duplicate_output" || [[ "$(grep -c '^FAIL ' "$negative_stage_outcomes_duplicate_output")" -ne 1 ]]; then
+  echo "Expected stage outcomes duplicate fixture to fail only its target contract" >&2
+  cat "$negative_stage_outcomes_duplicate_output" >&2
+  exit 1
+fi
+rm -rf "$negative_stage_outcomes_duplicate_fixture"
+rm -f "$negative_stage_outcomes_duplicate_output"
+negative_category_appearance_marker_fixture="$(mktemp -d)"
+negative_category_appearance_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_category_appearance_marker_fixture"/
+python3 - "$negative_category_appearance_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+marker = "Category appearance contracts verified.\n"
+content = verify_log_path.read_text(encoding="utf-8")
+if content.count(marker) != 1:
+    raise SystemExit("category appearance marker fixture must contain exactly one marker")
+verify_log_path.write_text(content.replace(marker, "", 1), encoding="utf-8")
+PY
+stabilize_artifact_fixture_index "$negative_category_appearance_marker_fixture"
+if ruby scripts/validate_ci_artifact.rb "$negative_category_appearance_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_category_appearance_marker_output" 2>&1; then
+  echo "Expected negative category appearance marker fixture to fail validation" >&2
+  cat "$negative_category_appearance_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project category appearance contracts" "$negative_category_appearance_marker_output"
+if grep -q "PASS verify_project category appearance contracts" "$negative_category_appearance_marker_output" || [[ "$(grep -c '^FAIL ' "$negative_category_appearance_marker_output")" -ne 1 ]]; then
+  echo "Expected category appearance marker fixture to fail only its target contract" >&2
+  cat "$negative_category_appearance_marker_output" >&2
+  exit 1
+fi
+rm -rf "$negative_category_appearance_marker_fixture"
+rm -f "$negative_category_appearance_marker_output"
+negative_category_breakdown_marker_fixture="$(mktemp -d)"
+negative_category_breakdown_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_category_breakdown_marker_fixture"/
+python3 - "$negative_category_breakdown_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+verify_log_path = root / "verify_project.log"
+marker = "Category breakdown normalization contracts verified.\n"
+content = verify_log_path.read_text(encoding="utf-8")
+if content.count(marker) != 1:
+    raise SystemExit("category breakdown marker fixture must contain exactly one marker")
+verify_log_path.write_text(content.replace(marker, "", 1), encoding="utf-8")
+PY
+stabilize_artifact_fixture_index "$negative_category_breakdown_marker_fixture"
+if ruby scripts/validate_ci_artifact.rb "$negative_category_breakdown_marker_fixture" --commit fixture-sha --run-id 12345 --attempt 1 >"$negative_category_breakdown_marker_output" 2>&1; then
+  echo "Expected negative category breakdown marker fixture to fail validation" >&2
+  cat "$negative_category_breakdown_marker_output" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project category breakdown normalization contracts" "$negative_category_breakdown_marker_output"
+if grep -q "PASS verify_project category breakdown normalization contracts" "$negative_category_breakdown_marker_output" || [[ "$(grep -c '^FAIL ' "$negative_category_breakdown_marker_output")" -ne 1 ]]; then
+  echo "Expected category breakdown marker fixture to fail only its target contract" >&2
+  cat "$negative_category_breakdown_marker_output" >&2
+  exit 1
+fi
+rm -rf "$negative_category_breakdown_marker_fixture"
+rm -f "$negative_category_breakdown_marker_output"
 negative_schedule_calendar_category_context_marker_fixture="$(mktemp -d)"
 negative_schedule_calendar_category_context_marker_output="$(mktemp)"
 cp -R "$artifact_fixture"/. "$negative_schedule_calendar_category_context_marker_fixture"/
@@ -2802,6 +3078,8 @@ stage["nonSuccessStages"] = ["selectXcode"]
 for item in stage["stages"]:
     if item["name"] == "selectXcode":
         item["outcome"] = "failure"
+stage["stageOutcomeMap"]["selectXcode"] = "failure"
+stage["stageOutcomes"]["selectXcode"] = "failure"
 stage_path.write_text(json.dumps(stage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 manifest_path = root / "ci-artifact-manifest.json"
@@ -2812,11 +3090,13 @@ manifest["firstFailedStage"] = "selectXcode"
 manifest["failedStages"] = ["selectXcode"]
 manifest["nonSuccessStages"] = ["selectXcode"]
 manifest["stageOutcomes"] = stage["stages"]
+manifest["stageOutcomeMap"] = stage["stageOutcomeMap"]
 manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 summary_path = root / "ci-failure-summary.md"
 summary = summary_path.read_text(encoding="utf-8")
 summary = summary.replace("- Overall outcome: `success`", "- Overall outcome: `failure`")
+summary = summary.replace("- Select Xcode: `success`", "- Select Xcode: `failure`")
 summary = summary.replace("- First failed stage: `none`", "- First failed stage: `selectXcode`")
 summary = summary.replace(
     "\nAll CI stages passed.\n",
@@ -2832,6 +3112,7 @@ index["firstFailedStage"] = "selectXcode"
 index["failedStages"] = ["selectXcode"]
 index["nonSuccessStages"] = ["selectXcode"]
 index["stageOutcomes"] = stage["stages"]
+index["stageOutcomeMap"] = stage["stageOutcomeMap"]
 required = {
     "ci-results/ci-artifact-manifest.json",
     "ci-results/ci-artifact-index.json",
@@ -2842,6 +3123,14 @@ required = {
 }
 for entry in index["entries"]:
     entry["required"] = entry["path"] in required
+    relative_path = entry["path"][len("ci-results/"):] if entry["path"].startswith("ci-results/") else entry["path"]
+    entry["exists"] = (root / relative_path).exists()
+missing = [entry["path"] for entry in index["entries"] if not entry["required"] and not entry["exists"]]
+stage["missingArtifactPaths"] = missing
+manifest["missingArtifactPaths"] = missing
+index["missingArtifactPaths"] = missing
+stage_path.write_text(json.dumps(stage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 stabilize_artifact_fixture_index "$failure_fixture_root"
@@ -2884,9 +3173,177 @@ if ! ruby scripts/validate_ci_artifact.rb \
   exit 1
 fi
 grep -q "PASS failure artifact stage failure state" "$failure_validation_output"
+grep -q "PASS failure artifact stage outcome duplicates" "$failure_validation_output"
 grep -q "PASS failure artifact index optional entries" "$failure_validation_output"
 grep -q "PASS failure artifact run metadata identity" "$failure_validation_output"
 rm -f "$failure_validation_output"
+
+failure_stage_outcomes_duplicate_fixture="$(mktemp -d)"
+cp -R "$failure_fixture_root"/. "$failure_stage_outcomes_duplicate_fixture"/
+python3 - "$failure_stage_outcomes_duplicate_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+stage_path = root / "ci-stage-outcomes.json"
+stage = json.loads(stage_path.read_text(encoding="utf-8"))
+stage["stageOutcomes"]["selectXcode"] = "success"
+stage_path.write_text(json.dumps(stage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+failure_stage_outcomes_duplicate_archive_fixture="$artifact_archive_fixture_dir/chronofocus-ci-failure-stage-outcomes-duplicate.zip"
+failure_stage_outcomes_duplicate_artifact_metadata_fixture="$artifact_archive_fixture_dir/failure-stage-outcomes-duplicate-artifacts-api.json"
+bind_fixture_archive \
+  "$failure_stage_outcomes_duplicate_fixture" \
+  "$failure_stage_outcomes_duplicate_archive_fixture" \
+  "$failure_stage_outcomes_duplicate_artifact_metadata_fixture" \
+  failure_stage_outcomes_duplicate_archive_size \
+  failure_stage_outcomes_duplicate_archive_digest
+failure_stage_outcomes_duplicate_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb \
+  "$failure_stage_outcomes_duplicate_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --expected-event push \
+  --failure-mode \
+  --archive "$failure_stage_outcomes_duplicate_archive_fixture" \
+  --archive-size "$failure_stage_outcomes_duplicate_archive_size" \
+  --archive-digest "$failure_stage_outcomes_duplicate_archive_digest" \
+  --artifact-metadata "$failure_stage_outcomes_duplicate_artifact_metadata_fixture" \
+  --run-metadata "$failure_run_metadata_fixture" \
+  >"$failure_stage_outcomes_duplicate_output" 2>&1; then
+  echo "Expected failure stage outcomes duplicate fixture to fail validation" >&2
+  cat "$failure_stage_outcomes_duplicate_output" >&2
+  exit 1
+fi
+grep -q "FAIL failure artifact stage outcome duplicates" "$failure_stage_outcomes_duplicate_output"
+if [[ "$(grep -c '^FAIL ' "$failure_stage_outcomes_duplicate_output")" -ne 1 ]]; then
+  echo "Expected failure stage outcomes duplicate fixture to fail only its target contract" >&2
+  cat "$failure_stage_outcomes_duplicate_output" >&2
+  exit 1
+fi
+rm -rf "$failure_stage_outcomes_duplicate_fixture"
+rm -f "$failure_stage_outcomes_duplicate_output"
+
+fallback_failure_fixture_root="$(mktemp -d)"
+cp -R "$artifact_fixture"/. "$fallback_failure_fixture_root"/
+python3 - "$fallback_failure_fixture_root" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+fallback_artifact_name = "chronofocus-ci-v0.10-main-fixture-sha-run12345-attempt1"
+stage_path = root / "ci-stage-outcomes.json"
+stage = json.loads(stage_path.read_text(encoding="utf-8"))
+stage["artifactName"] = fallback_artifact_name
+stage["fallbackArtifactName"] = fallback_artifact_name
+stage["fallbackArtifactUsed"] = True
+stage["overallOutcome"] = "failure"
+stage["failureMode"] = "runtime"
+stage["firstFailedStage"] = "ensureResultPackage"
+stage["ensureResultPackageOutcome"] = "failure"
+stage["recoveryOutcome"] = "success"
+stage_path.write_text(json.dumps(stage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+context_path = root / "ci-run-context.txt"
+context = context_path.read_text(encoding="utf-8")
+context_path.write_text(context.replace("artifactName=chronofocus-ci-v0.10-main-fixture-run12345-attempt1", f"artifactName={fallback_artifact_name}"), encoding="utf-8")
+
+manifest_path = root / "ci-artifact-manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+manifest["artifactName"] = fallback_artifact_name
+manifest["fallbackArtifactName"] = fallback_artifact_name
+manifest["fallbackArtifactUsed"] = True
+manifest["overallOutcome"] = "failure"
+manifest["failureMode"] = "runtime"
+manifest["firstFailedStage"] = "ensureResultPackage"
+manifest["ensureResultPackageOutcome"] = "failure"
+manifest["recoveryOutcome"] = "success"
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+summary_path = root / "ci-failure-summary.md"
+summary = summary_path.read_text(encoding="utf-8")
+summary = summary.replace("- Overall outcome: `success`", "- Overall outcome: `failure`")
+summary = summary.replace(
+    "- Run: `12345` attempt `1`\n",
+    f"- Run: `12345` attempt `1`\n- Fallback artifact name: `{fallback_artifact_name}`\n- Fallback artifact used: `true`\n- Failure mode: `runtime`\n",
+)
+summary = summary.replace("- First failed stage: `none`", "- First failed stage: `ensureResultPackage`")
+summary = summary.replace("- Ensure result package: `success`", "- Ensure result package: `failure`")
+summary = summary.replace("- Recovery result package: `skipped`", "- Recovery result package: `success`")
+summary = summary.replace("- Fallback artifact used: `false`", "- Fallback artifact used: `true`")
+summary = summary.replace(
+    "\nAll CI stages passed.\n",
+    "\n## Failed Stages\n\n- `ensureResultPackage`: `failure`\n\n## Failure Excerpts\n\n### `ensureResultPackage`\n\n```text\nResult package finalizer failed; recovery rebuilt the fallback package.\n```\n",
+)
+summary_path.write_text(summary, encoding="utf-8")
+
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+index["artifactName"] = fallback_artifact_name
+index["fallbackArtifactName"] = fallback_artifact_name
+index["fallbackArtifactUsed"] = True
+index["overallOutcome"] = "failure"
+index["failureMode"] = "runtime"
+index["firstFailedStage"] = "ensureResultPackage"
+index["ensureResultPackageOutcome"] = "failure"
+index["recoveryOutcome"] = "success"
+required = {
+    "ci-results/ci-artifact-manifest.json",
+    "ci-results/ci-artifact-index.json",
+    "ci-results/ci-failure-summary.md",
+    "ci-results/junit.xml",
+    "ci-results/ci-run-context.txt",
+    "ci-results/ci-stage-outcomes.json",
+}
+for entry in index["entries"]:
+    entry["required"] = entry["path"] in required
+index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+stabilize_artifact_fixture_index "$fallback_failure_fixture_root"
+
+fallback_failure_archive_fixture="$artifact_archive_fixture_dir/chronofocus-ci-fallback-finalizer-fixture.zip"
+fallback_failure_artifact_metadata_fixture="$artifact_archive_fixture_dir/fallback-finalizer-artifacts-api.json"
+bind_fixture_archive \
+  "$fallback_failure_fixture_root" \
+  "$fallback_failure_archive_fixture" \
+  "$fallback_failure_artifact_metadata_fixture" \
+  fallback_failure_archive_size \
+  fallback_failure_archive_digest
+python3 - "$fallback_failure_artifact_metadata_fixture" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+payload = json.loads(path.read_text(encoding="utf-8"))
+payload["artifacts"][0]["name"] = "chronofocus-ci-v0.10-main-fixture-sha-run12345-attempt1"
+path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+fallback_failure_output="$(mktemp)"
+if ! ruby scripts/validate_ci_artifact.rb \
+  "$fallback_failure_fixture_root" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --expected-event push \
+  --failure-mode \
+  --archive "$fallback_failure_archive_fixture" \
+  --archive-size "$fallback_failure_archive_size" \
+  --archive-digest "$fallback_failure_archive_digest" \
+  --artifact-metadata "$fallback_failure_artifact_metadata_fixture" \
+  --run-metadata "$failure_run_metadata_fixture" \
+  >"$fallback_failure_output" 2>&1; then
+  echo "Fallback finalizer failure fixture validator failed" >&2
+  cat "$fallback_failure_output" >&2
+  exit 1
+fi
+grep -q "PASS failure artifact finalizer outcome" "$fallback_failure_output"
+grep -q "PASS failure artifact summary finalizer outcome" "$fallback_failure_output"
+rm -rf "$fallback_failure_fixture_root"
+rm -f "$fallback_failure_output"
 
 failure_negative_index_fixture="$(mktemp -d)"
 cp -R "$failure_fixture_root"/. "$failure_negative_index_fixture"/
@@ -2936,6 +3393,143 @@ if [[ "$(grep -c '^FAIL ' "$failure_negative_index_output")" -ne 1 ]]; then
 fi
 rm -rf "$failure_negative_index_fixture"
 rm -f "$failure_negative_index_output"
+
+failure_skipped_only_fixture="$(mktemp -d)"
+cp -R "$failure_fixture_root"/. "$failure_skipped_only_fixture"/
+python3 - "$failure_skipped_only_fixture" <<'PY'
+import json
+import re
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+root = Path(sys.argv[1])
+stage_path = root / "ci-stage-outcomes.json"
+stage = json.loads(stage_path.read_text(encoding="utf-8"))
+stage_names = [item["name"] for item in stage["stages"]]
+for item in stage["stages"]:
+    item["outcome"] = "skipped"
+stage_map = {name: "skipped" for name in stage_names}
+stage["overallOutcome"] = "failure"
+stage["failureMode"] = "skipped-only"
+stage["firstFailedStage"] = stage_names[0]
+stage["failedStages"] = []
+stage["nonSuccessStages"] = stage_names
+stage["stageOutcomeMap"] = stage_map
+stage["stageOutcomes"] = stage_map
+stage_path.write_text(json.dumps(stage, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+manifest_path = root / "ci-artifact-manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+manifest["overallOutcome"] = "failure"
+manifest["failureMode"] = "skipped-only"
+manifest["firstFailedStage"] = stage_names[0]
+manifest["failedStages"] = []
+manifest["nonSuccessStages"] = stage_names
+manifest["stageOutcomes"] = stage["stages"]
+manifest["stageOutcomeMap"] = stage_map
+for key in [
+    "staticChecksOutcome",
+    "projectVerificationOutcome",
+    "macBuildOutcome",
+    "buildOutcome",
+    "iosBuildOutcome",
+    "testOutcome",
+]:
+    manifest[key] = "skipped"
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+summary_path = root / "ci-failure-summary.md"
+summary = summary_path.read_text(encoding="utf-8")
+for label in [
+    "Checkout",
+    "Prepare result metadata",
+    "Select Xcode",
+    "Static checks",
+    "Project verification",
+    "Mac build",
+    "iOS build",
+]:
+    summary = re.sub(
+        rf"^- {re.escape(label)}: `[^`]+`$",
+        f"- {label}: `skipped`",
+        summary,
+        flags=re.MULTILINE,
+    )
+summary = re.sub(
+    r"^- First failed stage: `[^`]+`$",
+    "- First failed stage: `checkout`",
+    summary,
+    flags=re.MULTILINE,
+)
+summary = summary.split("\n## Failed Stages", 1)[0]
+summary += (
+    "\n## Failed Stages\n\n"
+    + "\n".join(f"- `{name}`: `skipped`" for name in stage_names)
+    + "\n\n## Failure Excerpts\n\n"
+    "Skipped-only negative fixture.\n"
+)
+summary_path.write_text(summary, encoding="utf-8")
+
+junit_path = root / "junit.xml"
+junit_root = ET.parse(junit_path).getroot()
+junit_root.set("failures", "4")
+for testcase in junit_root.findall("testcase"):
+    system_out = testcase.find("system-out")
+    if system_out is not None:
+        system_out.text = re.sub(r"outcome=[^;]+;", "outcome=skipped;", system_out.text or "")
+    for element in list(testcase.findall("failure")) + list(testcase.findall("error")):
+        testcase.remove(element)
+    failure = ET.SubElement(testcase, "failure", message=f"{testcase.get('name')} skipped")
+    failure.text = "Skipped-only negative fixture."
+ET.ElementTree(junit_root).write(junit_path, encoding="utf-8", xml_declaration=True)
+
+index_path = root / "ci-artifact-index.json"
+index = json.loads(index_path.read_text(encoding="utf-8"))
+index["overallOutcome"] = "failure"
+index["failureMode"] = "skipped-only"
+index["firstFailedStage"] = stage_names[0]
+index["failedStages"] = []
+index["nonSuccessStages"] = stage_names
+index["stageOutcomes"] = stage["stages"]
+index["stageOutcomeMap"] = stage_map
+index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+stabilize_artifact_fixture_index "$failure_skipped_only_fixture"
+failure_skipped_only_archive_fixture="$artifact_archive_fixture_dir/chronofocus-ci-failure-skipped-only-fixture.zip"
+failure_skipped_only_artifact_metadata_fixture="$artifact_archive_fixture_dir/failure-skipped-only-artifacts-api.json"
+bind_fixture_archive \
+  "$failure_skipped_only_fixture" \
+  "$failure_skipped_only_archive_fixture" \
+  "$failure_skipped_only_artifact_metadata_fixture" \
+  failure_skipped_only_archive_size \
+  failure_skipped_only_archive_digest
+failure_skipped_only_output="$(mktemp)"
+if ruby scripts/validate_ci_artifact.rb \
+  "$failure_skipped_only_fixture" \
+  --commit fixture-sha \
+  --run-id 12345 \
+  --attempt 1 \
+  --expected-event push \
+  --failure-mode \
+  --archive "$failure_skipped_only_archive_fixture" \
+  --archive-size "$failure_skipped_only_archive_size" \
+  --archive-digest "$failure_skipped_only_archive_digest" \
+  --artifact-metadata "$failure_skipped_only_artifact_metadata_fixture" \
+  --run-metadata "$failure_run_metadata_fixture" \
+  >"$failure_skipped_only_output" 2>&1; then
+  echo "Expected skipped-only failure fixture to fail validation" >&2
+  cat "$failure_skipped_only_output" >&2
+  exit 1
+fi
+grep -q "FAIL failure artifact stage failure state" "$failure_skipped_only_output"
+if [[ "$(grep -c '^FAIL ' "$failure_skipped_only_output")" -ne 1 ]]; then
+  echo "Expected skipped-only fixture to fail only its target contract" >&2
+  cat "$failure_skipped_only_output" >&2
+  exit 1
+fi
+rm -rf "$failure_skipped_only_fixture"
+rm -f "$failure_skipped_only_output"
 
 failure_negative_run_fixture="$artifact_archive_fixture_dir/failure-run-success-negative.json"
 cp "$failure_run_metadata_fixture" "$failure_negative_run_fixture"
@@ -3111,6 +3705,11 @@ run_negative_artifact_metadata_fixture() {
   grep -q "PASS artifact archive byte count" "$output_path"
   grep -q "PASS artifact archive sha256 digest" "$output_path"
   grep -q "PASS artifact archive zip integrity" "$output_path"
+  if [[ "$(grep -c '^FAIL ' "$output_path")" -ne 1 ]]; then
+    echo "Expected only artifact metadata $expected_failure to fail for $description" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
   rm -f "$output_path"
 }
 
@@ -3380,6 +3979,11 @@ run_negative_run_metadata_shape_fixture() {
   grep -q "FAIL workflow run metadata response shape" "$output_path"
   assert_archive_passes "$output_path"
   assert_artifact_metadata_passes "$output_path"
+  if [[ "$(grep -c '^FAIL ' "$output_path")" -ne 1 ]]; then
+    echo "Expected only workflow run metadata response shape to fail for $description" >&2
+    cat "$output_path" >&2
+    exit 1
+  fi
   rm -f "$output_path"
 }
 
@@ -5527,7 +6131,7 @@ grep -Fq -- "22222222-2222-2222-2222-222222222222" <<< "$simulator_build_command
 rm -f "$simctl_fixture"
 grep -q "IOS_SCHEME: ChronoFocus" .github/workflows/ci-results.yml
 grep -q "generic/platform=iOS" .github/workflows/ci-results.yml
-ruby -e 'source = File.read(".github/workflows/ci-results.yml"); index_source = source[/index = \{[\s\S]*?"entries": entries,/]; raise "workflow artifact index source missing" unless index_source; raise "workflow artifact index artifactName missing" unless index_source.include?("\"artifactName\": os.environ[\"ARTIFACT_NAME\"]")'
+ruby -e 'source = File.read(".github/workflows/ci-results.yml"); index_source = source[/index = \{[\s\S]*?"entries": entries,/]; raise "workflow artifact index source missing" unless index_source; raise "workflow artifact index artifactName missing" unless index_source.include?("\"artifactName\": artifact_name")'
 grep -q "errors=\"0\"" .github/workflows/ci-results.yml
 grep -q "iosBuildOutcome" .github/workflows/ci-results.yml
 grep -q "overallOutcome" .github/workflows/ci-results.yml

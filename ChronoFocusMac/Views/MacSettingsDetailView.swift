@@ -3,6 +3,7 @@ import UserNotifications
 
 struct MacSettingsDetailView: View {
     @EnvironmentObject private var store: FocusStore
+    @EnvironmentObject private var engine: TimerEngine
     @EnvironmentObject private var notifications: MacNotificationService
     @EnvironmentObject private var premium: MacPremiumAccessService
     @EnvironmentObject private var calendarSync: MacCalendarSyncService
@@ -149,6 +150,7 @@ struct MacSettingsDetailView: View {
             }
         }
         .onChange(of: store.settings) { oldSettings, newSettings in
+            engine.handleSettingsChange()
             syncTaskDueRemindersIfNeeded(oldSettings: oldSettings, newSettings: newSettings)
             if newSettings.autoGeneratePomodoroPlan != oldSettings.autoGeneratePomodoroPlan {
                 if newSettings.autoGeneratePomodoroPlan {
@@ -227,7 +229,7 @@ private struct MacStaticSettingsActionChipView: View {
         Label(title, systemImage: symbolName)
             .font(.subheadline.bold())
             .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
-            .frame(minHeight: 30)
+            .frame(minHeight: 44)
             .padding(.horizontal, 10)
             .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
             .overlay {

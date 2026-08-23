@@ -20,11 +20,18 @@ struct TimerView: View {
         self.onConsumeTimerHandoff = onConsumeTimerHandoff
     }
 
-    private var currentTint: Color {
-        if let task = store.task(for: engine.selectedTaskID) {
-            return Color(hex: task.accentHex)
+    private var currentTintHex: String {
+        if let snapshot = store.activeTimer {
+            return snapshot.tintHex
         }
-        return Color(hex: engine.mode.tintHex)
+        if let task = store.task(for: engine.selectedTaskID) {
+            return store.representativeAccentHex(for: task.category)
+        }
+        return engine.mode.tintHex
+    }
+
+    private var currentTint: Color {
+        Color(hex: currentTintHex)
     }
 
     private var upcomingTasks: [FocusTask] {
@@ -33,13 +40,17 @@ struct TimerView: View {
 
     private var filteredUpcomingTasks: [FocusTask] {
         guard let selectedTaskCategory else { return upcomingTasks }
-        return upcomingTasks.filter { $0.category == selectedTaskCategory }
+        return upcomingTasks.filter { store.categoryMatches($0.category, selectedTaskCategory) }
     }
 
     private var visibleUpcomingTasks: [FocusTask] {
         isTaskQueueExpanded
             ? filteredUpcomingTasks
             : Array(filteredUpcomingTasks.prefix(collapsedTaskLimit))
+    }
+
+    private var filteredUpcomingTaskIDs: [UUID] {
+        filteredUpcomingTasks.map(\.id)
     }
 
     private var hiddenTaskCount: Int {
@@ -95,7 +106,7 @@ struct TimerView: View {
 
     private func taskCount(in category: String?) -> Int {
         guard let category else { return upcomingTasks.count }
-        return upcomingTasks.filter { $0.category == category }.count
+        return upcomingTasks.filter { store.categoryMatches($0.category, category) }.count
     }
 
     private func clearTaskCategoryFilter() {
@@ -106,11 +117,19 @@ struct TimerView: View {
         store.task(for: engine.selectedTaskID)
     }
 
+    private var timerActionTitle: String {
+        store.activeTimer?.taskTitle ?? timerActionTask?.title ?? engine.currentTaskTitle
+    }
+
+    private var timerActionCategory: String? {
+        store.activeTimer?.category ?? timerActionTask?.category
+    }
+
     private var timerActionContext: String {
-        if let task = timerActionTask {
-            return "\(task.title)，\(task.category)分类"
+        if let category = timerActionCategory {
+            return "\(timerActionTitle)，\(category)分类"
         }
-        return engine.currentTaskTitle
+        return timerActionTitle
     }
 
     private var primaryTimerActionLabel: String {
@@ -130,12 +149,11 @@ struct TimerView: View {
     private func timerActionInputLabels(_ action: String) -> [Text] {
         var labels = [
             Text(action),
-            Text("\(action)\(engine.currentTaskTitle)")
+            Text("\(action)\(timerActionTitle)")
         ]
-        if let task = timerActionTask {
-            labels.append(Text("\(action)\(task.title)"))
-            labels.append(Text("\(action)\(task.category)分类"))
-            labels.append(Text("\(task.category)分类\(action)"))
+        if let category = timerActionCategory {
+            labels.append(Text("\(action)\(category)分类"))
+            labels.append(Text("\(category)分类\(action)"))
         }
         return labels
     }
@@ -191,11 +209,11 @@ struct TimerView: View {
         isTaskQueueExpanded = false
 
         let startableTasks = store.startableTasks()
-        let categoryTasks = startableTasks.filter { $0.category == request.category }
+        let categoryTasks = startableTasks.filter { store.categoryMatches($0.category, request.category) }
         let targetTask: FocusTask?
         if let preferredTaskID = request.preferredTaskID {
             targetTask = store.startableTask(for: preferredTaskID).flatMap { task in
-                task.category == request.category ? task : nil
+                store.categoryMatches(task.category, request.category) ? task : nil
             }
         } else {
             targetTask = categoryTasks.first
@@ -207,7 +225,7 @@ struct TimerView: View {
             } else if request.preferredTaskID != nil {
                 engine.selectTask(nil)
             } else if let selectedTaskID = engine.selectedTaskID,
-                      store.startableTask(for: selectedTaskID)?.category != request.category {
+                      !(store.startableTask(for: selectedTaskID).map { store.categoryMatches($0.category, request.category) } ?? false) {
                 engine.selectTask(nil)
             }
         }
@@ -344,7 +362,7 @@ struct TimerView: View {
                     .font(.system(size: 26, weight: .bold))
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(IconActionButtonStyle(tint: currentTint, filled: true))
+            .buttonStyle(IconActionButtonStyle(tint: currentTint, filled: true, tintHex: currentTintHex))
             .accessibilityLabel(primaryTimerActionLabel)
             .accessibilityInputLabels(timerActionInputLabels(primaryTimerActionInputCommand))
         }
@@ -360,7 +378,7 @@ struct TimerView: View {
                 Label("完成当前待办", systemImage: "checkmark.seal.fill")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(IconActionButtonStyle(tint: .mint, filled: true))
+            .buttonStyle(IconActionButtonStyle(tint: .mint, filled: true, tintHex: "#00C7BE"))
             .accessibilityLabel("完成\(timerActionContext)待办")
             .accessibilityInputLabels(timerActionInputLabels("完成"))
         }
@@ -501,7 +519,7 @@ struct TimerView: View {
         .onChange(of: selectedTaskCategory) { _, _ in
             isTaskQueueExpanded = false
         }
-        .onChange(of: filteredUpcomingTasks.count) { _, _ in
+        .onChange(of: filteredUpcomingTaskIDs) { _, _ in
             isTaskQueueExpanded = false
         }
     }
@@ -538,10 +556,16 @@ private struct MetricPill: View {
 }
 
 private struct TaskRow: View {
+    @EnvironmentObject private var store: FocusStore
+
     let task: FocusTask
     let isSelected: Bool
     let isTimerRunning: Bool
     var showsCategoryBadge = true
+
+    private var categoryTint: Color {
+        Color(hex: store.representativeAccentHex(for: task.category))
+    }
 
     private var selectionStateText: String {
         isSelected ? "已选中当前待办" : "未选中"
@@ -569,7 +593,7 @@ private struct TaskRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(Color(hex: task.accentHex))
+                .fill(categoryTint)
                 .frame(width: 10, height: 10)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -595,17 +619,17 @@ private struct TaskRow: View {
             Spacer()
 
             ProgressView(value: task.progress)
-                .tint(Color(hex: task.accentHex))
+                .tint(categoryTint)
                 .frame(width: 58)
 
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isSelected ? Color(hex: task.accentHex) : AppTheme.secondaryText)
+                .foregroundStyle(isSelected ? categoryTint : AppTheme.secondaryText)
         }
         .padding(12)
-        .background(isSelected ? Color(hex: task.accentHex).opacity(0.13) : AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(isSelected ? categoryTint.opacity(0.13) : AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(isSelected ? Color(hex: task.accentHex).opacity(0.7) : AppTheme.border, lineWidth: 1)
+                .stroke(isSelected ? categoryTint.opacity(0.7) : AppTheme.border, lineWidth: 1)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText)")
@@ -616,14 +640,18 @@ private struct TaskRow: View {
 }
 
 private struct TimerTaskCategoryFilterBar: View {
+    @EnvironmentObject private var store: FocusStore
+
     let categories: [String]
     @Binding var selectedCategory: String?
     let countProvider: (String?) -> Int
 
     private var categoryOptions: [TaskCategoryFilterOption] {
-        TaskCategoryPreset.prioritizedFilterOptions(categories: categories) { category in
-            countProvider(category)
-        }
+        TaskCategoryPreset.prioritizedFilterOptions(
+            categories: categories,
+            countProvider: { category in countProvider(category) },
+            accentProvider: { category in store.representativeAccentHex(for: category) }
+        )
     }
 
     var body: some View {
@@ -634,7 +662,7 @@ private struct TimerTaskCategoryFilterBar: View {
                     symbolName: "tray.full.fill",
                     count: countProvider(nil),
                     isSelected: selectedCategory == nil,
-                    tintHex: "#3DE8C5"
+                    tintHex: TaskCategoryPreset.fallbackAccentHex
                 ) {
                     selectedCategory = nil
                 }
@@ -644,7 +672,7 @@ private struct TimerTaskCategoryFilterBar: View {
                         title: option.category,
                         symbolName: option.symbolName,
                         count: option.count,
-                        isSelected: selectedCategory == option.category,
+                        isSelected: selectedCategory.map { store.categoryMatches($0, option.category) } ?? false,
                         tintHex: option.accentHex
                     ) {
                         toggleCategory(option.category)
@@ -656,7 +684,7 @@ private struct TimerTaskCategoryFilterBar: View {
     }
 
     private func toggleCategory(_ category: String) {
-        selectedCategory = selectedCategory == category ? nil : category
+        selectedCategory = selectedCategory.map { store.categoryMatches($0, category) ? nil : category } ?? category
     }
 }
 
@@ -670,6 +698,10 @@ private struct TimerTaskCategoryFilterChip: View {
 
     private var tint: Color {
         Color(hex: tintHex)
+    }
+
+    private var selectedText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
     }
 
     private var accessibilityStateText: String {
@@ -698,13 +730,13 @@ private struct TimerTaskCategoryFilterChip: View {
                 Text(title)
                 Text("\(count)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(isSelected ? Color.black.opacity(0.72) : tint)
+                    .foregroundStyle(isSelected ? selectedText.opacity(0.82) : tint)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(isSelected ? Color.black.opacity(0.08) : tint.opacity(0.16), in: Capsule())
             }
             .font(.caption.weight(.semibold))
-            .foregroundStyle(isSelected ? Color.black.opacity(0.82) : AppTheme.primaryText)
+            .foregroundStyle(isSelected ? selectedText : AppTheme.primaryText)
             .frame(minHeight: 44)
             .padding(.horizontal, 10)
             .background(isSelected ? tint : AppTheme.panel, in: Capsule())
@@ -722,6 +754,8 @@ private struct TimerTaskCategoryFilterChip: View {
 }
 
 private struct TimerSelectedTaskCategorySummaryView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let category: String
     let filteredCount: Int
     let totalCount: Int
@@ -733,7 +767,11 @@ private struct TimerSelectedTaskCategorySummaryView: View {
     }
 
     private var tint: Color {
-        Color(hex: preset?.accentHex ?? "#3DE8C5")
+        Color(hex: store.representativeAccentHex(for: category))
+    }
+
+    private var tintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: store.representativeAccentHex(for: category)))
     }
 
     private var addButtonInputLabels: [Text] {
@@ -760,6 +798,7 @@ private struct TimerSelectedTaskCategorySummaryView: View {
                 filteredCount: filteredCount,
                 totalCount: totalCount,
                 tint: tint,
+                tintText: tintText,
                 addButtonInputLabels: addButtonInputLabels,
                 clearButtonInputLabels: clearButtonInputLabels,
                 axis: .horizontal,
@@ -773,6 +812,7 @@ private struct TimerSelectedTaskCategorySummaryView: View {
                 filteredCount: filteredCount,
                 totalCount: totalCount,
                 tint: tint,
+                tintText: tintText,
                 addButtonInputLabels: addButtonInputLabels,
                 clearButtonInputLabels: clearButtonInputLabels,
                 axis: .vertical,
@@ -798,6 +838,7 @@ private struct TimerSelectedTaskCategorySummaryContent: View {
     let filteredCount: Int
     let totalCount: Int
     let tint: Color
+    let tintText: Color
     let addButtonInputLabels: [Text]
     let clearButtonInputLabels: [Text]
     let axis: Axis
@@ -839,7 +880,7 @@ private struct TimerSelectedTaskCategorySummaryContent: View {
             actionsLayout {
                 Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(Color.black.opacity(0.82))
+                    .foregroundStyle(tintText)
                     .buttonStyle(.plain)
                     .frame(maxWidth: axis == .vertical ? .infinity : nil)
                     .frame(minHeight: 44)
@@ -867,6 +908,8 @@ private struct TimerSelectedTaskCategorySummaryContent: View {
 }
 
 private struct TimerTaskCategoryEmptyView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let category: String
     let onAddTask: () -> Void
     let onClear: () -> Void
@@ -876,7 +919,11 @@ private struct TimerTaskCategoryEmptyView: View {
     }
 
     private var tint: Color {
-        Color(hex: preset?.accentHex ?? "#3DE8C5")
+        Color(hex: store.representativeAccentHex(for: category))
+    }
+
+    private var tintHex: String {
+        store.representativeAccentHex(for: category)
     }
 
     private var addButtonInputLabels: [Text] {
@@ -915,6 +962,7 @@ private struct TimerTaskCategoryEmptyView: View {
                 TimerTaskCategoryEmptyActions(
                     category: category,
                     tint: tint,
+                    tintHex: tintHex,
                     addButtonInputLabels: addButtonInputLabels,
                     clearButtonInputLabels: clearButtonInputLabels,
                     axis: .horizontal,
@@ -925,6 +973,7 @@ private struct TimerTaskCategoryEmptyView: View {
                 TimerTaskCategoryEmptyActions(
                     category: category,
                     tint: tint,
+                    tintHex: tintHex,
                     addButtonInputLabels: addButtonInputLabels,
                     clearButtonInputLabels: clearButtonInputLabels,
                     axis: .vertical,
@@ -943,11 +992,16 @@ private struct TimerTaskCategoryEmptyView: View {
 private struct TimerTaskCategoryEmptyActions: View {
     let category: String
     let tint: Color
+    let tintHex: String
     let addButtonInputLabels: [Text]
     let clearButtonInputLabels: [Text]
     let axis: Axis
     let onAddTask: () -> Void
     let onClear: () -> Void
+
+    private var tintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
+    }
 
     var body: some View {
         let layout = axis == .horizontal
@@ -957,7 +1011,7 @@ private struct TimerTaskCategoryEmptyActions: View {
         layout {
             Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
                 .font(.caption.weight(.bold))
-                .foregroundStyle(Color.black.opacity(0.82))
+                .foregroundStyle(tintText)
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 44)
@@ -981,6 +1035,8 @@ private struct TimerTaskCategoryEmptyActions: View {
 }
 
 private struct TimerTaskCategoryBadge: View {
+    @EnvironmentObject private var store: FocusStore
+
     let task: FocusTask
 
     private var preset: TaskCategoryPreset? {
@@ -988,7 +1044,7 @@ private struct TimerTaskCategoryBadge: View {
     }
 
     private var tint: Color {
-        Color(hex: preset?.accentHex ?? task.accentHex)
+        Color(hex: store.representativeAccentHex(for: task.category))
     }
 
     private var categorySymbolName: String {
@@ -1011,11 +1067,22 @@ private struct TimerTaskCategoryBadge: View {
 private struct IconActionButtonStyle: ButtonStyle {
     let tint: Color
     let filled: Bool
+    let tintHex: String?
+
+    init(tint: Color, filled: Bool, tintHex: String? = nil) {
+        self.tint = tint
+        self.filled = filled
+        self.tintHex = tintHex
+    }
 
     func makeBody(configuration: Configuration) -> some View {
+        let foreground = filled
+            ? Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
+            : tint
+
         configuration.label
             .font(.system(size: 19, weight: .bold))
-            .foregroundStyle(filled ? .black : tint)
+            .foregroundStyle(foreground)
             .frame(height: 58)
             .background(filled ? tint : tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {

@@ -14,15 +14,20 @@ final class LiveActivityService: TimerLiveActivityServicing {
     }
 
     func start(for snapshot: ActiveTimerSnapshot) async {
-        guard activitiesEnabled else { return }
         await end(immediate: true)
+        guard activitiesEnabled else { return }
+
+        let activeElapsed = activeElapsedSeconds(for: snapshot)
 
         let attributes = PomodoroActivityAttributes(
             sessionID: snapshot.sessionID.uuidString,
-            startedAt: snapshot.startedAt
+            startedAt: Date().addingTimeInterval(-TimeInterval(activeElapsed))
         )
         let state = contentState(for: snapshot)
-        let content = ActivityContent(state: state, staleDate: snapshot.endAt)
+        let content = ActivityContent(
+            state: state,
+            staleDate: snapshot.isPaused ? nil : snapshot.endAt
+        )
 
         do {
             activity = try Activity<PomodoroActivityAttributes>.request(
@@ -40,11 +45,20 @@ final class LiveActivityService: TimerLiveActivityServicing {
         var updated = snapshot
         updated.remainingWhenPaused = remainingSeconds
         let state = contentState(for: updated)
-        await activity.update(ActivityContent(state: state, staleDate: snapshot.endAt))
+        await activity.update(
+            ActivityContent(
+                state: state,
+                staleDate: snapshot.isPaused ? nil : snapshot.endAt
+            )
+        )
     }
 
     func end(immediate: Bool = false) async {
-        guard let activity else { return }
+        let activities = Activity<PomodoroActivityAttributes>.activities
+        guard !activities.isEmpty else {
+            activity = nil
+            return
+        }
         let state = PomodoroActivityAttributes.ContentState(
             modeName: "完成",
             taskTitle: "已归档",
@@ -54,8 +68,17 @@ final class LiveActivityService: TimerLiveActivityServicing {
             remainingSeconds: 0
         )
         let policy: ActivityUIDismissalPolicy = immediate ? .immediate : .after(Date().addingTimeInterval(3600))
-        await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: policy)
+        for activity in activities {
+            await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: policy)
+        }
         self.activity = nil
+    }
+
+    private func activeElapsedSeconds(for snapshot: ActiveTimerSnapshot) -> Int {
+        let remaining = snapshot.isPaused
+            ? snapshot.remainingWhenPaused
+            : max(0, Int(ceil(snapshot.endAt.timeIntervalSinceNow)))
+        return min(snapshot.plannedSeconds, max(0, snapshot.plannedSeconds - remaining))
     }
 
     private func contentState(for snapshot: ActiveTimerSnapshot) -> PomodoroActivityAttributes.ContentState {

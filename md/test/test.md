@@ -47,6 +47,18 @@
 
 本轮不在本机执行任何测试、validator、`verify_project.sh`、YAML 解析、Swift/`swiftc`、Xcode、`xcodebuild`、`simctl` 或 Simulator。Agent C 只使用 `gh` 获取最新 run/artifacts API、原始 ZIP 和全新证据目录，再分别以 success profile 与显式 failure profile 复判。
 
+## v1.4.8 自定义分类代表色与包阶段绑定
+
+本轮共享代表色和分类比较只从现有任务/会话派生，不新增 Codable 字段或持久化实体：
+
+- 预设分类始终使用预设色；非预设分类优先使用任务数组中首个同规范化分类的可用 HEX；session-only 和非法/空 HEX 回退到统一颜色。3/6 位 HEX 会去空白并统一大写，选中控件通过共享 `contrastTextHex(on:)` 在深色/浅色代表色上选择对比更高的文字。
+- iOS/macOS 分类筛选 option、摘要、空态、任务行、计划项、计时队列/当前任务、统计和已有分类草稿复用 `FocusStore.representativeAccentHex(for:)`；分类匹配使用去空白、大小写/变音符号/宽度不敏感比较，View 仍只维护瞬态筛选或草稿。
+- iOS/macOS 运行中计时主色优先读取 `FocusStore.activeTimer.tintHex`，任务被编辑、停用或删除后仍与活动快照和 Live Activity 保持一致，不重新从可变任务重算。
+- `scripts/test_mac_core.swift` 必须覆盖预设优先、首个任务颜色、session-only、非法颜色、3 位 HEX 清洗、深浅色对比文字、运行中快照色、分类清洗和筛选排序；`verify_project.log` 必须出现 `Category appearance contracts verified.`，对应 marker 缺失 negative fixture 只能拒绝该合同。
+- CI 结果包保留七个稳定业务阶段，并额外在 manifest/index/stage 中绑定 `bootstrap` 与 `createManifest` 两个包阶段；fallback 摘要必须列出包阶段失败和可用日志尾部，成功包所有预期 index entry 必须标为 required，`prepare-metadata.log` 只在该阶段失败时出现。成功包 required 路径缺失必须让 finalizer 失败，recovery 自身缺少六项核心证据也必须失败；fallback 名称按 branch slug 统一生成，阶段摘要逐项绑定 stage outcome，并由 skipped-only negative fixture 拒绝没有真实失败阶段的伪失败包。若正常 finalizer 失败，`scripts/recover_ci_result_package.py` 必须在上传前重建身份一致的失败包；恢复失败时不得上传陈旧成功目录。manifest/JUnit 的阶段 outcome 必须使用归一化值，validator 还要绑定 index/summary 的 package stage 状态。
+
+本轮不在本机执行测试、验证脚本、validator、Swift/Xcode 构建或配置检查。只接受最新 `origin/main` GitHub Actions push run、原始 run/artifacts API JSON、原始 ZIP 和 Agent C 第四模式复判；成功 profile 仍要求 JUnit `4/0/0`、两端 `.xcresult`、五张正式快照，失败 profile 必须同时核对 package stage 字段。
+
 ## Agent X 循环验证规则
 
 Agent X 只负责主控调度，不改变每轮验证责任。每一个由 Agent X 拆出的轮次仍按 Agent A -> Agent B -> Agent C 闭环执行：

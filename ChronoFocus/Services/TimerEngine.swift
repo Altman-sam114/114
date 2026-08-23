@@ -20,6 +20,12 @@ final class TimerEngine: ObservableObject {
     private let liveActivities: TimerLiveActivityServicing
     private var ticker: Timer?
     private var lastLiveActivityUpdate = Date.distantPast
+    private var activeTaskStartMode: TaskStartMode?
+    private var systemSurfaceGeneration: UInt64 = 0
+    private var notificationTask: Task<Void, Never>?
+    private var liveActivityTask: Task<Void, Never>?
+    private var cancellableNotificationTask: Task<Void, Never>?
+    private var cancellableLiveActivityTask: Task<Void, Never>?
     private var cancellables: Set<AnyCancellable> = []
 
     init(store: FocusStore, notifications: TimerNotificationServicing, liveActivities: TimerLiveActivityServicing) {
@@ -44,7 +50,7 @@ final class TimerEngine: ObservableObject {
     }
 
     var isCurrentTaskOpenEnded: Bool {
-        store.task(for: selectedTaskID)?.startMode == .openEnded
+        mode == .focus && activeTaskStartMode == .openEnded
     }
 
     func selectMode(_ newMode: TimerMode) {
@@ -111,38 +117,47 @@ final class TimerEngine: ObservableObject {
 
     func handleSettingsChange() {
         updateIdleTimerPolicy()
+        let generation = advanceSystemSurfaceGeneration()
         guard let snapshot = store.activeTimer else {
             syncIdleDuration()
+            enqueueLiveActivityEnd(immediate: true, generation: generation)
             return
         }
 
-        if store.settings.notificationsEnabled && !snapshot.isPaused {
-            Task {
+        let notificationsEnabled = store.settings.notificationsEnabled && !snapshot.isPaused
+        let soundEnabled = store.settings.soundEnabled && store.settings.soundVolume > 0
+        let nextMode = nextMode(after: snapshot.mode, completedRoundIndex: snapshot.roundIndex)
+        if notificationsEnabled {
+            let notifications = self.notifications
+            enqueueNotificationOperation(snapshot: snapshot, generation: generation) {
                 await notifications.scheduleCompletion(
                     identifier: snapshot.sessionID.uuidString,
                     mode: snapshot.mode,
                     taskTitle: snapshot.taskTitle,
-                    nextMode: nextMode(after: snapshot.mode, completedRoundIndex: snapshot.roundIndex),
+                    nextMode: nextMode,
                     endDate: snapshot.endAt,
-                    soundEnabled: store.settings.soundEnabled && store.settings.soundVolume > 0
+                    soundEnabled: soundEnabled
                 )
             }
         } else {
-            notifications.cancel(identifier: snapshot.sessionID.uuidString)
+            cancelNotification(for: snapshot)
         }
 
-        Task {
-            if store.settings.liveActivityEnabled {
+        if store.settings.liveActivityEnabled {
+            let liveActivities = self.liveActivities
+            enqueueLiveActivityOperation(snapshot: snapshot, generation: generation) {
                 await liveActivities.start(for: snapshot)
-            } else {
-                await liveActivities.end(immediate: true)
             }
+        } else {
+            enqueueLiveActivityEnd(immediate: true, generation: generation)
         }
     }
 
     func refreshFromClock() {
         guard let snapshot = store.activeTimer else {
             syncIdleDuration()
+            let generation = advanceSystemSurfaceGeneration()
+            enqueueLiveActivityEnd(immediate: true, generation: generation)
             return
         }
 
@@ -154,6 +169,14 @@ final class TimerEngine: ObservableObject {
                 startTicker()
             }
             updateIdleTimerPolicy()
+            if snapshot.isPaused {
+                cancelNotification(for: snapshot)
+            }
+            syncLiveActivity(
+                snapshot: snapshot,
+                remainingSeconds: remainingSeconds,
+                generation: systemSurfaceGeneration
+            )
         }
     }
 
@@ -163,8 +186,10 @@ final class TimerEngine: ObservableObject {
             return
         }
 
+        let generation = advanceSystemSurfaceGeneration()
         reconcileIdleSelectedTask()
         let task = store.startableTask(for: selectedTaskID)
+        activeTaskStartMode = mode == .focus ? task?.startMode : nil
         let taskTitle = task?.title ?? "自由专注"
         let category = task?.category ?? "自由"
         let planned = store.settings.seconds(for: mode)
@@ -181,18 +206,19 @@ final class TimerEngine: ObservableObject {
             remainingWhenPaused: planned,
             isPaused: false,
             roundIndex: roundIndex,
-            tintHex: task?.accentHex ?? mode.tintHex
+            tintHex: task.map { store.representativeAccentHex(for: $0.category, preferred: $0.accentHex) } ?? mode.tintHex
         )
 
         store.activeTimer = snapshot
         apply(snapshot)
         startTicker()
         updateIdleTimerPolicy()
-        activateSystemSurfaces(for: snapshot)
+        activateSystemSurfaces(for: snapshot, generation: generation)
     }
 
     func pause() {
         guard var snapshot = store.activeTimer, !snapshot.isPaused else { return }
+        let generation = advanceSystemSurfaceGeneration()
         ticker?.invalidate()
         ticker = nil
         let remaining = max(1, Int(ceil(snapshot.endAt.timeIntervalSinceNow)))
@@ -200,27 +226,29 @@ final class TimerEngine: ObservableObject {
         snapshot.isPaused = true
         store.activeTimer = snapshot
         apply(snapshot)
-        notifications.cancel(identifier: snapshot.sessionID.uuidString)
+        cancelNotification(for: snapshot)
         updateIdleTimerPolicy()
-        Task { await liveActivities.update(with: snapshot, remainingSeconds: remaining) }
+        syncLiveActivity(snapshot: snapshot, remainingSeconds: remaining, generation: generation)
     }
 
     func resume() {
         guard var snapshot = store.activeTimer, snapshot.isPaused else { return }
+        let generation = advanceSystemSurfaceGeneration()
         snapshot.isPaused = false
         snapshot.endAt = Date().addingTimeInterval(TimeInterval(snapshot.remainingWhenPaused))
         store.activeTimer = snapshot
         apply(snapshot)
         startTicker()
         updateIdleTimerPolicy()
-        activateSystemSurfaces(for: snapshot)
+        activateSystemSurfaces(for: snapshot, generation: generation)
     }
 
     func stop(markIncomplete: Bool = true) {
         guard let snapshot = store.activeTimer else { return }
+        let generation = advanceSystemSurfaceGeneration()
         ticker?.invalidate()
         ticker = nil
-        let actual = max(0, Int(Date().timeIntervalSince(snapshot.startedAt)))
+        let actual = activeElapsedSeconds(for: snapshot)
         if markIncomplete && actual >= 60 {
             store.recordSession(
                 FocusSession(
@@ -236,19 +264,20 @@ final class TimerEngine: ObservableObject {
                 )
             )
         }
-        notifications.cancel(identifier: snapshot.sessionID.uuidString)
+        cancelNotification(for: snapshot)
         store.activeTimer = nil
         resetRuntimeState(nextMode: mode)
         updateIdleTimerPolicy()
-        Task { await liveActivities.end(immediate: true) }
+        enqueueLiveActivityEnd(immediate: true, generation: generation)
     }
 
     func finishCurrentTask() {
         guard let snapshot = store.activeTimer else { return }
+        let generation = advanceSystemSurfaceGeneration()
         ticker?.invalidate()
         ticker = nil
         let endedAt = Date()
-        let actual = max(1, Int(endedAt.timeIntervalSince(snapshot.startedAt)))
+        let actual = max(1, activeElapsedSeconds(for: snapshot, at: endedAt))
         store.recordSession(
             FocusSession(
                 taskID: snapshot.taskID,
@@ -263,22 +292,23 @@ final class TimerEngine: ObservableObject {
             )
         )
         if snapshot.mode == .focus {
-            _ = store.finishTask(snapshot.taskID)
+            _ = store.finishActiveTask(snapshot.taskID)
         }
-        notifications.cancel(identifier: snapshot.sessionID.uuidString)
+        cancelNotification(for: snapshot)
         store.activeTimer = nil
         resetRuntimeState(nextMode: .focus)
         updateIdleTimerPolicy()
-        Task { await liveActivities.end(immediate: true) }
+        enqueueLiveActivityEnd(immediate: true, generation: generation)
     }
 
     func skipToNextSession() {
         guard let snapshot = store.activeTimer else { return }
+        let generation = advanceSystemSurfaceGeneration()
         ticker?.invalidate()
         ticker = nil
-        notifications.cancel(identifier: snapshot.sessionID.uuidString)
+        cancelNotification(for: snapshot)
         store.activeTimer = nil
-        Task { await liveActivities.end(immediate: true) }
+        enqueueLiveActivityEnd(immediate: true, generation: generation)
 
         let nextMode = nextMode(after: snapshot.mode, completedRoundIndex: snapshot.roundIndex)
         if snapshot.mode == .focus {
@@ -289,17 +319,39 @@ final class TimerEngine: ObservableObject {
     }
 
     private func restoreFromStore() {
-        guard let snapshot = store.activeTimer else {
+        guard var snapshot = store.activeTimer else {
             syncIdleDuration()
+            let generation = advanceSystemSurfaceGeneration()
+            enqueueLiveActivityEnd(immediate: true, generation: generation)
             return
         }
+        let fallbackTint = snapshot.taskID == nil
+            ? snapshot.mode.tintHex
+            : store.representativeAccentHex(for: snapshot.category)
+        let normalizedTint = TaskCategoryPreset.usableAccentHex(snapshot.tintHex) ?? fallbackTint
+        if snapshot.tintHex != normalizedTint {
+            snapshot.tintHex = normalizedTint
+            store.activeTimer = snapshot
+        }
+        activeTaskStartMode = snapshot.mode == .focus ? store.task(for: snapshot.taskID)?.startMode : nil
         apply(snapshot)
         if !snapshot.isPaused && snapshot.endAt <= Date() {
             completeCurrentSession(playSound: false)
-        } else if !snapshot.isPaused {
-            startTicker()
+        } else {
+            if !snapshot.isPaused {
+                startTicker()
+            }
             updateIdleTimerPolicy()
-            Task { await liveActivities.update(with: snapshot, remainingSeconds: remainingSeconds) }
+            if snapshot.isPaused {
+                cancelNotification(for: snapshot)
+                syncLiveActivity(
+                    snapshot: snapshot,
+                    remainingSeconds: snapshot.remainingWhenPaused,
+                    generation: systemSurfaceGeneration
+                )
+            } else {
+                activateSystemSurfaces(for: snapshot, generation: systemSurfaceGeneration)
+            }
         }
     }
 
@@ -341,14 +393,17 @@ final class TimerEngine: ObservableObject {
         remainingSeconds = max(0, Int(ceil(snapshot.endAt.timeIntervalSinceNow)))
         if remainingSeconds <= 0 {
             completeCurrentSession(playSound: true)
-        } else if Date().timeIntervalSince(lastLiveActivityUpdate) > 15 {
+        } else if store.settings.liveActivityEnabled && Date().timeIntervalSince(lastLiveActivityUpdate) > 15 {
             lastLiveActivityUpdate = Date()
-            Task { await liveActivities.update(with: snapshot, remainingSeconds: remainingSeconds) }
+            let generation = systemSurfaceGeneration
+            let remaining = remainingSeconds
+            syncLiveActivity(snapshot: snapshot, remainingSeconds: remaining, generation: generation)
         }
     }
 
     private func completeCurrentSession(playSound: Bool) {
         guard let snapshot = store.activeTimer else { return }
+        let generation = advanceSystemSurfaceGeneration()
         ticker?.invalidate()
         ticker = nil
 
@@ -368,7 +423,7 @@ final class TimerEngine: ObservableObject {
         )
 
         if snapshot.mode == .focus,
-           let updatedTask = store.incrementRound(for: snapshot.taskID),
+           let updatedTask = store.incrementActiveTaskRound(for: snapshot.taskID),
            updatedTask.isDone {
             notifications.cancelTaskReminder(taskID: updatedTask.id)
         }
@@ -380,9 +435,9 @@ final class TimerEngine: ObservableObject {
                 completionSound: store.settings.completionSound
             )
         }
-        notifications.cancel(identifier: snapshot.sessionID.uuidString)
+        cancelNotification(for: snapshot)
         store.activeTimer = nil
-        Task { await liveActivities.end() }
+        enqueueLiveActivityEnd(immediate: false, generation: generation)
 
         let nextMode = nextMode(after: snapshot.mode, completedRoundIndex: snapshot.roundIndex)
         if snapshot.mode == .focus {
@@ -399,6 +454,7 @@ final class TimerEngine: ObservableObject {
     private func resetRuntimeState(nextMode: TimerMode) {
         isRunning = false
         isPaused = false
+        activeTaskStartMode = nil
         mode = nextMode
         reconcileIdleSelectedTask()
         plannedSeconds = store.settings.seconds(for: nextMode)
@@ -441,6 +497,13 @@ final class TimerEngine: ObservableObject {
         }
     }
 
+    private func activeElapsedSeconds(for snapshot: ActiveTimerSnapshot, at date: Date = Date()) -> Int {
+        let remaining = snapshot.isPaused
+            ? snapshot.remainingWhenPaused
+            : max(0, Int(ceil(snapshot.endAt.timeIntervalSince(date))))
+        return min(snapshot.plannedSeconds, max(0, snapshot.plannedSeconds - remaining))
+    }
+
     private func shouldAutoStart(after completedMode: TimerMode) -> Bool {
         switch completedMode {
         case .focus:
@@ -450,22 +513,137 @@ final class TimerEngine: ObservableObject {
         }
     }
 
-    private func activateSystemSurfaces(for snapshot: ActiveTimerSnapshot) {
-        Task {
-            if store.settings.notificationsEnabled {
+    private func advanceSystemSurfaceGeneration() -> UInt64 {
+        systemSurfaceGeneration &+= 1
+        cancellableNotificationTask?.cancel()
+        cancellableLiveActivityTask?.cancel()
+        cancellableNotificationTask = nil
+        cancellableLiveActivityTask = nil
+        return systemSurfaceGeneration
+    }
+
+    private func isCurrentSystemSurface(snapshot: ActiveTimerSnapshot, generation: UInt64) -> Bool {
+        generation == systemSurfaceGeneration && store.activeTimer == snapshot
+    }
+
+    private func enqueueNotificationOperation(
+        snapshot: ActiveTimerSnapshot? = nil,
+        generation: UInt64? = nil,
+        cancelOnInvalidation: Bool = true,
+        operation: @escaping @MainActor () async -> Void
+    ) {
+        let previous = notificationTask
+        let task = Task { @MainActor [weak self] in
+            if let previous {
+                await previous.value
+            }
+            guard let self, !Task.isCancelled else { return }
+            if let snapshot, let generation {
+                guard self.isCurrentSystemSurface(snapshot: snapshot, generation: generation) else { return }
+            } else {
+                guard snapshot == nil, generation == nil else { return }
+            }
+            await operation()
+            guard let self, !Task.isCancelled else { return }
+            if let snapshot, let generation {
+                guard self.isCurrentSystemSurface(snapshot: snapshot, generation: generation) else { return }
+            }
+        }
+        notificationTask = task
+        if cancelOnInvalidation {
+            cancellableNotificationTask = task
+        }
+    }
+
+    private func enqueueLiveActivityOperation(
+        snapshot: ActiveTimerSnapshot? = nil,
+        generation: UInt64? = nil,
+        cancelOnInvalidation: Bool = true,
+        operation: @escaping @MainActor () async -> Void
+    ) {
+        let previous = liveActivityTask
+        let task = Task { @MainActor [weak self] in
+            if let previous {
+                await previous.value
+            }
+            guard let self, !Task.isCancelled else { return }
+            if let generation {
+                guard self.systemSurfaceGeneration == generation else { return }
+                if let snapshot {
+                    guard self.isCurrentSystemSurface(snapshot: snapshot, generation: generation) else { return }
+                }
+            } else {
+                guard snapshot == nil else { return }
+            }
+            await operation()
+            guard let self, !Task.isCancelled else { return }
+            if let generation {
+                guard self.systemSurfaceGeneration == generation else { return }
+                if let snapshot {
+                    guard self.isCurrentSystemSurface(snapshot: snapshot, generation: generation) else { return }
+                }
+            } else {
+                guard snapshot == nil else { return }
+            }
+        }
+        liveActivityTask = task
+        if cancelOnInvalidation {
+            cancellableLiveActivityTask = task
+        }
+    }
+
+    private func cancelNotification(for snapshot: ActiveTimerSnapshot) {
+        let identifier = snapshot.sessionID.uuidString
+        notifications.cancel(identifier: identifier)
+        let notifications = self.notifications
+        enqueueNotificationOperation(cancelOnInvalidation: false) {
+            notifications.cancel(identifier: identifier)
+        }
+    }
+
+    private func enqueueLiveActivityEnd(immediate: Bool, generation: UInt64) {
+        let liveActivities = self.liveActivities
+        enqueueLiveActivityOperation(generation: generation, cancelOnInvalidation: false) {
+            await liveActivities.end(immediate: immediate)
+        }
+    }
+
+    private func syncLiveActivity(snapshot: ActiveTimerSnapshot, remainingSeconds: Int, generation: UInt64) {
+        guard store.settings.liveActivityEnabled else {
+            enqueueLiveActivityEnd(immediate: true, generation: generation)
+            return
+        }
+
+        let liveActivities = self.liveActivities
+        enqueueLiveActivityOperation(snapshot: snapshot, generation: generation) {
+            await liveActivities.update(with: snapshot, remainingSeconds: remainingSeconds)
+        }
+    }
+
+    private func activateSystemSurfaces(for snapshot: ActiveTimerSnapshot, generation: UInt64) {
+        if store.settings.notificationsEnabled && !snapshot.isPaused {
+            let notifications = self.notifications
+            let nextMode = nextMode(after: snapshot.mode, completedRoundIndex: snapshot.roundIndex)
+            let soundEnabled = store.settings.soundEnabled && store.settings.soundVolume > 0
+            enqueueNotificationOperation(snapshot: snapshot, generation: generation) {
                 await notifications.scheduleCompletion(
                     identifier: snapshot.sessionID.uuidString,
                     mode: snapshot.mode,
                     taskTitle: snapshot.taskTitle,
-                    nextMode: nextMode(after: snapshot.mode, completedRoundIndex: snapshot.roundIndex),
+                    nextMode: nextMode,
                     endDate: snapshot.endAt,
-                    soundEnabled: store.settings.soundEnabled && store.settings.soundVolume > 0
+                    soundEnabled: soundEnabled
                 )
             }
+        }
 
-            if store.settings.liveActivityEnabled {
+        if store.settings.liveActivityEnabled {
+            let liveActivities = self.liveActivities
+            enqueueLiveActivityOperation(snapshot: snapshot, generation: generation) {
                 await liveActivities.start(for: snapshot)
             }
+        } else {
+            enqueueLiveActivityEnd(immediate: true, generation: generation)
         }
     }
 }

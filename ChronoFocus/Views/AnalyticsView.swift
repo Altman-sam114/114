@@ -266,12 +266,13 @@ struct AnalyticsView: View {
                             Text(bucket.label)
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(AppTheme.secondaryText)
-                                .lineLimit(1)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity)
                     }
                 }
-                .frame(height: 168)
+                .frame(minHeight: 168, alignment: .bottom)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Label("日程计划回顾", systemImage: "list.bullet.rectangle.portrait")
@@ -286,7 +287,7 @@ struct AnalyticsView: View {
                         ForEach(store.pomodoroPlan.sorted(by: { $0.scheduledStart > $1.scheduledStart }).prefix(8)) { item in
                             HStack(alignment: .top, spacing: 10) {
                                 Circle()
-                                    .fill(Color(hex: item.accentHex))
+                                    .fill(Color(hex: store.representativeAccentHex(for: item.category)))
                                     .frame(width: 8, height: 8)
                                     .padding(.top, 6)
                                 VStack(alignment: .leading, spacing: 4) {
@@ -382,12 +383,13 @@ struct AnalyticsView: View {
                             Text(bucket.weekdayLabel)
                                 .font(.caption2)
                                 .foregroundStyle(AppTheme.secondaryText)
-                                .lineLimit(1)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity)
                     }
                 }
-                .frame(height: 170)
+                .frame(minHeight: 170, alignment: .bottom)
             }
         }
     }
@@ -425,7 +427,7 @@ struct AnalyticsView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Label(item.category, systemImage: "circle.fill")
-                                        .foregroundStyle(Color(hex: item.accentHex))
+                                        .foregroundStyle(Color(hex: store.representativeAccentHex(for: item.category)))
                                     HStack(spacing: 6) {
                                         Text(categoryShareSessionCountText(for: item))
                                         Text(categoryShareRankText(for: rank))
@@ -440,13 +442,13 @@ struct AnalyticsView: View {
                                 Text("\(categorySharePercent(for: item.seconds))%")
                                     .font(categorySharePercentFont())
                                     .monospacedDigit()
-                                    .foregroundStyle(Color(hex: item.accentHex))
+                                    .foregroundStyle(Color(hex: store.representativeAccentHex(for: item.category)))
                                     .padding(.horizontal, 7)
                                     .padding(.vertical, 3)
-                                    .background(Color(hex: item.accentHex).opacity(0.14), in: Capsule())
+                                    .background(Color(hex: store.representativeAccentHex(for: item.category)).opacity(0.14), in: Capsule())
                             }
                             ProgressView(value: Double(item.seconds), total: Double(categoryShareTotalSeconds))
-                                .tint(Color(hex: item.accentHex))
+                                .tint(Color(hex: store.representativeAccentHex(for: item.category)))
                         }
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(categoryShareAccessibilityLabel(for: item, rank: rank))
@@ -577,6 +579,8 @@ struct AnalyticsView: View {
 }
 
 private struct AnalyticsPlanReviewCategoryBadge: View {
+    @EnvironmentObject private var store: FocusStore
+
     let item: PomodoroPlanItem
 
     private var categoryPreset: TaskCategoryPreset? {
@@ -588,7 +592,7 @@ private struct AnalyticsPlanReviewCategoryBadge: View {
     }
 
     private var tint: Color {
-        Color(hex: categoryPreset?.accentHex ?? item.accentHex)
+        Color(hex: store.representativeAccentHex(for: item.category))
     }
 
     var body: some View {
@@ -605,6 +609,8 @@ private struct AnalyticsPlanReviewCategoryBadge: View {
 }
 
 private struct RecentSessionCategoryBadge: View {
+    @EnvironmentObject private var store: FocusStore
+
     let category: String
 
     private var categoryPreset: TaskCategoryPreset? {
@@ -616,7 +622,7 @@ private struct RecentSessionCategoryBadge: View {
     }
 
     private var tint: Color {
-        Color(hex: categoryPreset?.accentHex ?? "#7C8CF8")
+        Color(hex: store.representativeAccentHex(for: category))
     }
 
     var body: some View {

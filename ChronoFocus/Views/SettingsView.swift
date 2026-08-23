@@ -41,6 +41,7 @@ struct SettingsView: View {
                 Label("每轮时间", systemImage: "dial.medium")
                     .font(.headline)
                     .foregroundStyle(AppTheme.primaryText)
+                    .accessibilityAddTraits(.isHeader)
 
                 DurationStepper(title: "专注", value: $store.settings.focusMinutes, range: 1...180, tint: .cyan)
                 DurationStepper(title: "短休", value: $store.settings.shortBreakMinutes, range: 1...60, tint: .orange)
@@ -57,6 +58,7 @@ struct SettingsView: View {
                 Label("自动化", systemImage: "bolt.horizontal.circle.fill")
                     .font(.headline)
                     .foregroundStyle(AppTheme.primaryText)
+                    .accessibilityAddTraits(.isHeader)
 
                 Toggle(isOn: $store.settings.autoStartBreaks) {
                     Label("专注结束后自动休息", systemImage: "forward.end.fill")
@@ -79,6 +81,7 @@ struct SettingsView: View {
                 Label("后台与提醒", systemImage: "iphone.gen3.radiowaves.left.and.right")
                     .font(.headline)
                     .foregroundStyle(AppTheme.primaryText)
+                    .accessibilityAddTraits(.isHeader)
 
                 Toggle(isOn: $store.settings.notificationsEnabled) {
                     Label("到点通知", systemImage: "bell.badge.fill")
@@ -102,6 +105,9 @@ struct SettingsView: View {
                     Text(notificationStatusText)
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.secondaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1)
                     Spacer()
                     if notifications.shouldShowAuthorizationAction {
                         Button(notifications.authorizationActionTitle) {
@@ -109,6 +115,7 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.cyan)
+                        .frame(minHeight: 44)
                     }
                 }
                 .padding(12)
@@ -126,6 +133,7 @@ struct SettingsView: View {
                     Label("铃声与音色", systemImage: "music.note")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Text(premium.isProUnlocked ? "已解锁" : "Pro")
                         .font(.caption.weight(.bold))
@@ -156,6 +164,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(.cyan)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .disabled(!premium.isProUnlocked && store.settings.completionSound.isPro)
 
                     if !premium.isProUnlocked {
@@ -167,6 +176,7 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.cyan)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .disabled(premium.isLoading)
                     }
                 }
@@ -181,6 +191,7 @@ struct SettingsView: View {
                     Label("Pro 统计", systemImage: premium.isProUnlocked ? "checkmark.seal.fill" : "lock.fill")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Text(premium.isProUnlocked ? "已解锁" : premium.priceText)
                         .font(.caption.weight(.bold))
@@ -201,6 +212,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.cyan)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .disabled(premium.isLoading || premium.isProUnlocked)
 
                     Button {
@@ -212,6 +224,7 @@ struct SettingsView: View {
                     .buttonStyle(.bordered)
                     .tint(.mint)
                     .disabled(premium.isLoading)
+                    .frame(width: 44, height: 44)
                     .accessibilityLabel("恢复购买")
                 }
             }
@@ -282,7 +295,7 @@ private struct DurationStepper: View {
     let tint: Color
 
     var body: some View {
-        HStack {
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
@@ -291,13 +304,21 @@ private struct DurationStepper: View {
                     .font(.caption)
                     .foregroundStyle(AppTheme.secondaryText)
             }
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityHidden(true)
 
             Stepper("", value: $value, in: range)
                 .labelsHidden()
                 .tint(tint)
+                .frame(minWidth: 96, minHeight: 44)
+                .contentShape(Rectangle())
+                .accessibilityLabel(title)
+                .accessibilityValue("\(value) \(suffix)")
+                .accessibilityHint("使用加号或减号调整")
+                .accessibilityInputLabels([Text(title), Text("\(title)时间")])
         }
+        .frame(minHeight: 44)
         .padding(12)
         .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }

@@ -175,8 +175,20 @@ private struct MacProPreviewPanelView: View {
 
                 HStack(spacing: 10) {
                     if isSnapshotRendering {
-                        MacStaticAnalyticsActionChipView(title: "解锁 Pro", symbolName: "sparkles", tint: .cyan, isProminent: true)
-                        MacStaticAnalyticsActionChipView(title: "恢复购买", symbolName: "arrow.clockwise", tint: MacTheme.secondaryText, isProminent: false)
+                        MacStaticAnalyticsActionChipView(
+                            title: "解锁 Pro",
+                            symbolName: "sparkles",
+                            tint: .cyan,
+                            isProminent: true,
+                            prominentForeground: Color(hex: TaskCategoryPreset.contrastTextHex(on: "#00C7FF"))
+                        )
+                        MacStaticAnalyticsActionChipView(
+                            title: "恢复购买",
+                            symbolName: "arrow.clockwise",
+                            tint: MacTheme.secondaryText,
+                            isProminent: false,
+                            prominentForeground: MacTheme.primaryText
+                        )
                     } else {
                         Button("解锁 Pro", systemImage: "sparkles") {
                             Task { await premium.purchasePro() }
@@ -206,12 +218,13 @@ private struct MacStaticAnalyticsActionChipView: View {
     let symbolName: String
     let tint: Color
     let isProminent: Bool
+    let prominentForeground: Color
 
     var body: some View {
         Label(title, systemImage: symbolName)
             .font(.subheadline.bold())
-            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
-            .frame(minHeight: 30)
+            .foregroundStyle(isProminent ? prominentForeground : tint)
+            .frame(minHeight: 44)
             .padding(.horizontal, 10)
             .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
             .overlay {
@@ -268,12 +281,14 @@ private struct MacReportPanelView: View {
                             Text(bucket.label)
                                 .font(.caption)
                                 .foregroundStyle(MacTheme.secondaryText)
-                                .lineLimit(1)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity)
                     }
                 }
-                .frame(height: 188)
+                .frame(minHeight: 188)
             }
         }
     }
@@ -382,7 +397,7 @@ private struct MacWeeklyChartPanelView: View {
                                     if bucket.focusSeconds > 0 {
                                         Text(bucket.focusSeconds.hourMinuteText)
                                             .font(.caption2.bold())
-                                            .foregroundStyle(Color.black.opacity(0.72))
+                                            .foregroundStyle(Color(hex: TaskCategoryPreset.contrastTextHex(on: "#00C7FF")))
                                             .padding(.top, 4)
                                             .minimumScaleFactor(0.65)
                                     }
@@ -391,12 +406,14 @@ private struct MacWeeklyChartPanelView: View {
                             Text(bucket.weekdayLabel)
                                 .font(.caption)
                                 .foregroundStyle(MacTheme.secondaryText)
-                                .lineLimit(1)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity)
                     }
                 }
-                .frame(height: 178)
+                .frame(minHeight: 178)
             }
         }
     }
@@ -438,7 +455,7 @@ private struct MacCategoryChartPanelView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Label(item.category, systemImage: "circle.fill")
-                                        .foregroundStyle(Color(hex: item.accentHex))
+                                        .foregroundStyle(Color(hex: store.representativeAccentHex(for: item.category)))
                                     HStack(spacing: 6) {
                                         Text(categoryShareSessionCountText(for: item))
                                         Text(categoryShareRankText(for: rank))
@@ -453,15 +470,15 @@ private struct MacCategoryChartPanelView: View {
                                 Text("\(categorySharePercent(for: item.seconds))%")
                                     .font(categorySharePercentFont())
                                     .monospacedDigit()
-                                    .foregroundStyle(Color(hex: item.accentHex))
+                                    .foregroundStyle(Color(hex: store.representativeAccentHex(for: item.category)))
                                     .padding(.horizontal, 7)
                                     .padding(.vertical, 3)
-                                    .background(Color(hex: item.accentHex).opacity(0.14), in: Capsule())
+                                    .background(Color(hex: store.representativeAccentHex(for: item.category)).opacity(0.14), in: Capsule())
                             }
                             MacLinearProgressView(
                                 value: Double(item.seconds),
                                 total: Double(categoryShareTotalSeconds),
-                                tint: Color(hex: item.accentHex),
+                                tint: Color(hex: store.representativeAccentHex(for: item.category)),
                                 height: 8
                             )
                         }
@@ -588,6 +605,8 @@ private struct MacRecentSessionsPanelView: View {
 }
 
 private struct MacRecentSessionCategoryBadgeView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let category: String
 
     private var categoryPreset: TaskCategoryPreset? {
@@ -599,7 +618,7 @@ private struct MacRecentSessionCategoryBadgeView: View {
     }
 
     private var tint: Color {
-        Color(hex: categoryPreset?.accentHex ?? "#7C8CF8")
+        Color(hex: store.representativeAccentHex(for: category))
     }
 
     var body: some View {

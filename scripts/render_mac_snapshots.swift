@@ -168,6 +168,7 @@ struct MacSnapshotRenderer {
             onAddTask: {},
             onClear: {}
         )
+        .environmentObject(store)
         .frame(width: 220)
         try render(timerCategoryEmptyNarrowView, to: timerCategoryEmptyNarrowURL)
         try assertNonBlankImage(at: timerCategoryEmptyNarrowURL)
@@ -205,6 +206,7 @@ struct MacSnapshotRenderer {
             onAddTask: {},
             onClear: {}
         )
+        .environmentObject(store)
         .frame(width: 220)
         try render(timerCategoryContextNarrowView, to: timerCategoryContextNarrowURL)
         try assertNonBlankImage(at: timerCategoryContextNarrowURL)

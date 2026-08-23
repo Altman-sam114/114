@@ -195,6 +195,56 @@
 
 - v1.4.6 已完成一轮 Agent A→B→C 云端闭环，但总目标仍未完成；下一轮继续寻找 UI 分类体验或 CI 证据强度的独立优化点。
 
+### v1.4.8 / 自定义分类代表色与包阶段绑定
+
+日期：2026-08-23
+
+核心变更：
+
+- 共享 `TaskCategoryPreset` / `FocusStore` 统一预设优先、首个同分类任务、session-only/fallback 的代表色规则，规范化分类比较并拒绝空/非法 HEX；iOS/macOS 分类筛选、摘要、空态、任务行、计划项、计时队列、统计和已有分类草稿复用同一查询，不新增持久化字段。
+- 新增共享 `contrastTextHex(on:)`，让自定义深色/浅色代表色在 iOS/macOS 选中 chip、日期格、空态、摘要和快捷面板上选择更高对比度文字；运行中 iOS/macOS 计时主色改为优先读取 `ActiveTimerSnapshot.tintHex`，避免任务编辑后与 Live Activity/恢复快照分裂。
+- `scripts/test_mac_core.swift` 增加代表色优先级、session-only、非法色值、分类清洗和筛选排序断言；`scripts/verify_project.sh` 与 `scripts/validate_ci_artifact.rb` 增加代表色、分类统计规范化 marker/PASS 和独立 negative fixture。
+- `.github/workflows/ci-results.yml` 的 fallback 结果包额外绑定 `bootstrap` 与 `createManifest`，失败摘要保留可用日志尾部，成功包保留完整 required index，`prepare-metadata.log` 只在对应阶段失败时列入 allowlist；失败 validator 同步复判 package stage 字段。
+- 静态复核后补齐首个非法任务颜色继续寻找后续合法颜色、iOS/macOS 预设 picker 规范化选中判断，以及 Mac 窄快照直接渲染的 `FocusStore` 环境对象；finalizer 的 manifest/JUnit 改用归一化 outcome，成功 validator 绑定 index/summary 的 package stage 状态。
+- 新增 `scripts/recover_ci_result_package.py`：正常 finalizer 失败时在上传前重建一致的 fallback manifest、stage、summary、JUnit、index 和 run context；恢复步骤失败则 upload 被跳过，避免将陈旧成功目录冒充失败包。
+- 追加 CI 证据链加固：成功包 required 路径缺失会使 finalizer 失败并转入 failure profile，recovery 自身缺少六项核心证据时拒绝继续；所有阶段摘要逐项绑定 stage outcome，fallback artifact 名称统一按 branch slug 生成，并增加 skipped-only 伪失败负向 fixture。
+- 追加 UI 可用性收口：Mac 快捷面板在固定 popover 内提供确定性快照状态和受限垂直滚动；iOS/macOS 计划、筛选摘要、日历导航和待办操作统一提供至少 44pt 触控区，静态快照占位与真实操作尺寸保持一致。
+
+关键文件：
+
+- `ChronoFocus/Models/AppModels.swift`
+- `ChronoFocus/Services/FocusStore.swift`
+- `ChronoFocus/Services/TimerEngine.swift`
+- `ChronoFocus/Services/LiveActivityService.swift`
+- `ChronoFocus/Views/ScheduleView.swift`
+- `ChronoFocus/Views/TimerView.swift`
+- `ChronoFocus/Views/AnalyticsView.swift`
+- `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `ChronoFocusMac/Views/MacTimerDetailView.swift`
+- `ChronoFocusMac/Views/MacMiniTimerView.swift`
+- `ChronoFocusMac/Views/MacAnalyticsDetailView.swift`
+- `.github/workflows/ci-results.yml`
+- `scripts/recover_ci_result_package.py`
+- `scripts/render_mac_snapshots.swift`
+- `scripts/test_mac_core.swift`
+- `scripts/verify_project.sh`
+- `scripts/validate_ci_artifact.rb`
+- `scripts/validate_ci_failure_artifact.rb`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `README.md`
+- `md/prompt/README.md`
+- `md/prompt/v1（持续优化）/v1.4.8（自定义分类代表色统一）.md`
+
+验证结果：
+
+- 当前未运行任何本地测试、验证脚本、validator、YAML 解析、Swift/Xcode 构建、`xcodebuild`、`simctl`、Simulator 或浏览器；仅完成静态审阅和补丁准备，等待提交后的 GitHub Actions。
+
+遗留事项：
+
+- v1.4.8 尚未提交或推送；运行中任务锁定、快照语义和动态文字对比度修复已完成静态整合，正在等待最终审阅后提交；之后必须由最新 `origin/main` push run 及 Agent C 第四模式复判 success artifact，并至少复判一次受控 failure profile 后，才能更新为通过。
+
 ### v1.4.7 / CI 失败结果包韧性
 
 日期：2026-08-23

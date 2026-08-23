@@ -34,7 +34,7 @@ struct MacCoreTests {
             category: "测试",
             dueDate: dueDate,
             estimatedRounds: 2,
-            accentHex: "#3DE8C5",
+            accentHex: "#54A0FF",
             isEnabled: true,
             autoStartPomodoro: true
         ) else {
@@ -60,9 +60,35 @@ struct MacCoreTests {
                 completed: true
             )
         )
-        assert(store.todayFocusSeconds == 1500, "Expected today's focus seconds to include completed session")
+        store.recordSession(
+            FocusSession(
+                taskID: nil,
+                taskTitle: "历史记录",
+                category: "历史",
+                mode: .shortBreak,
+                startedAt: Date(),
+                endedAt: Date().addingTimeInterval(300),
+                plannedSeconds: 300,
+                actualSeconds: 300,
+                completed: true
+            )
+        )
+        store.recordSession(
+            FocusSession(
+                taskID: task.id,
+                taskTitle: task.title,
+                category: "  测试  ",
+                mode: .focus,
+                startedAt: Date(),
+                endedAt: Date().addingTimeInterval(300),
+                plannedSeconds: 300,
+                actualSeconds: 300,
+                completed: true
+            )
+        )
+        assert(store.todayFocusSeconds == 1800, "Expected today's focus seconds to include completed sessions")
         assert(store.categoryBreakdown().first?.category == "测试", "Expected category breakdown for completed session")
-        assert(store.categoryBreakdown().first?.sessionCount == 1, "Expected category breakdown to count completed sessions")
+        assert(store.categoryBreakdown().first?.sessionCount == 2, "Expected normalized categories to share one breakdown row")
 
         _ = store.incrementRound(for: task.id)
         assert(store.task(for: task.id)?.completedRounds == 1, "Expected completed rounds to increment")
@@ -96,14 +122,33 @@ struct MacCoreTests {
         assert(store.taskCategories.contains("测试"), "Expected used category in category list")
         assert(store.taskCategories.contains("未分类"), "Expected normalized fallback category in category list")
         assert(TaskCategoryPreset.matching("工程")?.symbolName == "hammer.fill", "Expected category preset metadata lookup")
+        assert(store.representativeAccentHex(for: "工作") == "#3DE8C5", "Preset category should keep its preset accent")
+        assert(store.representativeAccentHex(for: "测试") == task.accentHex, "Custom category should use its first task accent")
+        assert(store.representativeAccentHex(for: "历史") == TaskCategoryPreset.fallbackAccentHex, "Session-only category should use the shared fallback accent")
+        assert(store.representativeAccentHex(for: " 工作 ") == "#3DE8C5", "Preset category matching should trim whitespace")
+        assert(TaskCategoryPreset.accentHex(for: "非法", preferred: "not-a-color") == TaskCategoryPreset.fallbackAccentHex, "Invalid preferred accent should use the shared fallback")
+        assert(TaskCategoryPreset.usableAccentHex(" #abc ") == "#ABC", "Three-digit accents should be normalized")
+        assert(TaskCategoryPreset.contrastTextHex(on: "#000000") == "#FFFFFF", "Dark accents should use a light foreground")
+        assert(TaskCategoryPreset.contrastTextHex(on: "#FFFFFF") == "#111827", "Light accents should use a dark foreground")
+        store.tasks = [
+            FocusTask(title: "首个颜色", category: "颜色", dueDate: nil, estimatedRounds: 1, accentHex: "#FFB84D"),
+            FocusTask(title: "后续颜色", category: "颜色", dueDate: nil, estimatedRounds: 1, accentHex: "#54A0FF")
+        ]
+        assert(store.representativeAccentHex(for: "颜色") == "#FFB84D", "Custom category should use the first matching task color")
         let orderedCategories = TaskCategoryPreset.prioritizedFilterOptions(
-            categories: ["工作", "成长", "测试", "复盘"]
-        ) { category in
-            ["测试": 3, "成长": 1][category] ?? 0
-        }
+            categories: ["工作", "成长", "测试", "复盘"],
+            countProvider: { category in
+                ["测试": 3, "成长": 1][category] ?? 0
+            }
+        )
         assert(orderedCategories.map(\.category) == ["测试", "成长", "工作", "复盘"], "Expected active categories to be prioritized by count")
         assert(orderedCategories.first?.symbolName == "tag.fill", "Expected custom category fallback symbol")
-        assert(orderedCategories.first?.accentHex == "#3DE8C5", "Expected custom category fallback accent")
+        let coloredOptions = TaskCategoryPreset.prioritizedFilterOptions(
+            categories: ["颜色", "工作", "历史"],
+            countProvider: { _ in 1 },
+            accentProvider: { category in store.representativeAccentHex(for: category) }
+        )
+        assert(coloredOptions.map(\.accentHex) == ["#FFB84D", "#3DE8C5", TaskCategoryPreset.fallbackAccentHex], "Expected filter options to reuse representative accents")
 
         await runStartableTaskTests(store: store)
         await runTimerEngineBoundaryTests(store: store)
@@ -242,6 +287,7 @@ struct MacCoreTests {
         engine.selectTask(runningTask)
         engine.start()
         let runningSnapshot = store.activeTimer
+        assert(runningSnapshot?.tintHex == "#3DE8C5", "Running timer snapshot should preserve its representative accent")
         _ = store.setTaskEnabled(runningTask, enabled: false)
         await Task.yield()
         assert(engine.isRunning, "Expected disabling a running task not to stop the engine")
@@ -284,6 +330,30 @@ struct MacCoreTests {
         assert(store.task(for: completableTask.id)?.isDone == true, "Expected finish path to complete selected task")
         assert(engine.selectedTaskID == nil, "Expected finish path to reconcile completed selection")
         assert(engine.currentTaskTitle == "自由专注", "Expected finish path to restore free focus title")
+
+        store.settings.liveActivityEnabled = true
+        let startsBeforeLiveActivity = liveActivities.startCount
+        let updatesBeforeLiveActivity = liveActivities.updateCount
+        engine.start()
+        await Task.yield()
+        assert(liveActivities.startCount == startsBeforeLiveActivity + 1, "Enabled live activity should start with a new timer")
+        engine.pause()
+        await Task.yield()
+        assert(liveActivities.updateCount > updatesBeforeLiveActivity, "Pausing should publish the remaining live activity time")
+        assert(liveActivities.lastRemainingSeconds > 0, "Paused live activity should retain a positive remaining time")
+
+        guard var pausedForRecording = store.activeTimer else {
+            fail("Expected an active paused snapshot before recording elapsed time")
+        }
+        pausedForRecording.remainingWhenPaused = pausedForRecording.plannedSeconds - 60
+        store.activeTimer = pausedForRecording
+        let sessionCountBeforePausedStop = store.sessions.count
+        engine.stop()
+        await Task.yield()
+        assert(store.sessions.count == sessionCountBeforePausedStop + 1, "A paused timer with one active minute should record a session")
+        assert(store.sessions.first?.actualSeconds == 60, "Paused time should not inflate recorded active seconds")
+        assert(liveActivities.endCount > 0, "Stopping should end the live activity")
+        store.settings.liveActivityEnabled = false
     }
 
     private static func fail(_ message: String) -> Never {
@@ -310,7 +380,22 @@ private final class FakeTimerNotificationService: TimerNotificationServicing {
 
 @MainActor
 private final class FakeTimerLiveActivityService: TimerLiveActivityServicing {
-    func start(for snapshot: ActiveTimerSnapshot) async {}
-    func update(with snapshot: ActiveTimerSnapshot, remainingSeconds: Int) async {}
-    func end(immediate: Bool) async {}
+    private(set) var startCount = 0
+    private(set) var updateCount = 0
+    private(set) var endCount = 0
+    private(set) var lastRemainingSeconds = 0
+
+    func start(for snapshot: ActiveTimerSnapshot) async {
+        startCount += 1
+        lastRemainingSeconds = snapshot.remainingWhenPaused
+    }
+
+    func update(with snapshot: ActiveTimerSnapshot, remainingSeconds: Int) async {
+        updateCount += 1
+        lastRemainingSeconds = remainingSeconds
+    }
+
+    func end(immediate: Bool) async {
+        endCount += 1
+    }
 }

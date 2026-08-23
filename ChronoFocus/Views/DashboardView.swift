@@ -190,7 +190,7 @@ struct MetricTile: View {
                 .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             Text(value)
-                .font(.system(size: 23, weight: .bold, design: .rounded))
+                .font(.system(.title3, design: .rounded).weight(.bold))
                 .foregroundStyle(AppTheme.primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
@@ -198,7 +198,8 @@ struct MetricTile: View {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(AppTheme.secondaryText)
-                .lineLimit(1)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
@@ -207,5 +208,8 @@ struct MetricTile: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(AppTheme.border, lineWidth: 1)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(value)
     }
 }

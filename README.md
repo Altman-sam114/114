@@ -11,6 +11,7 @@
 - 自动化默认开启，专注、短休、长休会按设置连续流转。
 - 日程页改为日历/待办样式，可按日、周、月和分类查看；分类摘要可接力到计时并选择首个可启动待办，任务行可精确设为当前计时待办，两者都不会自动开始。日期格未筛选时显示该日期全量待办数，选中分类时只显示该分类在该日期的待办数；视觉计数与可访问标签使用同一分类上下文，并继续读出日期、待办数、已选中和非本月状态，支持日期 Voice Control 输入标签；待办行会显示支持分类名 Voice Control 输入标签的分类 badge，完成/启用/编辑/删除操作会读出任务名和分类，并支持任务名或分类名 Voice Control 输入标签，也可启用/停用、循环、到时间自动开启番茄钟。
 - 新增/编辑待办时可一键选择常用分类，也可从 `FocusStore.taskCategories` 派生的“已有分类”中复用自定义分类；已有分类会排除预设，以固定 locale 对清理后的名称做大小写、变音符号和宽度不敏感去重，并保持首次出现顺序。选项会按同一规范化键显示当前任务数量，仅来自历史会话时显示“历史”；数量只从 `store.tasks` 派生，不持久化也不参与排序。已有分类达到 6 个时提供独立即时搜索、结果数/总数、清除和无结果反馈，查询使用相同 folding 做名称子串匹配且只过滤显示。点击只更新表单分类与代表色草稿，优先沿用任务数组中首个同分类任务的颜色；仅来自历史会话的分类保留当前颜色，也不会立即保存。分类输入区域继续支持自由文本、当前上下文、非颜色选中指示、VoiceOver 和 Voice Control；保存、取消及筛选联动行为保持不变。
+- 分类代表色由共享规则统一派生：预设色优先，非预设取首个同分类任务的有效 3/6 位 HEX，只有历史会话或无效颜色时使用统一 fallback；选中分类背景按共享对比度规则选择文字，运行中计时 UI 固定使用活动快照色；iOS/macOS 的筛选 chip、摘要、空态、任务行、计划项、计时队列、统计和已有分类草稿复用同一查询，不新增持久化字段。
 - 分类筛选会优先展示当前范围内有待办的分类，选中分类后待办标题显示筛选数/总数；再次点击已选分类、点击“全部”或从筛选摘要清除都能退出筛选，VoiceOver 会读出已选状态和点击后的筛选/清除动作，分类 chip 也会暴露 selected trait，并提供分类名 Voice Control 指令标签；筛选摘要会读出可新增或清除动作，摘要新增/清除按钮也提供分类名可访问标签和 Voice Control 输入标签；若当前范围没有该分类待办，空态会直接提供“新增此分类”和“清除筛选”，减少在空分类间来回查找。
 - 计时页的当前日程也可按分类筛选：非空筛选态显示分类名、筛选数/总数，并提供“新增此分类”和“清除筛选”；无结果时只显示已有双操作空态，不叠加摘要。筛选态隐藏任务行中重复的视觉分类 badge，为标题和截止时间留出空间，但整行仍保留任务名、分类、选中/运行状态、提示、selected trait 和 Voice Control 语义；当前任务选择行及开始/继续/暂停/停止/跳过等计时主控也会读出当前任务和分类。
 - 待办支持“按轮次”和“只设开始”两种模式；只设开始的任务由用户手动完成，实际用时会计入统计。
@@ -61,7 +62,9 @@ bash scripts/verify_project.sh
 
 Agent C 的完整云端 artifact 复判支持 validator 第四模式：目录、原始 ZIP 三参数、`artifacts-api.json` 和 `run-api.json` 一起传入。精确 run 响应与 artifacts 响应都先写入全新唯一目录中的 `.part`，成功且非空后无覆盖原子改名；ZIP 也先下载为 `.zip.part`，核对 API size、SHA-256 和 ZIP 结构后才改名并解包。Validator 对 run API 复判既有十项身份/状态，并从 v1.2 起增加 push event、actor、triggering actor 和 head repository 四项授权来源。v1.4 起完整模式还逐路径绑定原始 ZIP 与 validator 自建临时解包树、比较类型/大小/SHA-256，拒绝 traversal、重复路径、前缀冲突、symlink 和特殊文件。
 
-当前 CI 结果包还记录 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build、iOS build 七阶段 outcome，并在失败时保留可识别的未加密 fallback 包；artifact 上传发生在 `Final CI status` 之前，失败 job 仍返回 failure。成功包仍必须通过原有完整合同。失败包只能显式使用 `--failure-mode`，默认 run event 为授权 `push`；GitHub Actions 的受控 `workflow_dispatch` 失败必须额外传 `--expected-event workflow_dispatch`，不能把 dispatch 伪装为 push。所有测试、构建和结果包验收仍只由 GitHub Actions/`gh` 执行，本机不运行项目测试、validator、Xcode 或模拟器。
+当前 CI 结果包记录 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build、iOS build 七个业务阶段，并在 manifest/index/stage 中额外绑定 `bootstrap` 与 `createManifest` 包阶段；失败时保留可识别的未加密 fallback 包和可用日志尾部，成功包的预期 index entries 全部标为 required，`prepare-metadata.log` 只在对应阶段失败时出现。成功包 required 路径缺失会让 finalizer 失败，recovery 自身缺少六项核心证据也会拒绝上传；fallback artifact 名称统一按 branch slug 生成，阶段摘要逐项绑定 outcome。若正常结果包 finalizer 失败，workflow 会在上传前由 `scripts/recover_ci_result_package.py` 重建身份、stage、manifest、summary、JUnit 和 index 一致的 fallback 包，恢复失败则不上传陈旧目录。artifact 上传发生在 `Final CI status` 之前，失败 job 仍返回 failure。成功包仍必须通过原有完整合同。失败包只能显式使用 `--failure-mode`，默认 run event 为授权 `push`；GitHub Actions 的受控 `workflow_dispatch` 失败必须额外传 `--expected-event workflow_dispatch`，不能把 dispatch 伪装为 push。所有测试、构建和结果包验收仍只由 GitHub Actions/`gh` 执行，本机不运行项目测试、validator、Xcode 或模拟器。
+
+v1.4.8 的云端项目日志还必须包含 `Category appearance contracts verified.` 与 `Category breakdown normalization contracts verified.`；validator 同时复判代表色 marker、分类统计规范化 marker、package stage 字段、manifest/index required 条目、失败摘要和既有全部 UI/CI 合同。
 
 以下构建和 simulator 命令仅记录 GitHub Actions 的云端执行入口，本机禁止执行：
 
@@ -139,7 +142,7 @@ v1.4.4 已为 macOS 计时详情队列增加 7 项默认折叠、完整筛选结
 
 项目默认使用 `main` 作为唯一提交、推送和云端验证分支。Agent B 只做静态审阅后提交并 `git push origin main`，GitHub Actions 会运行 `.github/workflows/ci-results.yml`，上传未加密 CI 结果包；Agent C 使用 `gh auth login` 后下载 artifact，核对 manifest、artifact index、run context、artifact 名称、manifest/index artifactName、manifest overallOutcome、JUnit、failure summary 错误摘录、日志、分类可访问 contract marker、Mac/iOS `.xcresult`、Mac 快照和各阶段 outcome，再确认最新 `origin/main` 是否通过。
 
-`Final CI status` 会在判断四个阶段 outcome 前，通过 `tee` 把现有 failure summary 同时写入步骤 stdout 和 Step Summary；失败 run 可直接从失败步骤日志查看同一摘要，artifact 中仍只保留原有 `ci-failure-summary.md`，不增加副本或清单项。
+`Final CI status` 会在判断七个业务阶段和 `bootstrap`/`createManifest` 两个包阶段 outcome 前，通过 `tee` 把现有 failure summary 同时写入步骤 stdout 和 Step Summary；失败 run 可直接从失败步骤日志查看同一摘要，artifact 中仍只保留原有 `ci-failure-summary.md`，不增加副本或清单项。正常 finalizer 失败时会先恢复一致的 fallback 结果包，恢复失败则不上传陈旧目录。
 
 下载 artifact 后可用脚本做结构化复判：
 

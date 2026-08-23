@@ -29,15 +29,12 @@ env:
   IOS_SCHEME: ChronoFocus
   IOS_DESTINATION: generic/platform=iOS
   FAILURE_INJECTION: ${{ inputs.failure_mode || 'none' }}
-  FALLBACK_ARTIFACT_NAME: chronofocus-ci-v0.10-${{ github.ref_name }}-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
 
 jobs:
   ci-results:
     name: Build, verify, and package results
     runs-on: macos-latest
     timeout-minutes: 45
-    env:
-      ARTIFACT_NAME: chronofocus-ci-v0.10-${{ github.ref_name }}-${{ github.sha }}-run${{ github.run_id }}-attempt${{ github.run_attempt }}
 
     steps:
       - name: Checkout
@@ -121,11 +118,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p ci-results
           if [[ "$FAILURE_INJECTION" == "selectXcode" ]]; then
-            echo "Controlled failure injection: selectXcode" >&2
+            printf 'Controlled failure injection: selectXcode\n' | tee ci-results/xcode-version.log >&2
             exit 91
           fi
-          mkdir -p ci-results
           if [[ -d /Applications/Xcode.app/Contents/Developer ]]; then
             sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           fi
@@ -138,8 +135,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p ci-results
           if [[ "$FAILURE_INJECTION" == "staticChecks" ]]; then
-            echo "Controlled failure injection: staticChecks" >&2
+            printf 'Controlled failure injection: staticChecks\n' | tee ci-results/static-checks.log >&2
             exit 91
           fi
           {
@@ -234,7 +232,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ci-results/project-reports/mac-snapshots
-          export ARTIFACT_NAME="${ARTIFACT_NAME:-$FALLBACK_ARTIFACT_NAME}"
+          export ARTIFACT_NAME="${ARTIFACT_NAME:-}"
           export SHORT_SHA="${SHORT_SHA:-${GITHUB_SHA::7}}"
           python3 - <<'PY'
           import json
@@ -260,8 +258,6 @@ jobs:
           checkout_outcome = normalize_outcome(os.environ.get("CHECKOUT_OUTCOME"))
           prepare_metadata_outcome = normalize_outcome(os.environ.get("PREPARE_METADATA_OUTCOME"))
           scaffold_outcome = normalize_outcome(os.environ.get("SCAFFOLD_OUTCOME"))
-          if scaffold_outcome != "success" and prepare_metadata_outcome == "success":
-              prepare_metadata_outcome = scaffold_outcome
           select_xcode_outcome = normalize_outcome(os.environ.get("SELECT_XCODE_OUTCOME"))
           stage_outcomes = [
               ("checkout", checkout_outcome),
@@ -281,11 +277,34 @@ jobs:
               name for name, outcome in stage_outcomes
               if outcome in {"failure", "cancelled", "unknown"}
           ]
-          overall_outcome = "success" if not non_success_stages else "failure"
-          first_failed_stage = failed_stages[0] if failed_stages else (non_success_stages[0] if non_success_stages else None)
+          package_stage_outcomes = [
+              ("bootstrap", scaffold_outcome),
+              ("createManifest", "success"),
+          ]
+          non_success_package_stages = [
+              name for name, outcome in package_stage_outcomes
+              if outcome != "success"
+          ]
+          failed_package_stages = [
+              name for name, outcome in package_stage_outcomes
+              if outcome in {"failure", "cancelled", "unknown"}
+          ]
+          overall_outcome = "success" if not non_success_stages and not non_success_package_stages else "failure"
+          outcome_by_name = dict(stage_outcomes + package_stage_outcomes + [("ensureResultPackage", "success")])
+          execution_stage_names = [
+              "checkout", "prepareMetadata", "bootstrap", "selectXcode", "staticChecks",
+              "projectVerification", "macBuild", "iosBuild", "createManifest", "ensureResultPackage",
+          ]
+          ordered_non_success = [name for name in execution_stage_names if outcome_by_name[name] != "success"]
+          ordered_failed = [
+              name for name in execution_stage_names
+              if outcome_by_name[name] in {"failure", "cancelled", "unknown"}
+          ]
+          first_failed_stage = ordered_failed[0] if ordered_failed else (ordered_non_success[0] if ordered_non_success else None)
           failure_mode = os.environ.get("FAILURE_INJECTION", "none")
           if overall_outcome != "success" and failure_mode == "none":
               failure_mode = "runtime"
+          created_at = datetime.now(timezone.utc).isoformat()
           tests = [
               ("staticChecks", static_outcome, "ci-results/static-checks.log"),
               ("projectVerification", verify_outcome, "ci-results/verify_project.log"),
@@ -365,8 +384,8 @@ jobs:
               f"chronofocus-ci-{os.environ['CI_PROCESS_VERSION']}-{branch_slug}-"
               f"{short_sha}-run{os.environ['GITHUB_RUN_ID']}-attempt{os.environ['GITHUB_RUN_ATTEMPT']}"
           )
-          fallback_artifact_name = os.environ.get("FALLBACK_ARTIFACT_NAME") or (
-              f"chronofocus-ci-{os.environ['CI_PROCESS_VERSION']}-{branch_name}-{commit_sha}-"
+          fallback_artifact_name = (
+              f"chronofocus-ci-{os.environ['CI_PROCESS_VERSION']}-{branch_slug}-{commit_sha}-"
               f"run{os.environ['GITHUB_RUN_ID']}-attempt{os.environ['GITHUB_RUN_ATTEMPT']}"
           )
           artifact_name = os.environ.get("ARTIFACT_NAME") or fallback_artifact_name
@@ -379,7 +398,7 @@ jobs:
               "commitSha": commit_sha,
               "runId": os.environ["GITHUB_RUN_ID"],
               "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
-              "createdAt": datetime.now(timezone.utc).isoformat(),
+              "createdAt": created_at,
               "overallOutcome": overall_outcome,
               "failureMode": failure_mode,
               "fallbackArtifactName": fallback_artifact_name,
@@ -387,6 +406,15 @@ jobs:
               "firstFailedStage": first_failed_stage,
               "failedStages": failed_stages,
               "nonSuccessStages": non_success_stages,
+              "packageStages": [
+                  {"name": name, "outcome": outcome}
+                  for name, outcome in package_stage_outcomes
+              ],
+              "failedPackageStages": failed_package_stages,
+              "nonSuccessPackageStages": non_success_package_stages,
+              "ensureResultPackageOutcome": "success",
+              "recoveryOutcome": "skipped",
+              "stageOutcomeMap": stage_outcome_map,
               "stageOutcomes": stage_outcome_map,
               "stages": [
                   {"name": name, "outcome": outcome}
@@ -415,7 +443,7 @@ jobs:
               "ci-results/project-reports/mac-snapshots/detail-analytics.png",
               "ci-results/project-reports/mac-snapshots/detail-settings.png",
           ]
-          if overall_outcome != "success":
+          if prepare_metadata_outcome != "success":
               artifact_index_paths.append("ci-results/prepare-metadata.log")
 
           required_paths = {
@@ -441,25 +469,32 @@ jobs:
           def write_artifact_index():
               index_path = result_dir / "ci-artifact-index.json"
               index_path.write_text("{}\n", encoding="utf-8")
-              last_size = None
-              for _ in range(5):
+              index_created_at = datetime.now(timezone.utc).isoformat()
+              stable = False
+              for _ in range(20):
                   required_set = success_required_paths if overall_outcome == "success" else required_paths
                   entries = [path_metadata(path, required=path in required_set) for path in artifact_index_paths]
                   total_file_bytes = sum(entry.get("byteCount", 0) for entry in entries)
                   total_directory_bytes = sum(entry.get("recursiveByteCount", 0) for entry in entries)
                   index = {
                       "version": os.environ["CI_PROCESS_VERSION"],
-                      "artifactName": os.environ["ARTIFACT_NAME"],
+                      "artifactName": artifact_name,
                       "branch": branch_name,
                       "commitSha": commit_sha,
                       "runId": os.environ["GITHUB_RUN_ID"],
                       "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
-                      "createdAt": datetime.now(timezone.utc).isoformat(),
+                      "createdAt": index_created_at,
                       "overallOutcome": overall_outcome,
                       "stageOutcomes": stage_payload["stages"],
                       "firstFailedStage": first_failed_stage,
                       "failedStages": failed_stages,
                       "nonSuccessStages": non_success_stages,
+                      "packageStages": stage_payload["packageStages"],
+                      "failedPackageStages": failed_package_stages,
+                      "nonSuccessPackageStages": non_success_package_stages,
+                      "ensureResultPackageOutcome": "success",
+                      "recoveryOutcome": "skipped",
+                      "stageOutcomeMap": stage_outcome_map,
                       "fallbackArtifactName": fallback_artifact_name,
                       "fallbackArtifactUsed": fallback_used,
                       "missingArtifactPaths": missing_artifact_paths,
@@ -475,10 +510,12 @@ jobs:
                       json.dumps(index, ensure_ascii=False, indent=2) + "\n",
                       encoding="utf-8",
                   )
-                  new_size = index_path.stat().st_size
-                  if new_size == last_size:
+                  actual_entries = [path_metadata(path, required=path in required_set) for path in artifact_index_paths]
+                  if actual_entries == entries:
+                      stable = True
                       break
-                  last_size = new_size
+              if not stable:
+                  raise RuntimeError("Could not stabilize ci-artifact-index.json self metadata")
 
           manifest = {
               "version": os.environ["CI_PROCESS_VERSION"],
@@ -489,7 +526,7 @@ jobs:
               "runId": os.environ["GITHUB_RUN_ID"],
               "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
               "workflowName": os.environ["GITHUB_WORKFLOW"],
-              "createdAt": datetime.now(timezone.utc).isoformat(),
+              "createdAt": created_at,
               "projectName": os.environ["PROJECT_NAME"],
               "scheme": os.environ["MAC_SCHEME"],
               "destination": os.environ["MAC_DESTINATION"],
@@ -514,6 +551,12 @@ jobs:
               "firstFailedStage": first_failed_stage,
               "failedStages": failed_stages,
               "nonSuccessStages": non_success_stages,
+              "packageStages": stage_payload["packageStages"],
+              "failedPackageStages": failed_package_stages,
+              "nonSuccessPackageStages": non_success_package_stages,
+              "ensureResultPackageOutcome": "success",
+              "recoveryOutcome": "skipped",
+              "stageOutcomeMap": stage_outcome_map,
               "missingArtifactPaths": missing_artifact_paths,
               "stageOutcomes": stage_payload["stages"],
               "staticChecksOutcome": static_outcome,
@@ -595,9 +638,14 @@ jobs:
               f"- Project verification: `{verify_outcome}`",
               f"- Mac build: `{build_outcome}`",
               f"- iOS build: `{ios_build_outcome}`",
+              f"- Bootstrap result package: `{scaffold_outcome}`",
+              "- Create manifest: `success`",
+              "- Ensure result package: `success`",
+              "- Recovery result package: `skipped`",
               f"- First failed stage: `{first_failed_stage or 'none'}`",
               f"- Fallback artifact name: `{fallback_artifact_name}`",
               f"- Fallback artifact used: `{str(fallback_used).lower()}`",
+              f"- Failure mode: `{failure_mode}`",
               f"- Missing artifact paths: `{', '.join(missing_artifact_paths) if missing_artifact_paths else 'none'}`",
               f"- Stage outcomes: `{manifest['stageOutcomesPath'] or 'embedded in manifest'}`",
               "",
@@ -614,15 +662,19 @@ jobs:
           stage_log_paths = {
               "checkout": None,
               "prepareMetadata": "ci-results/prepare-metadata.log",
+              "bootstrap": None,
+              "createManifest": None,
               "selectXcode": "ci-results/xcode-version.log",
               "staticChecks": "ci-results/static-checks.log",
               "projectVerification": "ci-results/verify_project.log",
               "macBuild": "ci-results/xcodebuild.log",
               "iosBuild": "ci-results/ios-xcodebuild.log",
+              "ensureResultPackage": None,
           }
           failed = [
-              (name, outcome, stage_log_paths[name])
-              for name, outcome in stage_outcomes
+              (name, outcome, stage_log_paths.get(name))
+              for name in execution_stage_names
+              for outcome in [outcome_by_name[name]]
               if outcome != "success"
           ]
           if failed:
@@ -648,6 +700,7 @@ jobs:
           CHECKOUT_OUTCOME: ${{ inputs.failure_mode == 'checkout' && 'failure' || steps.checkout.outcome }}
           PREPARE_METADATA_OUTCOME: ${{ steps.prepare_metadata.outcome }}
           SCAFFOLD_OUTCOME: ${{ steps.bootstrap_result_package.outcome }}
+          CREATE_MANIFEST_OUTCOME: ${{ steps.create_manifest.outcome }}
           SELECT_XCODE_OUTCOME: ${{ steps.select_xcode.outcome }}
           STATIC_OUTCOME: ${{ steps.static_checks.outcome }}
           PROJECT_VERIFY_OUTCOME: ${{ steps.project_verification.outcome }}
@@ -656,6 +709,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ci-results
+          branch_slug="${GITHUB_REF_NAME//\//-}"
+          fallback_artifact_name="chronofocus-ci-${CI_PROCESS_VERSION}-${branch_slug}-${GITHUB_SHA}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
+          export FALLBACK_ARTIFACT_NAME="$fallback_artifact_name"
           if [[ "${SCAFFOLD_OUTCOME}" != "success" || -z "${ARTIFACT_NAME:-}" ]]; then
             export ARTIFACT_NAME="$FALLBACK_ARTIFACT_NAME"
           else
@@ -682,7 +738,7 @@ jobs:
               f"chronofocus-ci-{os.environ['CI_PROCESS_VERSION']}-{branch_slug}-"
               f"{commit[:7]}-run{run_id}-attempt{attempt}"
           )
-          fallback_artifact_name = os.environ.get("FALLBACK_ARTIFACT_NAME") or (
+          fallback_artifact_name = (
               f"chronofocus-ci-{os.environ['CI_PROCESS_VERSION']}-{branch_slug}-"
               f"{commit}-run{run_id}-attempt{attempt}"
           )
@@ -698,13 +754,32 @@ jobs:
           ]
           allowed = {"success", "failure", "skipped", "cancelled", "unknown"}
           outcomes = [(name, value if value in allowed else "unknown") for name, value in outcomes]
+          package_outcomes = [
+              ("bootstrap", os.environ.get("SCAFFOLD_OUTCOME", "unknown")),
+              ("createManifest", os.environ.get("CREATE_MANIFEST_OUTCOME", "unknown")),
+          ]
+          package_outcomes = [(name, value if value in allowed else "unknown") for name, value in package_outcomes]
+          outcome_by_name = dict(outcomes + package_outcomes + [("ensureResultPackage", "success")])
           non_success = [name for name, value in outcomes if value != "success"]
           failed = [name for name, value in outcomes if value in {"failure", "cancelled", "unknown"}]
-          overall = "success" if not non_success else "failure"
-          first_failed = failed[0] if failed else (non_success[0] if non_success else None)
+          non_success_package = [name for name, value in package_outcomes if value != "success"]
+          failed_package = [name for name, value in package_outcomes if value in {"failure", "cancelled", "unknown"}]
+          execution_stage_names = [
+              "checkout", "prepareMetadata", "bootstrap", "selectXcode", "staticChecks",
+              "projectVerification", "macBuild", "iosBuild", "createManifest", "ensureResultPackage",
+          ]
+          ordered_non_success = [name for name in execution_stage_names if outcome_by_name[name] != "success"]
+          ordered_failed = [
+              name for name in execution_stage_names
+              if outcome_by_name[name] in {"failure", "cancelled", "unknown"}
+          ]
+          all_non_success = ordered_non_success
+          overall = "success" if not all_non_success else "failure"
+          first_failed = ordered_failed[0] if ordered_failed else (ordered_non_success[0] if ordered_non_success else None)
           failure_mode = os.environ.get("FAILURE_INJECTION", "none")
           if overall != "success" and failure_mode == "none":
               failure_mode = "runtime"
+          created_at = datetime.now(timezone.utc).isoformat()
           stage_payload = {
               "version": os.environ["CI_PROCESS_VERSION"],
               "artifactName": artifact_name,
@@ -712,7 +787,7 @@ jobs:
               "commitSha": commit,
               "runId": run_id,
               "runAttempt": attempt,
-              "createdAt": datetime.now(timezone.utc).isoformat(),
+              "createdAt": created_at,
               "overallOutcome": overall,
               "failureMode": failure_mode,
               "fallbackArtifactName": fallback_artifact_name,
@@ -721,6 +796,13 @@ jobs:
               "failedStages": failed,
               "nonSuccessStages": non_success,
               "stages": [{"name": name, "outcome": value} for name, value in outcomes],
+              "packageStages": [{"name": name, "outcome": value} for name, value in package_outcomes],
+              "failedPackageStages": failed_package,
+              "nonSuccessPackageStages": non_success_package,
+              "ensureResultPackageOutcome": "success",
+              "recoveryOutcome": "skipped",
+              "stageOutcomeMap": dict(outcomes),
+              "stageOutcomes": dict(outcomes),
           }
 
           def json_hash(path):
@@ -743,7 +825,7 @@ jobs:
           ])
           context_path = root / "ci-run-context.txt"
           context_text = context_path.read_text(encoding="utf-8", errors="replace") if context_path.exists() else ""
-          if any(line not in context_text.splitlines() for line in context_payload.splitlines()):
+          if context_text.splitlines() != context_payload.splitlines():
               context_path.write_text(context_payload, encoding="utf-8")
           stage_path = root / "ci-stage-outcomes.json"
           write_json_if_incomplete(
@@ -757,7 +839,14 @@ jobs:
               and str(value.get("runAttempt")) == attempt
               and value.get("overallOutcome") == overall
               and isinstance(value.get("stages"), list)
-              and len(value["stages"]) == len(outcomes),
+              and len(value["stages"]) == len(outcomes)
+              and value.get("packageStages") == stage_payload["packageStages"]
+              and value.get("failedPackageStages") == failed_package
+              and value.get("nonSuccessPackageStages") == non_success_package
+              and value.get("ensureResultPackageOutcome") == "success"
+              and value.get("recoveryOutcome") == "skipped"
+              and value.get("stageOutcomeMap") == dict(outcomes)
+              and value.get("stageOutcomes") == dict(outcomes),
           )
 
           manifest = {
@@ -769,7 +858,7 @@ jobs:
               "runId": run_id,
               "runAttempt": attempt,
               "workflowName": os.environ.get("GITHUB_WORKFLOW", "ChronoFocus CI Results"),
-              "createdAt": datetime.now(timezone.utc).isoformat(),
+              "createdAt": created_at,
               "projectName": os.environ["PROJECT_NAME"],
               "scheme": os.environ["MAC_SCHEME"],
               "destination": os.environ["MAC_DESTINATION"],
@@ -795,13 +884,55 @@ jobs:
               "failedStages": failed,
               "nonSuccessStages": non_success,
               "stageOutcomes": stage_payload["stages"],
-              "staticChecksOutcome": os.environ.get("STATIC_OUTCOME", "unknown"),
-              "projectVerificationOutcome": os.environ.get("PROJECT_VERIFY_OUTCOME", "unknown"),
-              "buildOutcome": os.environ.get("BUILD_OUTCOME", "unknown"),
-              "macBuildOutcome": os.environ.get("BUILD_OUTCOME", "unknown"),
-              "iosBuildOutcome": os.environ.get("IOS_BUILD_OUTCOME", "unknown"),
-              "testOutcome": os.environ.get("PROJECT_VERIFY_OUTCOME", "unknown"),
-              "projectSpecificReports": [],
+              "packageStages": stage_payload["packageStages"],
+              "failedPackageStages": failed_package,
+              "nonSuccessPackageStages": non_success_package,
+              "ensureResultPackageOutcome": "success",
+              "recoveryOutcome": "skipped",
+              "stageOutcomeMap": dict(outcomes),
+              "staticChecksOutcome": outcome_by_name["staticChecks"],
+              "projectVerificationOutcome": outcome_by_name["projectVerification"],
+              "buildOutcome": outcome_by_name["macBuild"],
+              "macBuildOutcome": outcome_by_name["macBuild"],
+              "iosBuildOutcome": outcome_by_name["iosBuild"],
+              "testOutcome": outcome_by_name["projectVerification"],
+              "projectSpecificReports": [
+                  {
+                      "name": "artifact_index",
+                      "path": "ci-results/ci-artifact-index.json",
+                      "description": "Structured index of required CI artifact files and directories with existence and size metadata.",
+                  },
+                  {
+                      "name": "verify_project_log",
+                      "path": "ci-results/verify_project.log",
+                      "description": "Project structure, Mac core tests, and Mac UI snapshot verification log.",
+                  },
+                  {
+                      "name": "mac_snapshots",
+                      "path": "ci-results/project-reports/mac-snapshots",
+                      "description": "Mac mini timer and detail view snapshots generated by scripts/render_mac_snapshots.swift.",
+                  },
+                  {
+                      "name": "mac_snapshot_manifest",
+                      "path": "ci-results/project-reports/mac-snapshots/manifest.json",
+                      "description": "Structured manifest for Mac snapshot file names, dimensions, byte counts, and generation time.",
+                  },
+                  {
+                      "name": "ios_xcodebuild_log",
+                      "path": "ci-results/ios-xcodebuild.log",
+                      "description": "iOS ChronoFocus scheme generic build log.",
+                  },
+                  {
+                      "name": "ios_xcode_result",
+                      "path": "ci-results/ChronoFocus-iOS.xcresult",
+                      "description": "Native result bundle from the iOS ChronoFocus scheme generic build.",
+                  },
+                  {
+                      "name": "xcode_version",
+                      "path": "ci-results/xcode-version.log",
+                      "description": "Xcode version selected by the runner.",
+                  },
+              ],
           }
           write_json_if_incomplete(
               root / "ci-artifact-manifest.json",
@@ -814,14 +945,21 @@ jobs:
               and str(value.get("runAttempt")) == attempt
               and value.get("stageOutcomesPath") == "ci-results/ci-stage-outcomes.json"
               and value.get("overallOutcome") == overall
-              and value.get("failureMode") == failure_mode,
+              and value.get("failureMode") == failure_mode
+              and value.get("packageStages") == stage_payload["packageStages"]
+              and value.get("failedPackageStages") == failed_package
+              and value.get("nonSuccessPackageStages") == non_success_package
+              and value.get("ensureResultPackageOutcome") == "success"
+              and value.get("recoveryOutcome") == "skipped"
+              and value.get("stageOutcomeMap") == dict(outcomes)
+              and value.get("stageOutcomes") == stage_payload["stages"],
           )
 
           tests = [
-              ("staticChecks", os.environ.get("STATIC_OUTCOME", "unknown"), "ci-results/static-checks.log"),
-              ("projectVerification", os.environ.get("PROJECT_VERIFY_OUTCOME", "unknown"), "ci-results/verify_project.log"),
-              ("macBuild", os.environ.get("BUILD_OUTCOME", "unknown"), "ci-results/xcodebuild.log"),
-              ("iosBuild", os.environ.get("IOS_BUILD_OUTCOME", "unknown"), "ci-results/ios-xcodebuild.log"),
+              ("staticChecks", outcome_by_name["staticChecks"], "ci-results/static-checks.log"),
+              ("projectVerification", outcome_by_name["projectVerification"], "ci-results/verify_project.log"),
+              ("macBuild", outcome_by_name["macBuild"], "ci-results/xcodebuild.log"),
+              ("iosBuild", outcome_by_name["iosBuild"], "ci-results/ios-xcodebuild.log"),
           ]
           junit_path = root / "junit.xml"
           junit_is_complete = False
@@ -857,18 +995,29 @@ jobs:
                   f"- Run: `{run_id}` attempt `{attempt}`",
                   f"- Overall outcome: `{overall}`",
                   f"- First failed stage: `{first_failed or 'none'}`",
+                  f"- Fallback artifact name: `{fallback_artifact_name}`",
+                  f"- Fallback artifact used: `{str(fallback_used).lower()}`",
+                  f"- Failure mode: `{failure_mode}`",
                   "- Stage outcomes: `ci-results/ci-stage-outcomes.json`",
+                  f"- Checkout: `{dict(outcomes)['checkout']}`",
+                  f"- Prepare result metadata: `{dict(outcomes)['prepareMetadata']}`",
+                  f"- Select Xcode: `{dict(outcomes)['selectXcode']}`",
                   "Static checks: `ci-results/static-checks.log`",
                   "Project verification: `ci-results/verify_project.log`",
                   "Mac build: `ci-results/xcodebuild.log`",
                   "iOS build: `ci-results/ios-xcodebuild.log`",
+                  f"- Bootstrap result package: `{dict(package_outcomes)['bootstrap']}`",
+                  f"- Create manifest: `{dict(package_outcomes)['createManifest']}`",
+                  "- Ensure result package: `success`",
+                  "- Recovery result package: `skipped`",
               ]
               if not all(item in text for item in required):
                   return False
               if overall == "success":
                   return "All CI stages passed." in text
               return "## Failed Stages" in text and "All CI stages passed." not in text and all(
-                  f"- `{name}`: `{dict(outcomes)[name]}`" in text for name in non_success
+                  f"- `{name}`: `{outcome_by_name[name]}`" in text
+                  for name in all_non_success
               )
 
           if not summary_is_complete(summary_path):
@@ -887,6 +1036,10 @@ jobs:
                   f"- Project verification: `{dict(outcomes)['projectVerification']}`",
                   f"- Mac build: `{dict(outcomes)['macBuild']}`",
                   f"- iOS build: `{dict(outcomes)['iosBuild']}`",
+                  f"- Bootstrap result package: `{dict(package_outcomes)['bootstrap']}`",
+                  f"- Create manifest: `{dict(package_outcomes)['createManifest']}`",
+                  "- Ensure result package: `success`",
+                  "- Recovery result package: `skipped`",
                   f"- Fallback artifact name: `{fallback_artifact_name}`",
                   f"- Fallback artifact used: `{str(fallback_used).lower()}`",
                   f"- Failure mode: `{failure_mode}`",
@@ -903,17 +1056,42 @@ jobs:
                   "- iOS Xcode result bundle: `ci-results/ChronoFocus-iOS.xcresult`",
                   "- Mac snapshots: `ci-results/project-reports/mac-snapshots/`",
               ]
-              if non_success:
+              def fallback_excerpt(name, outcome):
+                  log_paths = {
+                      "prepareMetadata": "ci-results/prepare-metadata.log",
+                      "selectXcode": "ci-results/xcode-version.log",
+                      "staticChecks": "ci-results/static-checks.log",
+                      "projectVerification": "ci-results/verify_project.log",
+                      "macBuild": "ci-results/xcodebuild.log",
+                      "iosBuild": "ci-results/ios-xcodebuild.log",
+                  }
+                  log_path = log_paths.get(name)
+                  if not log_path:
+                      return [f"No artifact log generated for package stage {name} (step outcome: {outcome})"]
+                  path = Path(log_path)
+                  if not path.exists():
+                      return [f"No artifact log generated: {log_path} (step outcome: {outcome})"]
+                  lines = [" ".join(line.split()) for line in path.read_text(encoding="utf-8", errors="replace").splitlines() if line.strip()]
+                  return [f"tail: {line}" for line in lines[-8:]] or [f"No log content: {log_path}"]
+
+              if all_non_success:
                   summary_lines.extend(["", "## Failure Excerpts", "", "Result package finalizer created this fallback summary."])
                   summary_lines.insert(summary_lines.index("## Failure Excerpts"), "## Failed Stages")
                   summary_lines.insert(summary_lines.index("## Failure Excerpts"), "")
                   failed_header = summary_lines.index("## Failure Excerpts")
-                  summary_lines[failed_header:failed_header] = [f"- `{name}`: `{dict(outcomes)[name]}`" for name in non_success] + [""]
+                  summary_lines[failed_header:failed_header] = [
+                      f"- `{name}`: `{outcome_by_name[name]}`"
+                      for name in all_non_success
+                  ] + [""]
+                  for name in all_non_success:
+                      outcome = outcome_by_name[name]
+                      summary_lines.extend([f"### `{name}`", "", "```text"])
+                      summary_lines.extend(fallback_excerpt(name, outcome))
+                      summary_lines.extend(["```", ""])
               else:
                   summary_lines.append("All CI stages passed.")
               summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
 
-          index_path = root / "ci-artifact-index.json"
           paths = [
                   "ci-results/ci-artifact-manifest.json", "ci-results/ci-artifact-index.json", "ci-results/ci-failure-summary.md", "ci-results/junit.xml",
                   "ci-results/static-checks.log", "ci-results/verify_project.log", "ci-results/xcodebuild.log", "ci-results/ios-xcodebuild.log",
@@ -923,11 +1101,35 @@ jobs:
                   "ci-results/project-reports/mac-snapshots/detail-schedule.png", "ci-results/project-reports/mac-snapshots/detail-analytics.png",
                   "ci-results/project-reports/mac-snapshots/detail-settings.png",
           ]
-          required = {"ci-results/ci-artifact-manifest.json", "ci-results/ci-artifact-index.json", "ci-results/ci-failure-summary.md", "ci-results/junit.xml", "ci-results/ci-run-context.txt", "ci-results/ci-stage-outcomes.json"}
-          if overall != "success":
+          required = (
+              set(paths)
+              if overall == "success"
+              else {
+                  "ci-results/ci-artifact-manifest.json", "ci-results/ci-artifact-index.json", "ci-results/ci-failure-summary.md",
+                  "ci-results/junit.xml", "ci-results/ci-run-context.txt", "ci-results/ci-stage-outcomes.json"
+              }
+          )
+          if outcome_by_name["prepareMetadata"] != "success":
               paths.append("ci-results/prepare-metadata.log")
+          missing_artifact_paths = [
+              path for path in paths
+              if path not in required and not Path(path).exists()
+          ]
+          stage_payload["missingArtifactPaths"] = missing_artifact_paths
+          manifest["missingArtifactPaths"] = missing_artifact_paths
+          (root / "ci-stage-outcomes.json").write_text(
+              json.dumps(stage_payload, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          (root / "ci-artifact-manifest.json").write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+
+          index_path = root / "ci-artifact-index.json"
           index_path.write_text("{}\n", encoding="utf-8")
-          previous_size = None
+          index_created_at = datetime.now(timezone.utc).isoformat()
+          stable = False
           for _ in range(20):
               entries = []
               for path in paths:
@@ -942,23 +1144,169 @@ jobs:
                       entry["kind"] = "missing"
                   entries.append(entry)
               missing_paths = [entry["path"] for entry in entries if not entry["required"] and not entry["exists"]]
-              index = {"version": os.environ["CI_PROCESS_VERSION"], "artifactName": artifact_name, "branch": branch, "commitSha": commit, "runId": run_id, "runAttempt": attempt, "createdAt": datetime.now(timezone.utc).isoformat(), "overallOutcome": overall, "failureMode": failure_mode, "fallbackArtifactName": fallback_artifact_name, "fallbackArtifactUsed": fallback_used, "stageOutcomes": stage_payload["stages"], "firstFailedStage": first_failed, "failedStages": failed, "nonSuccessStages": non_success, "missingArtifactPaths": missing_paths, "entries": entries}
+              index = {"version": os.environ["CI_PROCESS_VERSION"], "artifactName": artifact_name, "branch": branch, "commitSha": commit, "runId": run_id, "runAttempt": attempt, "createdAt": index_created_at, "overallOutcome": overall, "failureMode": failure_mode, "fallbackArtifactName": fallback_artifact_name, "fallbackArtifactUsed": fallback_used, "stageOutcomes": stage_payload["stages"], "packageStages": stage_payload["packageStages"], "firstFailedStage": first_failed, "failedStages": failed, "nonSuccessStages": non_success, "failedPackageStages": failed_package, "nonSuccessPackageStages": non_success_package, "ensureResultPackageOutcome": "success", "recoveryOutcome": "skipped", "stageOutcomeMap": dict(outcomes), "missingArtifactPaths": missing_paths, "entries": entries}
               index["totals"] = {"entryCount": len(entries), "missingRequiredCount": sum(entry["required"] and not entry["exists"] for entry in entries), "fileByteCount": sum(entry.get("byteCount", 0) for entry in entries), "directoryRecursiveByteCount": sum(entry.get("recursiveByteCount", 0) for entry in entries)}
               encoded = json.dumps(index, ensure_ascii=False, indent=2) + "\n"
               index_path.write_text(encoded, encoding="utf-8")
-              new_size = index_path.stat().st_size
-              if new_size == previous_size:
+              actual_entries = []
+              for path in paths:
+                  local = Path(path)
+                  entry = {"path": path, "required": path in required, "exists": local.exists()}
+                  if local.is_file():
+                      entry.update({"kind": "file", "byteCount": local.stat().st_size})
+                  elif local.is_dir():
+                      files = [child for child in local.rglob("*") if child.is_file()]
+                      entry.update({"kind": "directory", "fileCount": len(files), "recursiveByteCount": sum(child.stat().st_size for child in files)})
+                  else:
+                      entry["kind"] = "missing"
+                  actual_entries.append(entry)
+              if actual_entries == entries:
+                  stable = True
                   break
-              previous_size = new_size
+          if not stable:
+              raise RuntimeError("Could not stabilize ci-artifact-index.json self metadata")
+          missing_required_paths = [
+              entry["path"] for entry in actual_entries
+              if entry["required"] and not entry["exists"]
+          ]
+          if missing_required_paths:
+              raise RuntimeError(
+                  "Required result package paths are missing: " + ", ".join(missing_required_paths)
+              )
           PY
+
+      - name: Recover fallback result package
+        id: recover_result_package
+        if: always() && steps.ensure_result_package.outcome != 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          CHECKOUT_OUTCOME: ${{ inputs.failure_mode == 'checkout' && 'failure' || steps.checkout.outcome }}
+          PREPARE_METADATA_OUTCOME: ${{ steps.prepare_metadata.outcome }}
+          SCAFFOLD_OUTCOME: ${{ steps.bootstrap_result_package.outcome }}
+          CREATE_MANIFEST_OUTCOME: ${{ steps.create_manifest.outcome }}
+          ENSURE_RESULT_PACKAGE_OUTCOME: ${{ steps.ensure_result_package.outcome }}
+          SELECT_XCODE_OUTCOME: ${{ steps.select_xcode.outcome }}
+          STATIC_OUTCOME: ${{ steps.static_checks.outcome }}
+          PROJECT_VERIFY_OUTCOME: ${{ steps.project_verification.outcome }}
+          BUILD_OUTCOME: ${{ steps.mac_build.outcome }}
+          IOS_BUILD_OUTCOME: ${{ steps.ios_build.outcome }}
+        run: |
+          set -euo pipefail
+          branch_slug="${GITHUB_REF_NAME//\//-}"
+          fallback_artifact_name="chronofocus-ci-${CI_PROCESS_VERSION}-${branch_slug}-${GITHUB_SHA}-run${GITHUB_RUN_ID}-attempt${GITHUB_RUN_ATTEMPT}"
+          export FALLBACK_ARTIFACT_NAME="$fallback_artifact_name"
+          export ARTIFACT_NAME="$fallback_artifact_name"
+          export SHORT_SHA="${SHORT_SHA:-${GITHUB_SHA::7}}"
+          python3 scripts/recover_ci_result_package.py
+          echo "artifact_name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Finalize uploaded artifact identity
+        id: final_artifact
+        if: always() && (steps.ensure_result_package.outcome == 'success' || steps.recover_result_package.outcome == 'success')
+        shell: bash
+        env:
+          ENSURE_ARTIFACT_NAME: ${{ steps.ensure_result_package.outputs.artifact_name }}
+          RECOVERY_ARTIFACT_NAME: ${{ steps.recover_result_package.outputs.artifact_name }}
+        run: |
+          set -euo pipefail
+          artifact_name="${RECOVERY_ARTIFACT_NAME:-${ENSURE_ARTIFACT_NAME:-}}"
+          if [[ -z "$artifact_name" || ! -s ci-results/ci-run-context.txt ]]; then
+            echo "No finalized artifact identity was produced." >&2
+            exit 1
+          fi
+          context_artifact_name="$(awk -F= '$1 == "artifactName" { print substr($0, index($0, "=") + 1) }' ci-results/ci-run-context.txt)"
+          if [[ "$context_artifact_name" != "$artifact_name" ]]; then
+            echo "Final artifact name does not match ci-run-context.txt." >&2
+            exit 1
+          fi
+          python3 - "$artifact_name" <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          expected_artifact = sys.argv[1]
+          expected_identity = {
+              "version": os.environ["CI_PROCESS_VERSION"],
+              "branch": os.environ["GITHUB_REF_NAME"],
+              "commitSha": os.environ["GITHUB_SHA"],
+              "runId": os.environ["GITHUB_RUN_ID"],
+              "runAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+          }
+
+          def read_json(name):
+              path = Path("ci-results") / name
+              try:
+                  value = json.loads(path.read_text(encoding="utf-8"))
+              except (OSError, UnicodeError, json.JSONDecodeError) as error:
+                  raise SystemExit(f"Unable to read finalized {name}: {error}")
+              if not isinstance(value, dict):
+                  raise SystemExit(f"Finalized {name} must contain a JSON object")
+              return value
+
+          stage = read_json("ci-stage-outcomes.json")
+          manifest = read_json("ci-artifact-manifest.json")
+          index = read_json("ci-artifact-index.json")
+          expected_files = {
+              "ci-stage-outcomes.json": stage,
+              "ci-artifact-manifest.json": manifest,
+              "ci-artifact-index.json": index,
+          }
+          for name, value in expected_files.items():
+              for key, expected_value in expected_identity.items():
+                  if str(value.get(key)) != expected_value:
+                      raise SystemExit(f"{name} {key} does not match the GitHub run identity")
+              if value.get("artifactName") != expected_artifact:
+                  raise SystemExit(f"{name} artifactName does not match finalized upload name")
+
+          context_path = Path("ci-results/ci-run-context.txt")
+          expected_context = [
+              f"artifactName={expected_artifact}",
+              f"branch={expected_identity['branch']}",
+              f"commitSha={expected_identity['commitSha']}",
+              f"runId={expected_identity['runId']}",
+              f"runAttempt={expected_identity['runAttempt']}",
+          ]
+          try:
+              actual_context = context_path.read_text(encoding="utf-8").splitlines()
+          except (OSError, UnicodeError) as error:
+              raise SystemExit(f"Unable to read finalized run context: {error}")
+          if actual_context != expected_context:
+              raise SystemExit("ci-run-context.txt does not exactly match the GitHub run identity")
+
+          for field in (
+              "overallOutcome", "failureMode", "fallbackArtifactName", "fallbackArtifactUsed",
+              "firstFailedStage", "failedStages", "nonSuccessStages", "packageStages",
+              "failedPackageStages", "nonSuccessPackageStages", "ensureResultPackageOutcome",
+              "recoveryOutcome", "stageOutcomeMap", "missingArtifactPaths",
+          ):
+              if manifest.get(field) != stage.get(field) or index.get(field) != stage.get(field):
+                  raise SystemExit(f"Finalized package field {field} is not bound to stage outcomes")
+          if manifest.get("stageOutcomes") != stage.get("stages") or index.get("stageOutcomes") != stage.get("stages"):
+              raise SystemExit("Finalized package stage list is not bound to ci-stage-outcomes.json")
+
+          normal_artifact = (
+              f"chronofocus-ci-{os.environ['CI_PROCESS_VERSION']}-{os.environ['GITHUB_REF_NAME'].replace('/', '-')}-"
+              f"{os.environ['GITHUB_SHA'][:7]}-run{os.environ['GITHUB_RUN_ID']}-attempt{os.environ['GITHUB_RUN_ATTEMPT']}"
+          )
+          expected_fallback_used = expected_artifact != normal_artifact
+          if stage.get("fallbackArtifactUsed") != expected_fallback_used:
+              raise SystemExit("Finalized fallback artifact flag does not match artifact identity")
+
+          missing_required = index.get("totals", {}).get("missingRequiredCount")
+          if missing_required != 0:
+              raise SystemExit("A result package cannot have missing required paths")
+          PY
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload Agent C result package
         id: upload_artifact
-        if: always()
+        if: always() && steps.final_artifact.outcome == 'success'
         continue-on-error: true
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ steps.ensure_result_package.outputs.artifact_name || env.FALLBACK_ARTIFACT_NAME }}
+          name: ${{ steps.final_artifact.outputs.artifact_name }}
           path: ci-results
           if-no-files-found: error
           retention-days: 14
@@ -977,6 +1325,7 @@ jobs:
           BUILD_OUTCOME: ${{ steps.mac_build.outcome }}
           IOS_BUILD_OUTCOME: ${{ steps.ios_build.outcome }}
           CREATE_MANIFEST_OUTCOME: ${{ steps.create_manifest.outcome }}
+          RECOVERY_OUTCOME: ${{ steps.recover_result_package.outcome }}
           UPLOAD_OUTCOME: ${{ steps.upload_artifact.outcome }}
         run: |
           set -euo pipefail
@@ -988,6 +1337,6 @@ jobs:
           if [[ "$CHECKOUT_OUTCOME" != "success" || "$PREPARE_METADATA_OUTCOME" != "success" || "$SELECT_XCODE_OUTCOME" != "success" || "$STATIC_OUTCOME" != "success" || "$PROJECT_VERIFY_OUTCOME" != "success" || "$BUILD_OUTCOME" != "success" || "$IOS_BUILD_OUTCOME" != "success" ]]; then
             exit 1
           fi
-          if [[ "$CHECKOUT_OUTCOME" != "success" || "$PREPARE_METADATA_OUTCOME" != "success" || "$BOOTSTRAP_OUTCOME" != "success" || "$FINALIZER_OUTCOME" != "success" || "$SELECT_XCODE_OUTCOME" != "success" || "$CREATE_MANIFEST_OUTCOME" != "success" || "$UPLOAD_OUTCOME" != "success" ]]; then
+          if [[ "$CHECKOUT_OUTCOME" != "success" || "$PREPARE_METADATA_OUTCOME" != "success" || "$BOOTSTRAP_OUTCOME" != "success" || "$FINALIZER_OUTCOME" != "success" || "$RECOVERY_OUTCOME" == "failure" || "$SELECT_XCODE_OUTCOME" != "success" || "$CREATE_MANIFEST_OUTCOME" != "success" || "$UPLOAD_OUTCOME" != "success" ]]; then
             exit 1
           fi

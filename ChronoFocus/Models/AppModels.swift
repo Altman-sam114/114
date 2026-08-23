@@ -151,6 +151,8 @@ enum CompletionSound: String, CaseIterable, Codable, Identifiable {
 struct TaskCategoryPreset: Identifiable, Hashable {
     var id: String { title }
 
+    static let fallbackAccentHex = "#3DE8C5"
+
     let title: String
     let accentHex: String
     let symbolName: String
@@ -164,12 +166,61 @@ struct TaskCategoryPreset: Identifiable, Hashable {
     ]
 
     static func matching(_ category: String) -> TaskCategoryPreset? {
-        defaults.first { $0.title == category }
+        defaults.first { categoriesMatch($0.title, category) }
+    }
+
+    static func categoryComparisonKey(for category: String) -> String {
+        let normalizedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName = normalizedCategory.isEmpty ? "未分类" : normalizedCategory
+        return displayName.folding(
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+    }
+
+    static func categoriesMatch(_ lhs: String, _ rhs: String) -> Bool {
+        categoryComparisonKey(for: lhs) == categoryComparisonKey(for: rhs)
+    }
+
+    static func accentHex(for category: String, preferred: String? = nil) -> String {
+        matching(category)?.accentHex ?? usableAccentHex(preferred) ?? fallbackAccentHex
+    }
+
+    static func usableAccentHex(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digits = trimmedValue.hasPrefix("#") ? String(trimmedValue.dropFirst()) : trimmedValue
+        guard (digits.count == 3 || digits.count == 6), digits.allSatisfy(\.isHexDigit) else { return nil }
+        return "#\(digits.uppercased())"
+    }
+
+    static func contrastTextHex(on value: String?) -> String {
+        let normalized = usableAccentHex(value) ?? fallbackAccentHex
+        let digits = String(normalized.dropFirst())
+        let expandedDigits = digits.count == 3
+            ? digits.map { String(repeating: String($0), count: 2) }.joined()
+            : digits
+        guard let rgb = UInt64(expandedDigits, radix: 16) else { return "#111827" }
+
+        let red = Double((rgb >> 16) & 0xFF) / 255
+        let green = Double((rgb >> 8) & 0xFF) / 255
+        let blue = Double(rgb & 0xFF) / 255
+        func linearized(_ component: Double) -> Double {
+            component <= 0.03928
+                ? component / 12.92
+                : pow((component + 0.055) / 1.055, 2.4)
+        }
+
+        let luminance = 0.2126 * linearized(red) + 0.7152 * linearized(green) + 0.0722 * linearized(blue)
+        let whiteContrast = 1.05 / (luminance + 0.05)
+        let darkContrast = (luminance + 0.05) / 0.05
+        return whiteContrast >= darkContrast ? "#FFFFFF" : "#111827"
     }
 
     static func prioritizedFilterOptions(
         categories: [String],
-        countProvider: (String) -> Int
+        countProvider: (String) -> Int,
+        accentProvider: (String) -> String = { _ in fallbackAccentHex }
     ) -> [TaskCategoryFilterOption] {
         categories.enumerated()
             .map { index, category in
@@ -178,7 +229,8 @@ struct TaskCategoryPreset: Identifiable, Hashable {
                     option: TaskCategoryFilterOption(
                         category: category,
                         count: countProvider(category),
-                        preset: matching(category)
+                        preset: matching(category),
+                        accentHex: accentProvider(category)
                     )
                 )
             }
@@ -203,14 +255,24 @@ struct TaskCategoryFilterOption: Identifiable, Hashable {
     let category: String
     let count: Int
     let preset: TaskCategoryPreset?
+    let accentHex: String
+
+    init(
+        category: String,
+        count: Int,
+        preset: TaskCategoryPreset?,
+        accentHex: String? = nil
+    ) {
+        self.category = category
+        self.count = count
+        self.preset = preset
+        self.accentHex = TaskCategoryPreset.accentHex(for: category, preferred: accentHex)
+    }
 
     var symbolName: String {
         preset?.symbolName ?? "tag.fill"
     }
 
-    var accentHex: String {
-        preset?.accentHex ?? "#3DE8C5"
-    }
 }
 
 struct TimerSettings: Codable, Equatable {

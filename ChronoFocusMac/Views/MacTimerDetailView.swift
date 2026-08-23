@@ -6,10 +6,10 @@ func resolveMacTimerHandoffTask(
 ) -> FocusTask? {
     if let preferredTaskID = request.preferredTaskID {
         return startableTasks.first {
-            $0.id == preferredTaskID && $0.category == request.category
+            $0.id == preferredTaskID && TaskCategoryPreset.categoriesMatch($0.category, request.category)
         }
     }
-    return startableTasks.first { $0.category == request.category }
+    return startableTasks.first { TaskCategoryPreset.categoriesMatch($0.category, request.category) }
 }
 
 struct MacTimerDetailView: View {
@@ -32,11 +32,18 @@ struct MacTimerDetailView: View {
         self.onConsumeTimerHandoffRequest = onConsumeTimerHandoffRequest
     }
 
-    private var currentTint: Color {
-        if let task = store.task(for: engine.selectedTaskID) {
-            return Color(hex: task.accentHex)
+    private var currentTintHex: String {
+        if let snapshot = store.activeTimer {
+            return snapshot.tintHex
         }
-        return Color(hex: engine.mode.tintHex)
+        if let task = store.task(for: engine.selectedTaskID) {
+            return store.representativeAccentHex(for: task.category)
+        }
+        return engine.mode.tintHex
+    }
+
+    private var currentTint: Color {
+        Color(hex: currentTintHex)
     }
 
     var body: some View {
@@ -52,7 +59,7 @@ struct MacTimerDetailView: View {
                     VStack(spacing: 18) {
                         MacModePickerView(currentTint: currentTint)
                         MacTimerDialView(currentTint: currentTint)
-                        MacTimerActionRowView(currentTint: currentTint)
+                        MacTimerActionRowView(currentTint: currentTint, currentTintHex: currentTintHex)
                     }
                 }
                 .frame(minWidth: 420)
@@ -104,9 +111,18 @@ private struct MacModePickerView: View {
 }
 
 private struct MacTimerDialView: View {
+    @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
 
     let currentTint: Color
+
+    private var displayedMode: TimerMode {
+        store.activeTimer?.mode ?? engine.mode
+    }
+
+    private var displayedTaskTitle: String {
+        store.activeTimer?.taskTitle ?? engine.currentTaskTitle
+    }
 
     var body: some View {
         ZStack {
@@ -119,7 +135,7 @@ private struct MacTimerDialView: View {
                 .shadow(color: currentTint.opacity(0.35), radius: 18)
 
             VStack(spacing: 10) {
-                Image(systemName: engine.mode.symbolName)
+                Image(systemName: displayedMode.symbolName)
                     .font(.title2)
                     .foregroundStyle(currentTint)
                 Text(engine.formattedRemaining)
@@ -128,7 +144,7 @@ private struct MacTimerDialView: View {
                     .foregroundStyle(MacTheme.primaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
-                Text(engine.currentTaskTitle)
+                Text(displayedTaskTitle)
                     .font(.headline)
                     .foregroundStyle(MacTheme.secondaryText)
                     .lineLimit(1)
@@ -148,37 +164,80 @@ private struct MacTimerActionRowView: View {
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     let currentTint: Color
+    let currentTintHex: String
+
+    private var currentTintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: currentTintHex))
+    }
 
     var body: some View {
         if isSnapshotRendering {
-            MacStaticTimerActionRowView(currentTint: currentTint)
+            MacStaticTimerActionRowView(currentTint: currentTint, currentTintHex: currentTintHex)
         } else {
             interactiveActionRow
         }
     }
 
     private var interactiveActionRow: some View {
-        HStack(spacing: 12) {
-            Button("停止", systemImage: "stop.fill") {
-                engine.stop()
-            }
-            .disabled(!engine.isRunning)
-            .accessibilityLabel("停止\(timerActionContext)计时")
-            .accessibilityInputLabels(timerActionInputLabels("停止"))
-
-            Button("跳过", systemImage: "forward.end.fill", action: engine.skipToNextSession)
-                .disabled(!engine.isRunning)
-                .accessibilityLabel("跳过\(timerActionContext)当前轮")
-                .accessibilityInputLabels(timerActionInputLabels("跳过"))
-
-            Button(primaryTitle, systemImage: primarySymbol, action: toggleTimer)
-                .buttonStyle(.borderedProminent)
-                .tint(currentTint)
-                .accessibilityLabel(primaryTimerActionLabel)
-                .accessibilityInputLabels(timerActionInputLabels(primaryTimerActionInputCommand))
+        ViewThatFits(in: .horizontal) {
+            actionLayout(axis: .horizontal)
+            actionLayout(axis: .vertical)
         }
         .buttonStyle(.bordered)
         .controlSize(.large)
+    }
+
+    private func actionLayout(axis: Axis) -> some View {
+        let layout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 12))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+
+        return layout {
+            stopButton
+            skipButton
+            primaryButton
+
+            if engine.isRunning && engine.isCurrentTaskOpenEnded {
+                finishButton
+            }
+        }
+        .frame(maxWidth: axis == .vertical ? .infinity : nil, alignment: .leading)
+    }
+
+    private var stopButton: some View {
+        Button("停止", systemImage: "stop.fill") {
+            engine.stop()
+        }
+        .disabled(!engine.isRunning)
+        .accessibilityLabel("停止\(timerActionContext)计时")
+        .accessibilityInputLabels(timerActionInputLabels("停止"))
+    }
+
+    private var skipButton: some View {
+        Button("跳过", systemImage: "forward.end.fill", action: engine.skipToNextSession)
+            .disabled(!engine.isRunning)
+            .accessibilityLabel("跳过\(timerActionContext)当前轮")
+            .accessibilityInputLabels(timerActionInputLabels("跳过"))
+    }
+
+    private var primaryButton: some View {
+        Button(primaryTitle, systemImage: primarySymbol, action: toggleTimer)
+            .buttonStyle(.borderedProminent)
+            .tint(currentTint)
+            .foregroundStyle(currentTintText)
+            .accessibilityLabel(primaryTimerActionLabel)
+            .accessibilityInputLabels(timerActionInputLabels(primaryTimerActionInputCommand))
+    }
+
+    private var finishButton: some View {
+        Button("完成当前待办", systemImage: "checkmark.seal.fill") {
+            engine.finishCurrentTask()
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(currentTint)
+        .foregroundStyle(currentTintText)
+        .accessibilityLabel("完成\(timerActionContext)待办")
+        .accessibilityInputLabels(timerActionInputLabels("完成"))
     }
 
     private var timerActionTask: FocusTask? {
@@ -186,6 +245,9 @@ private struct MacTimerActionRowView: View {
     }
 
     private var timerActionContext: String {
+        if let snapshot = store.activeTimer {
+            return "\(snapshot.taskTitle)，\(snapshot.category)分类"
+        }
         if let task = timerActionTask {
             return "\(task.title)，\(task.category)分类"
         }
@@ -217,7 +279,7 @@ private struct MacTimerActionRowView: View {
     private func timerActionInputLabels(_ action: String) -> [Text] {
         var labels = [
             Text(action),
-            Text("\(action)\(engine.currentTaskTitle)")
+            Text("\(action)\(store.activeTimer?.taskTitle ?? engine.currentTaskTitle)")
         ]
         if let task = timerActionTask {
             labels.append(Text("\(action)\(task.title)"))
@@ -243,6 +305,11 @@ private struct MacStaticTimerActionRowView: View {
     @EnvironmentObject private var engine: TimerEngine
 
     let currentTint: Color
+    let currentTintHex: String
+
+    private var currentTintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: currentTintHex))
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -268,8 +335,21 @@ private struct MacStaticTimerActionRowView: View {
                 tint: currentTint,
                 isProminent: true,
                 accessibilityLabel: primaryTimerActionLabel,
-                inputLabels: timerActionInputLabels(primaryTimerActionInputCommand)
+                inputLabels: timerActionInputLabels(primaryTimerActionInputCommand),
+                prominentForeground: currentTintText
             )
+
+            if engine.isRunning && engine.isCurrentTaskOpenEnded {
+                staticChip(
+                    title: "完成当前待办",
+                    symbolName: "checkmark.seal.fill",
+                    tint: currentTint,
+                    isProminent: true,
+                    accessibilityLabel: "完成\(timerActionContext)待办",
+                    inputLabels: timerActionInputLabels("完成"),
+                    prominentForeground: currentTintText
+                )
+            }
         }
     }
 
@@ -278,6 +358,9 @@ private struct MacStaticTimerActionRowView: View {
     }
 
     private var timerActionContext: String {
+        if let snapshot = store.activeTimer {
+            return "\(snapshot.taskTitle)，\(snapshot.category)分类"
+        }
         if let task = timerActionTask {
             return "\(task.title)，\(task.category)分类"
         }
@@ -309,7 +392,7 @@ private struct MacStaticTimerActionRowView: View {
     private func timerActionInputLabels(_ action: String) -> [Text] {
         var labels = [
             Text(action),
-            Text("\(action)\(engine.currentTaskTitle)")
+            Text("\(action)\(store.activeTimer?.taskTitle ?? engine.currentTaskTitle)")
         ]
         if let task = timerActionTask {
             labels.append(Text("\(action)\(task.title)"))
@@ -319,10 +402,10 @@ private struct MacStaticTimerActionRowView: View {
         return labels
     }
 
-    private func staticChip(title: String, symbolName: String, tint: Color, isProminent: Bool, accessibilityLabel: String, inputLabels: [Text]) -> some View {
+    private func staticChip(title: String, symbolName: String, tint: Color, isProminent: Bool, accessibilityLabel: String, inputLabels: [Text], prominentForeground: Color? = nil) -> some View {
         Label(title, systemImage: symbolName)
             .font(.headline)
-            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
+            .foregroundStyle(isProminent ? (prominentForeground ?? MacTheme.primaryText) : tint)
             .frame(minWidth: 96, minHeight: 44)
             .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
             .overlay {
@@ -388,7 +471,7 @@ private struct MacTaskQueueView: View {
 
     private var filteredTasks: [FocusTask] {
         guard let selectedCategory else { return startableTasks }
-        return startableTasks.filter { $0.category == selectedCategory }
+        return startableTasks.filter { store.categoryMatches($0.category, selectedCategory) }
     }
 
     private var visibleTasks: [FocusTask] {
@@ -551,14 +634,14 @@ private struct MacTaskQueueView: View {
         .onChange(of: selectedCategory) { _, _ in
             isTaskQueueExpanded = false
         }
-        .onChange(of: filteredTasks.count) { _, _ in
+        .onChange(of: filteredTasks) { _, _ in
             isTaskQueueExpanded = false
         }
     }
 
     private func taskCount(in category: String?) -> Int {
         guard let category else { return startableTasks.count }
-        return startableTasks.filter { $0.category == category }.count
+        return startableTasks.filter { store.categoryMatches($0.category, category) }.count
     }
 
     private func consumeTimerHandoffRequest() {
@@ -576,13 +659,15 @@ private struct MacTaskQueueView: View {
             engine.selectTask(targetTask)
         } else if request.preferredTaskID != nil {
             engine.selectTask(nil)
-        } else if store.startableTask(for: engine.selectedTaskID)?.category != request.category {
+        } else if !(store.startableTask(for: engine.selectedTaskID).map { store.categoryMatches($0.category, request.category) } ?? false) {
             engine.selectTask(nil)
         }
     }
 }
 
 struct MacTimerCategoryContextView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let category: String
     let filteredCount: Int
     let totalCount: Int
@@ -595,7 +680,11 @@ struct MacTimerCategoryContextView: View {
     }
 
     private var tint: Color {
-        Color(hex: preset?.accentHex ?? "#3DE8C5")
+        Color(hex: store.representativeAccentHex(for: category))
+    }
+
+    private var tintHex: String {
+        store.representativeAccentHex(for: category)
     }
 
     private var countText: String {
@@ -635,6 +724,7 @@ struct MacTimerCategoryContextView: View {
             MacTimerCategoryContextActions(
                 category: category,
                 tint: tint,
+                tintHex: tintHex,
                 isSnapshotRendering: isSnapshotRendering,
                 axis: axis,
                 onAddTask: onAddTask,
@@ -665,10 +755,15 @@ struct MacTimerCategoryContextView: View {
 private struct MacTimerCategoryContextActions: View {
     let category: String
     let tint: Color
+    let tintHex: String
     let isSnapshotRendering: Bool
     let axis: Axis
     let onAddTask: () -> Void
     let onClear: () -> Void
+
+    private var tintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
+    }
 
     var body: some View {
         let layout = axis == .horizontal
@@ -714,11 +809,11 @@ private struct MacTimerCategoryContextActions: View {
     ) -> some View {
         let label = Label(title, systemImage: symbolName)
             .font(.caption.bold())
-            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
+            .foregroundStyle(isProminent ? tintText : tint)
             .lineLimit(1)
             .minimumScaleFactor(0.82)
             .padding(.horizontal, 9)
-            .frame(minWidth: minWidth, maxWidth: axis == .vertical ? .infinity : nil, minHeight: 36)
+            .frame(minWidth: minWidth, maxWidth: axis == .vertical ? .infinity : nil, minHeight: 44)
             .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
             .overlay {
                 Capsule()
@@ -744,6 +839,8 @@ private struct MacTimerCategoryContextActions: View {
 }
 
 struct MacTimerCategoryEmptyStateView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let category: String
     let isSnapshotRendering: Bool
     let onAddTask: () -> Void
@@ -754,7 +851,11 @@ struct MacTimerCategoryEmptyStateView: View {
     }
 
     private var tint: Color {
-        Color(hex: preset?.accentHex ?? "#3DE8C5")
+        Color(hex: store.representativeAccentHex(for: category))
+    }
+
+    private var tintHex: String {
+        store.representativeAccentHex(for: category)
     }
 
     private var addButtonInputLabels: [Text] {
@@ -779,6 +880,7 @@ struct MacTimerCategoryEmptyStateView: View {
                 MacTimerCategoryEmptyActions(
                     category: category,
                     tint: tint,
+                    tintHex: tintHex,
                     addButtonInputLabels: addButtonInputLabels,
                     clearButtonInputLabels: clearButtonInputLabels,
                     isSnapshotRendering: isSnapshotRendering,
@@ -790,6 +892,7 @@ struct MacTimerCategoryEmptyStateView: View {
                 MacTimerCategoryEmptyActions(
                     category: category,
                     tint: tint,
+                    tintHex: tintHex,
                     addButtonInputLabels: addButtonInputLabels,
                     clearButtonInputLabels: clearButtonInputLabels,
                     isSnapshotRendering: isSnapshotRendering,
@@ -814,12 +917,17 @@ struct MacTimerCategoryEmptyStateView: View {
 private struct MacTimerCategoryEmptyActions: View {
     let category: String
     let tint: Color
+    let tintHex: String
     let addButtonInputLabels: [Text]
     let clearButtonInputLabels: [Text]
     let isSnapshotRendering: Bool
     let axis: Axis
     let onAddTask: () -> Void
     let onClear: () -> Void
+
+    private var tintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
+    }
 
     var body: some View {
         let layout = axis == .horizontal
@@ -833,10 +941,10 @@ private struct MacTimerCategoryEmptyActions: View {
             } else {
                 Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
                     .font(.caption.bold())
-                    .foregroundStyle(Color.black.opacity(0.82))
+                    .foregroundStyle(tintText)
                     .buttonStyle(.plain)
                     .padding(.horizontal, 10)
-                    .frame(minWidth: 104, maxWidth: .infinity, minHeight: 36)
+                    .frame(minWidth: 104, maxWidth: .infinity, minHeight: 44)
                     .background(tint, in: Capsule())
                     .accessibilityLabel("新增\(category)分类待办")
                     .accessibilityInputLabels(addButtonInputLabels)
@@ -846,7 +954,7 @@ private struct MacTimerCategoryEmptyActions: View {
                     .foregroundStyle(tint)
                     .buttonStyle(.plain)
                     .padding(.horizontal, 10)
-                    .frame(minWidth: 88, maxWidth: .infinity, minHeight: 36)
+                    .frame(minWidth: 88, maxWidth: .infinity, minHeight: 44)
                     .background(Color.white.opacity(0.07), in: Capsule())
                     .overlay {
                         Capsule()
@@ -862,8 +970,8 @@ private struct MacTimerCategoryEmptyActions: View {
     private func staticAction(title: String, isProminent: Bool) -> some View {
         Text(title)
             .font(.caption.bold())
-            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
-            .frame(minWidth: isProminent ? 104 : 88, maxWidth: .infinity, minHeight: 36)
+            .foregroundStyle(isProminent ? tintText : tint)
+            .frame(minWidth: isProminent ? 104 : 88, maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 10)
             .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
             .overlay {
@@ -896,6 +1004,8 @@ struct MacMetricView: View {
 }
 
 struct MacTaskRowView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let task: FocusTask
     var isSelected = false
     var isTimerRunning = false
@@ -906,7 +1016,7 @@ struct MacTaskRowView: View {
     }
 
     private var categoryTint: Color {
-        Color(hex: categoryPreset?.accentHex ?? task.accentHex)
+        Color(hex: store.representativeAccentHex(for: task.category))
     }
 
     private var categorySymbolName: String {

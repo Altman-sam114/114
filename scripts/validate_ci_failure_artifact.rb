@@ -44,14 +44,31 @@ def validate_failure_profile(
     end
 
   stage_names = EXPECTED_STAGE_NAMES
+  package_stage_names = EXPECTED_PACKAGE_STAGE_NAMES
+  execution_stage_names = %w[
+    checkout prepareMetadata bootstrap selectXcode staticChecks projectVerification
+    macBuild iosBuild createManifest ensureResultPackage
+  ]
   stage_entries = stage_file.is_a?(Hash) && stage_file["stages"].is_a?(Array) ? stage_file["stages"] : []
   stage_by_name = stage_entries.each_with_object({}) { |entry, lookup| lookup[entry["name"]] = entry["outcome"] }
   non_success_stages = stage_names.select { |name| stage_by_name[name] != "success" }
   failed_stages = stage_names.select { |name| %w[failure cancelled unknown].include?(stage_by_name[name]) }
-  expected_first_failed_stage = failed_stages.first || non_success_stages.first
+  package_stage_entries = stage_file.is_a?(Hash) && stage_file["packageStages"].is_a?(Array) ? stage_file["packageStages"] : []
+  package_stage_by_name = package_stage_entries.each_with_object({}) { |entry, lookup| lookup[entry["name"]] = entry["outcome"] }
+  non_success_package_stages = package_stage_names.select { |name| package_stage_by_name[name] != "success" }
+  failed_package_stages = package_stage_names.select { |name| %w[failure cancelled unknown].include?(package_stage_by_name[name]) }
+  ensure_result_package_outcome = stage_file.is_a?(Hash) ? stage_file["ensureResultPackageOutcome"] : nil
+  recovery_outcome = stage_file.is_a?(Hash) ? stage_file["recoveryOutcome"] : nil
+  outcome_by_name = stage_by_name.merge(package_stage_by_name).merge("ensureResultPackage" => ensure_result_package_outcome)
+  all_non_success_stages = execution_stage_names.select { |name| outcome_by_name[name] != "success" }
+  all_failed_stages = execution_stage_names.select { |name| %w[failure cancelled unknown].include?(outcome_by_name[name]) }
+  expected_first_failed_stage = all_failed_stages.first || all_non_success_stages.first
   expected_index_paths = EXPECTED_INDEX_ENTRIES.keys.sort
-  allowed_index_paths = [expected_index_paths, (expected_index_paths + FAILURE_ONLY_INDEX_ENTRIES.keys).sort]
+  prepare_metadata_failed = stage_by_name["prepareMetadata"] != "success"
+  failure_only_paths = prepare_metadata_failed ? FAILURE_ONLY_INDEX_ENTRIES.keys : []
+  allowed_index_paths = [expected_index_paths, (expected_index_paths + failure_only_paths).sort]
   required_paths = FAILURE_REQUIRED_ARTIFACT_PATHS.map { |path| "ci-results/#{path}" }
+  expected_required_paths = required_paths
 
   check(checks, "failure artifact archive byte count") do
     archive_path && File.size(archive_path) == expected_archive_size
@@ -81,7 +98,7 @@ def validate_failure_profile(
   end
 
   check(checks, "failure artifact required files") do
-    required_paths.all? do |path|
+    expected_required_paths.all? do |path|
       local_path = local_artifact_path(artifact_dir, path)
       File.file?(local_path) && File.size(local_path).positive?
     end
@@ -92,8 +109,17 @@ def validate_failure_profile(
     stage_file.is_a?(Hash) && stage_entries.length == stage_names.length
   end
   check(checks, "failure artifact stage names and outcomes") do
-    stage_entries.map { |entry| entry["name"] } == stage_names &&
-      stage_entries.all? { |entry| EXPECTED_STAGE_OUTCOMES.include?(entry["outcome"]) }
+    stage_file.is_a?(Hash) && stage_entries.map { |entry| entry["name"] } == stage_names &&
+      stage_entries.all? { |entry| EXPECTED_STAGE_OUTCOMES.include?(entry["outcome"]) } &&
+      stage_file["stageOutcomeMap"] == stage_entries.each_with_object({}) { |entry, lookup| lookup[entry["name"]] = entry["outcome"] }
+  end
+  check(checks, "failure artifact stage outcome duplicates") do
+    stage_file.is_a?(Hash) &&
+      stage_file["stageOutcomes"] == stage_file["stageOutcomeMap"]
+  end
+  check(checks, "failure artifact package stage outcomes") do
+    package_stage_entries.map { |entry| entry["name"] } == package_stage_names &&
+      package_stage_entries.all? { |entry| EXPECTED_STAGE_OUTCOMES.include?(entry["outcome"]) }
   end
   check(checks, "failure artifact stage identity") do
     stage_file.is_a?(Hash) &&
@@ -108,10 +134,21 @@ def validate_failure_profile(
   check(checks, "failure artifact stage failure state") do
     stage_file.is_a?(Hash) &&
       stage_file["overallOutcome"] == "failure" &&
-      non_success_stages.any? &&
+      all_non_success_stages.any? &&
+      all_failed_stages.any? &&
       stage_file["failedStages"] == failed_stages &&
       stage_file["nonSuccessStages"] == non_success_stages &&
+      stage_file["failedPackageStages"] == failed_package_stages &&
+      stage_file["nonSuccessPackageStages"] == non_success_package_stages &&
       stage_file["firstFailedStage"] == expected_first_failed_stage
+  end
+  check(checks, "failure artifact finalizer outcome") do
+    normal_finalizer = ensure_result_package_outcome == "success" && recovery_outcome == "skipped"
+    recovered_finalizer = EXPECTED_STAGE_OUTCOMES.include?(ensure_result_package_outcome) &&
+      ensure_result_package_outcome != "success" && recovery_outcome == "success"
+    (normal_finalizer || recovered_finalizer) &&
+      manifest.is_a?(Hash) && manifest["ensureResultPackageOutcome"] == ensure_result_package_outcome &&
+      manifest["recoveryOutcome"] == recovery_outcome
   end
   check(checks, "failure artifact explicit mode") do
     stage_file.is_a?(Hash) && stage_file["failureMode"].is_a?(String) && !stage_file["failureMode"].empty? && stage_file["failureMode"] != "none"
@@ -137,6 +174,14 @@ def validate_failure_profile(
   check(checks, "failure artifact manifest metadata") do
     manifest.is_a?(Hash) && EXPECTED_MANIFEST_METADATA.all? { |key, value| manifest[key] == value }
   end
+  check(checks, "failure artifact project reports metadata") do
+    reports = manifest.is_a?(Hash) ? manifest["projectSpecificReports"] : nil
+    actual_reports = reports.is_a?(Array) ? reports.each_with_object({}) { |report, lookup| lookup[report["name"]] = report["path"] } : {}
+    reports.is_a?(Array) && reports.length == EXPECTED_PROJECT_REPORTS.length && actual_reports == EXPECTED_PROJECT_REPORTS &&
+      reports.all? do |report|
+        EXPECTED_PROJECT_REPORTS[report["name"]] == report["path"] && !report["description"].to_s.empty?
+      end
+  end
   check(checks, "failure artifact manifest paths") do
     manifest.is_a?(Hash) && EXPECTED_MANIFEST_PATHS.all? { |key, value| manifest[key] == value }
   end
@@ -147,8 +192,13 @@ def validate_failure_profile(
       manifest["failureMode"] == stage_file["failureMode"] &&
       manifest["failedStages"] == failed_stages &&
       manifest["nonSuccessStages"] == non_success_stages &&
+      manifest["packageStages"] == package_stage_entries &&
+      manifest["failedPackageStages"] == failed_package_stages &&
+      manifest["nonSuccessPackageStages"] == non_success_package_stages &&
+      manifest["ensureResultPackageOutcome"] == ensure_result_package_outcome &&
       manifest["firstFailedStage"] == expected_first_failed_stage &&
       manifest["stageOutcomes"] == stage_file["stages"] &&
+      manifest["stageOutcomeMap"] == stage_file["stageOutcomeMap"] &&
       manifest["staticChecksOutcome"] == stage_by_name["staticChecks"] &&
       manifest["projectVerificationOutcome"] == stage_by_name["projectVerification"] &&
       manifest["macBuildOutcome"] == stage_by_name["macBuild"] &&
@@ -195,6 +245,12 @@ def validate_failure_profile(
       index["stageOutcomes"] == stage_file["stages"] &&
       index["failedStages"] == failed_stages &&
       index["nonSuccessStages"] == non_success_stages &&
+      index["packageStages"] == package_stage_entries &&
+      index["failedPackageStages"] == failed_package_stages &&
+      index["nonSuccessPackageStages"] == non_success_package_stages &&
+      index["ensureResultPackageOutcome"] == ensure_result_package_outcome &&
+      index["recoveryOutcome"] == recovery_outcome &&
+      index["stageOutcomeMap"] == stage_file["stageOutcomeMap"] &&
       index["firstFailedStage"] == expected_first_failed_stage
   end
   check(checks, "failure artifact index fallback identity") do
@@ -212,7 +268,8 @@ def validate_failure_profile(
     index.is_a?(Hash) && expected_index_totals.all? { |key, value| index.dig("totals", key).to_i == value }
   end
   check(checks, "failure artifact index required entries") do
-    required_paths.all? do |path|
+    actual_required_paths = entries.select { |entry| entry["required"] }.map { |entry| entry["path"] }.sort
+    actual_required_paths == expected_required_paths.sort && expected_required_paths.all? do |path|
       entry = entries_by_path[path]
       entry && entry["required"] && entry["exists"] && positive_local_artifact?(artifact_dir, entry)
     end
@@ -221,6 +278,7 @@ def validate_failure_profile(
     entries.all? do |entry|
       path = entry["path"]
       next false unless allowed_index_paths.any? { |paths| paths.include?(path) }
+      next false unless entry["required"] == expected_required_paths.include?(path)
       next false if entry["required"] && !entry["exists"]
       next true unless entry["exists"]
 
@@ -233,8 +291,16 @@ def validate_failure_profile(
   check(checks, "failure artifact index missing paths") do
     index.is_a?(Hash) && index["missingArtifactPaths"].is_a?(Array) && index["missingArtifactPaths"].sort == expected_missing_paths
   end
+  check(checks, "failure artifact missing paths metadata") do
+    stage_file.is_a?(Hash) && manifest.is_a?(Hash) && index.is_a?(Hash) &&
+      stage_file["missingArtifactPaths"].is_a?(Array) &&
+      manifest["missingArtifactPaths"].is_a?(Array) &&
+      stage_file["missingArtifactPaths"].sort == expected_missing_paths &&
+      manifest["missingArtifactPaths"].sort == expected_missing_paths &&
+      index["missingArtifactPaths"].sort == expected_missing_paths
+  end
   check(checks, "failure artifact local allowlist") do
-    root_allowed = EXPECTED_ARTIFACT_ROOT_ENTRIES + FAILURE_ONLY_ARTIFACT_ROOT_ENTRIES
+    root_allowed = EXPECTED_ARTIFACT_ROOT_ENTRIES + (prepare_metadata_failed ? FAILURE_ONLY_ARTIFACT_ROOT_ENTRIES : [])
     root_extra = File.directory?(artifact_dir) ? Dir.children(artifact_dir) - root_allowed : ["<missing root>"]
     project_reports = File.join(artifact_dir, "project-reports")
     project_extra = File.directory?(project_reports) ? Dir.children(project_reports) - EXPECTED_PROJECT_REPORTS_ENTRIES : []
@@ -250,7 +316,22 @@ def validate_failure_profile(
       summary.include?("## Failed Stages") &&
       summary.include?("## Failure Excerpts") &&
       !summary.include?("All CI stages passed.") &&
-      non_success_stages.all? { |name| summary.include?("- `#{name}`:") }
+      all_non_success_stages.all? { |name| summary.include?("- `#{name}`:") }
+  end
+  check(checks, "failure artifact summary package outcomes") do
+    package_stage_entries.all? do |entry|
+      label = entry["name"] == "bootstrap" ? "Bootstrap result package" : "Create manifest"
+      summary.include?("- #{label}: `#{entry["outcome"]}`")
+    end
+  end
+  check(checks, "failure artifact summary finalizer outcome") do
+    summary.include?("- Ensure result package: `#{ensure_result_package_outcome}`") &&
+      summary.include?("- Recovery result package: `#{recovery_outcome}`")
+  end
+  check(checks, "failure artifact summary stage outcomes") do
+    EXPECTED_SUMMARY_STAGE_LABELS.all? do |name, label|
+      summary.include?("- #{label}: `#{outcome_by_name[name]}`")
+    end
   end
   check(checks, "failure artifact summary identity") do
     [

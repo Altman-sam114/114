@@ -49,6 +49,20 @@ struct ScheduleView: View {
         store.pomodoroPlan.filter { !$0.isCompleted }.count
     }
 
+    private var activeTimerSnapshot: ActiveTimerSnapshot? {
+        store.activeTimer
+    }
+
+    private func semanticTaskTitle(_ task: FocusTask) -> String {
+        guard let snapshot = activeTimerSnapshot, snapshot.taskID == task.id else { return task.title }
+        return snapshot.taskTitle
+    }
+
+    private func semanticTaskCategory(_ task: FocusTask) -> String {
+        guard let snapshot = activeTimerSnapshot, snapshot.taskID == task.id else { return task.category }
+        return snapshot.category
+    }
+
     private var addTaskAccessibilityLabel: String {
         guard let selectedCategory else {
             return "新增待办"
@@ -155,6 +169,7 @@ struct ScheduleView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.cyan)
+                    .frame(minHeight: 44)
 
                     Spacer()
 
@@ -258,6 +273,8 @@ struct ScheduleView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(.red)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
                     .disabled(store.pomodoroPlan.isEmpty)
                     .accessibilityLabel("清空番茄钟计划，当前\(remainingPlanCount)轮未完成")
                     .accessibilityInputLabels([
@@ -336,7 +353,11 @@ struct ScheduleView: View {
                 } else {
                     VStack(spacing: 10) {
                         ForEach(visibleTasks) { task in
-                            ScheduleTaskCell(task: task, isTimerRunning: engine.isRunning) {
+                            ScheduleTaskCell(
+                                task: task,
+                                isTimerRunning: engine.isRunning,
+                                activeTimerSnapshot: activeTimerSnapshot
+                            ) {
                                 toggleTask(task)
                             } onEnable: {
                                 setTask(task, enabled: !task.isEnabled)
@@ -358,12 +379,13 @@ struct ScheduleView: View {
                                     Label("编辑", systemImage: "pencil")
                                 }
                                 .tint(.cyan)
-                                .accessibilityLabel("编辑\(task.title)待办，\(task.category)分类")
+                                .accessibilityLabel("编辑\(semanticTaskTitle(task))待办，\(semanticTaskCategory(task))分类")
                                 .accessibilityInputLabels([
-                                    Text("编辑\(task.title)"),
-                                    Text("编辑\(task.category)分类\(task.title)"),
-                                    Text("\(task.category)分类\(task.title)编辑")
+                                    Text("编辑\(semanticTaskTitle(task))"),
+                                    Text("编辑\(semanticTaskCategory(task))分类\(semanticTaskTitle(task))"),
+                                    Text("\(semanticTaskCategory(task))分类\(semanticTaskTitle(task))编辑")
                                 ])
+                                .disabled(activeTimerSnapshot?.taskID == task.id)
 
                                 Button(role: .destructive) {
                                     notifications.cancelTaskReminder(taskID: task.id)
@@ -371,12 +393,13 @@ struct ScheduleView: View {
                                 } label: {
                                     Label("删除", systemImage: "trash")
                                 }
-                                .accessibilityLabel("删除\(task.title)待办，\(task.category)分类")
+                                .accessibilityLabel("删除\(semanticTaskTitle(task))待办，\(semanticTaskCategory(task))分类")
                                 .accessibilityInputLabels([
-                                    Text("删除\(task.title)"),
-                                    Text("删除\(task.category)分类\(task.title)"),
-                                    Text("\(task.category)分类\(task.title)删除")
+                                    Text("删除\(semanticTaskTitle(task))"),
+                                    Text("删除\(semanticTaskCategory(task))分类\(semanticTaskTitle(task))"),
+                                    Text("\(semanticTaskCategory(task))分类\(semanticTaskTitle(task))删除")
                                 ])
+                                .disabled(activeTimerSnapshot?.taskID == task.id)
                             }
                         }
                     }
@@ -406,6 +429,7 @@ struct ScheduleView: View {
                     date: date,
                     isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                     selectedCategory: selectedCategory,
+                    selectedTintHex: selectedCategory.map { store.representativeAccentHex(for: $0) } ?? TaskCategoryPreset.fallbackAccentHex,
                     taskCount: taskCount(on: date)
                 ) {
                     selectedDate = date
@@ -422,6 +446,7 @@ struct ScheduleView: View {
                     isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                     isMuted: !calendar.isDate(date, equalTo: selectedDate, toGranularity: .month),
                     selectedCategory: selectedCategory,
+                    selectedTintHex: selectedCategory.map { store.representativeAccentHex(for: $0) } ?? TaskCategoryPreset.fallbackAccentHex,
                     taskCount: taskCount(on: date)
                 ) {
                     selectedDate = date
@@ -455,7 +480,7 @@ struct ScheduleView: View {
             return store.tasks.filter(isTaskInSelectedRange).count
         }
         return store.tasks.filter { task in
-            isTaskInSelectedRange(task) && task.category == category
+            isTaskInSelectedRange(task) && store.categoryMatches(task.category, category)
         }.count
     }
 
@@ -475,7 +500,7 @@ struct ScheduleView: View {
 
     private func matchesSelectedCategory(_ task: FocusTask) -> Bool {
         guard let selectedCategory else { return true }
-        return task.category == selectedCategory
+        return store.categoryMatches(task.category, selectedCategory)
     }
 
     private var emptyTaskListText: String {
@@ -509,6 +534,8 @@ struct ScheduleView: View {
 }
 
 private struct SelectedCategorySummaryView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let category: String
     let count: Int
     let isTimerRunning: Bool
@@ -521,7 +548,15 @@ private struct SelectedCategorySummaryView: View {
     }
 
     private var tint: Color {
-        Color(hex: preset?.accentHex ?? "#3DE8C5")
+        Color(hex: tintHex)
+    }
+
+    private var tintHex: String {
+        store.representativeAccentHex(for: category)
+    }
+
+    private var tintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
     }
 
     private var timerHandoffAccessibilityLabel: String {
@@ -582,7 +617,7 @@ private struct SelectedCategorySummaryView: View {
     private var addTaskButton: some View {
         Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
             .font(.caption.weight(.bold))
-            .foregroundStyle(.black.opacity(0.82))
+            .foregroundStyle(tintText)
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity)
             .frame(minHeight: 44)
@@ -625,6 +660,8 @@ private struct SelectedCategorySummaryView: View {
 }
 
 private struct ScheduleCategoryEmptyStateView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let category: String
     let onAddTask: () -> Void
     let onClear: () -> Void
@@ -635,6 +672,18 @@ private struct ScheduleCategoryEmptyStateView: View {
 
     private var symbolName: String {
         preset?.symbolName ?? "tag.fill"
+    }
+
+    private var tint: Color {
+        Color(hex: tintHex)
+    }
+
+    private var tintHex: String {
+        store.representativeAccentHex(for: category)
+    }
+
+    private var tintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
     }
 
     private var addButtonInputLabels: [Text] {
@@ -662,7 +711,8 @@ private struct ScheduleCategoryEmptyStateView: View {
             VStack(spacing: 8) {
                 Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
                     .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
+                    .tint(tint)
+                    .foregroundStyle(tintText)
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 44)
                     .accessibilityLabel("新增\(category)分类待办")
@@ -685,8 +735,17 @@ private struct CalendarDayButton: View {
     let isSelected: Bool
     var isMuted = false
     let selectedCategory: String?
+    let selectedTintHex: String
     let taskCount: Int
     let action: () -> Void
+
+    private var selectedTint: Color {
+        Color(hex: selectedTintHex)
+    }
+
+    private var selectedText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: selectedTintHex))
+    }
 
     private var dayText: String {
         "\(Calendar.current.component(.day, from: date))"
@@ -738,21 +797,21 @@ private struct CalendarDayButton: View {
             VStack(spacing: 6) {
                 Text(dayText)
                     .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundStyle(isSelected ? .black : (isMuted ? AppTheme.secondaryText : AppTheme.primaryText))
+                    .foregroundStyle(isSelected ? selectedText : (isMuted ? AppTheme.secondaryText : AppTheme.primaryText))
                 Text("\(taskCount)")
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .foregroundStyle(isSelected ? Color.black.opacity(0.82) : (taskCount > 0 ? Color.cyan : AppTheme.secondaryText))
+                    .foregroundStyle(isSelected ? selectedText.opacity(0.84) : (taskCount > 0 ? selectedTint : AppTheme.secondaryText))
                     .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background(isSelected ? Color.cyan : AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(isSelected ? selectedTint : AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(isSelected ? Color.cyan.opacity(0.8) : AppTheme.border, lineWidth: 1)
+                    .stroke(isSelected ? selectedTint.opacity(0.8) : AppTheme.border, lineWidth: 1)
             }
             .opacity(isMuted ? 0.55 : 1)
         }
@@ -765,14 +824,18 @@ private struct CalendarDayButton: View {
 }
 
 private struct TaskCategoryFilterBar: View {
+    @EnvironmentObject private var store: FocusStore
+
     let categories: [String]
     @Binding var selectedCategory: String?
     let countProvider: (String?) -> Int
 
     private var categoryOptions: [TaskCategoryFilterOption] {
-        TaskCategoryPreset.prioritizedFilterOptions(categories: categories) { category in
-            countProvider(category)
-        }
+        TaskCategoryPreset.prioritizedFilterOptions(
+            categories: categories,
+            countProvider: { category in countProvider(category) },
+            accentProvider: { category in store.representativeAccentHex(for: category) }
+        )
     }
 
     var body: some View {
@@ -783,7 +846,7 @@ private struct TaskCategoryFilterBar: View {
                     symbolName: "tray.full.fill",
                     count: countProvider(nil),
                     isSelected: selectedCategory == nil,
-                    tintHex: "#3DE8C5"
+                    tintHex: TaskCategoryPreset.fallbackAccentHex
                 ) {
                     selectedCategory = nil
                 }
@@ -793,7 +856,7 @@ private struct TaskCategoryFilterBar: View {
                         title: option.category,
                         symbolName: option.symbolName,
                         count: option.count,
-                        isSelected: selectedCategory == option.category,
+                        isSelected: selectedCategory.map { store.categoryMatches($0, option.category) } ?? false,
                         tintHex: option.accentHex
                     ) {
                         toggleCategory(option.category)
@@ -805,7 +868,7 @@ private struct TaskCategoryFilterBar: View {
     }
 
     private func toggleCategory(_ category: String) {
-        selectedCategory = selectedCategory == category ? nil : category
+        selectedCategory = selectedCategory.map { store.categoryMatches($0, category) ? nil : category } ?? category
     }
 }
 
@@ -819,6 +882,10 @@ private struct TaskCategoryFilterChip: View {
 
     private var tint: Color {
         Color(hex: tintHex)
+    }
+
+    private var selectedText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
     }
 
     private var accessibilityStateText: String {
@@ -847,13 +914,13 @@ private struct TaskCategoryFilterChip: View {
                 Text(title)
                 Text("\(count)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(isSelected ? Color.black.opacity(0.72) : tint)
+                    .foregroundStyle(isSelected ? selectedText.opacity(0.82) : tint)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(isSelected ? Color.black.opacity(0.08) : tint.opacity(0.16), in: Capsule())
             }
             .font(.caption.weight(.semibold))
-            .foregroundStyle(isSelected ? Color.black.opacity(0.82) : AppTheme.primaryText)
+            .foregroundStyle(isSelected ? selectedText : AppTheme.primaryText)
             .frame(minHeight: 44)
             .padding(.horizontal, 10)
             .background(isSelected ? tint : AppTheme.panel, in: Capsule())
@@ -871,8 +938,11 @@ private struct TaskCategoryFilterChip: View {
 }
 
 private struct ScheduleTaskCell: View {
+    @EnvironmentObject private var store: FocusStore
+
     let task: FocusTask
     let isTimerRunning: Bool
+    let activeTimerSnapshot: ActiveTimerSnapshot?
     let onToggle: () -> Void
     let onEnable: () -> Void
     let onEdit: () -> Void
@@ -883,56 +953,78 @@ private struct ScheduleTaskCell: View {
     }
 
     private var categoryTint: Color {
-        Color(hex: categoryPreset?.accentHex ?? task.accentHex)
+        Color(hex: store.representativeAccentHex(for: task.category))
     }
 
     private var categorySymbolName: String {
         categoryPreset?.symbolName ?? "tag.fill"
     }
 
+    private var semanticTitle: String {
+        guard let snapshot = activeTimerSnapshot, snapshot.taskID == task.id else { return task.title }
+        return snapshot.taskTitle
+    }
+
+    private var semanticCategory: String {
+        guard let snapshot = activeTimerSnapshot, snapshot.taskID == task.id else { return task.category }
+        return snapshot.category
+    }
+
+    private var isActiveTask: Bool {
+        activeTimerSnapshot?.taskID == task.id
+    }
+
     private var completionAccessibilityLabel: String {
-        task.isDone ? "标记\(task.title)待办未完成，\(task.category)分类" : "完成\(task.title)待办，\(task.category)分类"
+        if isActiveTask {
+            return "\(semanticTitle)待办计时中，当前快照为\(semanticCategory)分类，暂不可完成"
+        }
+        return task.isDone ? "标记\(semanticTitle)待办未完成，\(semanticCategory)分类" : "完成\(semanticTitle)待办，\(semanticCategory)分类"
     }
 
     private var completionInputLabels: [Text] {
         [
-            Text(task.isDone ? "标记\(task.title)未完成" : "完成\(task.title)"),
-            Text(task.isDone ? "\(task.title)未完成" : "\(task.title)完成"),
-            Text(task.isDone ? "标记\(task.category)分类\(task.title)未完成" : "完成\(task.category)分类\(task.title)"),
-            Text(task.isDone ? "\(task.category)分类\(task.title)未完成" : "\(task.category)分类\(task.title)完成"),
-            Text(task.title)
+            Text(task.isDone ? "标记\(semanticTitle)未完成" : "完成\(semanticTitle)"),
+            Text(task.isDone ? "\(semanticTitle)未完成" : "\(semanticTitle)完成"),
+            Text(task.isDone ? "标记\(semanticCategory)分类\(semanticTitle)未完成" : "完成\(semanticCategory)分类\(semanticTitle)"),
+            Text(task.isDone ? "\(semanticCategory)分类\(semanticTitle)未完成" : "\(semanticCategory)分类\(semanticTitle)完成"),
+            Text(semanticTitle)
         ]
     }
 
     private var enableAccessibilityLabel: String {
-        task.isEnabled ? "停用\(task.title)待办，\(task.category)分类" : "启用\(task.title)待办，\(task.category)分类"
+        if isActiveTask {
+            return "\(semanticTitle)待办计时中，当前快照为\(semanticCategory)分类，暂不可启停"
+        }
+        return task.isEnabled ? "停用\(semanticTitle)待办，\(semanticCategory)分类" : "启用\(semanticTitle)待办，\(semanticCategory)分类"
     }
 
     private var enableInputLabels: [Text] {
         [
-            Text(task.isEnabled ? "停用\(task.title)" : "启用\(task.title)"),
-            Text(task.isEnabled ? "\(task.title)停用" : "\(task.title)启用"),
-            Text(task.isEnabled ? "停用\(task.category)分类\(task.title)" : "启用\(task.category)分类\(task.title)"),
-            Text(task.isEnabled ? "\(task.category)分类\(task.title)停用" : "\(task.category)分类\(task.title)启用")
+            Text(task.isEnabled ? "停用\(semanticTitle)" : "启用\(semanticTitle)"),
+            Text(task.isEnabled ? "\(semanticTitle)停用" : "\(semanticTitle)启用"),
+            Text(task.isEnabled ? "停用\(semanticCategory)分类\(semanticTitle)" : "启用\(semanticCategory)分类\(semanticTitle)"),
+            Text(task.isEnabled ? "\(semanticCategory)分类\(semanticTitle)停用" : "\(semanticCategory)分类\(semanticTitle)启用")
         ]
     }
 
     private var editAccessibilityLabel: String {
-        "编辑\(task.title)待办，\(task.category)分类"
+        isActiveTask
+            ? "\(semanticTitle)待办计时中，当前快照为\(semanticCategory)分类，暂不可编辑"
+            : "编辑\(semanticTitle)待办，\(semanticCategory)分类"
     }
 
     private var editInputLabels: [Text] {
         [
-            Text("编辑\(task.title)"),
-            Text("\(task.title)编辑"),
-            Text("编辑\(task.category)分类\(task.title)"),
-            Text("\(task.category)分类\(task.title)编辑")
+            Text("编辑\(semanticTitle)"),
+            Text("\(semanticTitle)编辑"),
+            Text("编辑\(semanticCategory)分类\(semanticTitle)"),
+            Text("\(semanticCategory)分类\(semanticTitle)编辑")
         ]
     }
 
     private var timerHandoffAccessibilityHint: String {
         if isTimerRunning {
-            return "切换到计时页并恢复\(task.category)分类筛选，计时运行中不可切换当前待办"
+            return "切换到计时页并恢复\(semanticCategory)分类筛选，计时运行中不可切换当前待办"
         }
         if task.isDone {
             return "已完成待办不可设为当前计时待办"
@@ -945,24 +1037,24 @@ private struct ScheduleTaskCell: View {
 
     private var timerHandoffAccessibilityLabel: String {
         if isTimerRunning {
-            return "在计时页查看\(task.category)分类，计时运行中不切换到\(task.title)"
+            return "在计时页查看\(semanticCategory)分类，计时运行中不切换到\(semanticTitle)"
         }
-        return "将\(task.title)设为当前计时待办，\(task.category)分类"
+        return "将\(semanticTitle)设为当前计时待办，\(semanticCategory)分类"
     }
 
     private var timerHandoffInputLabels: [Text] {
         if isTimerRunning {
             return [
-                Text("查看\(task.category)分类"),
+                Text("查看\(semanticCategory)分类"),
                 Text("转到计时"),
-                Text("\(task.category)分类转到计时")
+                Text("\(semanticCategory)分类转到计时")
             ]
         }
         return [
-            Text("将\(task.title)设为计时待办"),
-            Text("\(task.title)转到计时"),
+            Text("将\(semanticTitle)设为计时待办"),
+            Text("\(semanticTitle)转到计时"),
             Text("转到计时"),
-            Text("\(task.category)分类\(task.title)计时")
+            Text("\(semanticCategory)分类\(semanticTitle)计时")
         ]
     }
 
@@ -971,10 +1063,12 @@ private struct ScheduleTaskCell: View {
             Button(action: onToggle) {
                 Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(task.isDone ? .mint : Color(hex: task.accentHex))
-                    .frame(width: 36, height: 36)
+                    .foregroundStyle(task.isDone ? .mint : categoryTint)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .disabled(isActiveTask)
             .accessibilityLabel(completionAccessibilityLabel)
             .accessibilityInputLabels(completionInputLabels)
 
@@ -987,11 +1081,11 @@ private struct ScheduleTaskCell: View {
                     Spacer()
                     Text(task.startMode.title)
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(Color(hex: task.accentHex))
+                        .foregroundStyle(categoryTint)
                 }
 
                 ProgressView(value: task.progress)
-                    .tint(Color(hex: task.accentHex))
+                    .tint(categoryTint)
 
                 HStack(spacing: 8) {
                     Label(task.category, systemImage: categorySymbolName)
@@ -1037,6 +1131,9 @@ private struct ScheduleTaskCell: View {
                         .foregroundStyle(task.isEnabled ? .cyan : AppTheme.secondaryText)
                 }
                 .buttonStyle(.plain)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .disabled(isActiveTask)
                 .accessibilityLabel(enableAccessibilityLabel)
                 .accessibilityInputLabels(enableInputLabels)
 
@@ -1046,6 +1143,9 @@ private struct ScheduleTaskCell: View {
                         .foregroundStyle(AppTheme.secondaryText)
                 }
                 .buttonStyle(.plain)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .disabled(isActiveTask)
                 .accessibilityLabel(editAccessibilityLabel)
                 .accessibilityInputLabels(editInputLabels)
             }
@@ -1137,7 +1237,7 @@ struct TaskEditorView: View {
     }
 
     private var categoryTint: Color {
-        Color(hex: categoryPreset?.accentHex ?? accentHex)
+        Color(hex: store.representativeAccentHex(for: categoryDisplayName, preferred: accentHex))
     }
 
     private var categorySymbolName: String {
@@ -1211,7 +1311,7 @@ struct TaskEditorView: View {
         _dueDate = State(initialValue: task?.dueDate ?? initialDueDate)
         _usesDueDate = State(initialValue: task?.dueDate != nil || task == nil)
         _estimatedRounds = State(initialValue: task?.estimatedRounds ?? 2)
-        _accentHex = State(initialValue: task?.accentHex ?? TaskCategoryPreset.matching(startingCategory)?.accentHex ?? "#3DE8C5")
+        _accentHex = State(initialValue: TaskCategoryPreset.usableAccentHex(task?.accentHex) ?? TaskCategoryPreset.accentHex(for: startingCategory))
         _isEnabled = State(initialValue: task?.isEnabled ?? true)
         _autoStartPomodoro = State(initialValue: task?.autoStartPomodoro ?? false)
         _startMode = State(initialValue: task?.startMode ?? .plannedRounds)
@@ -1279,6 +1379,8 @@ struct TaskEditorView: View {
                                     }
                             }
                             .buttonStyle(.plain)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
                         }
                     }
                 }
@@ -1449,21 +1551,13 @@ struct TaskEditorView: View {
             )
     }
 
-    private func firstTask(matching option: ExistingCategoryOption) -> FocusTask? {
-        store.tasks.first { task in
-            categoryComparisonKey(for: task.category) == option.comparisonKey
-        }
-    }
-
     private func existingCategoryTint(for option: ExistingCategoryOption) -> Color {
-        Color(hex: firstTask(matching: option)?.accentHex ?? accentHex)
+        Color(hex: store.representativeAccentHex(for: option.name))
     }
 
     private func selectExistingCategory(_ option: ExistingCategoryOption) {
         category = option.name
-        if let matchingTask = firstTask(matching: option) {
-            accentHex = matchingTask.accentHex
-        }
+        accentHex = store.representativeAccentHex(for: option.name)
     }
 
     private func save() {
@@ -1542,7 +1636,7 @@ private struct TaskCategoryPresetPicker: View {
                     } label: {
                         Label(preset.title, systemImage: preset.symbolName)
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(isSelected(preset) ? Color.black.opacity(0.82) : AppTheme.primaryText)
+                            .foregroundStyle(isSelected(preset) ? Color(hex: TaskCategoryPreset.contrastTextHex(on: preset.accentHex)) : AppTheme.primaryText)
                             .frame(minHeight: 44)
                             .padding(.horizontal, 10)
                             .background(isSelected(preset) ? Color(hex: preset.accentHex) : AppTheme.panel, in: Capsule())
@@ -1564,7 +1658,7 @@ private struct TaskCategoryPresetPicker: View {
     }
 
     private func isSelected(_ preset: TaskCategoryPreset) -> Bool {
-        category.trimmingCharacters(in: .whitespacesAndNewlines) == preset.title
+        TaskCategoryPreset.categoriesMatch(category, preset.title)
     }
 
     private func accessibilityStateText(for preset: TaskCategoryPreset) -> String {
@@ -1597,6 +1691,8 @@ private func syncTaskReminder(for task: FocusTask, store: FocusStore, notificati
 }
 
 private struct PomodoroPlanRow: View {
+    @EnvironmentObject private var store: FocusStore
+
     let item: PomodoroPlanItem
     let isRunning: Bool
     let onStart: () -> Void
@@ -1606,7 +1702,7 @@ private struct PomodoroPlanRow: View {
     }
 
     private var categoryTint: Color {
-        Color(hex: categoryPreset?.accentHex ?? item.accentHex)
+        Color(hex: store.representativeAccentHex(for: item.category))
     }
 
     private var categorySymbolName: String {
@@ -1617,9 +1713,9 @@ private struct PomodoroPlanRow: View {
         HStack(spacing: 12) {
             Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "timer")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(item.isCompleted ? .mint : Color(hex: item.accentHex))
+                .foregroundStyle(item.isCompleted ? .mint : categoryTint)
                 .frame(width: 34, height: 34)
-                .background(Color(hex: item.accentHex).opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(categoryTint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.taskTitle)
@@ -1653,10 +1749,11 @@ private struct PomodoroPlanRow: View {
             Button(action: onStart) {
                 Image(systemName: "play.fill")
                     .font(.caption.weight(.bold))
-                    .frame(width: 34, height: 34)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.borderedProminent)
-            .tint(Color(hex: item.accentHex))
+            .tint(categoryTint)
+            .contentShape(Rectangle())
             .disabled(item.isCompleted || isRunning)
             .accessibilityLabel("开始\(item.taskTitle)计划番茄钟，\(item.timeRangeText)，第 \(item.roundNumber) 轮，\(item.category)分类")
             .accessibilityInputLabels([

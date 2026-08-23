@@ -4,7 +4,7 @@
 
 ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作番茄钟/日程 -> `FocusStore` 保存设置、任务、计划、会话和活跃计时快照 -> `TimerEngine` 按真实系统时间驱动计时状态 -> 平台服务负责通知、Live Activity/占位、日历同步和 Pro 权益 -> SwiftUI 视图渲染当前状态。
 
-协作验证主链路是：Agent A 写版本化提示词 -> Agent B 只做静态审阅并在最新 `origin/main` 上实现、commit、push -> GitHub Actions 运行 `ci-results.yml` -> 上传未加密 CI 结果包 -> Agent C 下载并核对 manifest、artifact index、run context 精确键集、artifact 名称、日志和产物，可用 `scripts/validate_ci_artifact.rb` 辅助结构化复判 -> 失败时退回 Agent B 在 `main` 追加修复 commit。Agent X 可围绕人工总目标主控多轮 A/B/C 闭环，但每轮仍必须经过 Agent A 提示词、Agent B push 和 Agent C artifact 验收；本轮禁止本地项目测试、构建和 validator。
+协作验证主链路是：Agent A 写版本化提示词 -> Agent B 只做静态审阅并在最新 `origin/main` 上实现、commit、push -> GitHub Actions 运行 `ci-results.yml` -> 上传未加密 CI 结果包 -> Agent C 下载并核对 manifest、artifact index、run context 精确键集、artifact 名称、七个业务阶段与 `bootstrap`/`createManifest` 包阶段、日志和产物，可用 `scripts/validate_ci_artifact.rb` 辅助结构化复判。成功包 required 路径缺失时 finalizer 必须失败；若正常 finalizer 失败，workflow 先由 `scripts/recover_ci_result_package.py` 按 branch slug 重建一致的 fallback 包，恢复包缺少六项核心证据或恢复失败则不上传陈旧目录；阶段摘要必须逐项绑定 outcome，skipped-only 包由 failure validator 拒绝。失败时退回 Agent B 在 `main` 追加修复 commit。Agent X 可围绕人工总目标主控多轮 A/B/C 闭环，但每轮仍必须经过 Agent A 提示词、Agent B push 和 Agent C artifact 验收；本轮禁止本地项目测试、构建和 validator。
 
 ## 1. 当前核心数据流
 
@@ -12,6 +12,7 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 用户操作 / 系统日历 / App 恢复
   -> SwiftUI View 或平台入口
   -> FocusStore 读写模型
+  -> TaskCategoryPreset / FocusStore 派生分类比较键、代表色与对比文字色
   -> TimerEngine 处理计时状态
   -> TimerNotificationServicing / TimerLiveActivityServicing
   -> UserDefaults JSON 持久化、通知、Live Activity、Mac 状态栏、SwiftUI 渲染
@@ -23,7 +24,7 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 
 - `TimerSettings`：专注/休息时长、长休间隔、通知、Live Activity、铃声音量、到点音色、振动、常亮、自动计划、自动流转、主题。
 - `FocusTask`：日程任务、分类、截止时间、预计轮次、完成轮次、启用状态、自动开始、开始模式、循环、外部日历 ID。
-- `TaskCategoryPreset` / `TaskCategoryFilterOption`：常用分类和筛选项的非持久化元数据，提供标题、代表色、图标、当前计数、筛选排序、再次点击已选分类退出筛选、分类输入上下文、预设按钮和筛选 chip 的可访问状态/动作提示、selected trait 和 Voice Control input labels、iOS/Mac 日程日期格的日期/待办数/已选中/非本月语义和 Voice Control input labels、未筛选全量日期计数与选中分类日期计数的共同上下文、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS/Mac 日程分类空态新增/清除操作、iOS 待办保存/取消按钮任务/分类/动作语义、iOS 日程任务行分类 badge 和 Voice Control input labels、iOS/Mac 日程任务行操作按钮任务名和分类语义、iOS/Mac 计时主控按钮任务名和分类语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划项分类 badge、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增任务名称输入框分类上下文、提交按钮分类/轮次语义、Mac 小窗快捷面板按钮动作和选中状态语义、Mac 计划项可见分类上下文、统计页分类投入占比、专注次数、排行位置、排序依据、空态、元信息可读性、占比可读性和分类/时长/占比可访问语义、iOS 统计页计划回顾分类 badge 与任务/分类/开始时间/轮次语义、计时页当前待办筛选摘要、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签和 Voice Control input labels、iOS/Mac 当前任务选择行的 selected trait、选择/运行中提示和任务名/分类名 Voice Control input labels、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control input labels、选中分类摘要快捷新增、摘要新增/清除按钮分类语义、摘要动作可访问提示和分类上下文新增提示；真实分类仍保存为 `FocusTask.category`。
+- `TaskCategoryPreset` / `TaskCategoryFilterOption`：常用分类和筛选项的非持久化元数据，提供标题、代表色、对比文字色、图标、当前计数、筛选排序、再次点击已选分类退出筛选、分类输入上下文、预设按钮和筛选 chip 的可访问状态/动作提示、selected trait 和 Voice Control input labels、iOS/Mac 日程日期格的日期/待办数/已选中/非本月语义和 Voice Control input labels、未筛选全量日期计数与选中分类日期计数的共同上下文、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS/Mac 日程分类空态新增/清除操作、iOS 待办保存/取消按钮任务/分类/动作语义、iOS 日程任务行分类 badge 和 Voice Control input labels、iOS/Mac 日程任务行操作按钮任务名和分类语义、iOS/Mac 计时主控按钮任务名和分类语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划项分类 badge、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增任务名称输入框分类上下文、提交按钮分类/轮次语义、Mac 小窗快捷面板按钮动作和选中状态语义、Mac 计划项可见分类上下文、统计页分类投入占比、专注次数、排行位置、排序依据、空态、元信息可读性、占比可读性和分类/时长/占比可访问语义、iOS 统计页计划回顾分类 badge 与任务/分类/开始时间/轮次语义、计时页当前待办筛选摘要、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签和 Voice Control input labels、iOS/Mac 当前任务选择行的 selected trait、选择/运行中提示和任务名/分类名 Voice Control input labels、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control input labels、选中分类摘要快捷新增、摘要新增/清除按钮分类语义、摘要动作可访问提示和分类上下文新增提示；代表色由预设优先、首个任务、session-only/fallback 的统一规则派生，选中背景文字按 `contrastTextHex(on:)` 选择，真实分类仍保存为 `FocusTask.category`。
 - `FocusSession`：已记录的专注/休息会话，用于统计和报表；`category` 会在统计最近记录中显示为分类 badge，并进入整行可访问标签与 Voice Control input labels；完成的专注会话也会按分类聚合成分类投入的时长、占比、排序依据、排行位置和专注次数；没有分类统计时，统计页分类投入空态会提示完成带分类的番茄钟。
 - `PomodoroPlanItem`：由日程生成的计划项，可直接启动专注。
 - `ActiveTimerSnapshot`：正在运行或暂停的计时快照，用于跨前后台和重启恢复。
@@ -52,7 +53,7 @@ macOS：
 
 1. 用户从计时页、小窗或计划项触发开始。
 2. `TimerEngine.start()`、`TimerEngine.startPlanItem(_:)` 和 `TimerEngine.selectTask(_:)` 通过 `FocusStore.startableTask(for:)` 复核当前可启动任务；失效的计划项不启动，空闲失效选择回到自由专注。
-3. `TimerEngine` 创建 `ActiveTimerSnapshot`，写入 `FocusStore.activeTimer`。
+3. `TimerEngine` 创建 `ActiveTimerSnapshot`，写入 `FocusStore.activeTimer`；运行中 iOS/macOS UI 读取快照 `tintHex`，不因任务编辑而改变当前会话颜色。
 4. `FocusStore` 自动将快照编码为 JSON 写入 `UserDefaults`。
 5. `TimerEngine` 启动 1 秒 ticker，更新 `remainingSeconds` 和 `progress`。
 6. 平台通知服务调度完成提醒。
@@ -79,7 +80,7 @@ macOS：
 ### 2.5 日程与计划
 
 1. 用户创建、编辑、启用/停用、完成或删除 `FocusTask`。
-2. 新增/编辑 UI 可用 `TaskCategoryPreset` 快速填入分类和代表色，也可继续手写分类。iOS `TaskEditorView` 与 macOS 快速新增顺序遍历 `FocusStore.taskCategories`，用固定 POSIX locale 对清理后的名称执行大小写、变音符号和宽度不敏感比较，排除预设并按首次出现去重，形成“已有分类”；达到 6 项时以独立瞬态查询做同规则名称子串过滤，显示结果数/总数、清除和无结果状态。搜索只改变可见 option，不修改 `category` / `accentHex`。点击已有分类只更新这两个 View 草稿；代表色取 `store.tasks` 中首个同比较键任务，仅有历史 session 时保留当前草稿颜色，不调用保存入口、不新增持久化。当前项以 checkmark、轮廓和 selected trait 表达，再次点击不清空；自由文本、5 个预设和保存/取消语义保持不变。
+2. 新增/编辑 UI 可用 `TaskCategoryPreset` 快速填入分类和代表色，也可继续手写分类。iOS `TaskEditorView` 与 macOS 快速新增顺序遍历 `FocusStore.taskCategories`，用固定 POSIX locale 对清理后的名称执行大小写、变音符号和宽度不敏感比较，排除预设并按首次出现去重，形成“已有分类”；达到 6 项时以独立瞬态查询做同规则名称子串过滤，显示结果数/总数、清除和无结果状态。搜索只改变可见 option，不修改 `category` / `accentHex`。点击已有分类只更新这两个 View 草稿；共享代表色遵循预设优先、首个同类任务可用颜色、session-only/fallback 的顺序，不调用保存入口、不新增持久化。当前项以 checkmark、轮廓和 selected trait 表达，再次点击不清空；自由文本、5 个预设和保存/取消语义保持不变。
 3. 选中分类筛选后 toolbar 新增入口会读出当前分类并支持按分类 Voice Control 新增，新增待办会预填该分类；再次点击已选分类、点击“全部”或摘要清除会退出筛选；分类 chip 的可访问标签会读出数量、已选中状态和点击后的筛选/清除动作；iOS 待办标题显示筛选数/总数，日程任务行以带分类名 Voice Control input labels 的分类 badge 保留分类上下文，完成/启用/编辑操作会读出任务名；iOS 当前范围没有该分类待办时，分类空态会直接提供新增此分类和清除筛选操作；macOS 完成/启用/删除操作也读出任务名，避免长列表中误操作；列表摘要可直接新增此分类待办或清除筛选，摘要和按钮可访问标签也会说明新增/清除动作及分类名；macOS 计时队列选中分类且结果非空时显示常驻分类上下文条、筛选数/总数和新增/清除动作，窄宽时动作纵排；筛选态任务行隐藏重复视觉 badge，但整行继续读出任务名、分类名、选中/运行状态与操作提示，未筛选态和其他页面仍显示 badge。macOS 计时队列以完整分类筛选结果计算计数、上下文和空态，默认展示前 7 项，超过 7 项时可展开全部或收起；分类切换、完整筛选结果数量变化、筛选清除和 handoff 都恢复收起，运行中仍可展开浏览但任务行不可切换，toggle 保持 44pt 并提供两态 VoiceOver/Voice Control 语义。macOS 选中分类且无未完成待办时，空态本身也可新增此分类或清除筛选；macOS 选中分类摘要可把左侧快速新增表单切回当前分类并聚焦任务名称，任务名称输入框会读出当前将新增到的分类并支持按分类 Voice Control 输入，摘要新增/清除按钮也暴露分类名 Voice Control input labels，快速新增面板显示当前分类，筛选预填时保留“已预填”语义，提交按钮会读出当前分类和预计轮次，连续新增时保留刚创建任务的分类；编辑已有待办仍保留原任务分类。
 4. macOS 日历面板当前范围没有待办时，空态可把当前选中日期传回父视图；父视图保留快速新增截止时间的时分，只替换年月日并聚焦任务名称，任务仍通过现有 `addTask()` 写入 `FocusStore`。
 - iOS `ScheduleView.taskCount(on:)` 和 macOS `MacCalendarPanelView.taskCount(on:)` 都先按 `dueDate` 与日期格匹配自然日，再应用可选 `selectedCategory` 谓词；周条、月格、日历范围列表和日期格 label 因此共享同一筛选上下文。macOS 日历面板通过父级 binding 接收分类，视觉计数与 accessibility label 共用同一派生计数，清除筛选即恢复全量计数；范围列表仍用完整 `visibleTasks` 计算总数、日期格和空态，只从中派生默认前 4 项，超过 4 项可展开/收起，分类、日期、范围或结果变化恢复收起，不新增持久化或计时状态。
@@ -215,7 +216,7 @@ macOS：
 - `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供本地脚本和云端 artifact 复核。
 - `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选摘要、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、iOS/Mac 计时主控按钮任务名和分类语义、分类 chip 点击切换、分类输入上下文、待办保存/取消按钮分类语义、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、统计分类投入占比/次数/排行/排序依据/空态/元信息和占比可读性语义、统计最近记录分类上下文、统计计划回顾分类语义、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS/Mac 日程分类空态操作、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名和分类语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划项分类 badge、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增任务名称输入框分类上下文、提交按钮分类/轮次语义、Mac 小窗快捷面板按钮语义、Mac 计划项分类上下文、Mac 待办筛选计数、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、Mac 分类摘要快捷新增、Mac 连续快速新增保留分类、分类摘要插入点/动作接线、分类快捷新增/预填提示、validator 正向、manifest artifactName/overallOutcome 复判、index artifactName 复判、分类摘要 marker 缺失负向、日程任务操作 marker 缺失负向、计时主控 marker 缺失负向、计划开始 marker 缺失负向、计划分类 badge marker 缺失负向、Mac 计划分类 marker 缺失负向、计划面板操作 marker 缺失负向、日程 toolbar 新增 marker 缺失负向、日程分类空态操作 marker 缺失负向、Mac 日程分类空态操作 marker 缺失负向、Mac 快速新增 marker 缺失负向、Mac 快速新增标题分类上下文 marker 缺失负向、分类输入上下文 marker 缺失负向、待办保存 marker 缺失负向、待办取消 marker 缺失负向、Mac 小窗快捷面板 marker 缺失负向、统计分类占比 marker 缺失负向、统计分类投入次数 marker 缺失负向、统计分类投入排行 marker 缺失负向、统计分类投入排序依据 marker 缺失负向、统计分类投入空态 marker 缺失负向、统计分类投入元信息可读性 marker 缺失负向、统计分类投入占比可读性 marker 缺失负向、统计最近记录分类 marker 缺失负向、统计计划回顾分类 marker 缺失负向、JUnit 元数据负向、JUnit errors 负向、JUnit outcome 负向、JUnit failure/error 元素负向、artifactName mismatch 负向、manifest artifactName/overallOutcome 负向、index artifactName 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向、额外 artifact 文件负向、本地文件大小篡改负向、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture、分类摘要动作、分类 chip 可访问、日程任务操作、计时主控、计划开始、计划分类 badge、Mac 计划分类、计划面板操作、日程 toolbar 新增、iOS/Mac 日程分类空态操作、Mac 快速新增和标题分类上下文、分类输入上下文、待办保存、待办取消、Mac 小窗快捷面板、统计分类占比/投入次数/排行/排序依据/空态/元信息和占比可读性、统计最近记录分类和统计计划回顾分类 contract 日志 marker、核心测试和快照的本地/云端项目专属验证入口。
 - `scripts/validate_ci_artifact.rb` 是 Agent C 下载结果包后的结构化复判脚本。它保留四种 success 模式：目录-only、archive-only、archive + artifact metadata、archive + artifact metadata + run metadata；显式 `--failure-mode` 只接受完整第四模式，并通过 `--expected-event` 默认严格要求 `push`，受控 `workflow_dispatch` 只能显式 opt-in。run metadata 必须同时具备完整 archive 参数和 artifact metadata，v1.2 的十四项 run API 检查与八项 artifact metadata、三项 ZIP 检查并行输出，v1.4 再输出 archive-to-directory binding PASS 并逐路径绑定原始 ZIP 与自建临时解包树。Validator 不联网，所有 API JSON 都是 artifact 外部输入。
-- `.github/workflows/ci-results.yml` 是默认云端重验证入口，使用 `actions/checkout@v5` 和 `actions/upload-artifact@v6`，负责在 `main` push 和手动触发时运行七个阶段：静态检查、项目验证、Mac build、iOS generic build 以及 checkout/metadata/Xcode 早期阶段；它生成带 artifact index、`ci-stage-outcomes.json`、manifest `overallOutcome` 的未加密 CI 结果包。失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录，artifact 上传发生在 `Final CI status` 之前，受控 dispatch 失败仍以非零结论结束。Agent C 还需检查最新完整 job 日志不含 Node.js 20、`DEP0040`/`punycode` 或 `DEP0169`/`url.parse` 弃用项。
+- `.github/workflows/ci-results.yml` 是默认云端重验证入口，使用 `actions/checkout@v5` 和 `actions/upload-artifact@v6`，负责在 `main` push 和手动触发时运行七个业务阶段，并在 manifest/index/stage 中绑定 `bootstrap`、`createManifest`、`ensureResultPackage` 和 `recoveryOutcome` 包阶段；它生成带 artifact index、`ci-stage-outcomes.json`、manifest `overallOutcome` 的未加密 CI 结果包。失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录，artifact 上传发生在 `Final CI status` 之前；正常 finalizer 失败时先由 recovery 脚本重建一致 fallback 包，恢复失败则不上传陈旧目录，受控 dispatch 失败仍以非零结论结束。Agent C 还需检查最新完整 job 日志不含 Node.js 20、`DEP0040`/`punycode` 或 `DEP0169`/`url.parse` 弃用项。
 
 ## 7. 协作与云端验证流
 

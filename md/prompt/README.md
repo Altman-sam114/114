@@ -82,6 +82,10 @@ Agent A 写给 Agent B 的提示词必须明确：
 
 ## 当前实现轮次
 
+- v1.4.8：`md/prompt/v1（持续优化）/v1.4.8（自定义分类代表色统一）.md`。
+- 范围：统一预设/首个任务/session-only/fallback 代表色与分类规范化比较，增加共享对比文字色和活动快照色规则，覆盖 iOS/macOS 筛选、日期格、摘要、空态、任务/计划/计时/统计入口；CI 结果包额外绑定 `bootstrap`/`createManifest`，修复 fallback 摘要日志、成功 required index 和 prepare 日志 allowlist，并在 finalizer 失败时恢复一致 fallback 包；追加 required 缺失、recovery 核心证据、branch slug、阶段摘要和 skipped-only 负向合同。
+- 状态：当前实现仍在本地未提交，运行中任务锁定与动态文字对比度修复已完成静态整合；禁止本地测试、validator、Xcode、`xcodebuild`、`simctl`、Simulator 和浏览器。完成最终静态审阅后必须提交 `main`、push，并由 Agent C 使用最新 GitHub Actions 原始 run/artifacts API、ZIP 和第四模式复判；本节待云端结果更新。
+
 - v1.4.7：`md/prompt/v1（持续优化）/v1.4.7（CI失败结果包韧性）.md`。
 - 范围：CI 记录 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build、iOS build 七阶段 outcome；失败时通过 fallback manifest/index/stage/summary/JUnit 生成可识别未加密 artifact；validator 增加显式 `--failure-mode` 和 `--expected-event`，成功 profile 保持严格完整包合同。
 - 状态：v1.4.7 实现已由 `a4c0612`、`745a734`、`58c00f0` 推送；run `32635787639`、`32636243203` 和 `32636815884` 均未通过，后者暴露 prepare fallback 静态合同误匹配，不能作为验收证据。当前追加 `$GITHUB_ENV` 精确匹配修复待推送，未运行任何本地测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；修复后仍需由 GitHub Actions 和 Agent C 复判正常 push 及受控 dispatch failure run。

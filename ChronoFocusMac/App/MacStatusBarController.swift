@@ -116,6 +116,8 @@ final class MacStatusBarController: NSObject, ObservableObject {
             rootView: MacMiniTimerView(openDetails: { [weak self] section in
                 self?.popover?.performClose(nil)
                 self?.showDetails(section: section)
+            }, onQuickPanelChange: { [weak popover] isShowing in
+                popover?.contentSize = NSSize(width: isShowing ? 560 : 430, height: 500)
             })
             .environmentObject(store)
             .environmentObject(engine)

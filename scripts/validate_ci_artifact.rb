@@ -100,7 +100,11 @@ EXPECTED_SUMMARY_ENTRIES = [
   "iOS build: `ci-results/ios-xcodebuild.log`",
   "iOS Xcode result bundle: `ci-results/ChronoFocus-iOS.xcresult`",
   "Mac snapshots: `ci-results/project-reports/mac-snapshots/`",
-  "Stage outcomes: `ci-results/ci-stage-outcomes.json`"
+  "Stage outcomes: `ci-results/ci-stage-outcomes.json`",
+  "Bootstrap result package:",
+  "Create manifest:",
+  "Ensure result package:",
+  "Recovery result package:"
 ].freeze
 
 EXPECTED_SUMMARY_OUTCOMES = {
@@ -108,7 +112,19 @@ EXPECTED_SUMMARY_OUTCOMES = {
   "Static checks" => "staticChecksOutcome",
   "Project verification" => "projectVerificationOutcome",
   "Mac build" => "macBuildOutcome",
-  "iOS build" => "iosBuildOutcome"
+  "iOS build" => "iosBuildOutcome",
+  "Ensure result package" => "ensureResultPackageOutcome",
+  "Recovery result package" => "recoveryOutcome"
+}.freeze
+
+EXPECTED_SUMMARY_STAGE_LABELS = {
+  "checkout" => "Checkout",
+  "prepareMetadata" => "Prepare result metadata",
+  "selectXcode" => "Select Xcode",
+  "staticChecks" => "Static checks",
+  "projectVerification" => "Project verification",
+  "macBuild" => "Mac build",
+  "iosBuild" => "iOS build"
 }.freeze
 
 EXPECTED_STATIC_CHECK_MARKERS = [
@@ -171,6 +187,7 @@ EXPECTED_OUTCOME_KEYS = %w[
   buildOutcome
   macBuildOutcome
   iosBuildOutcome
+  ensureResultPackageOutcome
   testOutcome
 ].freeze
 
@@ -179,6 +196,7 @@ EXPECTED_OVERALL_OUTCOME_SOURCE_KEYS = %w[
   projectVerificationOutcome
   macBuildOutcome
   iosBuildOutcome
+  ensureResultPackageOutcome
 ].freeze
 
 EXPECTED_RUN_CONTEXT_KEYS = %w[
@@ -198,6 +216,8 @@ EXPECTED_STAGE_NAMES = %w[
   macBuild
   iosBuild
 ].freeze
+
+EXPECTED_PACKAGE_STAGE_NAMES = %w[bootstrap createManifest].freeze
 
 EXPECTED_STAGE_OUTCOMES = %w[success failure skipped cancelled unknown].freeze
 FAILURE_REQUIRED_ARTIFACT_PATHS = %w[
@@ -958,40 +978,50 @@ if artifact_metadata_path
   metadata_artifacts = artifact_metadata.is_a?(Hash) ? artifact_metadata["artifacts"] : nil
   metadata_artifact = metadata_artifacts.is_a?(Array) && metadata_artifacts.length == 1 ? metadata_artifacts.first : nil
   metadata_workflow_run = metadata_artifact.is_a?(Hash) ? metadata_artifact["workflow_run"] : nil
+  artifact_metadata_shape_ok = artifact_metadata.is_a?(Hash) &&
+    artifact_metadata["total_count"].is_a?(Integer) &&
+    artifact_metadata["total_count"] == 1 &&
+    metadata_artifacts.is_a?(Array)
+  metadata_artifact_shape_ok = artifact_metadata_shape_ok &&
+    metadata_artifacts.length == 1 &&
+    artifact_metadata["total_count"] == metadata_artifacts.length &&
+    metadata_artifact.is_a?(Hash)
 
   check(checks, "artifact metadata response shape") do
     raise artifact_metadata_error if artifact_metadata_error
 
-    artifact_metadata.is_a?(Hash) &&
-      artifact_metadata["total_count"].is_a?(Integer) &&
-      artifact_metadata["total_count"] == 1 &&
-      metadata_artifacts.is_a?(Array)
+    artifact_metadata_shape_ok
   end
   check(checks, "artifact metadata unique artifact") do
-    artifact_metadata.is_a?(Hash) &&
-      metadata_artifacts.is_a?(Array) &&
-      metadata_artifacts.length == 1 &&
+    next true unless artifact_metadata_shape_ok
+
+    metadata_artifacts.length == 1 &&
       artifact_metadata["total_count"] == metadata_artifacts.length &&
       metadata_artifact.is_a?(Hash)
   end
   check(checks, "artifact metadata id") do
-    metadata_artifact.is_a?(Hash) &&
-      metadata_artifact["id"].is_a?(Integer) &&
+    next true unless metadata_artifact_shape_ok
+
+    metadata_artifact["id"].is_a?(Integer) &&
       metadata_artifact["id"].positive?
   end
   check(checks, "artifact metadata name") do
-    metadata_artifact.is_a?(Hash) &&
-      metadata_artifact["name"].is_a?(String) &&
+    next true unless metadata_artifact_shape_ok
+
+    metadata_artifact["name"].is_a?(String) &&
       metadata_artifact["name"] == expected_artifact_name
   end
   check(checks, "artifact metadata byte count") do
-    metadata_artifact.is_a?(Hash) &&
-      metadata_artifact["size_in_bytes"].is_a?(Integer) &&
+    next true unless metadata_artifact_shape_ok
+
+    metadata_artifact["size_in_bytes"].is_a?(Integer) &&
       metadata_artifact["size_in_bytes"].positive? &&
       metadata_artifact["size_in_bytes"] == expected_archive_size &&
       metadata_artifact["size_in_bytes"] == actual_archive_size
   end
   check(checks, "artifact metadata sha256 digest") do
+    next true unless metadata_artifact_shape_ok
+
     metadata_digest = metadata_artifact.is_a?(Hash) ? metadata_artifact["digest"] : nil
     metadata_digest.is_a?(String) &&
       metadata_digest.match?(/\Asha256:[0-9a-fA-F]{64}\z/) &&
@@ -999,9 +1029,13 @@ if artifact_metadata_path
       metadata_digest.downcase == actual_archive_digest
   end
   check(checks, "artifact metadata not expired") do
-    metadata_artifact.is_a?(Hash) && metadata_artifact["expired"].equal?(false)
+    next true unless metadata_artifact_shape_ok
+
+    metadata_artifact["expired"].equal?(false)
   end
   check(checks, "artifact metadata workflow run") do
+    next true unless metadata_artifact_shape_ok
+
     metadata_workflow_run.is_a?(Hash) &&
       metadata_workflow_run["id"].is_a?(Integer) &&
       metadata_workflow_run["id"].positive? &&
@@ -1021,61 +1055,72 @@ if run_metadata_path
   rescue JSON::ParserError, EncodingError, ArgumentError => e
     run_metadata_error = "invalid JSON (#{e.class})"
   end
+  run_metadata_shape_ok = run_metadata.is_a?(Hash)
 
   check(checks, "workflow run metadata response shape") do
     raise run_metadata_error if run_metadata_error
 
-    run_metadata.is_a?(Hash)
+    run_metadata_shape_ok
   end
   check(checks, "workflow run metadata id") do
-    run_metadata.is_a?(Hash) &&
-      run_metadata["id"].is_a?(Integer) &&
+    next true unless run_metadata_shape_ok
+
+    run_metadata["id"].is_a?(Integer) &&
       run_metadata["id"].positive? &&
       run_metadata["id"].to_s == options["run_id"] &&
       metadata_workflow_run.is_a?(Hash) &&
       run_metadata["id"] == metadata_workflow_run["id"]
   end
   check(checks, "workflow run metadata run attempt") do
-    run_metadata.is_a?(Hash) &&
-      run_metadata["run_attempt"].is_a?(Integer) &&
+    next true unless run_metadata_shape_ok
+
+    run_metadata["run_attempt"].is_a?(Integer) &&
       run_metadata["run_attempt"].positive? &&
       run_metadata["run_attempt"].to_s == options["attempt"]
   end
   check(checks, "workflow run metadata head sha") do
-    run_metadata.is_a?(Hash) &&
-      run_metadata["head_sha"].is_a?(String) &&
+    next true unless run_metadata_shape_ok
+
+    run_metadata["head_sha"].is_a?(String) &&
       run_metadata["head_sha"] == options["commit"] &&
       metadata_workflow_run.is_a?(Hash) &&
       run_metadata["head_sha"] == metadata_workflow_run["head_sha"]
   end
   check(checks, "workflow run metadata head branch") do
-    run_metadata.is_a?(Hash) &&
-      run_metadata["head_branch"].is_a?(String) &&
+    next true unless run_metadata_shape_ok
+
+    run_metadata["head_branch"].is_a?(String) &&
       run_metadata["head_branch"] == options["branch"] &&
       metadata_workflow_run.is_a?(Hash) &&
       run_metadata["head_branch"] == metadata_workflow_run["head_branch"]
   end
   check(checks, "workflow run metadata name") do
-    run_metadata.is_a?(Hash) &&
-      run_metadata["name"].is_a?(String) &&
+    next true unless run_metadata_shape_ok
+
+    run_metadata["name"].is_a?(String) &&
       run_metadata["name"] == EXPECTED_WORKFLOW_RUN_NAME
   end
   check(checks, "workflow run metadata path") do
-    run_metadata.is_a?(Hash) &&
-      run_metadata["path"].is_a?(String) &&
+    next true unless run_metadata_shape_ok
+
+    run_metadata["path"].is_a?(String) &&
       run_metadata["path"] == EXPECTED_WORKFLOW_RUN_PATH
   end
   check(checks, "workflow run metadata status") do
-    run_metadata.is_a?(Hash) &&
-      run_metadata["status"].is_a?(String) &&
+    next true unless run_metadata_shape_ok
+
+    run_metadata["status"].is_a?(String) &&
       run_metadata["status"] == "completed"
   end
   check(checks, "workflow run metadata conclusion") do
-    run_metadata.is_a?(Hash) &&
-      run_metadata["conclusion"].is_a?(String) &&
+    next true unless run_metadata_shape_ok
+
+    run_metadata["conclusion"].is_a?(String) &&
       run_metadata["conclusion"] == "success"
   end
   check(checks, "workflow run metadata repository") do
+    next true unless run_metadata_shape_ok
+
     repository = run_metadata.is_a?(Hash) ? run_metadata["repository"] : nil
     unless repository.is_a?(Hash) &&
            repository["full_name"].is_a?(String) &&
@@ -1086,23 +1131,30 @@ if run_metadata_path
     true
   end
   check(checks, "workflow run metadata event") do
-    run_metadata.is_a?(Hash) &&
-      run_metadata["event"].is_a?(String) &&
+    next true unless run_metadata_shape_ok
+
+    run_metadata["event"].is_a?(String) &&
       run_metadata["event"] == options["expected_event"]
   end
   check(checks, "workflow run metadata actor") do
+    next true unless run_metadata_shape_ok
+
     actor = run_metadata.is_a?(Hash) ? run_metadata["actor"] : nil
     actor.is_a?(Hash) &&
       actor["login"].is_a?(String) &&
       actor["login"] == EXPECTED_WORKFLOW_RUN_ACTOR
   end
   check(checks, "workflow run metadata triggering actor") do
+    next true unless run_metadata_shape_ok
+
     triggering_actor = run_metadata.is_a?(Hash) ? run_metadata["triggering_actor"] : nil
     triggering_actor.is_a?(Hash) &&
       triggering_actor["login"].is_a?(String) &&
       triggering_actor["login"] == EXPECTED_WORKFLOW_RUN_ACTOR
   end
   check(checks, "workflow run metadata head repository") do
+    next true unless run_metadata_shape_ok
+
     head_repository = run_metadata.is_a?(Hash) ? run_metadata["head_repository"] : nil
     head_repository.is_a?(Hash) &&
       head_repository["full_name"].is_a?(String) &&
@@ -1165,9 +1217,47 @@ check(checks, "stage outcomes shape") do
     stage_outcomes["stages"].is_a?(Array) &&
     stage_outcomes["stages"].map { |stage| stage["name"] } == EXPECTED_STAGE_NAMES &&
     stage_outcomes["stages"].all? { |stage| stage["outcome"] == "success" } &&
+    stage_outcomes["stageOutcomeMap"] == EXPECTED_STAGE_NAMES.to_h { |name| [name, "success"] } &&
     stage_outcomes["overallOutcome"] == "success" &&
     stage_outcomes["failedStages"] == [] &&
     stage_outcomes["firstFailedStage"].nil?
+end
+check(checks, "stage outcomes duplicate fields") do
+  stage_outcomes.is_a?(Hash) &&
+    stage_outcomes["stageOutcomes"] == stage_outcomes["stageOutcomeMap"]
+end
+check(checks, "package stage outcomes") do
+  package_stages = stage_outcomes["packageStages"]
+  package_stages.is_a?(Array) &&
+    package_stages.map { |stage| stage["name"] } == EXPECTED_PACKAGE_STAGE_NAMES &&
+    package_stages.all? { |stage| stage["outcome"] == "success" } &&
+    stage_outcomes["failedPackageStages"] == [] &&
+    stage_outcomes["nonSuccessPackageStages"] == [] &&
+    manifest["packageStages"] == package_stages &&
+    manifest["failedPackageStages"] == [] &&
+    manifest["nonSuccessPackageStages"] == [] &&
+    index["packageStages"] == package_stages &&
+    index["failedPackageStages"] == [] &&
+    index["nonSuccessPackageStages"] == []
+end
+check(checks, "finalizer outcome") do
+  stage_outcomes["ensureResultPackageOutcome"] == "success" &&
+    stage_outcomes["recoveryOutcome"] == "skipped" &&
+    manifest["ensureResultPackageOutcome"] == "success" &&
+    manifest["recoveryOutcome"] == "skipped" &&
+    index["ensureResultPackageOutcome"] == "success" &&
+    index["recoveryOutcome"] == "skipped"
+end
+check(checks, "index stage outcome map") do
+  index["stageOutcomeMap"] == stage_outcomes["stageOutcomeMap"]
+end
+check(checks, "index stage outcomes") do
+  index["stageOutcomes"] == stage_outcomes["stages"]
+end
+check(checks, "artifact missing paths metadata") do
+  stage_outcomes["missingArtifactPaths"] == [] &&
+    manifest["missingArtifactPaths"] == [] &&
+    index["missingArtifactPaths"] == []
 end
 check(checks, "stage outcomes identity") do
   stage_outcomes["version"] == EXPECTED_CI_PROCESS_VERSION &&
@@ -1181,6 +1271,7 @@ end
 check(checks, "stage outcomes manifest binding") do
   manifest["stageOutcomesPath"] == "ci-results/ci-stage-outcomes.json" &&
     manifest["stageOutcomes"] == stage_outcomes["stages"] &&
+    manifest["stageOutcomeMap"] == stage_outcomes["stageOutcomeMap"] &&
     manifest["failureMode"] == "none" &&
     manifest["failedStages"] == [] &&
     manifest["firstFailedStage"].nil?
@@ -1331,6 +1422,12 @@ check(checks, "failure summary") { summary.include?("All CI stages passed.") }
 check(checks, "failure summary log entries") do
   EXPECTED_SUMMARY_ENTRIES.all? { |entry| summary.include?(entry) }
 end
+check(checks, "failure summary package outcomes") do
+  package_stages = stage_outcomes["packageStages"]
+  package_stages.is_a?(Array) &&
+    summary.include?("- Bootstrap result package: `#{package_stages.find { |stage| stage[\"name\"] == \"bootstrap\" }&.fetch(\"outcome\", nil)}`") &&
+    summary.include?("- Create manifest: `#{package_stages.find { |stage| stage[\"name\"] == \"createManifest\" }&.fetch(\"outcome\", nil)}`")
+end
 check(checks, "failure summary identity") do
   [
     "- Version: `#{manifest["version"]}`",
@@ -1344,6 +1441,12 @@ check(checks, "failure summary outcomes") do
     summary.include?("- #{label}: `#{manifest[manifest_key]}`")
   end
 end
+check(checks, "failure summary stage outcomes") do
+  stage_outcome_map = manifest["stageOutcomeMap"]
+  stage_outcome_map.is_a?(Hash) && EXPECTED_SUMMARY_STAGE_LABELS.all? do |name, label|
+    summary.include?("- #{label}: `#{stage_outcome_map[name]}`")
+  end
+end
 check(checks, "static checks log markers") do
   static_checks_log = File.read(static_checks_log_path, encoding: "UTF-8")
   EXPECTED_STATIC_CHECK_MARKERS.all? { |marker| static_checks_log.include?(marker) }
@@ -1353,6 +1456,12 @@ check(checks, "xcode version log") do
   xcode_version_log.include?("Xcode") && xcode_version_log.include?("Build version")
 end
 check(checks, "verify_project core tests") { File.read(verify_log_path, encoding: "UTF-8").include?("Mac core tests passed.") }
+check(checks, "verify_project category appearance contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Category appearance contracts verified.")
+end
+check(checks, "verify_project category breakdown normalization contracts") do
+  File.read(verify_log_path, encoding: "UTF-8").include?("Category breakdown normalization contracts verified.")
+end
 check(checks, "verify_project category summary action contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Category summary action contracts verified.")
 end

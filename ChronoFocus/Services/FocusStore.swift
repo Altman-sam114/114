@@ -67,6 +67,29 @@ final class FocusStore: ObservableObject {
         return Self.uniqueCategories(from: presetCategories + usedCategories)
     }
 
+    func representativeAccentHex(for category: String, preferred: String? = nil) -> String {
+        if let preset = TaskCategoryPreset.matching(category) {
+            return preset.accentHex
+        }
+
+        let categoryKey = Self.categoryComparisonKey(for: category)
+        for task in tasks where Self.categoryComparisonKey(for: task.category) == categoryKey {
+            if let accentHex = TaskCategoryPreset.usableAccentHex(task.accentHex) {
+                return accentHex
+            }
+        }
+
+        if sessions.contains(where: { Self.categoryComparisonKey(for: $0.category) == categoryKey }) {
+            return TaskCategoryPreset.fallbackAccentHex
+        }
+
+        return TaskCategoryPreset.accentHex(for: category, preferred: preferred)
+    }
+
+    func categoryMatches(_ lhs: String, _ rhs: String) -> Bool {
+        Self.categoryComparisonKey(for: lhs) == Self.categoryComparisonKey(for: rhs)
+    }
+
     @discardableResult
     func addTask(
         title: String,
@@ -113,7 +136,11 @@ final class FocusStore: ObservableObject {
         recurrence: TaskRecurrence? = nil
     ) -> FocusTask? {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTitle.isEmpty, let index = tasks.firstIndex(where: { $0.id == task.id }) else { return nil }
+        guard
+            !trimmedTitle.isEmpty,
+            !isActiveTask(task.id),
+            let index = tasks.firstIndex(where: { $0.id == task.id })
+        else { return nil }
         tasks[index].title = trimmedTitle
         tasks[index].category = Self.normalizedCategory(category)
         tasks[index].dueDate = dueDate
@@ -130,7 +157,7 @@ final class FocusStore: ObservableObject {
 
     @discardableResult
     func toggleTaskDone(_ task: FocusTask) -> FocusTask? {
-        guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return nil }
+        guard !isActiveTask(task.id), let index = tasks.firstIndex(where: { $0.id == task.id }) else { return nil }
         tasks[index].isDone.toggle()
         setPlanCompletion(for: tasks[index].id, completed: tasks[index].isDone)
         if tasks[index].isDone {
@@ -141,8 +168,8 @@ final class FocusStore: ObservableObject {
     }
 
     func deleteTasks(ids: [UUID]) {
-        tasks.removeAll { ids.contains($0.id) }
-        pomodoroPlan.removeAll { ids.contains($0.taskID) }
+        tasks.removeAll { ids.contains($0.id) && !isActiveTask($0.id) }
+        pomodoroPlan.removeAll { ids.contains($0.taskID) && !isActiveTask($0.taskID) }
         regeneratePlanIfNeeded()
     }
 
@@ -187,7 +214,7 @@ final class FocusStore: ObservableObject {
 
     @discardableResult
     func setTaskEnabled(_ task: FocusTask, enabled: Bool) -> FocusTask? {
-        guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return nil }
+        guard !isActiveTask(task.id), let index = tasks.firstIndex(where: { $0.id == task.id }) else { return nil }
         tasks[index].isEnabled = enabled
         if !enabled {
             tasks[index].autoStartPomodoro = false
@@ -205,7 +232,18 @@ final class FocusStore: ObservableObject {
 
     @discardableResult
     func finishTask(_ taskID: UUID?) -> FocusTask? {
-        guard let taskID, let index = tasks.firstIndex(where: { $0.id == taskID }) else { return nil }
+        guard !isActiveTask(taskID), let taskID, let index = tasks.firstIndex(where: { $0.id == taskID }) else { return nil }
+        return finishTask(at: index, taskID: taskID)
+    }
+
+    @discardableResult
+    func finishActiveTask(_ taskID: UUID?) -> FocusTask? {
+        guard isActiveTask(taskID), let taskID, let index = tasks.firstIndex(where: { $0.id == taskID }) else { return nil }
+        return finishTask(at: index, taskID: taskID)
+    }
+
+    @discardableResult
+    private func finishTask(at index: Int, taskID: UUID) -> FocusTask? {
         tasks[index].completedRounds = max(tasks[index].completedRounds, tasks[index].estimatedRounds)
         tasks[index].isDone = true
         setPlanCompletion(for: taskID, completed: true)
@@ -215,7 +253,18 @@ final class FocusStore: ObservableObject {
 
     @discardableResult
     func incrementRound(for taskID: UUID?) -> FocusTask? {
-        guard let taskID, let index = tasks.firstIndex(where: { $0.id == taskID }) else { return nil }
+        guard !isActiveTask(taskID), let taskID, let index = tasks.firstIndex(where: { $0.id == taskID }) else { return nil }
+        return incrementRound(at: index, taskID: taskID)
+    }
+
+    @discardableResult
+    func incrementActiveTaskRound(for taskID: UUID?) -> FocusTask? {
+        guard isActiveTask(taskID), let taskID, let index = tasks.firstIndex(where: { $0.id == taskID }) else { return nil }
+        return incrementRound(at: index, taskID: taskID)
+    }
+
+    @discardableResult
+    private func incrementRound(at index: Int, taskID: UUID) -> FocusTask? {
         tasks[index].completedRounds += 1
         markNextPlanItemCompleted(for: taskID)
         if tasks[index].completedRounds >= tasks[index].estimatedRounds {
@@ -261,13 +310,35 @@ final class FocusStore: ObservableObject {
 
     func categoryBreakdown() -> [CategoryFocus] {
         let completedFocus = sessions.filter { $0.mode == .focus && $0.completed }
-        let grouped = Dictionary(grouping: completedFocus, by: \.category)
-        return grouped.map { category, sessions in
-            let seconds = sessions.reduce(0) { $0 + $1.actualSeconds }
-            let accent = tasks.first(where: { $0.category == category })?.accentHex ?? "#3DE8C5"
-            return CategoryFocus(category: category, seconds: seconds, sessionCount: sessions.count, accentHex: accent)
+        var displayNamesByKey: [String: String] = [:]
+        var sessionsByKey: [String: [FocusSession]] = [:]
+        var categoryOrder: [String] = []
+
+        for session in completedFocus {
+            let key = Self.categoryComparisonKey(for: session.category)
+            if displayNamesByKey[key] == nil {
+                displayNamesByKey[key] = Self.normalizedCategory(session.category)
+                categoryOrder.append(key)
+            }
+            sessionsByKey[key, default: []].append(session)
         }
-        .sorted { $0.seconds > $1.seconds }
+
+        return categoryOrder.enumerated().compactMap { position, key in
+            guard let category = displayNamesByKey[key], let categorySessions = sessionsByKey[key] else { return nil }
+            let seconds = categorySessions.reduce(0) { $0 + $1.actualSeconds }
+            let accent = representativeAccentHex(for: category)
+            return (
+                position: position,
+                focus: CategoryFocus(category: category, seconds: seconds, sessionCount: categorySessions.count, accentHex: accent)
+            )
+        }
+        .sorted { left, right in
+            if left.focus.seconds != right.focus.seconds {
+                return left.focus.seconds > right.focus.seconds
+            }
+            return left.position < right.position
+        }
+        .map { $0.focus }
     }
 
     func upcomingTasks() -> [FocusTask] {
@@ -471,17 +542,26 @@ final class FocusStore: ObservableObject {
         generatePomodoroPlanFromSchedule()
     }
 
+    private func isActiveTask(_ taskID: UUID?) -> Bool {
+        guard let taskID else { return false }
+        return activeTimer?.taskID == taskID
+    }
+
     private static func normalizedCategory(_ category: String) -> String {
         let cleanCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
         return cleanCategory.isEmpty ? "未分类" : cleanCategory
+    }
+
+    private static func categoryComparisonKey(for category: String) -> String {
+        TaskCategoryPreset.categoryComparisonKey(for: category)
     }
 
     private static func uniqueCategories(from categories: [String]) -> [String] {
         var seen: Set<String> = []
         return categories.compactMap { category in
             let cleanCategory = normalizedCategory(category)
-            guard !seen.contains(cleanCategory) else { return nil }
-            seen.insert(cleanCategory)
+            let comparisonKey = categoryComparisonKey(for: cleanCategory)
+            guard seen.insert(comparisonKey).inserted else { return nil }
             return cleanCategory
         }
     }

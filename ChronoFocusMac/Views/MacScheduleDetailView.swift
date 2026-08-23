@@ -45,7 +45,7 @@ struct MacScheduleDetailView: View {
     }
 
     private var quickAddCategoryTint: Color {
-        Color(hex: quickAddCategoryPreset?.accentHex ?? accentHex)
+        Color(hex: store.representativeAccentHex(for: quickAddCategoryName, preferred: accentHex))
     }
 
     private var quickAddCategorySymbolName: String {
@@ -53,7 +53,11 @@ struct MacScheduleDetailView: View {
     }
 
     private var existingCategoryOptions: [MacExistingCategoryOption] {
-        macExistingCategoryOptions(categories: store.taskCategories, tasks: store.tasks)
+        macExistingCategoryOptions(
+            categories: store.taskCategories,
+            tasks: store.tasks,
+            representativeAccentProvider: { store.representativeAccentHex(for: $0) }
+        )
     }
 
     private var filteredExistingCategoryOptions: [MacExistingCategoryOption] {
@@ -187,7 +191,7 @@ struct MacScheduleDetailView: View {
                         }
 
                         if isSnapshotRendering {
-                            MacStaticScheduleActionChipView(title: "新增待办", symbolName: "plus", tint: .cyan, isProminent: true, accessibilityLabelText: quickAddAccessibilityLabel)
+                            MacStaticScheduleActionChipView(title: "新增待办", symbolName: "plus", tint: .cyan, isProminent: true, accessibilityLabelText: quickAddAccessibilityLabel, prominentForeground: Color(hex: TaskCategoryPreset.contrastTextHex(on: "#00C7FF")))
                         } else {
                             Button("新增待办", systemImage: "plus", action: addTask)
                                 .buttonStyle(.borderedProminent)
@@ -221,7 +225,7 @@ struct MacScheduleDetailView: View {
             guard let newCategory else { return }
             existingCategorySearchQuery = ""
             category = newCategory
-            accentHex = TaskCategoryPreset.matching(newCategory)?.accentHex ?? "#3DE8C5"
+            accentHex = store.representativeAccentHex(for: newCategory, preferred: accentHex)
         }
         .task(id: quickAddRequest?.id) {
             guard let quickAddRequest else { return }
@@ -253,10 +257,10 @@ struct MacScheduleDetailView: View {
         if let task {
             syncMacTaskReminder(for: task, store: store, notifications: notifications)
             category = selectedCategory ?? task.category
-            accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? task.accentHex
+            accentHex = store.representativeAccentHex(for: category, preferred: task.accentHex)
         } else {
             category = selectedCategory ?? submittedCategory
-            accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? submittedAccentHex
+            accentHex = store.representativeAccentHex(for: category, preferred: submittedAccentHex)
         }
         taskTitle = ""
         estimatedRounds = 2
@@ -265,7 +269,7 @@ struct MacScheduleDetailView: View {
     private func prepareQuickAdd(_ category: String) {
         existingCategorySearchQuery = ""
         self.category = category
-        accentHex = TaskCategoryPreset.matching(category)?.accentHex ?? "#3DE8C5"
+        accentHex = store.representativeAccentHex(for: category, preferred: accentHex)
         isTaskTitleFocused = true
     }
 
@@ -285,7 +289,7 @@ struct MacScheduleDetailView: View {
         dueDate = calendar.date(from: dateComponents) ?? date
         if let selectedCategory {
             category = selectedCategory
-            accentHex = TaskCategoryPreset.matching(selectedCategory)?.accentHex ?? "#3DE8C5"
+            accentHex = store.representativeAccentHex(for: selectedCategory, preferred: accentHex)
         }
         isTaskTitleFocused = true
     }
@@ -314,10 +318,7 @@ private func macCategoryDisplayName(_ category: String) -> String {
 }
 
 private func macCategoryComparisonKey(_ category: String) -> String {
-    macCategoryDisplayName(category).folding(
-        options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
-        locale: Locale(identifier: "en_US_POSIX")
-    )
+    TaskCategoryPreset.categoryComparisonKey(for: category)
 }
 
 private func macExistingCategorySearchKey(_ query: String) -> String {
@@ -329,7 +330,8 @@ private func macExistingCategorySearchKey(_ query: String) -> String {
 
 private func macExistingCategoryOptions(
     categories: [String],
-    tasks: [FocusTask]
+    tasks: [FocusTask],
+    representativeAccentProvider: (String) -> String
 ) -> [MacExistingCategoryOption] {
     let presetKeys = Set(TaskCategoryPreset.defaults.map { macCategoryComparisonKey($0.title) })
     var seenKeys = Set<String>()
@@ -342,9 +344,7 @@ private func macExistingCategoryOptions(
             continue
         }
 
-        let representativeAccentHex = tasks.first {
-            macCategoryComparisonKey($0.category) == comparisonKey
-        }?.accentHex
+        let representativeAccentHex = representativeAccentProvider(displayName)
         let taskCount = tasks.count {
             macCategoryComparisonKey($0.category) == comparisonKey
         }
@@ -404,16 +404,16 @@ private struct MacStaticCategoryPresetStrip: View {
             ForEach(Array(TaskCategoryPreset.defaults.prefix(3))) { preset in
                 Label(preset.title, systemImage: preset.symbolName)
                     .font(.caption.bold())
-                    .foregroundStyle(preset.title == selectedCategory ? Color.black.opacity(0.82) : MacTheme.primaryText)
+                    .foregroundStyle(macCategoryComparisonKey(preset.title) == macCategoryComparisonKey(selectedCategory) ? Color(hex: TaskCategoryPreset.contrastTextHex(on: preset.accentHex)) : MacTheme.primaryText)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
                     .background(
-                        preset.title == selectedCategory ? Color(hex: preset.accentHex) : Color.white.opacity(0.06),
+                        macCategoryComparisonKey(preset.title) == macCategoryComparisonKey(selectedCategory) ? Color(hex: preset.accentHex) : Color.white.opacity(0.06),
                         in: Capsule()
                     )
                     .overlay {
                         Capsule()
-                            .stroke(Color(hex: preset.accentHex).opacity(preset.title == selectedCategory ? 0.9 : 0.42), lineWidth: 1)
+                            .stroke(Color(hex: preset.accentHex).opacity(macCategoryComparisonKey(preset.title) == macCategoryComparisonKey(selectedCategory) ? 0.9 : 0.42), lineWidth: 1)
                     }
             }
 
@@ -626,6 +626,10 @@ private struct MacExistingCategoryChipContent: View {
         Color(hex: option.representativeAccentHex ?? fallbackAccentHex)
     }
 
+    private var selectedText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: option.representativeAccentHex ?? fallbackAccentHex))
+    }
+
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "tag.fill")
@@ -650,8 +654,8 @@ private struct MacExistingCategoryChipContent: View {
             }
         }
         .font(.caption.bold())
-        .foregroundStyle(isSelected ? Color.black.opacity(0.82) : MacTheme.primaryText)
-        .frame(minHeight: 30)
+        .foregroundStyle(isSelected ? selectedText : MacTheme.primaryText)
+        .frame(minHeight: 44)
         .padding(.horizontal, 10)
         .background(isSelected ? tint : Color.white.opacity(0.06), in: Capsule())
         .overlay {
@@ -668,22 +672,23 @@ private struct MacStaticScheduleActionChipView: View {
     let isProminent: Bool
     var iconOnly = false
     var accessibilityLabelText: String?
+    var prominentForeground: Color? = nil
 
     var body: some View {
         Group {
             if iconOnly {
                 Image(systemName: symbolName)
                     .font(.subheadline.bold())
-                    .frame(width: 34, height: 30)
+                    .frame(width: 44, height: 44)
                 } else {
                     Label(title, systemImage: symbolName)
                         .font(.subheadline.bold())
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(minHeight: 30)
+                        .frame(minHeight: 44)
                         .padding(.horizontal, 10)
             }
         }
-        .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
+        .foregroundStyle(isProminent ? (prominentForeground ?? MacTheme.primaryText) : tint)
         .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
         .overlay {
             Capsule()
@@ -709,6 +714,7 @@ private struct MacStaticTaskEnablePillView: View {
                     .padding(3)
             }
             .accessibilityLabel(accessibilityLabel)
+            .frame(width: 44, height: 44)
     }
 
     private var accessibilityLabel: String {
@@ -734,6 +740,14 @@ private struct MacCalendarPanelView: View {
 
     private let calendar = Calendar.current
     private let collapsedTaskLimit = 4
+
+    private var selectedCategoryTint: Color {
+        Color(hex: selectedCategoryTintHex)
+    }
+
+    private var selectedCategoryTintHex: String {
+        selectedCategory.map { store.representativeAccentHex(for: $0) } ?? TaskCategoryPreset.fallbackAccentHex
+    }
 
     private var visibleTasks: [FocusTask] {
         store.tasks
@@ -877,24 +891,29 @@ private struct MacCalendarPanelView: View {
                 HStack {
                     if isSnapshotRendering {
                         MacStaticScheduleActionChipView(title: "上一段", symbolName: "chevron.left", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
-                        MacStaticScheduleActionChipView(title: "今天", symbolName: "calendar", tint: .cyan, isProminent: true)
+                        MacStaticScheduleActionChipView(title: "今天", symbolName: "calendar", tint: .cyan, isProminent: true, prominentForeground: Color(hex: TaskCategoryPreset.contrastTextHex(on: "#00C7FF")))
                         MacStaticScheduleActionChipView(title: "下一段", symbolName: "chevron.right", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
                     } else {
                         Button("上一段", systemImage: "chevron.left") {
                             moveSelection(by: -1)
                         }
                         .labelStyle(.iconOnly)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
 
                         Button("今天") {
                             selectedDate = Date()
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.cyan)
+                        .frame(minHeight: 44)
 
                         Button("下一段", systemImage: "chevron.right") {
                             moveSelection(by: 1)
                         }
                         .labelStyle(.iconOnly)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                     }
 
                     Spacer()
@@ -913,6 +932,7 @@ private struct MacCalendarPanelView: View {
                             isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
                             isMuted: calendarMode == .month && !calendar.isDate(date, equalTo: selectedDate, toGranularity: .month),
                             selectedCategory: selectedCategory,
+                            selectedTintHex: selectedCategoryTintHex,
                             taskCount: taskCount(on: date)
                         ) {
                             selectedDate = date
@@ -925,6 +945,7 @@ private struct MacCalendarPanelView: View {
                     MacCalendarRangeEmptyStateView(
                         selectedDate: selectedDate,
                         selectedCategory: selectedCategory,
+                        tintHex: selectedCategoryTintHex,
                         isSnapshotRendering: isSnapshotRendering,
                         onAddTask: {
                             onAddTaskAtDate(selectedDate)
@@ -995,7 +1016,7 @@ private struct MacCalendarPanelView: View {
 
     private func matchesSelectedCategory(_ task: FocusTask) -> Bool {
         guard let selectedCategory else { return true }
-        return task.category == selectedCategory
+        return macCategoryComparisonKey(task.category) == macCategoryComparisonKey(selectedCategory)
     }
 
     private func moveSelection(by value: Int) {
@@ -1015,8 +1036,17 @@ private struct MacCalendarPanelView: View {
 private struct MacCalendarRangeEmptyStateView: View {
     let selectedDate: Date
     let selectedCategory: String?
+    let tintHex: String
     let isSnapshotRendering: Bool
     let onAddTask: () -> Void
+
+    private var tint: Color {
+        Color(hex: tintHex)
+    }
+
+    private var tintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
+    }
 
     private var selectedDateText: String {
         let formatter = DateFormatter()
@@ -1076,18 +1106,19 @@ private struct MacCalendarRangeEmptyStateView: View {
                 MacStaticScheduleActionChipView(
                     title: "新增到此日期",
                     symbolName: "plus.circle.fill",
-                    tint: .cyan,
+                    tint: tint,
                     isProminent: true,
-                    accessibilityLabelText: addButtonAccessibilityLabel
+                    accessibilityLabelText: addButtonAccessibilityLabel,
+                    prominentForeground: tintText
                 )
             } else {
                 Button("新增到此日期", systemImage: "plus.circle.fill", action: onAddTask)
                     .font(.caption.bold())
-                    .foregroundStyle(Color.black.opacity(0.82))
+                    .foregroundStyle(tintText)
                     .buttonStyle(.plain)
                     .padding(.horizontal, 12)
-                    .frame(minWidth: 132, minHeight: 36)
-                    .background(Color.cyan, in: Capsule())
+                    .frame(minWidth: 132, minHeight: 44)
+                    .background(tint, in: Capsule())
                     .accessibilityLabel(addButtonAccessibilityLabel)
                     .accessibilityHint(addButtonAccessibilityHint)
                     .accessibilityInputLabels(addButtonInputLabels)
@@ -1105,8 +1136,17 @@ private struct MacCalendarDayCell: View {
     let isSelected: Bool
     let isMuted: Bool
     let selectedCategory: String?
+    let selectedTintHex: String
     let taskCount: Int
     let action: () -> Void
+
+    private var selectedTint: Color {
+        Color(hex: selectedTintHex)
+    }
+
+    private var selectedText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: selectedTintHex))
+    }
 
     private var dayText: String {
         "\(Calendar.current.component(.day, from: date))"
@@ -1164,16 +1204,16 @@ private struct MacCalendarDayCell: View {
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .foregroundStyle(isSelected ? Color.black.opacity(0.8) : (taskCount > 0 ? Color.cyan : MacTheme.secondaryText))
+                    .foregroundStyle(isSelected ? selectedText.opacity(0.84) : (taskCount > 0 ? selectedTint : MacTheme.secondaryText))
                     .frame(maxWidth: .infinity)
             }
-            .foregroundStyle(isSelected ? Color.black.opacity(0.82) : (isMuted ? MacTheme.secondaryText : MacTheme.primaryText))
+            .foregroundStyle(isSelected ? selectedText : (isMuted ? MacTheme.secondaryText : MacTheme.primaryText))
             .frame(maxWidth: .infinity)
-            .frame(height: 42)
-            .background(isSelected ? Color.cyan : Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+            .frame(height: 44)
+            .background(isSelected ? selectedTint : Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.cyan.opacity(0.75) : MacTheme.border, lineWidth: 1)
+                    .stroke(isSelected ? selectedTint.opacity(0.75) : MacTheme.border, lineWidth: 1)
             }
             .opacity(isMuted ? 0.48 : 1)
         }
@@ -1215,7 +1255,8 @@ private struct MacCalendarSyncPanelView: View {
                             title: calendarSync.isSyncing ? "同步中" : "同步近期日程",
                             symbolName: "arrow.triangle.2.circlepath",
                             tint: .cyan,
-                            isProminent: true
+                            isProminent: true,
+                            prominentForeground: Color(hex: TaskCategoryPreset.contrastTextHex(on: "#00C7FF"))
                         )
                     } else {
                         Button(calendarSync.isSyncing ? "同步中" : "同步近期日程", systemImage: "arrow.triangle.2.circlepath") {
@@ -1235,7 +1276,7 @@ private struct MacCalendarSyncPanelView: View {
                 } else {
                     HStack {
                         if isSnapshotRendering {
-                            MacStaticScheduleActionChipView(title: "解锁 Pro 同步日历", symbolName: "lock.fill", tint: .cyan, isProminent: true)
+                            MacStaticScheduleActionChipView(title: "解锁 Pro 同步日历", symbolName: "lock.fill", tint: .cyan, isProminent: true, prominentForeground: Color(hex: TaskCategoryPreset.contrastTextHex(on: "#00C7FF")))
                             MacStaticScheduleActionChipView(title: "恢复购买", symbolName: "arrow.clockwise", tint: MacTheme.secondaryText, isProminent: false)
                         } else {
                             Button("解锁 Pro 同步日历", systemImage: "lock.fill") {
@@ -1285,7 +1326,7 @@ private struct MacPlanPanelView: View {
 
                 HStack {
                     if isSnapshotRendering {
-                        MacStaticScheduleActionChipView(title: "按日程生成", symbolName: "calendar.badge.plus", tint: .cyan, isProminent: true, accessibilityLabelText: "按日程生成番茄钟计划，当前\(remainingPlanCount)轮未完成")
+                        MacStaticScheduleActionChipView(title: "按日程生成", symbolName: "calendar.badge.plus", tint: .cyan, isProminent: true, accessibilityLabelText: "按日程生成番茄钟计划，当前\(remainingPlanCount)轮未完成", prominentForeground: Color(hex: TaskCategoryPreset.contrastTextHex(on: "#00C7FF")))
                         MacStaticScheduleActionChipView(title: "清空", symbolName: "trash", tint: MacTheme.secondaryText, isProminent: false, accessibilityLabelText: "清空番茄钟计划，当前\(remainingPlanCount)轮未完成")
                     } else {
                         Button("按日程生成", systemImage: "calendar.badge.plus") {
@@ -1293,6 +1334,7 @@ private struct MacPlanPanelView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.cyan)
+                        .frame(minHeight: 44)
                         .accessibilityLabel("按日程生成番茄钟计划，当前\(remainingPlanCount)轮未完成")
                         .accessibilityInputLabels([
                             Text("按日程生成"),
@@ -1302,6 +1344,7 @@ private struct MacPlanPanelView: View {
 
                         Button("清空", systemImage: "trash", action: store.clearPomodoroPlan)
                             .buttonStyle(.bordered)
+                            .frame(minHeight: 44)
                             .disabled(store.pomodoroPlan.isEmpty)
                             .accessibilityLabel("清空番茄钟计划，当前\(remainingPlanCount)轮未完成")
                             .accessibilityInputLabels([
@@ -1314,7 +1357,7 @@ private struct MacPlanPanelView: View {
                 ForEach(store.pomodoroPlan.prefix(6)) { item in
                     HStack(spacing: 10) {
                         Circle()
-                            .fill(Color(hex: item.accentHex))
+                            .fill(Color(hex: store.representativeAccentHex(for: item.category)))
                             .frame(width: 9, height: 9)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.taskTitle)
@@ -1336,6 +1379,8 @@ private struct MacPlanPanelView: View {
                                 engine.startPlanItem(item)
                             }
                             .labelStyle(.iconOnly)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                             .disabled(engine.isRunning || item.isCompleted)
                             .accessibilityLabel("开始\(item.taskTitle)计划番茄钟，\(item.timeRangeText)，第 \(item.roundNumber) 轮，\(item.category)分类")
                             .accessibilityInputLabels([
@@ -1354,6 +1399,8 @@ private struct MacPlanPanelView: View {
 }
 
 private struct MacPlanCategoryBadgeView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let item: PomodoroPlanItem
 
     private var categoryPreset: TaskCategoryPreset? {
@@ -1361,7 +1408,7 @@ private struct MacPlanCategoryBadgeView: View {
     }
 
     private var categoryTint: Color {
-        Color(hex: categoryPreset?.accentHex ?? item.accentHex)
+        Color(hex: store.representativeAccentHex(for: item.category))
     }
 
     private var categorySymbolName: String {
@@ -1397,7 +1444,7 @@ private struct MacTaskListPanelView: View {
     private var visibleTasks: [FocusTask] {
         let tasks = store.upcomingTasks()
         guard let selectedCategory else { return tasks }
-        return tasks.filter { $0.category == selectedCategory }
+        return tasks.filter { macCategoryComparisonKey($0.category) == macCategoryComparisonKey(selectedCategory) }
     }
 
     private var taskListCountText: String {
@@ -1483,7 +1530,11 @@ private struct MacTaskListPanelView: View {
                                 toggleTask(task)
                             }
                             .labelStyle(.iconOnly)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                            .disabled(isActiveTask(task))
                             .accessibilityLabel(task.isDone ? "标记\(task.title)待办未完成，\(task.category)分类" : "完成\(task.title)待办，\(task.category)分类")
+                            .accessibilityHint(taskMutationAccessibilityHint(for: task))
                             .accessibilityInputLabels([
                                 Text(task.isDone ? "标记\(task.title)未完成" : "完成\(task.title)"),
                                 Text(task.isDone ? "\(task.title)未完成" : "\(task.title)完成"),
@@ -1510,6 +1561,8 @@ private struct MacTaskListPanelView: View {
                                 onTimerHandoff(task.category, task.id)
                             }
                             .labelStyle(.iconOnly)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                             .disabled(!task.isEnabled)
                             .accessibilityLabel(timerHandoffLabel(for: task))
                             .accessibilityHint(timerHandoffHint(for: task))
@@ -1520,7 +1573,11 @@ private struct MacTaskListPanelView: View {
                                 set: { setTask(task, enabled: $0) }
                             ))
                             .labelsHidden()
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                            .disabled(isActiveTask(task))
                             .accessibilityLabel(task.isEnabled ? "停用\(task.title)待办，\(task.category)分类" : "启用\(task.title)待办，\(task.category)分类")
+                            .accessibilityHint(taskMutationAccessibilityHint(for: task))
                             .accessibilityInputLabels([
                                 Text(task.isEnabled ? "停用\(task.title)" : "启用\(task.title)"),
                                 Text(task.isEnabled ? "\(task.title)停用" : "\(task.title)启用"),
@@ -1529,11 +1586,14 @@ private struct MacTaskListPanelView: View {
                             ])
 
                             Button("删除", systemImage: "trash") {
-                                notifications.cancelTaskReminder(taskID: task.id)
-                                store.deleteTasks(ids: [task.id])
+                                deleteTask(task)
                             }
                             .labelStyle(.iconOnly)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                            .disabled(isActiveTask(task))
                             .accessibilityLabel("删除\(task.title)待办，\(task.category)分类")
+                            .accessibilityHint(taskMutationAccessibilityHint(for: task))
                             .accessibilityInputLabels([
                                 Text("删除\(task.title)"),
                                 Text("\(task.title)删除"),
@@ -1549,7 +1609,7 @@ private struct MacTaskListPanelView: View {
 
     private func taskCount(in category: String?) -> Int {
         guard let category else { return store.upcomingTasks().count }
-        return store.upcomingTasks().filter { $0.category == category }.count
+        return store.upcomingTasks().filter { macCategoryComparisonKey($0.category) == macCategoryComparisonKey(category) }.count
     }
 
     private var emptyText: String {
@@ -1559,16 +1619,33 @@ private struct MacTaskListPanelView: View {
         return "当前没有未完成待办。"
     }
 
+    private func isActiveTask(_ task: FocusTask) -> Bool {
+        store.activeTimer?.taskID == task.id
+    }
+
+    private func taskMutationAccessibilityHint(for task: FocusTask) -> String {
+        isActiveTask(task) ? "计时运行中不可修改此待办" : ""
+    }
+
     private func toggleTask(_ task: FocusTask) {
+        guard !isActiveTask(task) else { return }
         if let updatedTask = store.toggleTaskDone(task) {
             syncMacTaskReminder(for: updatedTask, store: store, notifications: notifications)
         }
     }
 
     private func setTask(_ task: FocusTask, enabled: Bool) {
+        guard !isActiveTask(task) else { return }
         if let updatedTask = store.setTaskEnabled(task, enabled: enabled) {
             syncMacTaskReminder(for: updatedTask, store: store, notifications: notifications)
         }
+    }
+
+    private func deleteTask(_ task: FocusTask) {
+        guard store.task(for: task.id) != nil else { return }
+        store.deleteTasks(ids: [task.id])
+        guard store.task(for: task.id) == nil else { return }
+        notifications.cancelTaskReminder(taskID: task.id)
     }
 
     private func timerHandoffHint(for task: FocusTask) -> String {
@@ -1604,6 +1681,8 @@ private struct MacTaskListPanelView: View {
 }
 
 private struct MacScheduleCategoryEmptyStateView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let category: String
     let isSnapshotRendering: Bool
     let onAddTask: () -> Void
@@ -1614,7 +1693,11 @@ private struct MacScheduleCategoryEmptyStateView: View {
     }
 
     private var tint: Color {
-        Color(hex: preset?.accentHex ?? "#3DE8C5")
+        Color(hex: store.representativeAccentHex(for: category))
+    }
+
+    private var tintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: store.representativeAccentHex(for: category)))
     }
 
     private var symbolName: String {
@@ -1649,17 +1732,17 @@ private struct MacScheduleCategoryEmptyStateView: View {
 
             if isSnapshotRendering {
                 HStack(spacing: 8) {
-                    MacSummaryStaticActionView(title: "新增此分类", tint: tint, isProminent: true)
+                    MacSummaryStaticActionView(title: "新增此分类", tint: tint, isProminent: true, prominentForeground: tintText)
                     MacSummaryStaticActionView(title: "清除筛选", tint: tint, isProminent: false)
                 }
             } else {
                 HStack(spacing: 8) {
                     Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
                         .font(.caption.bold())
-                        .foregroundStyle(Color.black.opacity(0.82))
+                        .foregroundStyle(tintText)
                         .buttonStyle(.plain)
                         .padding(.horizontal, 10)
-                        .frame(minWidth: 104, minHeight: 36)
+                        .frame(minWidth: 104, minHeight: 44)
                         .background(tint, in: Capsule())
                         .accessibilityLabel("新增\(category)分类待办")
                         .accessibilityInputLabels(addButtonInputLabels)
@@ -1669,7 +1752,7 @@ private struct MacScheduleCategoryEmptyStateView: View {
                         .foregroundStyle(tint)
                         .buttonStyle(.plain)
                         .padding(.horizontal, 10)
-                        .frame(minWidth: 88, minHeight: 36)
+                        .frame(minWidth: 88, minHeight: 44)
                         .background(Color.white.opacity(0.07), in: Capsule())
                         .overlay {
                             Capsule()
@@ -1694,6 +1777,8 @@ private struct MacScheduleCategoryEmptyStateView: View {
 }
 
 private struct MacSelectedCategorySummaryView: View {
+    @EnvironmentObject private var store: FocusStore
+
     let category: String
     let count: Int
     let isTimerRunning: Bool
@@ -1707,7 +1792,11 @@ private struct MacSelectedCategorySummaryView: View {
     }
 
     private var tint: Color {
-        Color(hex: preset?.accentHex ?? "#3DE8C5")
+        Color(hex: store.representativeAccentHex(for: category))
+    }
+
+    private var tintText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: store.representativeAccentHex(for: category)))
     }
 
     private var timerHandoffAccessibilityLabel: String {
@@ -1774,7 +1863,7 @@ private struct MacSelectedCategorySummaryView: View {
             if isSnapshotRendering {
                 MacSummaryStaticActionView(title: "转到计时", tint: tint, isProminent: false)
                     .frame(maxWidth: axis == .vertical ? .infinity : nil)
-                MacSummaryStaticActionView(title: "新增此分类", tint: tint, isProminent: true)
+                MacSummaryStaticActionView(title: "新增此分类", tint: tint, isProminent: true, prominentForeground: tintText)
                     .frame(maxWidth: axis == .vertical ? .infinity : nil)
                 MacSummaryStaticActionView(title: "清除", tint: tint, isProminent: false)
                     .frame(maxWidth: axis == .vertical ? .infinity : nil)
@@ -1784,7 +1873,7 @@ private struct MacSelectedCategorySummaryView: View {
                     .foregroundStyle(tint)
                     .buttonStyle(.plain)
                     .padding(.horizontal, 10)
-                    .frame(minWidth: 92, minHeight: 36)
+                    .frame(minWidth: 92, minHeight: 44)
                     .frame(maxWidth: axis == .vertical ? .infinity : nil)
                     .background(Color.white.opacity(0.07), in: Capsule())
                     .overlay {
@@ -1797,10 +1886,10 @@ private struct MacSelectedCategorySummaryView: View {
 
                 Button("新增此分类", systemImage: "plus.circle.fill", action: onAddTask)
                     .font(.caption.bold())
-                    .foregroundStyle(Color.black.opacity(0.82))
+                    .foregroundStyle(tintText)
                     .buttonStyle(.plain)
                     .padding(.horizontal, 10)
-                    .frame(minWidth: 104, minHeight: 36)
+                    .frame(minWidth: 104, minHeight: 44)
                     .frame(maxWidth: axis == .vertical ? .infinity : nil)
                     .background(tint, in: Capsule())
                     .accessibilityLabel("新增\(category)分类待办")
@@ -1810,7 +1899,7 @@ private struct MacSelectedCategorySummaryView: View {
                     .font(.caption.bold())
                     .foregroundStyle(tint)
                     .buttonStyle(.plain)
-                    .frame(minWidth: 72, minHeight: 36)
+                    .frame(minWidth: 72, minHeight: 44)
                     .frame(maxWidth: axis == .vertical ? .infinity : nil)
                     .accessibilityLabel("清除\(category)分类筛选")
                     .accessibilityInputLabels([Text("清除筛选"), Text("清除\(category)分类")])
@@ -1824,12 +1913,13 @@ private struct MacSummaryStaticActionView: View {
     let title: String
     let tint: Color
     let isProminent: Bool
+    var prominentForeground: Color? = nil
 
     var body: some View {
         Text(title)
             .font(.caption.bold())
-            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
-            .frame(minWidth: isProminent ? 104 : 72, minHeight: 36)
+            .foregroundStyle(isProminent ? (prominentForeground ?? MacTheme.primaryText) : tint)
+            .frame(minWidth: isProminent ? 104 : 72, minHeight: 44)
             .padding(.horizontal, 10)
             .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
             .overlay {
@@ -1852,7 +1942,7 @@ private struct MacCategoryPresetPicker: View {
                         accentHex = preset.accentHex
                     }
                     .font(.caption.bold())
-                    .foregroundStyle(isSelected(preset) ? Color.black.opacity(0.82) : MacTheme.primaryText)
+                    .foregroundStyle(isSelected(preset) ? Color(hex: TaskCategoryPreset.contrastTextHex(on: preset.accentHex)) : MacTheme.primaryText)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
                     .background(isSelected(preset) ? Color(hex: preset.accentHex) : Color.white.opacity(0.06), in: Capsule())
@@ -1873,7 +1963,7 @@ private struct MacCategoryPresetPicker: View {
     }
 
     private func isSelected(_ preset: TaskCategoryPreset) -> Bool {
-        category.trimmingCharacters(in: .whitespacesAndNewlines) == preset.title
+        TaskCategoryPreset.categoriesMatch(category, preset.title)
     }
 
     private func accessibilityStateText(for preset: TaskCategoryPreset) -> String {
@@ -1894,14 +1984,18 @@ private struct MacCategoryPresetPicker: View {
 }
 
 struct MacCategoryFilterBar: View {
+    @EnvironmentObject private var store: FocusStore
+
     let categories: [String]
     @Binding var selectedCategory: String?
     let countProvider: (String?) -> Int
 
     private var categoryOptions: [TaskCategoryFilterOption] {
-        TaskCategoryPreset.prioritizedFilterOptions(categories: categories) { category in
-            countProvider(category)
-        }
+        TaskCategoryPreset.prioritizedFilterOptions(
+            categories: categories,
+            countProvider: { category in countProvider(category) },
+            accentProvider: { category in store.representativeAccentHex(for: category) }
+        )
     }
 
     var body: some View {
@@ -1912,7 +2006,7 @@ struct MacCategoryFilterBar: View {
                     symbolName: "tray.full.fill",
                     count: countProvider(nil),
                     isSelected: selectedCategory == nil,
-                    tintHex: "#3DE8C5"
+                    tintHex: TaskCategoryPreset.fallbackAccentHex
                 ) {
                     selectedCategory = nil
                 }
@@ -1922,7 +2016,7 @@ struct MacCategoryFilterBar: View {
                         title: option.category,
                         symbolName: option.symbolName,
                         count: option.count,
-                        isSelected: selectedCategory == option.category,
+                        isSelected: selectedCategory.map { store.categoryMatches($0, option.category) } ?? false,
                         tintHex: option.accentHex
                     ) {
                         toggleCategory(option.category)
@@ -1934,7 +2028,7 @@ struct MacCategoryFilterBar: View {
     }
 
     private func toggleCategory(_ category: String) {
-        selectedCategory = selectedCategory == category ? nil : category
+        selectedCategory = selectedCategory.map { store.categoryMatches($0, category) ? nil : category } ?? category
     }
 }
 
@@ -1948,6 +2042,10 @@ private struct MacCategoryFilterChip: View {
 
     private var tint: Color {
         Color(hex: tintHex)
+    }
+
+    private var selectedText: Color {
+        Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
     }
 
     private var accessibilityStateText: String {
@@ -1976,14 +2074,14 @@ private struct MacCategoryFilterChip: View {
                 Text(title)
                 Text("\(count)")
                     .font(.caption.bold())
-                    .foregroundStyle(isSelected ? Color.black.opacity(0.72) : tint)
+                    .foregroundStyle(isSelected ? selectedText.opacity(0.82) : tint)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(isSelected ? Color.black.opacity(0.08) : tint.opacity(0.16), in: Capsule())
             }
             .font(.caption.bold())
-            .foregroundStyle(isSelected ? Color.black.opacity(0.82) : MacTheme.primaryText)
-            .frame(minHeight: 34)
+            .foregroundStyle(isSelected ? selectedText : MacTheme.primaryText)
+            .frame(minHeight: 44)
             .padding(.horizontal, 10)
             .background(isSelected ? tint : Color.white.opacity(0.06), in: Capsule())
             .overlay {
