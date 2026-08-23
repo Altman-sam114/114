@@ -57,8 +57,8 @@ raise "Final CI status must not use the legacy cat-only summary output" if sourc
 
 tee_index = final_step.index(tee_line)
 condition_index = final_step.index(failure_condition)
-exit_index = final_step.index("            exit 1\n")
 raise "Final CI status must preserve the seven-stage failure condition" unless condition_index
+exit_index = final_step.index("            exit 1\n", condition_index)
 raise "Final CI status must preserve exit 1" unless exit_index
 raise "Final CI status must output the failure summary before outcome evaluation" unless tee_index < condition_index && condition_index < exit_index
 

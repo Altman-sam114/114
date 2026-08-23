@@ -222,12 +222,13 @@
 
 验证结果：
 
-- 当前仅完成静态审阅和文档同步；未运行本地测试、validator、项目验证脚本、YAML 解析、Xcode、`xcodebuild`、`simctl` 或 Simulator。
-- v1.4.7 尚未提交、推送或产生新的 GitHub Actions run/artifact；正常 push 与显式 `workflow_dispatch` failure profile 仍待云端验证，不能复用 v1.4.6 证据。
+- 当前仍未运行本地测试、validator、项目验证脚本、YAML 解析、Xcode、`xcodebuild`、`simctl` 或 Simulator；所有验证继续只走 GitHub Actions。
+- v1.4.7 已由 `a4c0612` 与 `745a734` 推送到 `origin/main`。run `32635787639` 暴露 failure fixture 的 index 绑定问题，run `32636243203` 的构建、结果包生成和上传成功，但 `verify_project` 因 Final CI status 断言误选摘要缺失保护分支的首个 `exit 1` 而失败；两份失败证据均不作为通过结论，artifact `9492280957` 保留。
+- 当前追加修复将让断言从七阶段失败条件之后定位对应出口，修复后的正常 push 与显式 `workflow_dispatch` failure profile 仍待云端验证。
 
 遗留事项：
 
-- 提交前需确认仅本轮文件进入 commit，并使用 `gh` 验收最新正常 push 和受控失败 run 的原始 API JSON、ZIP 与 validator 第四模式；之后继续下一轮 UI 分类优化。
+- 提交前需确认仅本轮文件进入 commit，并使用 `gh` 验收最新正常 push 和受控失败 run 的原始 API JSON、ZIP 与 validator 第四模式；通过后继续下一轮 UI 分类优化。
 
 ### v1.4.4 / Mac 计时队列展开与筛选重置
 
