@@ -4,14 +4,14 @@
 
 ## 核心数据流
 
-读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和云端测试脚本。日程使用完整 `upcomingTasks()`，计时消费使用 `startableTasks()`；已有分类选择、iOS/Mac 日期格分类计数和 iOS/Mac 计时队列展开都只属于 View 草稿/瞬态，不新增持久化或计时状态；日期格未筛选时显示全量 `dueDate` 自然日计数，选中分类时与列表共享该分类谓词；Mac 队列从完整筛选结果派生默认前 7 项，分类或筛选数量变化时恢复收起；run/artifacts 原始 API JSON 与 ZIP 由独立证据链交给 validator 复判。
+读图说明：这张图从“用户或系统输入”开始，看数据如何进入共享状态，再由计时引擎和平台服务输出到 UI、通知、Live Activity、持久化和云端测试脚本。日程使用完整 `upcomingTasks()`，计时消费使用 `startableTasks()`；已有分类选择、iOS/Mac 日期格分类计数和 iOS/Mac 计时队列展开都只属于 View 草稿/瞬态，不新增持久化或计时状态；日期格未筛选时显示全量 `dueDate` 自然日计数，选中分类时与列表共享该分类谓词；Mac 队列从完整筛选结果派生默认前 7 项，Mac 日历范围列表从完整 `visibleTasks` 派生默认前 4 项，分类、日期、范围或结果变化时恢复收起；run/artifacts 原始 API JSON 与 ZIP 由独立证据链交给 validator 复判。
 
 ```mermaid
 flowchart TD
   U["用户操作<br/>iOS 计时/日程/统计/设置<br/>Mac 状态栏/小窗/详细窗口"] --> V["SwiftUI Views<br/>只收集意图和展示状态"]
   SYS["系统输入<br/>App 启动/前后台恢复<br/>日历同步/通知授权"] --> V
   V --> S["FocusStore<br/>任务、设置、会话、计划、活跃快照"]
-  V --> CAT["分类 UI<br/>分类快选、计数、筛选与重复点击清除<br/>iOS/Mac录入从taskCategories复用已有分类<br/>固定locale规范化、排除预设、首次出现去重<br/>至少6项时瞬态搜索、计数、清除与无结果<br/>搜索只过滤option，选择只改category/accentHex草稿<br/>首个同分类任务提供代表色<br/>iOS计时队列默认4项、可展开、运行中只读<br/>Mac计时队列默认7项、可展开、运行中只读<br/>分类/筛选数量变化恢复收起<br/>辅助功能语义"]
+  V --> CAT["分类 UI<br/>分类快选、计数、筛选与重复点击清除<br/>iOS/Mac录入从taskCategories复用已有分类<br/>固定locale规范化、排除预设、首次出现去重<br/>至少6项时瞬态搜索、计数、清除与无结果<br/>搜索只过滤option，选择只改category/accentHex草稿<br/>首个同分类任务提供代表色<br/>iOS计时队列默认4项、可展开、运行中只读<br/>Mac计时队列默认7项、可展开、运行中只读<br/>Mac日历范围列表默认4项、超出可展开/收起<br/>分类/筛选数量变化恢复收起<br/>辅助功能语义"]
   CAT --> V
   S --> P["UserDefaults JSON<br/>持久化核心数据"]
   V --> E["TimerEngine<br/>唯一计时状态机"]

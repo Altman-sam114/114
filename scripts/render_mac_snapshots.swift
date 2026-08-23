@@ -85,6 +85,14 @@ struct MacSnapshotRenderer {
         }
         engine.selectTask(resolvedTimerHandoffTask)
 
+        let calendarRangeFixtureCount = store.tasks.filter { task in
+            guard task.category == "队列验证", let dueDate = task.dueDate else { return false }
+            return Calendar.current.isDate(dueDate, equalTo: Date(), toGranularity: .weekOfYear)
+        }.count
+        guard calendarRangeFixtureCount > 4 else {
+            throw SnapshotError("Mac calendar range overflow fixture requires more than four tasks")
+        }
+
         let detailPages: [(fileName: String, section: SnapshotDetailSection, content: AnyView)] = [
             (
                 "detail-timer.png",
@@ -98,8 +106,8 @@ struct MacSnapshotRenderer {
                 "detail-schedule.png",
                 .schedule,
                 AnyView(MacScheduleDetailView(
-                    initialTaskCategory: "产品",
-                    initialExistingCategorySearchQuery: "产品"
+                    initialTaskCategory: "队列验证",
+                    initialExistingCategorySearchQuery: "队列验证"
                 ))
             ),
             ("detail-analytics.png", .analytics, AnyView(MacAnalyticsDetailView())),

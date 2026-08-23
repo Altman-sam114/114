@@ -160,6 +160,38 @@
 
 - v1.4.5 实现已完成一轮云端闭环；本次文档证据同步仍需随最新 `main` commit 重新通过 GitHub Actions 和 Agent C 第四模式复判。总目标仍未完成，下一轮继续推进 UI 分类体验或 CI 证据强度优化。
 
+### v1.4.6 / Mac 日历范围列表展开与分类上下文
+
+日期：2026-08-23
+
+核心变更：
+
+- macOS `MacCalendarPanelView` 保留完整 `visibleTasks` 作为范围计数、日期格和空态真源，默认只展示前 4 项；超过 4 项时提供准确剩余数量的展开/收起入口。
+- 分类、选中日期、日/周/月范围和完整结果 identity/count 变化时，展开状态恢复收起；状态只存在于 View，不写入 `FocusStore` 或影响 `TimerEngine`。
+- 展开/收起真实控件和快照静态路径保持分类上下文、至少 44pt 点击区、Dynamic Type、VoiceOver label/value/hint 与 Voice Control input labels；快照 fixture 让正式日程快照覆盖 overflow，正式五张清单不变。
+- `verify_project.sh` 扩展既有 `Schedule calendar category context contracts verified.` 源码合同，覆盖完整/派生列表、重置和可访问语义；不新增重复 marker。
+
+关键文件：
+
+- `ChronoFocusMac/Views/MacScheduleDetailView.swift`
+- `scripts/render_mac_snapshots.swift`
+- `scripts/verify_project.sh`
+- `README.md`
+- `md/test/test.md`
+- `md/flow/flow.md`
+- `md/flow/flowchart.md`
+- `md/prompt/v1（持续优化）/v1.4.6（Mac日历范围列表展开与分类上下文）.md`
+- `update_log.md`
+
+验证结果：
+
+- 未运行本地项目测试、验证脚本、validator、Swift/`swiftc`、Xcode、`xcodebuild`、`simctl` 或 Simulator；等待本轮 `main` push 后的 GitHub Actions 和 Agent C 第四模式 artifact 复判。
+- v1.4.5 最新 documentation HEAD 基线已由 Agent C 在 `/private/tmp/chronofocus-c-review-31301682089-bECK0z/` 复判为 `132 PASS / 0 FAIL`，不可替代本轮新 commit 验收。
+
+遗留事项：
+
+- 本轮尚未获得新的云端 run/artifact；最新 `origin/main` run 通过前不得宣称 v1.4.6 完成。CI 多提交 push 的 diff 覆盖缺口保留到下一轮独立优化。
+
 ### v1.4.4 / Mac 计时队列展开与筛选重置
 
 日期：2026-08-09

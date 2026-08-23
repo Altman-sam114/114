@@ -82,7 +82,7 @@ macOS：
 2. 新增/编辑 UI 可用 `TaskCategoryPreset` 快速填入分类和代表色，也可继续手写分类。iOS `TaskEditorView` 与 macOS 快速新增顺序遍历 `FocusStore.taskCategories`，用固定 POSIX locale 对清理后的名称执行大小写、变音符号和宽度不敏感比较，排除预设并按首次出现去重，形成“已有分类”；达到 6 项时以独立瞬态查询做同规则名称子串过滤，显示结果数/总数、清除和无结果状态。搜索只改变可见 option，不修改 `category` / `accentHex`。点击已有分类只更新这两个 View 草稿；代表色取 `store.tasks` 中首个同比较键任务，仅有历史 session 时保留当前草稿颜色，不调用保存入口、不新增持久化。当前项以 checkmark、轮廓和 selected trait 表达，再次点击不清空；自由文本、5 个预设和保存/取消语义保持不变。
 3. 选中分类筛选后 toolbar 新增入口会读出当前分类并支持按分类 Voice Control 新增，新增待办会预填该分类；再次点击已选分类、点击“全部”或摘要清除会退出筛选；分类 chip 的可访问标签会读出数量、已选中状态和点击后的筛选/清除动作；iOS 待办标题显示筛选数/总数，日程任务行以带分类名 Voice Control input labels 的分类 badge 保留分类上下文，完成/启用/编辑操作会读出任务名；iOS 当前范围没有该分类待办时，分类空态会直接提供新增此分类和清除筛选操作；macOS 完成/启用/删除操作也读出任务名，避免长列表中误操作；列表摘要可直接新增此分类待办或清除筛选，摘要和按钮可访问标签也会说明新增/清除动作及分类名；macOS 计时队列选中分类且结果非空时显示常驻分类上下文条、筛选数/总数和新增/清除动作，窄宽时动作纵排；筛选态任务行隐藏重复视觉 badge，但整行继续读出任务名、分类名、选中/运行状态与操作提示，未筛选态和其他页面仍显示 badge。macOS 计时队列以完整分类筛选结果计算计数、上下文和空态，默认展示前 7 项，超过 7 项时可展开全部或收起；分类切换、完整筛选结果数量变化、筛选清除和 handoff 都恢复收起，运行中仍可展开浏览但任务行不可切换，toggle 保持 44pt 并提供两态 VoiceOver/Voice Control 语义。macOS 选中分类且无未完成待办时，空态本身也可新增此分类或清除筛选；macOS 选中分类摘要可把左侧快速新增表单切回当前分类并聚焦任务名称，任务名称输入框会读出当前将新增到的分类并支持按分类 Voice Control 输入，摘要新增/清除按钮也暴露分类名 Voice Control input labels，快速新增面板显示当前分类，筛选预填时保留“已预填”语义，提交按钮会读出当前分类和预计轮次，连续新增时保留刚创建任务的分类；编辑已有待办仍保留原任务分类。
 4. macOS 日历面板当前范围没有待办时，空态可把当前选中日期传回父视图；父视图保留快速新增截止时间的时分，只替换年月日并聚焦任务名称，任务仍通过现有 `addTask()` 写入 `FocusStore`。
-- iOS `ScheduleView.taskCount(on:)` 和 macOS `MacCalendarPanelView.taskCount(on:)` 都先按 `dueDate` 与日期格匹配自然日，再应用可选 `selectedCategory` 谓词；周条、月格、日历范围列表和日期格 label 因此共享同一筛选上下文。macOS 日历面板通过父级 binding 接收分类，视觉计数与 accessibility label 共用同一派生计数，清除筛选即恢复全量计数，不新增持久化或计时状态。
+- iOS `ScheduleView.taskCount(on:)` 和 macOS `MacCalendarPanelView.taskCount(on:)` 都先按 `dueDate` 与日期格匹配自然日，再应用可选 `selectedCategory` 谓词；周条、月格、日历范围列表和日期格 label 因此共享同一筛选上下文。macOS 日历面板通过父级 binding 接收分类，视觉计数与 accessibility label 共用同一派生计数，清除筛选即恢复全量计数；范围列表仍用完整 `visibleTasks` 计算总数、日期格和空态，只从中派生默认前 4 项，超过 4 项可展开/收起，分类、日期、范围或结果变化恢复收起，不新增持久化或计时状态。
 5. `FocusStore` 清洗空白分类、合并常用分类和已有分类为 `taskCategories`，供 iOS/macOS 筛选 UI 使用。
 6. `TaskCategoryPreset.prioritizedFilterOptions` 按当前范围内任务数量把有任务的分类排在空分类前面。
 7. `FocusStore` 保存任务，并在 `autoGeneratePomodoroPlan` 启用时调用 `generatePomodoroPlanFromSchedule()`。
@@ -174,6 +174,7 @@ macOS：
 - 左键 popover：极简计时器、动态进度条、带分类名可访问标签、Voice Control input labels、已选中状态、选择提示、运行中不可切换提示和任务名/分类名语音标签的当前待办分类 badge/时间上下文、可读出按钮动作和当前选中状态的快捷面板，并可直接打开日程、统计或设置详情页。
 - 右键菜单：开始/暂停、打开详细界面、退出。
 - 详细窗口：计时、日程、计划、统计和设置；快速新增保留自由文本、5 个预设和分类预填，并从 `store.taskCategories` 显示与 iOS 相同算法的“已有分类”。长列表搜索与 snapshot rendering 共享过滤 option，外部分类预填先清除旧查询；选择已有分类只更新快速新增草稿并复用首个同分类任务代表色。提交仍走现有 `addTask()`，连续新增、筛选摘要、任务操作和计时语义保持不变。
+- 日历范围列表：完整当前分类结果继续用于范围计数、日期格和空态，默认显示前 4 项；超过 4 项时提供带剩余数量的展开/收起按钮，分类、日期、日/周/月范围或结果变化会恢复收起，按钮和快照静态路径保持至少 44pt 及辅助功能语义。
 
 ## 6. 前端 / 数据层 / 模型层 / 测试层关系
 

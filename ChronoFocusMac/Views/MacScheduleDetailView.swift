@@ -675,11 +675,12 @@ private struct MacStaticScheduleActionChipView: View {
                 Image(systemName: symbolName)
                     .font(.subheadline.bold())
                     .frame(width: 34, height: 30)
-            } else {
-                Label(title, systemImage: symbolName)
-                    .font(.subheadline.bold())
-                    .frame(minHeight: 30)
-                    .padding(.horizontal, 10)
+                } else {
+                    Label(title, systemImage: symbolName)
+                        .font(.subheadline.bold())
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(minHeight: 30)
+                        .padding(.horizontal, 10)
             }
         }
         .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
@@ -727,10 +728,12 @@ private struct MacCalendarPanelView: View {
     @Binding var selectedCategory: String?
     @State private var selectedDate = Date()
     @State private var calendarMode: CalendarDisplayMode = .week
+    @State private var isTaskListExpanded = false
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
     let onAddTaskAtDate: (Date) -> Void
 
     private let calendar = Calendar.current
+    private let collapsedTaskLimit = 4
 
     private var visibleTasks: [FocusTask] {
         store.tasks
@@ -764,6 +767,56 @@ private struct MacCalendarPanelView: View {
             return "\(visibleTasks.count) 项"
         }
         return "\(selectedCategory)分类 \(visibleTasks.count) 项"
+    }
+
+    private var visibleTaskIDs: [UUID] {
+        visibleTasks.map(\.id)
+    }
+
+    private var displayedTasks: [FocusTask] {
+        isTaskListExpanded ? visibleTasks : Array(visibleTasks.prefix(collapsedTaskLimit))
+    }
+
+    private var taskListOverflowCount: Int {
+        max(visibleTasks.count - collapsedTaskLimit, 0)
+    }
+
+    private var taskListExpansionTitle: String {
+        isTaskListExpanded ? "收起" : "显示其余 \(taskListOverflowCount) 项"
+    }
+
+    private var taskListExpansionAccessibilityLabel: String {
+        let categoryContext = selectedCategory.map { "\($0)分类" } ?? ""
+        if isTaskListExpanded {
+            return "收起\(categoryContext)日历范围待办"
+        }
+        return "显示其余\(taskListOverflowCount)项\(categoryContext)日历范围待办"
+    }
+
+    private var taskListExpansionAccessibilityValue: String {
+        if isTaskListExpanded {
+            return "已展开，显示全部\(visibleTasks.count)项"
+        }
+        return "已收起，显示前\(min(visibleTasks.count, collapsedTaskLimit))项，共\(visibleTasks.count)项"
+    }
+
+    private var taskListExpansionAccessibilityHint: String {
+        if isTaskListExpanded {
+            return "再次点击只显示前\(collapsedTaskLimit)项"
+        }
+        let context = selectedCategory == nil ? "不改变当前日历计数" : "不改变当前分类筛选或日历计数"
+        return "展开查看其余\(taskListOverflowCount)项，\(context)"
+    }
+
+    private var taskListExpansionInputLabels: [Text] {
+        var labels = [
+            Text(taskListExpansionTitle),
+            Text(isTaskListExpanded ? "收起日历待办" : "展开日历待办")
+        ]
+        if let selectedCategory {
+            labels.append(Text("\(selectedCategory)分类\(isTaskListExpanded ? "收起" : "展开")"))
+        }
+        return labels
     }
 
     private var calendarTitle: String {
@@ -878,11 +931,58 @@ private struct MacCalendarPanelView: View {
                         }
                     )
                 } else {
-                    ForEach(visibleTasks.prefix(4)) { task in
+                    ForEach(displayedTasks) { task in
                         MacTaskRowView(task: task)
+                    }
+
+                    if visibleTasks.count > collapsedTaskLimit {
+                        if isSnapshotRendering {
+                            MacStaticScheduleActionChipView(
+                                title: taskListExpansionTitle,
+                                symbolName: isTaskListExpanded ? "chevron.up" : "chevron.down",
+                                tint: .cyan,
+                                isProminent: false,
+                                accessibilityLabelText: taskListExpansionAccessibilityLabel
+                            )
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .accessibilityValue(taskListExpansionAccessibilityValue)
+                            .accessibilityHint(taskListExpansionAccessibilityHint)
+                            .accessibilityInputLabels(taskListExpansionInputLabels)
+                        } else {
+                            Button {
+                                isTaskListExpanded.toggle()
+                            } label: {
+                                Label(
+                                    taskListExpansionTitle,
+                                    systemImage: isTaskListExpanded ? "chevron.up" : "chevron.down"
+                                )
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .buttonStyle(.bordered)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .accessibilityLabel(taskListExpansionAccessibilityLabel)
+                            .accessibilityValue(taskListExpansionAccessibilityValue)
+                            .accessibilityHint(taskListExpansionAccessibilityHint)
+                            .accessibilityInputLabels(taskListExpansionInputLabels)
+                        }
                     }
                 }
             }
+        }
+        .onChange(of: selectedCategory) { _, _ in
+            isTaskListExpanded = false
+        }
+        .onChange(of: selectedDate) { _, _ in
+            isTaskListExpanded = false
+        }
+        .onChange(of: calendarMode) { _, _ in
+            isTaskListExpanded = false
+        }
+        .onChange(of: visibleTaskIDs) { _, _ in
+            isTaskListExpanded = false
         }
     }
 
