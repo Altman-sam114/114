@@ -116,9 +116,11 @@ struct MacSnapshotRenderer {
 
         for detailPage in detailPages {
             let detailURL = outputDirectory.appendingPathComponent(detailPage.fileName)
+            let detailContentHeight: CGFloat = detailPage.fileName == "detail-schedule.png" ? 1400 : 720
             let detailView = SnapshotDetailView(
                 selectedSection: detailPage.section,
-                content: detailPage.content
+                content: detailPage.content,
+                contentHeight: detailContentHeight
             )
             .environmentObject(store)
             .environmentObject(engine)
@@ -128,7 +130,7 @@ struct MacSnapshotRenderer {
             .environment(\.macSnapshotRendering, true)
             .frame(
                 width: 1100,
-                height: detailPage.fileName == "detail-schedule.png" ? 1400 : 720
+                height: detailContentHeight
             )
 
             try render(detailView, to: detailURL)
@@ -513,6 +515,17 @@ struct SnapshotError: Error, CustomStringConvertible {
 private struct SnapshotDetailView: View {
     let selectedSection: SnapshotDetailSection
     let content: AnyView
+    let contentHeight: CGFloat
+
+    init(
+        selectedSection: SnapshotDetailSection,
+        content: AnyView,
+        contentHeight: CGFloat = 720
+    ) {
+        self.selectedSection = selectedSection
+        self.content = content
+        self.contentHeight = contentHeight
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -540,7 +553,7 @@ private struct SnapshotDetailView: View {
             .background(Color.black.opacity(0.18))
 
             content
-                .frame(width: 910, height: 720, alignment: .topLeading)
+                .frame(width: 910, height: contentHeight, alignment: .topLeading)
             .background(MacTheme.background)
             .clipped()
         }
