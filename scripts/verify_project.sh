@@ -538,7 +538,7 @@ mac_schedule_empty_add_button = segment_slice(
   "Button(\"清除筛选\", systemImage: \"xmark.circle.fill\", action: onClear)",
   "Mac schedule category empty state add button source missing"
 )
-raise "Mac schedule category empty state add button tap target missing" unless mac_schedule_empty_add_button.include?(".frame(minWidth: 104, minHeight: 36)")
+raise "Mac schedule category empty state add button tap target missing" unless mac_schedule_empty_add_button.include?(".frame(minWidth: 104, minHeight: 44)")
 raise "Mac schedule category empty state add accessibility label missing" unless mac_schedule_empty_add_button.include?(".accessibilityLabel(\"新增\\(category)分类待办\")")
 raise "Mac schedule category empty state add Voice Control labels missing" unless mac_schedule_empty_source.include?("Text(\"新增此分类\")") && mac_schedule_empty_source.include?("Text(\"新增\\(category)分类待办\")") && mac_schedule_empty_source.include?("Text(\"新增\\(category)分类\")") && mac_schedule_empty_add_button.include?(".accessibilityInputLabels(addButtonInputLabels)")
 mac_schedule_empty_clear_button = segment_slice(
@@ -547,7 +547,7 @@ mac_schedule_empty_clear_button = segment_slice(
   ".accessibilityLabel(\"\\(category)分类暂无待办，可新增此分类待办或清除筛选\")",
   "Mac schedule category empty state clear button source missing"
 )
-raise "Mac schedule category empty state clear button tap target missing" unless mac_schedule_empty_clear_button.include?(".frame(minWidth: 88, minHeight: 36)")
+raise "Mac schedule category empty state clear button tap target missing" unless mac_schedule_empty_clear_button.include?(".frame(minWidth: 88, minHeight: 44)")
 raise "Mac schedule category empty state clear accessibility label missing" unless mac_schedule_empty_clear_button.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
 raise "Mac schedule category empty state clear Voice Control labels missing" unless mac_schedule_empty_source.include?("Text(\"清除筛选\")") && mac_schedule_empty_source.include?("Text(\"清除\\(category)分类\")") && mac_schedule_empty_source.include?("Text(\"查看全部分类\")") && mac_schedule_empty_clear_button.include?(".accessibilityInputLabels(clearButtonInputLabels)")
 raise "Mac schedule category empty state accessibility summary missing" unless mac_schedule_empty_source.include?(".accessibilityLabel(\"\\(category)分类暂无待办，可新增此分类待办或清除筛选\")")
@@ -602,7 +602,7 @@ mac_calendar_empty_button = segment_slice(
   ".accessibilityElement(children: .contain)",
   "Mac calendar range empty state button source missing"
 )
-raise "Mac calendar range empty state button tap target missing" unless mac_calendar_empty_button.include?(".frame(minWidth: 132, minHeight: 36)")
+raise "Mac calendar range empty state button tap target missing" unless mac_calendar_empty_button.include?(".frame(minWidth: 132, minHeight: 44)")
 raise "Mac calendar range empty state accessibility label missing" unless mac_calendar_empty_button.include?(".accessibilityLabel(addButtonAccessibilityLabel)")
 raise "Mac calendar range empty state accessibility hint missing" unless mac_calendar_empty_source.include?("private var addButtonAccessibilityHint: String") && mac_calendar_empty_source.include?("return baseHint") && mac_calendar_empty_source.include?("return \"\\(baseHint)，归入当前筛选分类\"") && mac_calendar_empty_button.include?(".accessibilityHint(addButtonAccessibilityHint)")
 raise "Mac calendar range empty state Voice Control labels missing" unless mac_calendar_empty_source.include?("Text(\"新增到此日期\")") && mac_calendar_empty_source.include?("Text(addButtonAccessibilityLabel)") && mac_calendar_empty_source.include?("Text(\"\\(selectedDateText)新增待办\")") && mac_calendar_empty_button.include?(".accessibilityInputLabels(addButtonInputLabels)")
@@ -927,7 +927,7 @@ mac_schedule_summary_add_button = segment_slice(
 )
 raise "Mac category summary add accessibility label missing" unless mac_schedule_summary_add_button.include?(".accessibilityLabel(\"新增\\(category)分类待办\")")
 raise "Mac category summary add Voice Control input labels missing" unless mac_schedule_summary_add_button.include?(".accessibilityInputLabels([Text(\"新增此分类\"), Text(\"新增\\(category)分类待办\"), Text(\"新增\\(category)分类\")])")
-raise "Mac category summary add button tap target missing" unless mac_schedule_summary_add_button.include?(".frame(minWidth: 104, minHeight: 36)")
+raise "Mac category summary add button tap target missing" unless mac_schedule_summary_add_button.include?(".frame(minWidth: 104, minHeight: 44)")
 mac_schedule_summary_clear_button = segment_slice(
   mac_schedule_summary_source,
   "Button(\"清除\", systemImage: \"xmark.circle.fill\", action: onClear)",
@@ -936,14 +936,14 @@ mac_schedule_summary_clear_button = segment_slice(
 )
 raise "Mac category summary clear accessibility label missing" unless mac_schedule_summary_clear_button.include?(".accessibilityLabel(\"清除\\(category)分类筛选\")")
 raise "Mac category summary clear Voice Control input labels missing" unless mac_schedule_summary_clear_button.include?(".accessibilityInputLabels([Text(\"清除筛选\"), Text(\"清除\\(category)分类\")])")
-raise "Mac category summary clear button tap target missing" unless mac_schedule_summary_clear_button.include?(".frame(minWidth: 72, minHeight: 36)")
+raise "Mac category summary clear button tap target missing" unless mac_schedule_summary_clear_button.include?(".frame(minWidth: 72, minHeight: 44)")
 mac_summary_static_action_source = source_slice(
   "ChronoFocusMac/Views/MacScheduleDetailView.swift",
   "private struct MacSummaryStaticActionView",
   "private struct MacCategoryPresetPicker",
   "Mac summary static action source missing"
 )
-raise "Mac summary static action tap target missing" unless mac_summary_static_action_source.include?(".frame(minWidth: isProminent ? 104 : 72, minHeight: 36)")
+raise "Mac summary static action tap target missing" unless mac_summary_static_action_source.include?(".frame(minWidth: isProminent ? 104 : 72, minHeight: 44)")
 puts "Category summary action contracts verified."
 
 mac_task_list_source = source_slice(

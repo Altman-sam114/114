@@ -323,7 +323,9 @@ final class FocusStore: ObservableObject {
             sessionsByKey[key, default: []].append(session)
         }
 
-        return categoryOrder.enumerated().compactMap { position, key in
+        let ranked: [(position: Int, focus: CategoryFocus)] = categoryOrder.enumerated().compactMap { item -> (position: Int, focus: CategoryFocus)? in
+            let position = item.offset
+            let key = item.element
             guard let category = displayNamesByKey[key], let categorySessions = sessionsByKey[key] else { return nil }
             let seconds = categorySessions.reduce(0) { $0 + $1.actualSeconds }
             let accent = representativeAccentHex(for: category)
@@ -332,7 +334,7 @@ final class FocusStore: ObservableObject {
                 focus: CategoryFocus(category: category, seconds: seconds, sessionCount: categorySessions.count, accentHex: accent)
             )
         }
-        .sorted { left, right in
+        return ranked.sorted { left, right in
             if left.focus.seconds != right.focus.seconds {
                 return left.focus.seconds > right.focus.seconds
             }

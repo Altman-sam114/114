@@ -544,7 +544,7 @@ final class TimerEngine: ObservableObject {
                 guard snapshot == nil, generation == nil else { return }
             }
             await operation()
-            guard let self, !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return }
             if let snapshot, let generation {
                 guard self.isCurrentSystemSurface(snapshot: snapshot, generation: generation) else { return }
             }
@@ -576,7 +576,7 @@ final class TimerEngine: ObservableObject {
                 guard snapshot == nil else { return }
             }
             await operation()
-            guard let self, !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return }
             if let generation {
                 guard self.systemSurfaceGeneration == generation else { return }
                 if let snapshot {

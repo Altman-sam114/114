@@ -239,11 +239,11 @@
 
 验证结果：
 
-- 当前未运行任何本地测试、验证脚本、validator、YAML 解析、Swift/Xcode 构建、`xcodebuild`、`simctl`、Simulator 或浏览器；仅完成静态审阅和补丁准备，等待提交后的 GitHub Actions。
+- 当前未运行任何本地测试、验证脚本、validator、YAML 解析、Swift/Xcode 构建、`xcodebuild`、`simctl`、Simulator 或浏览器；仅完成静态审阅和补丁准备，等待修复提交后的 GitHub Actions。
 
 遗留事项：
 
-- v1.4.8 尚未提交或推送；运行中任务锁定、快照语义和动态文字对比度修复已完成静态整合，正在等待最终审阅后提交；之后必须由最新 `origin/main` push run 及 Agent C 第四模式复判 success artifact，并至少复判一次受控 failure profile 后，才能更新为通过。
+- v1.4.8 已提交并推送；最新 `origin/main` push run `32653281266` 因 `FocusStore`/`TimerEngine` 云端编译错误和 44pt Mac 点击区静态契约滞后失败。当前追加修复这些问题，完成后必须由最新 `origin/main` push run 及 Agent C 第四模式复判 success artifact，并至少复判一次受控 failure profile 后，才能更新为通过。
 
 ### v1.4.7 / CI 失败结果包韧性
 
