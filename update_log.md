@@ -205,6 +205,7 @@
 - `scripts/validate_ci_artifact.rb` 增加显式 `--failure-mode`，失败 profile 强制完整 archive/artifact/run 包外证据；`--expected-event` 默认要求授权 `push`，受控 dispatch 失败必须显式选择 `workflow_dispatch`，不放宽 success profile。
 - `scripts/validate_ci_failure_artifact.rb`、`scripts/verify_project.sh` 和成功/失败 fixture 增加阶段、可选缺失产物、fallback、失败摘要、事件来源和 workflow 接线合同；同步更新测试、流程、README 与提示词索引。
 - 提交前静态修订补齐 bootstrap 与 finalizer 分离传播、`skipped` 的非成功语义、上传前残缺结果文件重建，以及 manifest/index/stage 的 fallback 与失败状态三方绑定。
+- 首次 push 云端 run `32635787639`（attempt `1`，commit `a4c061217e6d13b60da5deb80e376586d9935e73`）的 Mac/iOS build、artifact 上传和结果生成通过，但 `verify_project` failure fixture 暴露 index outcome/missing-path 绑定未同步；该 run 不作为通过证据，已保留原始 artifact `9492280957` 供复盘。
 
 关键文件：
 

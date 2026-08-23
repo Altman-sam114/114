@@ -2826,6 +2826,12 @@ summary_path.write_text(summary, encoding="utf-8")
 
 index_path = root / "ci-artifact-index.json"
 index = json.loads(index_path.read_text(encoding="utf-8"))
+index["overallOutcome"] = "failure"
+index["failureMode"] = "selectXcode"
+index["firstFailedStage"] = "selectXcode"
+index["failedStages"] = ["selectXcode"]
+index["nonSuccessStages"] = ["selectXcode"]
+index["stageOutcomes"] = stage["stages"]
 required = {
     "ci-results/ci-artifact-manifest.json",
     "ci-results/ci-artifact-index.json",

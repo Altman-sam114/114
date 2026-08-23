@@ -231,7 +231,7 @@ def validate_failure_profile(
   end
   expected_missing_paths = entries.select { |entry| !entry["required"] && !entry["exists"] }.map { |entry| entry["path"] }.sort
   check(checks, "failure artifact index missing paths") do
-    index.is_a?(Hash) && index["missingArtifactPaths"] == expected_missing_paths
+    index.is_a?(Hash) && index["missingArtifactPaths"].is_a?(Array) && index["missingArtifactPaths"].sort == expected_missing_paths
   end
   check(checks, "failure artifact local allowlist") do
     root_allowed = EXPECTED_ARTIFACT_ROOT_ENTRIES + FAILURE_ONLY_ARTIFACT_ROOT_ENTRIES
