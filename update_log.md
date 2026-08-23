@@ -169,6 +169,7 @@
 - macOS `MacCalendarPanelView` 保留完整 `visibleTasks` 作为范围计数、日期格和空态真源，默认只展示前 4 项；超过 4 项时提供准确剩余数量的展开/收起入口。
 - 分类、选中日期、日/周/月范围和完整结果 identity/count 变化时，展开状态恢复收起；状态只存在于 View，不写入 `FocusStore` 或影响 `TimerEngine`。
 - 展开/收起真实控件和快照静态路径保持分类上下文、至少 44pt 点击区、Dynamic Type、VoiceOver label/value/hint 与 Voice Control input labels；快照 fixture 让正式日程快照覆盖 overflow，正式五张清单不变。
+- 正式日程快照继续使用“产品”分类场景，并补入 5 个同分类任务证明范围溢出；“队列验证”任务仍单独用于计时队列溢出，快照渲染在云端运行期检查产品分类当前周计数大于 4。
 - `verify_project.sh` 扩展既有 `Schedule calendar category context contracts verified.` 源码合同，覆盖完整/派生列表、重置和可访问语义；不新增重复 marker。
 
 关键文件：

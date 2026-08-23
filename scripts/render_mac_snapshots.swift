@@ -86,7 +86,7 @@ struct MacSnapshotRenderer {
         engine.selectTask(resolvedTimerHandoffTask)
 
         let calendarRangeFixtureCount = store.tasks.filter { task in
-            guard task.category == "队列验证", let dueDate = task.dueDate else { return false }
+            guard task.category == "产品", let dueDate = task.dueDate else { return false }
             return Calendar.current.isDate(dueDate, equalTo: Date(), toGranularity: .weekOfYear)
         }.count
         guard calendarRangeFixtureCount > 4 else {
@@ -106,8 +106,8 @@ struct MacSnapshotRenderer {
                 "detail-schedule.png",
                 .schedule,
                 AnyView(MacScheduleDetailView(
-                    initialTaskCategory: "队列验证",
-                    initialExistingCategorySearchQuery: "队列验证"
+                    initialTaskCategory: "产品",
+                    initialExistingCategorySearchQuery: "产品"
                 ))
             ),
             ("detail-analytics.png", .analytics, AnyView(MacAnalyticsDetailView())),
@@ -258,6 +258,16 @@ struct MacSnapshotRenderer {
             estimatedRounds: 1,
             accentHex: "#A78BFA"
         )
+
+        for index in 1...5 {
+            _ = store.addTask(
+                title: "日程范围任务 \(index)",
+                category: "产品",
+                dueDate: snapshotDueDate(12 + index / 4, (index % 4) * 15),
+                estimatedRounds: 1,
+                accentHex: index.isMultiple(of: 2) ? "#3DE8C5" : "#54A0FF"
+            )
+        }
 
         for index in 1...6 {
             _ = store.addTask(
