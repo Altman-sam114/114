@@ -126,7 +126,10 @@ struct MacSnapshotRenderer {
             .environmentObject(premium)
             .environmentObject(calendarSync)
             .environment(\.macSnapshotRendering, true)
-            .frame(width: 1100, height: 720)
+            .frame(
+                width: 1100,
+                height: detailPage.fileName == "detail-schedule.png" ? 1400 : 720
+            )
 
             try render(detailView, to: detailURL)
             try assertNonBlankImage(at: detailURL)

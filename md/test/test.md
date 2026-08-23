@@ -31,6 +31,7 @@
 - `selectedCategory`、`selectedDate`、`calendarMode` 或完整结果 identity/count 变化时必须恢复收起，即使新旧结果数量相同也不能复用旧展开状态；展开状态不持久化。
 - 真实控件和 `macSnapshotRendering` 静态路径必须具备相同动作文本与分类上下文；展开/收起控件至少 44pt，提供 VoiceOver label/value/hint 与 Voice Control input labels，并能适配 Dynamic Type。
 - 云端快照 fixture 需让正式 `detail-schedule.png` 经过一个超过 4 项的范围，证明首屏折叠和剩余数量；artifact manifest 仍只允许五张正式 PNG，临时 overflow 图不得进入正式清单。
+- 为避免日程面板被上方任务列表裁切，云端 `detail-schedule.png` 使用 1400pt 高画布；真实窗口布局不因快照高度改变，artifact manifest 仍只允许五张正式 PNG。
 - `Schedule calendar category context contracts verified.` 既有 marker 必须继续出现；源码合同应覆盖完整/派生数组、重置接线、数量、44pt 和辅助功能语义，既有 marker 缺失 negative fixture 只允许该合同失败；validator 复判对应 PASS。
 
 本轮不在本机执行测试、验证脚本、validator、Swift/Xcode 构建或配置检查。只接受最新 `origin/main` 的 GitHub Actions run、原始 API JSON、原始 ZIP 和 Agent C 第四模式复判，包含 Mac/iOS build、Mac core、JUnit `4/0/0`、五张快照与快照 manifest。
