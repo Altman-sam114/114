@@ -84,7 +84,7 @@ Agent A 写给 Agent B 的提示词必须明确：
 
 - v1.4.7：`md/prompt/v1（持续优化）/v1.4.7（CI失败结果包韧性）.md`。
 - 范围：CI 记录 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build、iOS build 七阶段 outcome；失败时通过 fallback manifest/index/stage/summary/JUnit 生成可识别未加密 artifact；validator 增加显式 `--failure-mode` 和 `--expected-event`，成功 profile 保持严格完整包合同。
-- 状态：v1.4.7 实现已由 `a4c0612`、`745a734` 推送；run `32635787639` 的 failure fixture 和 run `32636243203` 的 Final CI status 断言均未通过，不能作为验收证据。当前追加断言修复待推送，未运行任何本地测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；修复后仍需由 GitHub Actions 和 Agent C 复判正常 push 及受控 dispatch failure run。
+- 状态：v1.4.7 实现已由 `a4c0612`、`745a734`、`58c00f0` 推送；run `32635787639`、`32636243203` 和 `32636815884` 均未通过，后者暴露 prepare fallback 静态合同误匹配，不能作为验收证据。当前追加 `$GITHUB_ENV` 精确匹配修复待推送，未运行任何本地测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；修复后仍需由 GitHub Actions 和 Agent C 复判正常 push 及受控 dispatch failure run。
 
 - v1.4：`md/prompt/v1（持续优化）/v1.4（可启动待办一致性与Archive目录绑定）.md`。
 - UI 范围：日程保留停用任务展示，计时队列、计划启动、日程接力和 TimerEngine 使用统一的 startable 查询；空闲选择失效时回到自由专注，运行中/暂停中保留快照。

@@ -224,7 +224,8 @@
 
 - 当前仍未运行本地测试、validator、项目验证脚本、YAML 解析、Xcode、`xcodebuild`、`simctl` 或 Simulator；所有验证继续只走 GitHub Actions。
 - v1.4.7 已由 `a4c0612` 与 `745a734` 推送到 `origin/main`。run `32635787639` 暴露 failure fixture 的 index 绑定问题，run `32636243203` 的构建、结果包生成和上传成功，但 `verify_project` 因 Final CI status 断言误选摘要缺失保护分支的首个 `exit 1` 而失败；两份失败证据均不作为通过结论，artifact `9492280957` 保留。
-- 当前追加修复将让断言从七阶段失败条件之后定位对应出口，修复后的正常 push 与显式 `workflow_dispatch` failure profile 仍待云端验证。
+- 当前追加修复将让断言从七阶段失败条件之后定位对应出口；run `32636815884` 已证明该处修复生效，但随后暴露 prepare fallback 静态合同错误（裸赋值匹配不到 workflow 的 `$GITHUB_ENV` 写入），因此该 run 仍不通过且 artifact `9492559410` 只作失败证据保留。
+- 现追加精确匹配 `$GITHUB_ENV` 写入语句，修复后的正常 push 与显式 `workflow_dispatch` failure profile 仍待云端验证。
 
 遗留事项：
 

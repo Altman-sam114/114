@@ -114,7 +114,7 @@ final = step.call("Final CI status")
 
 raise "Checkout must have a stable id" unless checkout.match?(/^        id: checkout$/)
 raise "Checkout failure boundary missing" unless checkout.match?(/^        if: always\(\)$/) && checkout.match?(/^        continue-on-error: true$/) && checkout.match?(/^[[:space:]]+ref: \$\{\{ inputs\.failure_mode == 'checkout'/)
-raise "Prepare metadata fallback wiring missing" unless prepare.match?(/^        id: prepare_metadata$/) && prepare.match?(/^        if: always\(\)$/) && prepare.match?(/^        continue-on-error: true$/) && prepare.match?(/^[[:space:]]+FALLBACK_ARTIFACT_NAME=/)
+raise "Prepare metadata fallback wiring missing" unless prepare.match?(/^        id: prepare_metadata$/) && prepare.match?(/^        if: always\(\)$/) && prepare.match?(/^        continue-on-error: true$/) && prepare.include?('echo "FALLBACK_ARTIFACT_NAME=${fallback_artifact_name}" >> "$GITHUB_ENV"')
 raise "Select Xcode resilience wiring missing" unless select_xcode.match?(/^        id: select_xcode$/) && select_xcode.match?(/^        if: always\(\)$/) && select_xcode.match?(/^        continue-on-error: true$/)
 post_prepare.each do |body|
   raise "Post-prepare stage must always run and continue" unless body.match?(/^        if: always\(\)$/) && body.match?(/^        continue-on-error: true$/)
