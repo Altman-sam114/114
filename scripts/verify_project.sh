@@ -949,7 +949,7 @@ raise "Timer queue toggle VoiceOver modifiers missing" unless timer_queue_toggle
 raise "Timer queue toggle Voice Control modifier missing" unless timer_queue_toggle_source.include?(".accessibilityInputLabels(taskQueueToggleInputLabels)")
 raise "Timer queue toggle must remain available while running" if timer_queue_toggle_source.include?(".disabled(engine.isRunning)")
 raise "Timer queue must collapse when category changes" unless timer_picker_source.match?(/\.onChange\(of:\s*selectedTaskCategory\)\s*\{[^}]*isTaskQueueExpanded\s*=\s*false[^}]*\}/m)
-raise "Timer queue must collapse when filtered task count changes" unless timer_picker_source.match?(/\.onChange\(of:\s*filteredUpcomingTasks\.count\)\s*\{[^}]*isTaskQueueExpanded\s*=\s*false[^}]*\}/m)
+raise "Timer queue must collapse when filtered task identities change" unless timer_picker_source.match?(/\.onChange\(of:\s*filteredUpcomingTaskIDs\)\s*\{[^}]*isTaskQueueExpanded\s*=\s*false[^}]*\}/m) && timer_root_source.include?('filteredUpcomingTasks.map(\.id)')
 puts "Timer task queue expansion contracts verified."
 
 timer_task_badge = source_slice(
@@ -1892,7 +1892,7 @@ raise "Mac timer queue toggle titles missing" unless mac_task_queue_source.inclu
 raise "Mac timer queue toggle accessibility labels missing" unless mac_task_queue_source.include?("taskQueueToggleAccessibilityLabel") && mac_task_queue_source.include?("taskQueueToggleAccessibilityValue") && mac_task_queue_source.include?("taskQueueToggleAccessibilityHint") && mac_task_queue_source.include?("taskQueueToggleInputLabels")
 raise "Mac timer queue toggle 44pt target missing" unless mac_task_queue_source.include?(".frame(maxWidth: .infinity, minHeight: 44)")
 raise "Mac timer queue must collapse when category changes" unless mac_task_queue_source.match?(/\.onChange\(of:\s*selectedCategory\)\s*\{[^}]*isTaskQueueExpanded\s*=\s*false[^}]*\}/m)
-raise "Mac timer queue must collapse when filtered count changes" unless mac_task_queue_source.match?(/\.onChange\(of:\s*filteredTasks\.count\)\s*\{[^}]*isTaskQueueExpanded\s*=\s*false[^}]*\}/m)
+raise "Mac timer queue must collapse when filtered tasks change" unless mac_task_queue_source.match?(/\.onChange\(of:\s*filteredTasks\)\s*\{[^}]*isTaskQueueExpanded\s*=\s*false[^}]*\}/m)
 raise "Mac timer queue toggle labels must describe both states" unless mac_task_queue_source.include?("显示其余\\(hiddenTaskCount)项待办") && mac_task_queue_source.include?("已展开，显示全部 \\(filteredTasks.count) 项") && mac_task_queue_source.include?("收起后仅显示前 \\(collapsedTaskLimit) 项待办")
 mac_timer_queue_toggle_source = mac_task_queue_source[/if\s+filteredTasks\.count\s*>\s*collapsedTaskLimit[\s\S]*?\.accessibilityInputLabels\(taskQueueToggleInputLabels\)/]
 raise "Mac timer queue toggle accessibility source missing" unless mac_timer_queue_toggle_source

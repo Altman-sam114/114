@@ -116,6 +116,8 @@ Agent X 只负责主控调度，不改变每轮验证责任。每一个由 Agent
 
 ## 固定前缀 / 环境要求
 
+2026-09-26 起，云端 Static checks 在 fixture 前先执行 `for script in scripts/*.rb; do ruby -c "$script"; done` 和 `bash -n scripts/verify_project.sh`，避免 validator 语法错误延迟到正式复判。队列收起合同对应当前实现：iOS 观察筛选后的任务 ID，macOS 观察完整筛选任务内容，可覆盖数量未变但成员替换的情况；本机不执行这些检查。
+
 以下测试、YAML/配置解析、构建、simulator destination 和 validator 命令全部仅供 Actions runner 执行，不授权 C 或 B 在本机运行；本机只做读码、diff 审阅及 `gh` 取证。
 
 当前项目是 Xcode SwiftUI 工程，默认机器可能将 `xcode-select` 指向 Command Line Tools。运行 Xcode 构建时优先使用：

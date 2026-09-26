@@ -1425,8 +1425,8 @@ end
 check(checks, "failure summary package outcomes") do
   package_stages = stage_outcomes["packageStages"]
   package_stages.is_a?(Array) &&
-    summary.include?("- Bootstrap result package: `#{package_stages.find { |stage| stage[\"name\"] == \"bootstrap\" }&.fetch(\"outcome\", nil)}`") &&
-    summary.include?("- Create manifest: `#{package_stages.find { |stage| stage[\"name\"] == \"createManifest\" }&.fetch(\"outcome\", nil)}`")
+    summary.include?("- Bootstrap result package: `#{package_stages.find { |stage| stage['name'] == 'bootstrap' }&.fetch('outcome', nil)}`") &&
+    summary.include?("- Create manifest: `#{package_stages.find { |stage| stage['name'] == 'createManifest' }&.fetch('outcome', nil)}`")
 end
 check(checks, "failure summary identity") do
   [

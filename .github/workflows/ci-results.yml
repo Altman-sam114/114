@@ -160,6 +160,8 @@ jobs:
             ruby -e 'require "yaml"; Dir.glob(".github/workflows/*.{yml,yaml}").sort.each { |path| YAML.load_file(path) }; puts "all workflows yaml ok"'
 
             echo "Checking independent artifact review scripts..."
+            for script in scripts/*.rb; do ruby -c "$script"; done
+            bash -n scripts/verify_project.sh
             python3 -m py_compile scripts/review_ci_artifact.py scripts/test_review_ci_artifact.py
             python3 scripts/test_review_ci_artifact.py
           } 2>&1 | tee ci-results/static-checks.log
