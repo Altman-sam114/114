@@ -3703,7 +3703,7 @@ for label in [
     "iOS build",
 ]:
     summary = re.sub(
-        rf"^- {re.escape(label)}: `[^`]+`$",
+        rf"^- {re.escape(label)}: `(?:success|failure|cancelled|skipped|unknown)`$",
         f"- {label}: `skipped`",
         summary,
         flags=re.MULTILINE,

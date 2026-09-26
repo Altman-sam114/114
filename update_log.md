@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-09-27 Agent X 接续 v1.4.8：源 run `36234981654`（`b5b8ebc` / attempt 1）双端 build 与 Static checks 成功，Project verification 的 skipped-only 负向夹具同时触发 stage failure state 与 summary entries。根因是按标签替换 outcome 的正则误匹配同名日志路径。限定合法 outcome 枚举，保留原始日志入口及单失败断言，不修改 validator 接受条件。未运行本地测试，待当前修复 push 后云端验证；v1.4.9 及整体 UI 优化尚未开始。
+
 - 2026-09-26 Agent X 接续：按人工要求单会话顺序执行 A/B/C 阶段，不创建子智能体。先整合既有 v1.4.8 修复及独立 Actions 复判，再推进 v1.4.9 分类搜索与后续整体界面整理。已静态确认待提交修复与上一轮记录一致；`md/1.md` 和通用迁移提示词为既有用户笔记，不纳入提交。GitHub 当前活动账号为 `Altman-sam114`，main 已同步；不执行本地测试、构建、validator 或配置解析。
 
 - v1.4.8 退回修复已落盘，待整合 push 和云端验收（2026-09-08），尚未通过。主线程已完成 main 同步，基线为 `5df94397d3609dc891903274cf587f4000e3737b`；最新已知源 run `32653761542` / attempt `1` / `push` / `main` 为 failure。artifact 已过期且下载返回 410，不能正式验收；完整证据见本版本记录。历史通过记录不能替代当前 SHA 的云端结论。
