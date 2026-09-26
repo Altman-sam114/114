@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-trap 'status=$?; printf "verify_project failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2; exit "$status"' ERR
+report_verification_failure() {
+  local status="$1"
+  local line="$2"
+  local command_head="${3%%$'\n'*}"
+  printf "verify_project failed at line %s (exit code %s): %.240s\n" "$line" "$status" "$command_head" >&2
+  exit "$status"
+}
+trap 'report_verification_failure "$?" "$LINENO" "$BASH_COMMAND"' ERR
 
 if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -1075,7 +1082,7 @@ mac_quick_add_source = source_slice(
 raise "Mac quick add category helper missing fallback" unless mac_quick_add_source.include?("private var quickAddCategoryName: String") && mac_quick_add_source.include?("trimmedCategory.isEmpty ? \"未分类\" : trimmedCategory")
 raise "Mac quick add accessibility label missing category and rounds" unless mac_quick_add_source.include?("private var quickAddAccessibilityLabel: String") && mac_quick_add_source.include?("\"新增\\(quickAddCategoryName)分类待办，预计 \\(estimatedRounds) 轮\"")
 raise "Mac quick add Voice Control labels missing category context" unless mac_quick_add_source.include?("private var quickAddInputLabels: [Text]") && mac_quick_add_source.include?("Text(\"新增待办\")") && mac_quick_add_source.include?("Text(\"新增\\(quickAddCategoryName)分类待办\")") && mac_quick_add_source.include?("Text(\"新增\\(quickAddCategoryName)分类\")")
-raise "Mac quick add static button accessibility override missing" unless mac_quick_add_source.include?("MacStaticScheduleActionChipView(title: \"新增待办\", symbolName: \"plus\", tint: .cyan, isProminent: true, accessibilityLabelText: quickAddAccessibilityLabel)")
+raise "Mac quick add static button accessibility override missing" unless mac_quick_add_source.match?(/MacStaticScheduleActionChipView\(title: "新增待办",[^\n]*accessibilityLabelText: quickAddAccessibilityLabel(?:,|\))/)
 raise "Mac quick add button accessibility label missing" unless mac_quick_add_source.include?(".accessibilityLabel(quickAddAccessibilityLabel)")
 raise "Mac quick add button Voice Control labels missing" unless mac_quick_add_source.include?(".accessibilityInputLabels(quickAddInputLabels)")
 puts "Mac quick add action accessibility contracts verified."

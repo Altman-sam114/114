@@ -323,7 +323,7 @@ jobs:
               ("iosBuild", ios_build_outcome, "ci-results/ios-xcodebuild.log"),
           ]
           failure_pattern = re.compile(
-              r"(error:|BUILD FAILED|TEST FAILED|SnapshotError|missing-control|Traceback|Exception|fatal error|Command failed|exit code|No such file|not found|Unexpected|Invalid|appears blank|placeholder)",
+              r"(error:|RuntimeError|SyntaxError|AssertionError|BUILD FAILED|TEST FAILED|SnapshotError|missing-control|Traceback|Exception|fatal error|Command failed|exit code|No such file|not found|Unexpected|Invalid|appears blank|placeholder)",
               re.IGNORECASE,
           )
 

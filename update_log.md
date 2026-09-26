@@ -206,6 +206,8 @@
 
 2026-09-26 接续：`c6b7a11` 已推送，源 run `36234022099` / attempt 1 两端 build 成功，staticChecks 与 projectVerification 失败。云端日志明确指向 validator 字符串插值内非法反斜杠，以及旧队列合同仍只接受 count 观察而实际实现已观察任务身份/内容。本次修正 Ruby 语法、同步更强的队列变化合同，并在云端 Static checks 增加全部 Ruby 与入口 Bash 语法检查；未运行任何本地验证。
 
+追加修复：`33a84b7` / run `36234422353` 两端 build 与 Static checks 成功，projectVerification 的快速新增合同因增加对比文字色参数后仍要求旧调用完整字符串而失败。合同改为核对同一调用内的具名可访问参数；失败 trap 仅打印命令首行并限长，摘要加入 Ruby/断言异常类型，避免整个 heredoc 源码淹没真实失败。继续仅云端验证。
+
 核心变更：
 
 - 共享 `TaskCategoryPreset` / `FocusStore` 统一预设优先、首个同分类任务、session-only/fallback 的代表色规则，规范化分类比较并拒绝空/非法 HEX；iOS/macOS 分类筛选、摘要、空态、任务行、计划项、计时队列、统计和已有分类草稿复用同一查询，不新增持久化字段。
