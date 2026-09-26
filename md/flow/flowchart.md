@@ -47,7 +47,10 @@ flowchart TD
   H -->|暂停| I["pause<br/>保存 remainingWhenPaused<br/>取消完成通知"]
   I --> J["resume<br/>重算 endAt 并重新调度"]
   J --> E
-  H -->|停止| K["stop<br/>取消通知和 Live Activity<br/>必要时记录未完成会话"]
+  H -->|停止| K["stop<br/>取消通知和 Live Activity<br/>必要时记录未完成会话<br/>清空快照、解除活动任务写入保护"]
+  K --> IDLE["idle 修改回到 Store 正常入口<br/>停用/删除异步收敛为自由专注<br/>合法编辑保留可启动选择"]
+  H -->|编辑/停用/完成切换/删除活动任务| LOCK["FocusStore按activeTimer.taskID拒绝或过滤<br/>运行/暂停均保护任务与快照身份<br/>纯拒绝/无效删除不写数组、不重生计划<br/>mixed合法删除仍沿用计划更新"]
+  LOCK --> G
   H -->|完成| L["completeCurrentSession<br/>记录 FocusSession"]
   L --> M["专注模式更新任务轮次<br/>更新计划项和任务完成状态"]
   M --> N["按 completionSound 播放 App 内提示音/振动<br/>结束 Live Activity<br/>清空 activeTimer"]
@@ -124,7 +127,7 @@ flowchart LR
 
 ## Agent 迭代与云端验收流程
 
-读图说明：这张图描述当前默认协作方式。Agent C 分别无覆盖保存精确 workflow run API 和 artifacts API 原始 JSON，再用 artifacts 响应中的唯一 id 约束 ZIP 下载；两份 JSON 和 ZIP 都使用 `.part` 与原子改名，最终连同全新解包目录进入 validator 第四模式。
+读图说明：生产 workflow 先完成并上传结果包，独立 `ci-artifact-review.yml` 再执行正式第四模式。Actions 在 checkout 前核对授权源 run 和当前 main，原始 API/ZIP 与解包树隔离，下载前与出结论前复查 SHA/attempt；C 本机仅用 gh 取证及读码，不运行 validator。success 产品通过与明确受控 failure 证据链通过分开记录；图描述当前落盘接线，不表示 v1.4.8 已获云端通过。
 
 ```mermaid
 flowchart TD
@@ -147,15 +150,25 @@ flowchart TD
   RESULT -->|是| OK["run success"]
   RESULT -->|否| FAIL["run failure<br/>步骤日志直接包含失败摘要"]
   DISPATCH["workflow_dispatch<br/>failure_mode注入"] --> CI
-  DISPATCH -.仅显式复判.-> EXPECTED_EVENT["validator --failure-mode<br/>--expected-event workflow_dispatch<br/>不得伪装成 push"]
-  ART --> RUNAPI["精确run API原始JSON<br/>run-api.json.part -> run-api.json<br/>成功非空后无覆盖原子改名"]
-  RUNAPI --> API["artifacts API原始JSON<br/>artifacts-api.json.part -> artifacts-api.json<br/>结构化取得唯一artifact"]
+  DISPATCH -.包外登记.-> REG["源run-name绑定failure_mode输入<br/>API display_title与允许阶段一致<br/>jobs API确认job completed/failure及唯一completed目标步骤<br/>step conclusion可success/failure，不要求API step failure<br/>包内stage failure与API原始注入日志共同证明失败"]
+  OK --> REVIEW["独立ChronoFocus Artifact Review<br/>仅workflow_run: completed<br/>contents:read + actions:read<br/>其余权限none，不使用PAT/额外secret"]
+  FAIL --> REVIEW
+  REVIEW --> RUNAPI["checkout前精确源run API + 当前main + 事件<br/>run-api.json.part -> run-api.json<br/>成功非空后无覆盖原子改名"]
+  RUNAPI --> GATE{"来源与profile通过?<br/>授权actor/triggering actor/仓库<br/>源SHA等于当前main且attempt匹配"}
+  GATE -->|否| BACK
+  GATE -->|是| CHECKOUT["只checkout核对后的源SHA<br/>persist-credentials:false<br/>不执行解包代码、不恢复不可信缓存"]
+  CHECKOUT --> FRESH["下载前重查main SHA与源attempt<br/>变化即stale停止"]
+  FRESH --> API["artifacts API原始JSON<br/>artifacts-api.json.part -> artifacts-api.json<br/>结构化取得唯一未过期artifact"]
   API --> META["包外metadata安全与身份<br/>不超过1MiB、普通文件、非symlink<br/>run十四项 + artifact八项<br/>attempt与授权触发来源复判"]
   META --> DL["用同一artifact id下载<br/>写入.zip.part并有限重试<br/>默认拒绝覆盖或删除"]
-  DL --> ZIP["校验size、SHA-256、unzip -t<br/>全部通过后同文件系统原子改名<br/>解包到全新目录"]
-  ZIP --> C["Agent C validator第四模式<br/>success或显式failure profile<br/>解包目录+原始ZIP+两份原始API JSON<br/>run十四项+artifact八项+archive三项+目录绑定<br/>push/actor/triggering actor/head repository<br/>安全条目、逐路径类型/大小/SHA-256<br/>marker/PASS、manifest/stage与build"]
-  C --> V["核对最新 origin/main<br/>commitSha、run id、run attempt、branch=main<br/>run context无重复/无额外字段<br/>artifact 名称、日志和项目专属产物"]
-  V --> PASS{"验收通过?"}
+  DL --> ZIP["Actions校验size、SHA-256、ZIP CRC与安全条目<br/>全部通过后同文件系统无覆盖原子改名<br/>解包到全新extracted目录<br/>原始API/ZIP与该树隔离"]
+  ZIP --> CLOUD["仅Actions运行validator第四模式<br/>push success不带failure-mode<br/>登记dispatch failure显式failure-mode与expected-event<br/>完整archive/两份metadata/目录绑定<br/>失败push不得自动降级"]
+  REG -.受控failure附加门禁.-> CLOUD
+  CLOUD --> FINALCHECK["最终重查当前main SHA及源run/attempt<br/>漂移即stale，不接受过时绿色"]
+  FINALCHECK --> EVIDENCE["独立review evidence artifact<br/>原始API/ZIP/残留、validator日志、review-result与summary<br/>绑定source/review两套SHA/run/attempt<br/>不混入生产ci-results或index<br/>证据上传失败不接受"]
+  EVIDENCE --> C["Agent C本机仅gh取证及读码<br/>核对两套run、profile、artifact与云端validator结论<br/>不运行测试、validator或配置解析"]
+  C --> V["分别记录<br/>push success产品验收<br/>受控failure证据链通过但产品未通过<br/>拒绝/退回/stale"]
+  V --> PASS{"同一最新main两种证据齐备?"}
   PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]
   BACK --> FIX["main 追加修复 commit<br/>不回滚旧提交"]
   FIX --> PUSH
@@ -169,6 +182,8 @@ flowchart TD
 
 ## Agent X 主控循环
 
+人工要求单线程时，下图 A/B/C 表示同一会话顺序执行的职责阶段，不代表启动子智能体；设计、实现和云端取证仍逐项保留。
+
 读图说明：这张图描述人工用 `agentx:` 给出总目标后，Agent X 如何拆分轮次并调度 Agent A、Agent B、GitHub Actions 和 Agent C。Agent X 只做主控判断，不能跳过 Agent C 对最新 artifact 的验收；失败或阻塞时必须退回、暂停或停止，不能伪装成功继续下一轮。
 
 ```mermaid
@@ -179,7 +194,8 @@ flowchart TD
   A --> B["Agent B<br/>按提示词实现<br/>静态审阅、commit、push origin/main"]
   B --> CI["GitHub Actions<br/>ci-results.yml<br/>运行静态检查、verify_project、Mac/iOS build"]
   CI --> ART["最新未加密 artifact<br/>manifest、artifact index、run context、JUnit、failure summary/错误摘录、日志、xcresult、快照 manifest、项目产物"]
-  ART --> C["Agent C<br/>run/artifacts API JSON分别以.part无覆盖原子改名<br/>结构化核对run与唯一artifact身份<br/>同一id下载ZIP .part并有限重试<br/>以两份JSON、原始ZIP和全新解包目录第四模式复判"]
+  ART --> REVIEW["独立Actions正式第四模式<br/>completed事件、只读token、源身份门禁<br/>下载前/最终main SHA与attempt复查<br/>包外API/ZIP与解包树隔离<br/>push success与登记dispatch failure分开"]
+  REVIEW --> C["Agent C本机仅gh取证及读码<br/>读取独立review原始证据、日志与结论<br/>不本地执行validator<br/>核对source/review两套身份与当前main"]
   C --> X2["Agent X 读取 Agent C 结论<br/>只基于最新 origin/main artifact 判断"]
   X2 --> D{"下一步判断"}
   D -->|通过且总目标未完成| X1

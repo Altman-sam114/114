@@ -105,9 +105,10 @@ private struct MacMiniHeaderView: View {
                     .foregroundStyle(MacTheme.primaryText)
                     .frame(width: 28, height: 24)
                     .background(isShowingQuickPanel ? Color.white.opacity(0.18) : MacTheme.panel, in: Capsule())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .frame(width: 44, height: 44)
             .accessibilityLabel(isShowingQuickPanel ? "关闭快捷面板" : "打开快捷面板")
         }
     }
@@ -602,7 +603,8 @@ private struct MacMiniQuickPanelView: View {
         }
         .padding(14)
         }
-        .frame(width: 210, maxHeight: 410)
+        .frame(width: 210)
+        .frame(maxHeight: 410)
         .background(Color(red: 0.10, green: 0.14, blue: 0.20).opacity(0.98), in: RoundedRectangle(cornerRadius: 8))
         .overlay {
             RoundedRectangle(cornerRadius: 8)

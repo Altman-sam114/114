@@ -10,8 +10,8 @@
 - 支持暗色/亮色两套 UI，可在计时页右上角快速切换。
 - 自动化默认开启，专注、短休、长休会按设置连续流转。
 - 日程页改为日历/待办样式，可按日、周、月和分类查看；分类摘要可接力到计时并选择首个可启动待办，任务行可精确设为当前计时待办，两者都不会自动开始。日期格未筛选时显示该日期全量待办数，选中分类时只显示该分类在该日期的待办数；视觉计数与可访问标签使用同一分类上下文，并继续读出日期、待办数、已选中和非本月状态，支持日期 Voice Control 输入标签；待办行会显示支持分类名 Voice Control 输入标签的分类 badge，完成/启用/编辑/删除操作会读出任务名和分类，并支持任务名或分类名 Voice Control 输入标签，也可启用/停用、循环、到时间自动开启番茄钟。
-- 新增/编辑待办时可一键选择常用分类，也可从 `FocusStore.taskCategories` 派生的“已有分类”中复用自定义分类；已有分类会排除预设，以固定 locale 对清理后的名称做大小写、变音符号和宽度不敏感去重，并保持首次出现顺序。选项会按同一规范化键显示当前任务数量，仅来自历史会话时显示“历史”；数量只从 `store.tasks` 派生，不持久化也不参与排序。已有分类达到 6 个时提供独立即时搜索、结果数/总数、清除和无结果反馈，查询使用相同 folding 做名称子串匹配且只过滤显示。点击只更新表单分类与代表色草稿，优先沿用任务数组中首个同分类任务的颜色；仅来自历史会话的分类保留当前颜色，也不会立即保存。分类输入区域继续支持自由文本、当前上下文、非颜色选中指示、VoiceOver 和 Voice Control；保存、取消及筛选联动行为保持不变。
-- 分类代表色由共享规则统一派生：预设色优先，非预设取首个同分类任务的有效 3/6 位 HEX，只有历史会话或无效颜色时使用统一 fallback；选中分类背景按共享对比度规则选择文字，运行中计时 UI 固定使用活动快照色；iOS/macOS 的筛选 chip、摘要、空态、任务行、计划项、计时队列、统计和已有分类草稿复用同一查询，不新增持久化字段。
+- 新增/编辑待办时可一键选择常用分类，也可从 `FocusStore.taskCategories` 派生的“已有分类”中复用自定义分类；已有分类会排除预设，以固定 locale 对清理后的名称做大小写、变音符号和宽度不敏感去重，并保持首次出现顺序。选项会按同一规范化键显示当前任务数量，仅来自历史会话时显示“历史”；数量只从 `store.tasks` 派生，不持久化也不参与排序。已有分类达到 6 个时提供独立即时搜索、结果数/总数、清除和无结果反馈，查询使用相同 folding 做名称子串匹配且只过滤显示。点击只更新表单分类与代表色草稿，优先沿用任务数组中首个同分类任务的颜色；仅来自历史会话的分类使用统一 fallback，也不会立即保存。分类输入区域继续支持自由文本、当前上下文、非颜色选中指示、VoiceOver 和 Voice Control；保存、取消及筛选联动行为保持不变。
+- 分类代表色由共享规则统一派生：预设色优先，非预设取首个同分类任务的有效 3/6 位 HEX，只有历史会话或无效颜色时使用统一 fallback；选中分类背景以实际 `#FFFFFF` / `#111827` 相对亮度选择对比更高的文字（不保证所有背景均达 4.5:1），运行中计时 UI 固定使用活动快照色；iOS/macOS 的筛选 chip、摘要、空态、任务行、计划项、计时队列、统计和已有分类草稿复用同一查询，不新增持久化字段。
 - 分类筛选会优先展示当前范围内有待办的分类，选中分类后待办标题显示筛选数/总数；再次点击已选分类、点击“全部”或从筛选摘要清除都能退出筛选，VoiceOver 会读出已选状态和点击后的筛选/清除动作，分类 chip 也会暴露 selected trait，并提供分类名 Voice Control 指令标签；筛选摘要会读出可新增或清除动作，摘要新增/清除按钮也提供分类名可访问标签和 Voice Control 输入标签；若当前范围没有该分类待办，空态会直接提供“新增此分类”和“清除筛选”，减少在空分类间来回查找。
 - 计时页的当前日程也可按分类筛选：非空筛选态显示分类名、筛选数/总数，并提供“新增此分类”和“清除筛选”；无结果时只显示已有双操作空态，不叠加摘要。筛选态隐藏任务行中重复的视觉分类 badge，为标题和截止时间留出空间，但整行仍保留任务名、分类、选中/运行状态、提示、selected trait 和 Voice Control 语义；当前任务选择行及开始/继续/暂停/停止/跳过等计时主控也会读出当前任务和分类。
 - 待办支持“按轮次”和“只设开始”两种模式；只设开始的任务由用户手动完成，实际用时会计入统计。
@@ -30,11 +30,15 @@
 - 通知权限未授权时可在 App 内请求；用户拒绝后会引导到系统设置。
 - 所有核心数据使用 `UserDefaults` JSON 持久化，重启后可恢复。
 
+运行和暂停期间，当前活动任务的编辑、停用/完成切换及删除由 Store 拒绝或过滤，计时显示保持快照身份；停止后恢复正常修改入口。本轮删除 no-op guard 已落盘：纯活动/空/unknown 请求在数组修改或计划重生成前返回；合法 mixed batch 及仅命中非活动计划 taskID 的删除仍保留既有计划更新语义，尚待云端验证。
+
 ## 后台机制
 
 iOS 不允许普通计时器 App 长时间常驻后台执行。ChronoFocus 使用可恢复的结束时间、系统本地通知和 Live Activity 实现后台体验：开始专注后保存结束时间，切到后台时由系统通知负责到点提醒和铃声，锁屏/通知栏由 Live Activity 展示倒计时，回到 App 后按真实系统时间恢复状态。
 
 ## 打开方式
+
+以下为用户手动使用说明，不授权本轮 Agent 启动 Xcode、Simulator 或浏览器；本轮本机只做静态审阅和 `gh` 取证。
 
 使用 Xcode 打开 `ChronoFocus.xcodeproj`，选择 `ChronoFocus` scheme 后运行到 iOS 17+ 模拟器或真机。Live Activity 需要支持 ActivityKit 的设备和系统设置。
 
@@ -54,17 +58,21 @@ Pro 权益使用 StoreKit 2，iOS 和 macOS 共用商品 ID `com.example.ChronoF
 
 ## 云端验证（唯一测试路径）
 
+v1.4.8 退回修复已落盘，待整合 push 和云端验收，尚未通过。最新已知 main `5df94397d3609dc891903274cf587f4000e3737b` 的源 run `32653761542`（attempt `1`，push/main）失败：旧 semantic 合同失败、MacMini 非法 frame 引发 Mac 编译超时，iOS build success。artifact `9496921830` 已过期且下载 HTTP 410，不能正式验收；来源、size/digest 与保留目录见 `update_log.md`。后续必须分别取得同一最新 main 的 push success 产品验收与明确授权 dispatch failure 证据链验收，不能合称一次“CI 通过”。
+
 项目主结构验证入口仅由 GitHub Actions 执行，本机不得运行：
 
 ```bash
 bash scripts/verify_project.sh
 ```
 
-Agent C 的完整云端 artifact 复判支持 validator 第四模式：目录、原始 ZIP 三参数、`artifacts-api.json` 和 `run-api.json` 一起传入。精确 run 响应与 artifacts 响应都先写入全新唯一目录中的 `.part`，成功且非空后无覆盖原子改名；ZIP 也先下载为 `.zip.part`，核对 API size、SHA-256 和 ZIP 结构后才改名并解包。Validator 对 run API 复判既有十项身份/状态，并从 v1.2 起增加 push event、actor、triggering actor 和 head repository 四项授权来源。v1.4 起完整模式还逐路径绑定原始 ZIP 与 validator 自建临时解包树、比较类型/大小/SHA-256，拒绝 traversal、重复路径、前缀冲突、symlink 和特殊文件。
+独立 Actions 的正式云端 artifact 复判使用 validator 第四模式：目录、原始 ZIP 三参数、`artifacts-api.json` 和 `run-api.json` 一起传入。精确 run 响应与 artifacts 响应都先写入全新唯一目录中的 `.part`，成功且非空后无覆盖原子改名；ZIP 也先下载为 `.zip.part`，核对 API size、SHA-256 和 ZIP 结构后才改名并解包。Validator 对 run API 复判既有十项身份/状态，并从 v1.2 起增加 push event、actor、triggering actor 和 head repository 四项授权来源。v1.4 起完整模式还逐路径绑定原始 ZIP 与 validator 自建临时解包树、比较类型/大小/SHA-256，拒绝 traversal、重复路径、前缀冲突、symlink 和特殊文件。
 
-当前 CI 结果包记录 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build、iOS build 七个业务阶段，并在 manifest/index/stage 中额外绑定 `bootstrap` 与 `createManifest` 包阶段；失败时保留可识别的未加密 fallback 包和可用日志尾部，成功包的预期 index entries 全部标为 required，`prepare-metadata.log` 只在对应阶段失败时出现。成功包 required 路径缺失会让 finalizer 失败，recovery 自身缺少六项核心证据也会拒绝上传；fallback artifact 名称统一按 branch slug 生成，阶段摘要逐项绑定 outcome。若正常结果包 finalizer 失败，workflow 会在上传前由 `scripts/recover_ci_result_package.py` 重建身份、stage、manifest、summary、JUnit 和 index 一致的 fallback 包，恢复失败则不上传陈旧目录。artifact 上传发生在 `Final CI status` 之前，失败 job 仍返回 failure。成功包仍必须通过原有完整合同。失败包只能显式使用 `--failure-mode`，默认 run event 为授权 `push`；GitHub Actions 的受控 `workflow_dispatch` 失败必须额外传 `--expected-event workflow_dispatch`，不能把 dispatch 伪装为 push。所有测试、构建和结果包验收仍只由 GitHub Actions/`gh` 执行，本机不运行项目测试、validator、Xcode 或模拟器。
+当前 CI 结果包记录 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build、iOS build 七个业务阶段，并在 manifest/index/stage 中额外绑定 `bootstrap` 与 `createManifest` 包阶段；失败时保留可识别的未加密 fallback 包和可用日志尾部，成功包的预期 index entries 全部标为 required，`prepare-metadata.log` 只在对应阶段失败时出现。成功包 required 路径缺失会让 finalizer 失败，recovery 自身缺少六项核心证据也会拒绝上传；fallback artifact 名称统一按 branch slug 生成，阶段摘要逐项绑定 outcome。若正常结果包 finalizer 失败，workflow 会在上传前由 `scripts/recover_ci_result_package.py` 重建身份、stage、manifest、summary、JUnit 和 index 一致的 fallback 包，恢复失败则不上传陈旧目录。artifact 上传发生在 `Final CI status` 之前，失败 job 仍返回 failure。成功包仍必须通过原有完整合同。失败包只能显式使用 `--failure-mode`，默认 run event 为授权 `push`；GitHub Actions 的受控 `workflow_dispatch` 失败必须额外传 `--expected-event workflow_dispatch`，不能把 dispatch 伪装为 push。所有测试、构建及 validator 仅由 GitHub Actions 执行；C 本地 `gh` 只负责取证和读取云端结论，本机不运行项目测试、validator、Xcode 或模拟器。
 
 v1.4.8 的云端项目日志还必须包含 `Category appearance contracts verified.` 与 `Category breakdown normalization contracts verified.`；validator 同时复判代表色 marker、分类统计规范化 marker、package stage 字段、manifest/index required 条目、失败摘要和既有全部 UI/CI 合同。
+
+独立正式复判入口已在工作区落盘，尚待整合推送和云端验证：`.github/workflows/ci-artifact-review.yml` 响应生产 workflow 的 completed 事件，先核对授权来源/当前 main 再 checkout 源 SHA，运行 `scripts/review_ci_artifact.py` 完整第四模式。token 仅 `contents: read`、`actions: read`；下载前和最终结论前重查 main SHA/源 attempt，变化即 stale。原始 API/ZIP 与解包树隔离，独立 review evidence artifact 同时绑定 source/review 身份，不混入生产包。受控 failure 的输入由源 run title 登记并与阶段、jobs API、注入日志绑定；失败 push 不自动降级。具体云端命令和双 profile 完成条件见 `md/test/test.md`。
 
 以下构建和 simulator 命令仅记录 GitHub Actions 的云端执行入口，本机禁止执行：
 
@@ -74,13 +82,13 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
   -derivedDataPath /tmp/ChronoFocusMacDerivedData build
 ```
 
-需要本机定位 iOS 模拟器构建问题时，可先解析当前机器可用 destination：
+以下脚本仅供云端需要定位 iOS 模拟器 destination 时使用，本机禁止执行：
 
 ```bash
 ruby scripts/resolve_ios_simulator_destination.rb
 ```
 
-也可直接打印本机 iOS simulator build 命令：
+云端也可打印 runner 的 iOS simulator build 命令，本机禁止执行：
 
 ```bash
 ruby scripts/resolve_ios_simulator_destination.rb --print-build-command
@@ -144,20 +152,22 @@ v1.4.4 已为 macOS 计时详情队列增加 7 项默认折叠、完整筛选结
 
 `Final CI status` 会在判断七个业务阶段和 `bootstrap`/`createManifest` 两个包阶段 outcome 前，通过 `tee` 把现有 failure summary 同时写入步骤 stdout 和 Step Summary；失败 run 可直接从失败步骤日志查看同一摘要，artifact 中仍只保留原有 `ci-failure-summary.md`，不增加副本或清单项。正常 finalizer 失败时会先恢复一致的 fallback 结果包，恢复失败则不上传陈旧目录。
 
-下载 artifact 后可用脚本做结构化复判：
+以下是仅供 Actions 使用的正式第四模式命令；C 本机禁止执行，`REVIEW_DIR` 是 runner 全新证据目录，API JSON/原始 ZIP 与 `EXTRACTED_DIR` 解包树隔离：
 
 ```bash
-ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id>-<unique>/<artifact-directory> \
+ruby scripts/validate_ci_artifact.rb "$EXTRACTED_DIR" \
   --commit <origin-main-sha> \
   --run-id <run_id> \
   --attempt <run_attempt> \
-  --archive /private/tmp/chronofocus-c-review-<run_id>-<unique>/<artifact-name>.zip \
+  --archive "$REVIEW_DIR/<artifact-name>.zip" \
   --archive-size <api-size-in-bytes> \
   --archive-digest <api-sha256-digest> \
-  --artifact-metadata /private/tmp/chronofocus-c-review-<run_id>-<unique>/artifacts-api.json
+  --artifact-metadata "$REVIEW_DIR/artifacts-api.json" \
+  --run-metadata "$REVIEW_DIR/run-api.json" \
+  --branch main --expected-event push
 ```
 
-三个 archive 参数必须全有或全无；省略全部参数时保留目录-only 复判，只提供完整 archive 三参数时保持 v0.97 兼容，metadata 只能与完整 archive 参数组一起提供。Agent C 应将最新 run 的原始 API 响应先保存为全新目录中的 `artifacts-api.json.part`，成功且非空后无覆盖原子改名；metadata 文件必须非空、不超过 1 MiB、为普通文件且不是 symlink。随后用同一响应中的唯一 artifact id 下载 `.zip.part` 并有限重试；字节数、SHA-256 和 `unzip -t` 全部通过后，才在同一文件系统无覆盖原子改名为最终 ZIP。默认保留失败证据，不覆盖或删除 JSON、`.part`、ZIP、解包目录和缓存。
+正式验收必须使用上述完整第四模式，不能省略包外参数；以下较弱模式仅保留云端兼容 fixture：三个 archive 参数全有或全无，省略全部参数时保留目录-only 复判，只提供完整 archive 三参数时保持 v0.97 兼容，metadata 只能与完整 archive 参数组一起提供。Actions 正式下载链应将最新源 run 的两份原始 API 响应先保存为全新目录中的 `run-api.json.part`、`artifacts-api.json.part`，成功且非空后无覆盖原子改名；metadata 文件必须非空、不超过 1 MiB、为普通文件且不是 symlink。随后用同一响应中的唯一 artifact id 下载 `.zip.part` 并有限重试；字节数、SHA-256 和 ZIP CRC/安全结构全部通过后，才在同一文件系统无覆盖原子改名为最终 ZIP。默认保留失败证据，不覆盖或删除 JSON、`.part`、ZIP、解包目录和缓存。
 
 完整 metadata 模式会额外输出 `PASS artifact metadata response shape`、`PASS artifact metadata unique artifact`、`PASS artifact metadata id`、`PASS artifact metadata name`、`PASS artifact metadata byte count`、`PASS artifact metadata sha256 digest`、`PASS artifact metadata not expired` 和 `PASS artifact metadata workflow run` 八项检查。API 响应没有 `run_attempt` 字段，不能直接证明 attempt；attempt 仍由最新 workflow run、`--attempt`、artifact 名称及 manifest/index/run context 共同核对。
 

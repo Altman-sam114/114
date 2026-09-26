@@ -119,6 +119,26 @@ final = step.call("Final CI status")
 raise "Checkout must have a stable id" unless checkout.match?(/^        id: checkout$/)
 raise "Checkout failure boundary missing" unless checkout.match?(/^        if: always\(\)$/) && checkout.match?(/^        continue-on-error: true$/) && checkout.match?(/^[[:space:]]+ref: \$\{\{ inputs\.failure_mode == 'checkout'/)
 raise "Prepare metadata fallback wiring missing" unless prepare.match?(/^        id: prepare_metadata$/) && prepare.match?(/^        if: always\(\)$/) && prepare.match?(/^        continue-on-error: true$/) && prepare.include?('echo "FALLBACK_ARTIFACT_NAME=${fallback_artifact_name}" >> "$GITHUB_ENV"')
+prepare_evidence_checks = {
+  "Prepare metadata strict bash" => ->(body) { body.match?(/^        shell: bash$/) && body.match?(/^          set -euo pipefail$/) },
+  "Prepare metadata injection stdout and file evidence" => ->(body) {
+    body.match?(/^          if \[\[ "\$FAILURE_INJECTION" == "prepareMetadata" \]\]; then\n            mkdir -p ci-results\n            printf 'Controlled failure injection: prepareMetadata\\n' \| tee ci-results\/prepare-metadata\.log\n            exit 91\n          fi$/)
+  }
+}
+prepare_failures = prepare_evidence_checks.map { |name, check| name unless check.call(prepare) }.compact
+raise "Prepare metadata evidence contracts failed: #{prepare_failures.join(', ')}" unless prepare_failures.empty?
+[
+  ["| tee ci-results/prepare-metadata.log", "> ci-results/prepare-metadata.log", "file-only"],
+  [" | tee ci-results/prepare-metadata.log", "", "stdout-only"],
+  ["| tee ci-results/prepare-metadata.log", "| tee ci-results/prepare-metadata.log > /dev/null", "suppressed-stdout"],
+  ["exit 91", "exit 0", "successful-exit"]
+].each do |before, after, label|
+  raise "Ambiguous prepare metadata mutation: #{label}" unless prepare.scan(Regexp.new(Regexp.escape(before))).length == 1
+  mutated = prepare.sub(before, after)
+  failures = prepare_evidence_checks.map { |name, check| name unless check.call(mutated) }.compact
+  raise "Prepare metadata #{label} mutation rejected by #{failures.inspect}" unless failures == ["Prepare metadata injection stdout and file evidence"]
+  puts "PASS source mutation isolation: prepare metadata #{label}"
+end
 raise "Select Xcode resilience wiring missing" unless select_xcode.match?(/^        id: select_xcode$/) && select_xcode.match?(/^        if: always\(\)$/) && select_xcode.match?(/^        continue-on-error: true$/)
 post_prepare.each do |body|
   raise "Post-prepare stage must always run and continue" unless body.match?(/^        if: always\(\)$/) && body.match?(/^        continue-on-error: true$/)
@@ -396,6 +416,20 @@ def assert_slice_contains(path, earlier, later, pattern, message)
   segment = source_slice(path, earlier, later, message)
   matched = pattern.is_a?(Regexp) ? segment.match?(pattern) : segment.include?(pattern)
   raise message unless matched
+end
+
+# Mutate only in-memory source slices; every other assertion in the group must pass.
+def verify_source_contracts(sources, checks, mutations)
+  failures = checks.map { |name, check| name unless check.call(sources) }.compact
+  raise "Source contracts failed: #{failures.join(', ')}" unless failures.empty?
+  mutations.each do |key, before, after, expected|
+    source = sources.fetch(key)
+    raise "Ambiguous mutation for #{expected}" unless source.scan(Regexp.new(Regexp.escape(before))).length == 1
+    mutated = sources.merge(key => source.sub(before, after))
+    failures = checks.map { |name, check| name unless check.call(mutated) }.compact
+    raise "Mutation #{expected} rejected by #{failures.inspect}" unless failures == [expected]
+    puts "PASS source mutation isolation: #{expected}"
+  end
 end
 
 def assert_chip_accessibility(path, chip_name, later)
@@ -677,22 +711,49 @@ schedule_task_list_source = source_slice(
   "private struct TaskCategoryFilterBar",
   "Schedule task list source missing"
 )
+schedule_source = File.read("ChronoFocus/Views/ScheduleView.swift")
+semantic_sources = {
+  parent_title: segment_slice(schedule_source, "private func semanticTaskTitle", "private func semanticTaskCategory", "Schedule title helper missing"),
+  parent_category: segment_slice(schedule_source, "private func semanticTaskCategory", "private var addTaskAccessibilityLabel", "Schedule category helper missing"),
+  cell_title: segment_slice(schedule_task_cell, "private var semanticTitle", "private var semanticCategory", "Cell title helper missing"),
+  cell_category: segment_slice(schedule_task_cell, "private var semanticCategory", "private var isActiveTask", "Cell category helper missing"),
+  snapshot: segment_slice(schedule_source, "private var activeTimerSnapshot", "private func semanticTaskTitle", "Schedule snapshot source missing"),
+  cell_call: segment_slice(schedule_task_list_source, "ScheduleTaskCell(", ".swipeActions", "Schedule cell wiring missing")
+}
+semantic_checks = {
+  "schedule snapshot source" => ->(s) { s[:snapshot].match?(/\{\s*store\.activeTimer\s*\}\s*\z/) },
+  "schedule snapshot injection" => ->(s) { s[:cell_call].include?("activeTimerSnapshot: activeTimerSnapshot") }
+}
+semantic_mutations = [
+  [:snapshot, "store.activeTimer", "nil", "schedule snapshot source"],
+  [:cell_call, "activeTimerSnapshot: activeTimerSnapshot", "activeTimerSnapshot: nil", "schedule snapshot injection"]
+]
+{parent_title: ["title", "taskTitle"], cell_title: ["title", "taskTitle"], parent_category: ["category", "category"], cell_category: ["category", "category"]}.each do |key, (task_field, snapshot_field)|
+  name = "#{key} snapshot priority and idle fallback"
+  semantic_checks[name] = ->(s) {
+    s.fetch(key).match?(/\{\s*guard let snapshot = activeTimerSnapshot, snapshot\.taskID == task\.id else \{ return task\.#{task_field} \}\s*return snapshot\.#{snapshot_field}\s*\}\s*\z/)
+  }
+  semantic_mutations << [key, "return snapshot.#{snapshot_field}", "return task.#{task_field}", name]
+  semantic_mutations << [key, "snapshot.taskID == task.id", "snapshot.taskID != task.id", name]
+end
+verify_source_contracts(semantic_sources, semantic_checks, semantic_mutations)
+
 raise "Schedule task cell category preset missing" unless schedule_task_cell.include?("TaskCategoryPreset.matching(task.category)")
 raise "Schedule task cell category symbol missing" unless schedule_task_cell.include?("private var categorySymbolName")
 raise "Schedule task cell category badge missing" unless schedule_task_cell.include?("Label(task.category, systemImage: categorySymbolName)")
 raise "Schedule task cell category accessibility label missing" unless schedule_task_cell.include?(".accessibilityLabel(\"\\(task.category)分类\")")
 raise "Schedule task cell category Voice Control input labels missing" unless schedule_task_cell.include?(".accessibilityInputLabels([Text(task.category), Text(\"\\(task.category)分类\")])")
 raise "Schedule task cell must keep due date as secondary metadata" unless schedule_task_cell.include?("if let dueDate = task.dueDate") && schedule_task_cell.include?("dueDate.scheduleTimeText")
-raise "Schedule task completion action accessibility label missing category" unless schedule_task_cell.include?("task.isDone ? \"标记\\(task.title)待办未完成，\\(task.category)分类\" : \"完成\\(task.title)待办，\\(task.category)分类\"")
-raise "Schedule task completion action Voice Control labels missing category" unless schedule_task_cell.include?("Text(task.isDone ? \"标记\\(task.category)分类\\(task.title)未完成\" : \"完成\\(task.category)分类\\(task.title)\")") && schedule_task_cell.include?("Text(task.isDone ? \"\\(task.category)分类\\(task.title)未完成\" : \"\\(task.category)分类\\(task.title)完成\")")
-raise "Schedule task enable action accessibility label missing category" unless schedule_task_cell.include?("task.isEnabled ? \"停用\\(task.title)待办，\\(task.category)分类\" : \"启用\\(task.title)待办，\\(task.category)分类\"")
-raise "Schedule task enable action Voice Control labels missing category" unless schedule_task_cell.include?("Text(task.isEnabled ? \"停用\\(task.category)分类\\(task.title)\" : \"启用\\(task.category)分类\\(task.title)\")") && schedule_task_cell.include?("Text(task.isEnabled ? \"\\(task.category)分类\\(task.title)停用\" : \"\\(task.category)分类\\(task.title)启用\")")
-raise "Schedule task edit action accessibility label missing category" unless schedule_task_cell.include?("\"编辑\\(task.title)待办，\\(task.category)分类\"")
-raise "Schedule task edit action Voice Control labels missing category" unless schedule_task_cell.include?("Text(\"编辑\\(task.category)分类\\(task.title)\")") && schedule_task_cell.include?("Text(\"\\(task.category)分类\\(task.title)编辑\")")
-raise "Schedule task swipe edit accessibility label missing category" unless schedule_task_list_source.include?(".accessibilityLabel(\"编辑\\(task.title)待办，\\(task.category)分类\")")
-raise "Schedule task swipe edit Voice Control labels missing category" unless schedule_task_list_source.include?("Text(\"编辑\\(task.category)分类\\(task.title)\")") && schedule_task_list_source.include?("Text(\"\\(task.category)分类\\(task.title)编辑\")")
-raise "Schedule task swipe delete accessibility label missing category" unless schedule_task_list_source.include?(".accessibilityLabel(\"删除\\(task.title)待办，\\(task.category)分类\")")
-raise "Schedule task swipe delete Voice Control labels missing category" unless schedule_task_list_source.include?("Text(\"删除\\(task.category)分类\\(task.title)\")") && schedule_task_list_source.include?("Text(\"\\(task.category)分类\\(task.title)删除\")")
+raise "Schedule task completion action accessibility label missing category" unless schedule_task_cell.include?("task.isDone ? \"标记\\(semanticTitle)待办未完成，\\(semanticCategory)分类\" : \"完成\\(semanticTitle)待办，\\(semanticCategory)分类\"") && schedule_task_cell.include?(".accessibilityLabel(completionAccessibilityLabel)")
+raise "Schedule task completion action Voice Control labels missing category" unless schedule_task_cell.include?("Text(task.isDone ? \"标记\\(semanticCategory)分类\\(semanticTitle)未完成\" : \"完成\\(semanticCategory)分类\\(semanticTitle)\")") && schedule_task_cell.include?("Text(task.isDone ? \"\\(semanticCategory)分类\\(semanticTitle)未完成\" : \"\\(semanticCategory)分类\\(semanticTitle)完成\")") && schedule_task_cell.include?(".accessibilityInputLabels(completionInputLabels)")
+raise "Schedule task enable action accessibility label missing category" unless schedule_task_cell.include?("task.isEnabled ? \"停用\\(semanticTitle)待办，\\(semanticCategory)分类\" : \"启用\\(semanticTitle)待办，\\(semanticCategory)分类\"") && schedule_task_cell.include?(".accessibilityLabel(enableAccessibilityLabel)")
+raise "Schedule task enable action Voice Control labels missing category" unless schedule_task_cell.include?("Text(task.isEnabled ? \"停用\\(semanticCategory)分类\\(semanticTitle)\" : \"启用\\(semanticCategory)分类\\(semanticTitle)\")") && schedule_task_cell.include?("Text(task.isEnabled ? \"\\(semanticCategory)分类\\(semanticTitle)停用\" : \"\\(semanticCategory)分类\\(semanticTitle)启用\")") && schedule_task_cell.include?(".accessibilityInputLabels(enableInputLabels)")
+raise "Schedule task edit action accessibility label missing category" unless schedule_task_cell.include?("\"编辑\\(semanticTitle)待办，\\(semanticCategory)分类\"") && schedule_task_cell.include?(".accessibilityLabel(editAccessibilityLabel)")
+raise "Schedule task edit action Voice Control labels missing category" unless schedule_task_cell.include?("Text(\"编辑\\(semanticCategory)分类\\(semanticTitle)\")") && schedule_task_cell.include?("Text(\"\\(semanticCategory)分类\\(semanticTitle)编辑\")") && schedule_task_cell.include?(".accessibilityInputLabels(editInputLabels)")
+raise "Schedule task swipe edit accessibility label missing category" unless schedule_task_list_source.include?(".accessibilityLabel(\"编辑\\(semanticTaskTitle(task))待办，\\(semanticTaskCategory(task))分类\")")
+raise "Schedule task swipe edit Voice Control labels missing category" unless schedule_task_list_source.include?("Text(\"编辑\\(semanticTaskCategory(task))分类\\(semanticTaskTitle(task))\")") && schedule_task_list_source.include?("Text(\"\\(semanticTaskCategory(task))分类\\(semanticTaskTitle(task))编辑\")")
+raise "Schedule task swipe delete accessibility label missing category" unless schedule_task_list_source.include?(".accessibilityLabel(\"删除\\(semanticTaskTitle(task))待办，\\(semanticTaskCategory(task))分类\")")
+raise "Schedule task swipe delete Voice Control labels missing category" unless schedule_task_list_source.include?("Text(\"删除\\(semanticTaskCategory(task))分类\\(semanticTaskTitle(task))\")") && schedule_task_list_source.include?("Text(\"\\(semanticTaskCategory(task))分类\\(semanticTaskTitle(task))删除\")")
 
 pomodoro_plan_row = File.read("ChronoFocus/Views/ScheduleView.swift")[/private struct PomodoroPlanRow[\s\S]*\z/]
 raise "PomodoroPlanRow source missing" unless pomodoro_plan_row
@@ -1073,6 +1134,15 @@ category_appearance_store_source = File.read("ChronoFocus/Services/FocusStore.sw
 raise "Category appearance fallback missing" unless category_appearance_model_source.include?("static let fallbackAccentHex = \"#3DE8C5\"") && category_appearance_model_source.include?("static func accentHex(for category: String, preferred: String? = nil)") && category_appearance_model_source.include?("static func contrastTextHex(on value: String?) -> String")
 raise "Category filter option representative color storage missing" unless category_appearance_model_source.include?("let accentHex: String") && category_appearance_model_source.include?("accentHex: accentProvider(category)")
 raise "FocusStore representative category color query missing" unless category_appearance_store_source.include?("func representativeAccentHex(for category: String, preferred: String? = nil)") && category_appearance_store_source.include?("TaskCategoryPreset.matching(category)") && category_appearance_store_source.include?("for task in tasks where Self.categoryComparisonKey(for: task.category) == categoryKey") && category_appearance_store_source.include?("TaskCategoryPreset.usableAccentHex(task.accentHex)")
+appearance_query = segment_slice(category_appearance_store_source, "func representativeAccentHex", "func categoryMatches", "Representative color query declaration missing")
+appearance_check = ->(s) {
+  s[:query].match?(/\{\s*if let preset = TaskCategoryPreset\.matching\(category\)\s*\{\s*return preset\.accentHex\s*\}\s*let categoryKey = Self\.categoryComparisonKey\(for: category\)\s*for task in tasks where Self\.categoryComparisonKey\(for: task\.category\) == categoryKey\s*\{\s*if let accentHex = TaskCategoryPreset\.usableAccentHex\(task\.accentHex\)\s*\{\s*return accentHex\s*\}\s*\}\s*if sessions\.contains\(where: \{ Self\.categoryComparisonKey\(for: \$0\.category\) == categoryKey \}\)\s*\{\s*return TaskCategoryPreset\.fallbackAccentHex\s*\}\s*return TaskCategoryPreset\.accentHex\(for: category, preferred: preferred\)\s*\}\s*\z/)
+}
+verify_source_contracts({query: appearance_query}, {"representative color priority and purity" => appearance_check}, [
+  [:query, "return preset.accentHex", "return preferred ?? preset.accentHex", "representative color priority and purity"],
+  [:query, "for task in tasks where", "for task in tasks.reversed() where", "representative color priority and purity"],
+  [:query, "return accentHex", "tasks.removeAll()\n                return accentHex", "representative color priority and purity"]
+])
 raise "Category breakdown must reuse representative color" unless category_appearance_store_source.include?("let accent = representativeAccentHex(for: category)")
 [
   File.read("ChronoFocus/Views/ScheduleView.swift"),
@@ -1087,7 +1157,25 @@ raise "Category breakdown must reuse representative color" unless category_appea
 end
 raise "iOS category filter representative color provider missing" unless File.read("ChronoFocus/Views/ScheduleView.swift").include?("accentProvider: { category in store.representativeAccentHex(for: category) }") && File.read("ChronoFocus/Views/TimerView.swift").include?("accentProvider: { category in store.representativeAccentHex(for: category) }")
 raise "Mac category filter representative color provider missing" unless File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift").include?("accentProvider: { category in store.representativeAccentHex(for: category) }")
-raise "Running timer UI must use the persisted snapshot accent" unless File.read("ChronoFocus/Views/TimerView.swift").include?("if let snapshot = store.activeTimer") && File.read("ChronoFocus/Views/TimerView.swift").include?("Color(hex: snapshot.tintHex)") && File.read("ChronoFocusMac/Views/MacTimerDetailView.swift").include?("if let snapshot = store.activeTimer") && File.read("ChronoFocusMac/Views/MacMiniTimerView.swift").include?("if let snapshot = store.activeTimer")
+[
+  "ChronoFocus/Views/TimerView.swift",
+  "ChronoFocusMac/Views/MacTimerDetailView.swift",
+  "ChronoFocusMac/Views/MacMiniTimerView.swift"
+].each do |path|
+  source = File.read(path)
+  tint = segment_slice(source, "private var currentTintHex: String", "private var currentTint: Color", "#{path} tint source missing")
+  color = source[/private var currentTint: Color\s*\{[^}]*\}/]
+  name = "#{path} snapshot tint priority"
+  checks = {
+    name => ->(s) { s[:tint].match?(/\{\s*if let snapshot = store\.activeTimer\s*\{\s*return snapshot\.tintHex\s*\}\s*if let task = store\.task\(for: engine\.selectedTaskID\)\s*\{\s*return store\.representativeAccentHex\(for: task\.category\)\s*\}\s*return engine\.mode\.tintHex\s*\}\s*\z/) },
+    "#{path} tint rendering" => ->(s) { s[:color]&.match?(/\{\s*Color\(hex: currentTintHex\)\s*\}/) }
+  }
+  raise "Running timer UI must use the persisted snapshot accent" unless checks.values.all? { |check| check.call(tint: tint, color: color) }
+  verify_source_contracts({tint: tint, color: color}, checks, [
+    [:tint, "return snapshot.tintHex", "return engine.mode.tintHex", name],
+    [:tint, "if let snapshot = store.activeTimer", "if engine.isRunning && !engine.isPaused, let snapshot = store.activeTimer", name]
+  ])
+end
 [
   File.read("ChronoFocus/Views/ScheduleView.swift"),
   File.read("ChronoFocus/Views/TimerView.swift"),
@@ -1097,7 +1185,57 @@ raise "Running timer UI must use the persisted snapshot accent" unless File.read
 end
 puts "Category appearance contracts verified."
 
+engine_source = File.read("ChronoFocus/Services/TimerEngine.swift")
+activity_source = File.read("ChronoFocus/Services/LiveActivityService.swift")
+snapshot_surface_sources = {
+  restore: segment_slice(engine_source, "private func restoreFromStore()", "private func apply(", "Engine restore declaration missing"),
+  apply: segment_slice(engine_source, "private func apply(", "private func startTicker()", "Engine snapshot apply missing"),
+  content: function_slices_matching(activity_source, "contentState").first,
+  start: segment_slice(activity_source, "func start(for snapshot:", "func update(with snapshot:", "Live Activity start missing"),
+  update: segment_slice(activity_source, "func update(with snapshot:", "func end(immediate:", "Live Activity update missing")
+}
+snapshot_surface_checks = {
+  "restore preserves valid snapshot tint" => ->(s) { s[:restore].match?(/let normalizedTint = TaskCategoryPreset\.usableAccentHex\(snapshot\.tintHex\) \?\? fallbackTint\s*if snapshot\.tintHex != normalizedTint\s*\{\s*snapshot\.tintHex = normalizedTint\s*store\.activeTimer = snapshot\s*\}/) && s[:restore].include?("apply(snapshot)") },
+  "restore applies snapshot identity" => ->(s) { s[:apply].match?(/\{\s*mode = snapshot\.mode\s*selectedTaskID = snapshot\.taskID\s*currentTaskTitle = snapshot\.taskTitle\s*plannedSeconds = snapshot\.plannedSeconds\s*roundIndex = snapshot\.roundIndex\s*isRunning = true\s*isPaused = snapshot\.isPaused/) },
+  "Live Activity snapshot content" => ->(s) { s[:content]&.match?(/\{\s*PomodoroActivityAttributes\.ContentState\(\s*modeName: snapshot\.mode\.title,\s*taskTitle: snapshot\.taskTitle,\s*endDate: snapshot\.endAt,\s*tintHex: snapshot\.tintHex,\s*isPaused: snapshot\.isPaused,\s*remainingSeconds: snapshot\.remainingWhenPaused\s*\)\s*\}\z/) },
+  "Live Activity start snapshot injection" => ->(s) { s[:start].match?(/let state = contentState\(for: snapshot\)\s*let content = ActivityContent\(\s*state: state,/) && s[:start].include?("content: content,") },
+  "Live Activity update snapshot injection" => ->(s) { s[:update].match?(/var updated = snapshot\s*updated\.remainingWhenPaused = remainingSeconds\s*let state = contentState\(for: updated\)\s*await activity\.update\(\s*ActivityContent\(\s*state: state,/) }
+}
+verify_source_contracts(snapshot_surface_sources, snapshot_surface_checks, [
+  [:restore, "TaskCategoryPreset.usableAccentHex(snapshot.tintHex) ?? fallbackTint", "fallbackTint", "restore preserves valid snapshot tint"],
+  [:apply, "currentTaskTitle = snapshot.taskTitle", "currentTaskTitle = store.task(for: snapshot.taskID)?.title ?? snapshot.taskTitle", "restore applies snapshot identity"],
+  [:content, "tintHex: snapshot.tintHex", "tintHex: snapshot.mode.tintHex", "Live Activity snapshot content"],
+  [:content, "taskTitle: snapshot.taskTitle", "taskTitle: snapshot.mode.title", "Live Activity snapshot content"],
+  [:start, "state: state,", "state: otherState,", "Live Activity start snapshot injection"],
+  [:update, "state: state,", "state: otherState,", "Live Activity update snapshot injection"]
+])
+
 raise "Category breakdown normalization missing" unless category_appearance_store_source.include?("displayNamesByKey") && category_appearance_store_source.include?("sessionsByKey") && category_appearance_store_source.include?("categoryOrder") && category_appearance_store_source.include?("Self.normalizedCategory(session.category)")
+normalization_sources = {
+  key: segment_slice(category_appearance_model_source, "static func categoryComparisonKey", "static func categoriesMatch", "Shared category key missing"),
+  match: segment_slice(category_appearance_model_source, "static func categoriesMatch", "static func accentHex", "Shared category match missing"),
+  store_key: segment_slice(category_appearance_store_source, "private static func categoryComparisonKey", "private static func uniqueCategories", "Store category key missing"),
+  store_match: segment_slice(category_appearance_store_source, "func categoryMatches", "@discardableResult", "Store category match missing")
+}
+normalization_checks = {
+  "shared category normalization" => ->(s) {
+    s[:key].match?(/\{\s*let normalizedCategory = category\.trimmingCharacters\(in: \.whitespacesAndNewlines\)\s*let displayName = normalizedCategory\.isEmpty \? "未分类" : normalizedCategory\s*return displayName\.folding\(\s*options: \[\.caseInsensitive, \.diacriticInsensitive, \.widthInsensitive\],\s*locale: Locale\(identifier: "en_US_POSIX"\)\s*\)\s*\}\s*\z/)
+  },
+  "shared category match delegation" => ->(s) { s[:match].match?(/\{\s*categoryComparisonKey\(for: lhs\) == categoryComparisonKey\(for: rhs\)\s*\}\s*\z/) },
+  "store category key delegation" => ->(s) { s[:store_key].match?(/\{\s*TaskCategoryPreset\.categoryComparisonKey\(for: category\)\s*\}\s*\z/) },
+  "store category match delegation" => ->(s) { s[:store_match].match?(/\{\s*Self\.categoryComparisonKey\(for: lhs\) == Self\.categoryComparisonKey\(for: rhs\)\s*\}\s*\z/) }
+}
+verify_source_contracts(normalization_sources, normalization_checks, [
+  [:key, ".widthInsensitive", ".literal", "shared category normalization"],
+  [:key, '"en_US_POSIX"', '"en_US"', "shared category normalization"],
+  [:match, "categoryComparisonKey(for: lhs) == categoryComparisonKey(for: rhs)", "lhs == rhs", "shared category match delegation"],
+  [:store_key, "TaskCategoryPreset.categoryComparisonKey(for: category)", "category", "store category key delegation"],
+  [:store_match, "Self.categoryComparisonKey(for: lhs) == Self.categoryComparisonKey(for: rhs)", "lhs == rhs", "store category match delegation"]
+])
+mac_key_source = source_slice("ChronoFocusMac/Views/MacScheduleDetailView.swift", "private func macCategoryComparisonKey", "private func macExistingCategorySearchKey", "Mac category key declaration missing")
+verify_source_contracts({key: mac_key_source}, {
+  "Mac category key delegation" => ->(s) { s[:key].match?(/\{\s*TaskCategoryPreset\.categoryComparisonKey\(for: category\)\s*\}\s*\z/) }
+}, [[:key, "TaskCategoryPreset.categoryComparisonKey(for: category)", "category", "Mac category key delegation"]])
 puts "Category breakdown normalization contracts verified."
 
 ios_existing_category_source = source_slice(
@@ -1132,7 +1270,16 @@ raise "Mac existing category selection must only update form drafts" unless mac_
 ios_select_source = segment_slice(ios_existing_category_source, "private func selectExistingCategory", "private func save()", "iOS existing category selection source missing")
 mac_select_source = segment_slice(mac_existing_category_source, "private func selectExistingCategory", "private func prepareQuickAdd(at date:", "Mac existing category selection source missing")
 for source, platform in [[ios_select_source, "iOS"], [mac_select_source, "Mac"]]
-  raise "#{platform} existing category selection must not persist or dismiss" if source.match?(/store\.|save\(|dismiss\(|addTask\(|updateTask\(/)
+  allowed_body = platform == "iOS" ?
+    /\Aprivate func selectExistingCategory\(_ option: ExistingCategoryOption\)\s*\{\s*category = option\.name\s*accentHex = store\.representativeAccentHex\(for: option\.name\)\s*\}\s*\z/ :
+    /\Aprivate func selectExistingCategory\(_ option: MacExistingCategoryOption\)\s*\{\s*category = option\.displayName\s*if let representativeAccentHex = option\.representativeAccentHex\s*\{\s*accentHex = representativeAccentHex\s*\}\s*\}\s*\z/
+  name = "#{platform} existing category selection must not persist or dismiss"
+  check = ->(s) { s[:selection].match?(allowed_body) }
+  raise name unless check.call(selection: source)
+  mutations = ["store.tasks.removeAll()", "store.settings.focusMinutes = 1", "save()", "dismiss()", "store.addTask(title: category)", "otherSideEffect()"].map do |statement|
+    [:selection, "category = option.", "#{statement}\n        category = option.", name]
+  end
+  verify_source_contracts({selection: source}, {name => check}, mutations)
 end
 raise "iOS existing category selected state must use normalized identity" unless ios_existing_category_source.include?("categoryComparisonKey(for: category) == option.comparisonKey")
 raise "Mac existing category selected state must use normalized identity" unless mac_existing_category_source.include?("macCategoryComparisonKey(selectedCategory) == option.comparisonKey")
@@ -1336,9 +1483,9 @@ raise "iOS task row timer handoff action missing" unless ios_schedule_handoff_so
 raise "iOS timer handoff action eligibility guard missing" unless ios_schedule_handoff_source.include?("task.isDone") && ios_schedule_handoff_source.include?("task.isEnabled")
 raise "iOS timer handoff minimum tap target missing" unless ios_schedule_handoff_source.match?(/转到计时[\s\S]{0,700}?\.frame\([^\n]*minHeight:\s*44/)
 raise "iOS category timer handoff accessibility label missing" unless ios_schedule_handoff_source.include?("在计时页查看\\(category)分类")
-raise "iOS task timer handoff accessibility label missing" unless ios_schedule_handoff_source.include?("将\\(task.title)设为当前计时待办")
-raise "iOS running task timer handoff accessibility label missing" unless ios_schedule_handoff_source.include?("在计时页查看\\(task.category)分类，计时运行中不切换到\\(task.title)") && ios_schedule_handoff_source.include?(".accessibilityLabel(timerHandoffAccessibilityLabel)")
-raise "iOS running task timer handoff Voice Control labels missing" unless ios_schedule_handoff_source.match?(/timerHandoffInputLabels[\s\S]{0,500}?if\s+isTimerRunning[\s\S]{0,300}?Text\("查看\\\(task\.category\)分类"\)/)
+raise "iOS task timer handoff accessibility label missing" unless schedule_task_cell.include?("将\\(semanticTitle)设为当前计时待办，\\(semanticCategory)分类")
+raise "iOS running task timer handoff accessibility label missing" unless schedule_task_cell.match?(/private var timerHandoffAccessibilityLabel: String\s*\{\s*if isTimerRunning\s*\{\s*return "在计时页查看\\\(semanticCategory\)分类，计时运行中不切换到\\\(semanticTitle\)"/) && schedule_task_cell.include?(".accessibilityLabel(timerHandoffAccessibilityLabel)")
+raise "iOS running task timer handoff Voice Control labels missing" unless schedule_task_cell.match?(/private var timerHandoffInputLabels: \[Text\]\s*\{\s*if isTimerRunning\s*\{\s*return \[\s*Text\("查看\\\(semanticCategory\)分类"\)/) && schedule_task_cell.include?(".accessibilityInputLabels(timerHandoffInputLabels)")
 raise "iOS timer handoff Voice Control labels missing" unless ios_schedule_handoff_source.include?("Text(\"转到计时\")") && ios_schedule_handoff_source.include?(".accessibilityInputLabels(")
 raise "iOS running-state accessibility guidance missing" unless ios_schedule_handoff_source.include?("计时运行中不可切换当前待办")
 
@@ -1374,7 +1521,7 @@ mac_resolver_source = function_slices_matching(mac_timer_handoff_source, "resolv
 raise "Mac timer handoff task resolver source missing" unless mac_resolver_source
 raise "Mac timer handoff must re-query FocusStore launchable tasks" unless mac_consumer_source.include?("store.startableTasks()") && mac_consumer_source.include?("store.startableTask(for:")
 raise "Mac timer handoff must restore category context" unless mac_consumer_source.include?("selectedCategory") && mac_consumer_source.include?("request.category")
-raise "Mac timer handoff preferred task validation missing" unless mac_consumer_source.include?("resolveMacTimerHandoffTask(") && mac_resolver_source.include?("preferredTaskID") && mac_resolver_source.match?(/\.id\s*==\s*preferredTaskID|preferredTaskID\s*==\s*\w+\.id/) && mac_resolver_source.match?(/\.category\s*==\s*request\.category/)
+raise "Mac timer handoff preferred task validation missing" unless mac_consumer_source.include?("resolveMacTimerHandoffTask(") && mac_resolver_source.match?(/if let preferredTaskID = request\.preferredTaskID\s*\{\s*return startableTasks\.first\s*\{\s*\$0\.id == preferredTaskID && TaskCategoryPreset\.categoriesMatch\(\$0\.category, request\.category\)\s*\}\s*\}\s*return startableTasks\.first\s*\{\s*TaskCategoryPreset\.categoriesMatch\(\$0\.category, request\.category\)\s*\}/)
 raise "Mac invalid preferred timer handoff must clear stale selection" unless mac_consumer_source.match?(/request\.preferredTaskID\s*!=\s*nil[\s\S]{0,180}?engine\.selectTask\(nil\)/)
 raise "Mac timer handoff running-state protection missing" unless mac_consumer_source.include?("engine.isRunning")
 raise "Mac timer handoff must select through TimerEngine" unless mac_consumer_source.include?("engine.selectTask(")
@@ -1437,7 +1584,33 @@ raise "Mac mini preview quick button accessibility missing" unless mac_mini_quic
 raise "Mac mini detail quick button accessibility missing" unless mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开日程详情\"") && mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开统计详情\"") && mac_mini_quick_panel_source.include?("accessibilityLabelText: \"打开设置详情\"") && mac_mini_quick_panel_source.include?("Text(\"打开日程详情\")") && mac_mini_quick_panel_source.include?("Text(\"打开统计详情\")") && mac_mini_quick_panel_source.include?("Text(\"打开设置详情\")")
 mac_mini_root_source = File.read("ChronoFocusMac/Views/MacMiniTimerView.swift")
 raise "Mac mini quick panel snapshot state must be deterministic" unless mac_mini_root_source.include?("snapshotShowsQuickPanel") && mac_mini_root_source.include?("shouldShowQuickPanel")
-raise "Mac mini quick panel must scroll within the popover" unless mac_mini_root_source.include?("ScrollView(.vertical, showsIndicators: false)") && mac_mini_root_source.include?(".frame(width: 210, maxHeight: 410)")
+quick_panel_layout_checks = {
+  "Mac mini quick panel vertical scrolling" => ->(s) { s[:panel].match?(/var body: some View\s*\{\s*ScrollView\(\.vertical, showsIndicators: false\)\s*\{/) },
+  "Mac mini quick panel bounded frame" => ->(s) { s[:panel].match?(/\.padding\(14\)\s*\}\s*\.frame\(width: 210\)\s*\.frame\(maxHeight: 410\)\s*\.background\(/) },
+  "Mac mini popover height" => ->(s) { s[:root].include?(".frame(width: shouldShowQuickPanel ? 560 : 430, height: 500)") },
+  "Mac mini quick panel snapshot rendering" => ->(s) { s[:root].match?(/private var shouldShowQuickPanel: Bool\s*\{\s*isShowingQuickPanel \|\| snapshotShowsQuickPanel\s*\}/) && s[:root].match?(/if shouldShowQuickPanel\s*\{\s*MacMiniQuickPanelView\(/) }
+}
+quick_panel_layout_sources = {
+  panel: mac_mini_quick_panel_source,
+  root: segment_slice(mac_mini_root_source, "struct MacMiniTimerView", "private struct MacMiniHeaderView", "Mac mini root missing")
+}
+raise "Mac mini quick panel must scroll within the popover" unless quick_panel_layout_checks.values.all? { |check| check.call(quick_panel_layout_sources) }
+verify_source_contracts(quick_panel_layout_sources, quick_panel_layout_checks, [
+  [:panel, "ScrollView(.vertical, showsIndicators: false)", "VStack", "Mac mini quick panel vertical scrolling"],
+  [:panel, ".frame(maxHeight: 410)", ".frame(height: 410)", "Mac mini quick panel bounded frame"],
+  [:panel, ".frame(width: 210)", ".frame(width: 211)", "Mac mini quick panel bounded frame"],
+  [:root, "height: 500)", "height: 400)", "Mac mini popover height"],
+  [:root, "isShowingQuickPanel || snapshotShowsQuickPanel", "isShowingQuickPanel", "Mac mini quick panel snapshot rendering"]
+])
+mini_header_source = segment_slice(mac_mini_root_source, "private struct MacMiniHeaderView", "private struct MacMiniClockView", "Mac mini header declaration missing")
+mini_header_checks = {
+  "Mac mini header label hit target" => ->(s) { s[:header].match?(/Button\s*\{\s*isShowingQuickPanel\.toggle\(\)\s*\} label: \{\s*Image\(systemName: "ellipsis"\)[^}]*\.frame\(width: 44, height: 44\)\s*\.contentShape\(Rectangle\(\)\)\s*\}/) },
+  "Mac mini header toggle semantics" => ->(s) { s[:header].include?('.accessibilityLabel(isShowingQuickPanel ? "关闭快捷面板" : "打开快捷面板")') }
+}
+verify_source_contracts({header: mini_header_source}, mini_header_checks, [
+  [:header, ".frame(width: 44, height: 44)", ".frame(width: 28, height: 24)", "Mac mini header label hit target"],
+  [:header, ".contentShape(Rectangle())", "", "Mac mini header label hit target"]
+])
 puts "Mac mini quick panel accessibility contracts verified."
 
 [
@@ -1454,8 +1627,19 @@ end
 puts "Analytics category share accessibility contracts verified."
 
 raise "CategoryFocus session count field missing" unless File.read("ChronoFocus/Models/AppModels.swift").include?("var sessionCount: Int")
-raise "category breakdown session count aggregation missing" unless File.read("ChronoFocus/Services/FocusStore.swift").include?("sessionCount: sessions.count")
-raise "Mac core category session count test missing" unless File.read("scripts/test_mac_core.swift").include?("sessionCount == 1")
+breakdown_source = segment_slice(category_appearance_store_source, "func categoryBreakdown()", "func upcomingTasks()", "Category breakdown source missing")
+raise "category breakdown session count aggregation missing" unless breakdown_source.include?("sessionCount: categorySessions.count") && breakdown_source.include?("let categorySessions = sessionsByKey[key]")
+raise "Mac core category session count test missing" unless File.read("scripts/test_mac_core.swift").include?("store.categoryBreakdown().first?.sessionCount == 2")
+breakdown_checks = {
+  "category completed focus selection" => ->(s) { s[:breakdown].include?("let completedFocus = sessions.filter { $0.mode == .focus && $0.completed }") },
+  "category normalized session grouping" => ->(s) { s[:breakdown].match?(/for session in completedFocus\s*\{\s*let key = Self\.categoryComparisonKey\(for: session\.category\)/) && s[:breakdown].include?("sessionsByKey[key, default: []].append(session)") },
+  "category grouped count and duration" => ->(s) { s[:breakdown].include?("let categorySessions = sessionsByKey[key]") && s[:breakdown].include?("categorySessions.reduce(0) { $0 + $1.actualSeconds }") && s[:breakdown].include?("sessionCount: categorySessions.count") }
+}
+verify_source_contracts({breakdown: breakdown_source}, breakdown_checks, [
+  [:breakdown, "$0.mode == .focus && $0.completed", "$0.completed", "category completed focus selection"],
+  [:breakdown, "Self.categoryComparisonKey(for: session.category)", "session.category", "category normalized session grouping"],
+  [:breakdown, "sessionCount: categorySessions.count", "sessionCount: sessions.count", "category grouped count and duration"]
+])
 [
   File.read("ChronoFocus/Views/AnalyticsView.swift"),
   File.read("ChronoFocusMac/Views/MacAnalyticsDetailView.swift")
@@ -1591,6 +1775,23 @@ assert_slice_contains(
 )
 puts "Category filter toggle contracts verified."
 
+# Optional.map preserves .some(nil); flatMap would make the fallback reselect it.
+[
+  ["ChronoFocus/Views/ScheduleView.swift", "struct TaskCategoryFilterBar", "struct TaskCategoryFilterChip"],
+  ["ChronoFocus/Views/TimerView.swift", "struct TimerTaskCategoryFilterBar", "struct TimerTaskCategoryFilterChip"],
+  ["ChronoFocusMac/Views/MacScheduleDetailView.swift", "struct MacCategoryFilterBar", "private struct MacCategoryFilterChip"]
+].each do |path, first, last|
+  bar = source_slice(path, first, last, "#{path} filter bar missing")
+  toggle = function_slices_matching(bar, "toggleCategory").first
+  name = "#{path} normalized optional deselection"
+  verify_source_contracts({toggle: toggle}, {
+    name => ->(s) { s[:toggle]&.match?(/\{\s*selectedCategory = selectedCategory\.map \{ store\.categoryMatches\(\$0, category\) \? nil : category \} \?\? category\s*\}\z/) }
+  }, [
+    [:toggle, "selectedCategory.map", "selectedCategory.flatMap", name],
+    [:toggle, "store.categoryMatches($0, category)", "$0 == category", name]
+  ])
+end
+
 assert_chip_accessibility("ChronoFocus/Views/ScheduleView.swift", "TaskCategoryFilterChip", "struct ScheduleTaskCell")
 assert_chip_accessibility("ChronoFocus/Views/TimerView.swift", "TimerTaskCategoryFilterChip", "struct TimerSelectedTaskCategorySummaryView")
 assert_chip_accessibility("ChronoFocusMac/Views/MacScheduleDetailView.swift", "MacCategoryFilterChip", "func syncMacTaskReminder")
@@ -1654,7 +1855,20 @@ raise "Mac timer non-empty category context counts missing" unless mac_task_queu
 raise "Mac timer non-empty category context add action missing" unless mac_task_queue_source.include?("onAddTaskInCategory(selectedCategory)")
 raise "Mac timer non-empty category context clear action missing" unless mac_task_queue_source.match?(/MacTimerCategoryContextView\([\s\S]*?self\.selectedCategory\s*=\s*nil/)
 raise "Mac timer category context adaptive action layout missing" unless mac_timer_category_context_source.include?("ViewThatFits(in: .horizontal)")
-raise "Mac timer category context stable action target missing" unless mac_timer_category_context_source.match?(/\.frame\(minWidth:[^\n]*minHeight:\s*36\)/)
+mac_context_actions = segment_slice(mac_timer_category_context_source, "private struct MacTimerCategoryContextActions", "@ViewBuilder", "Mac context action wiring missing")
+mac_context_button = mac_timer_category_context_source[mac_timer_category_context_source.index("@ViewBuilder")..]
+context_target_checks = {
+  "Mac context label hit target" => ->(s) { s[:button].match?(/let label = Label\(title, systemImage: symbolName\)[\s\S]*?\.frame\(minWidth: minWidth, maxWidth: axis == \.vertical \? \.infinity : nil, minHeight: 44\)[\s\S]*?if isSnapshotRendering\s*\{\s*label[\s\S]*?\} else \{\s*Button\(action: action\)\s*\{\s*label\s*\}/) },
+  "Mac context add clear actions" => ->(s) { s[:actions].include?("action: onAddTask,") && s[:actions].include?("action: onClear,") && s[:actions].include?("minWidth: 100,") && s[:actions].include?("minWidth: 88,") },
+  "Mac context button accessibility" => ->(s) { s[:button].scan(".accessibilityLabel(accessibilityLabel)").length == 2 && s[:button].scan(".accessibilityHint(accessibilityHint)").length == 2 && s[:button].scan(".accessibilityInputLabels(inputLabels.map { Text($0) })").length == 2 }
+}
+context_target_sources = {button: mac_context_button, actions: mac_context_actions}
+raise "Mac timer category context stable action target missing" unless context_target_checks.values.all? { |check| check.call(context_target_sources) }
+verify_source_contracts(context_target_sources, context_target_checks, [
+  [:button, "minHeight: 44)", "minHeight: 36)", "Mac context label hit target"],
+  [:button, "Button(action: action)", "Button(action: {})", "Mac context label hit target"],
+  [:actions, "action: onClear,", "action: onAddTask,", "Mac context add clear actions"]
+])
 raise "Mac timer category context accessibility labels missing" unless mac_timer_category_context_source.match?(/\.accessibilityLabel\([^\n]*category/) && mac_timer_category_context_source.include?(".accessibilityHint(") && mac_timer_category_context_source.include?(".accessibilityInputLabels(")
 raise "Mac task row category badge compatibility default missing" unless mac_task_row_source.match?(/var\s+showsCategoryBadge\s*=\s*true/)
 raise "Mac task row visual category badge condition missing" unless mac_task_row_source.match?(/if\s+showsCategoryBadge\s*\{[\s\S]*?Label\(task\.category,/)
@@ -1733,11 +1947,39 @@ def require_timer_action_contract(path, start_marker, end_marker, name)
   source = source[pattern]
   raise "#{name} source missing" unless source
   raise "#{name} task helper missing" unless source.include?("private var timerActionTask: FocusTask?") && source.include?("store.task(for: engine.selectedTaskID)")
-  raise "#{name} context missing task and category" unless source.include?("return \"\\(task.title)，\\(task.category)分类\"") && source.include?("return engine.currentTaskTitle")
+  if name == "iOS timer action"
+    priority_checks = {
+      "title snapshot priority" => /private var timerActionTitle: String\s*\{\s*store\.activeTimer\?\.taskTitle \?\? timerActionTask\?\.title \?\? engine\.currentTaskTitle\s*\}/,
+      "category snapshot priority" => /private var timerActionCategory: String\?\s*\{\s*store\.activeTimer\?\.category \?\? timerActionTask\?\.category\s*\}/,
+      "context rendering" => /private var timerActionContext: String\s*\{\s*if let category = timerActionCategory\s*\{\s*return "\\\(timerActionTitle\)，\\\(category\)分类"\s*\}\s*return timerActionTitle\s*\}/
+    }
+    mutations = [
+      ["store.activeTimer?.taskTitle ?? timerActionTask?.title", "timerActionTask?.title ?? store.activeTimer?.taskTitle", "title snapshot priority"],
+      ["store.activeTimer?.category ?? timerActionTask?.category", "timerActionTask?.category ?? store.activeTimer?.category", "category snapshot priority"]
+    ]
+  else
+    priority_checks = {
+      "context snapshot priority" => /private var timerActionContext: String\s*\{\s*if let snapshot = store\.activeTimer\s*\{\s*return "\\\(snapshot\.taskTitle\)，\\\(snapshot\.category\)分类"\s*\}\s*if let task = timerActionTask\s*\{\s*return "\\\(task\.title\)，\\\(task\.category\)分类"\s*\}\s*return engine\.currentTaskTitle\s*\}/
+    }
+    mutations = [["if let snapshot = store.activeTimer", "if !engine.isPaused, let snapshot = store.activeTimer", "context snapshot priority"]]
+  end
+  raise "#{name} context missing task and category" unless priority_checks.values.all? { |check| source.match?(check) }
+  mutations.each do |before, after, expected|
+    raise "#{name} ambiguous priority mutation" unless source.scan(Regexp.new(Regexp.escape(before))).length == 1
+    mutated = source.sub(before, after)
+    failures = priority_checks.map { |label, check| label unless mutated.match?(check) }.compact
+    raise "#{name} priority mutation failed: #{failures.inspect}" unless failures == [expected]
+    puts "PASS source mutation isolation: #{name} #{expected}"
+  end
   raise "#{name} primary label missing context" unless source.include?("开始\\(timerActionContext)计时") && source.include?("继续\\(timerActionContext)计时") && source.include?("暂停\\(timerActionContext)计时")
   raise "#{name} stop label missing context" unless source.include?(".accessibilityLabel(\"停止\\(timerActionContext)计时\")")
   raise "#{name} skip label missing context" unless source.include?(".accessibilityLabel(\"跳过\\(timerActionContext)当前轮\")")
-  raise "#{name} Voice Control labels missing category" unless source.include?("Text(\"\\(action)\\(task.category)分类\")") && source.include?("Text(\"\\(task.category)分类\\(action)\")") && source.include?(".accessibilityInputLabels(timerActionInputLabels")
+  if name == "iOS timer action"
+    labels = source[/private func timerActionInputLabels\(_ action: String\) -> \[Text\][\s\S]*?return labels\s*\}/]
+    raise "#{name} Voice Control labels missing category" unless labels && labels.include?('Text("\(action)\(timerActionTitle)")') && labels.match?(/if let category = timerActionCategory\s*\{\s*labels\.append\(Text\("\\\(action\)\\\(category\)分类"\)\)\s*labels\.append\(Text\("\\\(category\)分类\\\(action\)"\)\)/) && source.include?(".accessibilityInputLabels(timerActionInputLabels")
+  else
+    raise "#{name} Voice Control labels missing category" unless source.include?("Text(\"\\(action)\\(task.category)分类\")") && source.include?("Text(\"\\(task.category)分类\\(action)\")") && source.include?(".accessibilityInputLabels(timerActionInputLabels")
+  end
 end
 
 require_timer_action_contract(
@@ -1752,11 +1994,14 @@ raise "iOS open ended finish action missing task context" unless ios_source.incl
 require_timer_action_contract(
   "ChronoFocusMac/Views/MacTimerDetailView.swift",
   "private struct MacTimerActionRowView",
-  "private struct MacTodaySummaryView",
+  "private struct MacStaticTimerActionRowView",
   "Mac timer action"
 )
 mac_source = File.read("ChronoFocusMac/Views/MacTimerDetailView.swift", encoding: "UTF-8")
 raise "Mac static timer action labels missing context" unless mac_source.include?("private struct MacStaticTimerActionRowView") && mac_source.include?("accessibilityLabel: \"停止\\(timerActionContext)计时\"") && mac_source.include?("accessibilityLabel: primaryTimerActionLabel") && mac_source.include?(".accessibilityInputLabels(inputLabels)")
+mac_static_source = mac_source[/private struct MacStaticTimerActionRowView[\s\S]*?private struct MacTodaySummaryView/]
+raise "Mac static timer action snapshot context missing" unless mac_static_source && mac_static_source.match?(/private var timerActionContext: String\s*\{\s*if let snapshot = store\.activeTimer\s*\{\s*return "\\\(snapshot\.taskTitle\)，\\\(snapshot\.category\)分类"\s*\}\s*if let task = timerActionTask\s*\{\s*return "\\\(task\.title\)，\\\(task\.category\)分类"\s*\}\s*return engine\.currentTaskTitle\s*\}/)
+raise "Mac static timer action snapshot injection missing" unless mac_source.match?(/if isSnapshotRendering\s*\{\s*MacStaticTimerActionRowView\(currentTint: currentTint, currentTintHex: currentTintHex\)/)
 
 require_timer_action_contract(
   "ChronoFocusMac/Views/MacMiniTimerView.swift",

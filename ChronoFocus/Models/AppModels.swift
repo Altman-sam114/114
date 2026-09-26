@@ -202,18 +202,28 @@ struct TaskCategoryPreset: Identifiable, Hashable {
             : digits
         guard let rgb = UInt64(expandedDigits, radix: 16) else { return "#111827" }
 
-        let red = Double((rgb >> 16) & 0xFF) / 255
-        let green = Double((rgb >> 8) & 0xFF) / 255
-        let blue = Double(rgb & 0xFF) / 255
         func linearized(_ component: Double) -> Double {
             component <= 0.03928
                 ? component / 12.92
                 : pow((component + 0.055) / 1.055, 2.4)
         }
 
-        let luminance = 0.2126 * linearized(red) + 0.7152 * linearized(green) + 0.0722 * linearized(blue)
-        let whiteContrast = 1.05 / (luminance + 0.05)
-        let darkContrast = (luminance + 0.05) / 0.05
+        func relativeLuminance(_ color: UInt64) -> Double {
+            let red = Double((color >> 16) & 0xFF) / 255
+            let green = Double((color >> 8) & 0xFF) / 255
+            let blue = Double(color & 0xFF) / 255
+            return 0.2126 * linearized(red) + 0.7152 * linearized(green) + 0.0722 * linearized(blue)
+        }
+
+        let luminance = relativeLuminance(rgb)
+        func contrastRatio(with candidate: UInt64) -> Double {
+            let candidateLuminance = relativeLuminance(candidate)
+            return (max(luminance, candidateLuminance) + 0.05)
+                / (min(luminance, candidateLuminance) + 0.05)
+        }
+
+        let whiteContrast = contrastRatio(with: 0xFFFFFF)
+        let darkContrast = contrastRatio(with: 0x111827)
         return whiteContrast >= darkContrast ? "#FFFFFF" : "#111827"
     }
 

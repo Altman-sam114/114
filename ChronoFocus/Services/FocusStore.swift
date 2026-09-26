@@ -168,8 +168,12 @@ final class FocusStore: ObservableObject {
     }
 
     func deleteTasks(ids: [UUID]) {
-        tasks.removeAll { ids.contains($0.id) && !isActiveTask($0.id) }
-        pomodoroPlan.removeAll { ids.contains($0.taskID) && !isActiveTask($0.taskID) }
+        let deletableIDs = Set(ids.filter { !isActiveTask($0) })
+        guard tasks.contains(where: { deletableIDs.contains($0.id) })
+            || pomodoroPlan.contains(where: { deletableIDs.contains($0.taskID) })
+        else { return }
+        tasks.removeAll { deletableIDs.contains($0.id) }
+        pomodoroPlan.removeAll { deletableIDs.contains($0.taskID) }
         regeneratePlanIfNeeded()
     }
 

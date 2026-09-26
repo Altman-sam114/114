@@ -4,7 +4,7 @@
 
 ## 默认验证策略
 
-- 默认路径：静态审阅 -> commit 到 `main` -> `git push origin main` -> GitHub Actions 上传未加密 CI 结果包 -> Agent C 下载并复判。
+- 默认路径：静态审阅 -> commit 到 `main` -> `git push origin main` -> GitHub Actions 上传未加密 CI 结果包 -> 独立 Actions 正式第四模式 -> Agent C 用 `gh` 取证并审阅结论。
 - 当前硬性约束不允许本地项目测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；即使是文档-only 修改，也不把本地命令作为验收证据。
 - 云端 workflow 是唯一测试入口；本地终端输出不得替代最新 `origin/main` run、原始 API JSON、原始 ZIP 和 Agent C 复判。
 - 云端失败时，Agent B 根据结果包里的 failure summary、JUnit、日志和 manifest 修复，并在 `main` 上追加修复 commit 后重新 push。
@@ -45,21 +45,64 @@
 - `--expected-event` 默认是 `push`。受控 `workflow_dispatch` 失败只能显式传 `--expected-event workflow_dispatch --failure-mode`，事件不得被伪装成 push；默认 push 验收仍严格核对授权账号、仓库、head SHA、attempt 和 artifact 身份。
 - 受控失败注入只由 GitHub Actions `workflow_dispatch` 执行，至少覆盖 checkout 边界、metadata preparation、Xcode selection 和一个后续阶段；失败 artifact 允许尚未生成的日志、结果包或快照缺失，但必须保留精确 allowlist、optional/missing entry、stage outcome、summary、JUnit、原始 ZIP 目录绑定和未加密检查。
 
-本轮不在本机执行任何测试、validator、`verify_project.sh`、YAML 解析、Swift/`swiftc`、Xcode、`xcodebuild`、`simctl` 或 Simulator。Agent C 只使用 `gh` 获取最新 run/artifacts API、原始 ZIP 和全新证据目录，再分别以 success profile 与显式 failure profile 复判。
+本轮不在本机执行任何测试、validator、`verify_project.sh`、YAML 解析、Swift/`swiftc`、Xcode、`xcodebuild`、`simctl` 或 Simulator。Agent C 本地只使用 `gh` 获取最新源/review run、原始证据及日志；success profile 与显式 failure profile 的 validator 均仅在 Actions 执行，分别记录产品结论和失败证据链结论。
 
 ## v1.4.8 自定义分类代表色与包阶段绑定
+
+当前基线仍失败，未验收：main `5df94397d3609dc891903274cf587f4000e3737b`，源 run `32653761542` / attempt `1` / push/main / failure。Agent C 证据指出旧 semantic 合同失败、MacMini 非法 frame 引发 Mac 编译超时，iOS build success；artifact `9496921830` 为 `expired=true` 且下载 410，没有可用原始 ZIP，不能执行正式第四模式。证据保留于 `/private/tmp/chronofocus-c-review-32653761542-bXNQQQMj`，完整 API size/digest 见 `update_log.md`。以下合同是修复要求，不是通过报告。
 
 本轮共享代表色和分类比较只从现有任务/会话派生，不新增 Codable 字段或持久化实体：
 
 - 预设分类始终使用预设色；非预设分类优先使用任务数组中首个同规范化分类的可用 HEX；session-only 和非法/空 HEX 回退到统一颜色。3/6 位 HEX 会去空白并统一大写，选中控件通过共享 `contrastTextHex(on:)` 在深色/浅色代表色上选择对比更高的文字。
 - iOS/macOS 分类筛选 option、摘要、空态、任务行、计划项、计时队列/当前任务、统计和已有分类草稿复用 `FocusStore.representativeAccentHex(for:)`；分类匹配使用去空白、大小写/变音符号/宽度不敏感比较，View 仍只维护瞬态筛选或草稿。
-- iOS/macOS 运行中计时主色优先读取 `FocusStore.activeTimer.tintHex`，任务被编辑、停用或删除后仍与活动快照和 Live Activity 保持一致，不重新从可变任务重算。
+- 运行及暂停时，`FocusStore.isActiveTask` 保护活动任务：编辑、停用/完成切换及删除被拒绝或过滤，纯活动任务拒绝请求下原任务字段/启用状态、计划项和快照身份保持不变。iOS/macOS 主色、任务名、分类及主控辅助功能上下文优先读取活动快照，与 Live Activity 一致；不得把“快照不漂移”误写成活动任务允许修改。
+- `TimerEngine.stop` 后分别以独立 fixture 验证编辑、停用、删除解锁；停用/删除后等待既有异步观察传播，idle 选择清空、标题回到自由专注且不产生新快照；仍可启动的合法编辑不能无条件清空选择。
+- 删除 no-op 回归必须保持 `autoGeneratePomodoroPlan=true`：运行/暂停期间只含活动任务、空 ids、unknown ids 或这些无效项的组合请求应无副作用，完整计划（包括 UUID/时间）和任务、快照不变；不得关自动计划冻结身份来绕过缺陷。mixed batch 及仅命中非活动计划 taskID 的请求仍删除合法项并保留既有计划重生成语义，计划项自身 UUID 不作为 taskID，不断言所有合法批量变更均不重生计划。本轮新增 guard 与这些断言尚待云端验证。
+- 对比色 core 合同必须用实际 `#FFFFFF` / `#111827` 相对亮度比较，不以纯黑代替深色候选。覆盖 `#777777` 应选白色、实际交叉阈值两侧相邻灰阶、候选自身背景、3/6 位等价和非法 HEX fallback；期望独立计算或明确常量，不调用被测 helper 生成，不保证所有背景均达 4.5:1。
+- 旧 semantic 合同须按声明/按钮 label/样式边界核对合法 frame 分拆、真实 44pt 命中区、共享规范化委托、只读草稿查询、快照优先调用链与 MacMini 210pt 宽/410pt 高度上限/500pt popover 滚动。单点破坏 fixture 只允许目标失败，不删除 assert、吞失败或用全文件 token 存在性放行。
 - `scripts/test_mac_core.swift` 必须覆盖预设优先、首个任务颜色、session-only、非法颜色、3 位 HEX 清洗、深浅色对比文字、运行中快照色、分类清洗和筛选排序；`verify_project.log` 必须出现 `Category appearance contracts verified.`，对应 marker 缺失 negative fixture 只能拒绝该合同。
 - CI 结果包保留七个稳定业务阶段，并额外在 manifest/index/stage 中绑定 `bootstrap` 与 `createManifest` 两个包阶段；fallback 摘要必须列出包阶段失败和可用日志尾部，成功包所有预期 index entry 必须标为 required，`prepare-metadata.log` 只在该阶段失败时出现。成功包 required 路径缺失必须让 finalizer 失败，recovery 自身缺少六项核心证据也必须失败；fallback 名称按 branch slug 统一生成，阶段摘要逐项绑定 stage outcome，并由 skipped-only negative fixture 拒绝没有真实失败阶段的伪失败包。若正常 finalizer 失败，`scripts/recover_ci_result_package.py` 必须在上传前重建身份一致的失败包；恢复失败时不得上传陈旧成功目录。manifest/JUnit 的阶段 outcome 必须使用归一化值，validator 还要绑定 index/summary 的 package stage 状态。
 
 本轮不在本机执行测试、验证脚本、validator、Swift/Xcode 构建或配置检查。只接受最新 `origin/main` GitHub Actions push run、原始 run/artifacts API JSON、原始 ZIP 和 Agent C 第四模式复判；成功 profile 仍要求 JUnit `4/0/0`、两端 `.xcresult`、五张正式快照，失败 profile 必须同时核对 package stage 字段。
 
-## Agent X 循环验证规则
+## 独立云端 Artifact Review
+
+工作区实现入口为 `.github/workflows/ci-artifact-review.yml`（`ChronoFocus Artifact Review`）和 `scripts/review_ci_artifact.py`，仅响应生产 workflow 完成；当前尚无本轮独立 review 通过证据。生产源码、门禁脚本及 fixture 仍须一起推送验证。
+
+- 先核对精确源 run API/事件/当前 main 才 checkout 源 SHA，`persist-credentials: false`；下载前和出结论前再次核对 SHA/attempt，漂移即 stale。权限仅 `contents: read`、`actions: read`，`GH_TOKEN` 使用只读 `GITHUB_TOKEN`，不调用交互登录、不使用 PAT 或额外 secrets。
+- 正常 profile 仅 `push + completed + success`；受控失败仅授权 `workflow_dispatch + completed + failure`，通过包外 `display_title` 登记允许的 `failure_mode`，与源 workflow 输入、精确 attempt jobs API、API 原始注入日志和包内 stage outcome 交叉核对。job 本身必须 completed/failure，按名称定位唯一 completed 目标步骤；步骤 conclusion 因 continue-on-error 可为 success 或 failure，不要求 API step failure。注入失败由包内目标 stage outcome=failure 与 API 原始日志中的实际注入输出共同证明。失败 push、未登记/成功 dispatch、取消、超时及过时 run 不得降级放行。
+- 原始 run/artifacts API JSON、ZIP 和下载残留留在 runner 全新 review 目录，`extracted/` 是独立解包树。JSON 非空/普通非 symlink/最多 1 MiB；唯一未过期 artifact 的 size、SHA-256、ZIP CRC/安全路径全部通过后，才无覆盖原子改名。正式复判不得省略任何 archive/metadata 参数，不执行解包内容。
+- `validator.log`、`review-result.json`、`review-summary.md` 及独立 evidence artifact 同时标注 source/review 两套 run/attempt、profile、artifact id/name/size/digest、validator exit/PASS/FAIL 与结论。证据上传失败也不能接受；C 本地只 `gh` 取证及静态审阅，禁止本地 validator。
+- 云端门禁 fixture 要覆盖两种合法 profile、错误授权来源/workflow/event、旧 SHA/attempt、非 completed、未登记失败、缺失/重复/过期 artifact、JSON/ZIP 篡改、参数缺失、下载失败和目录绑定失败；负向仅证明拒绝，不代表产品通过。
+
+仅 Actions 的下载及正式复判入口（变量由前置门禁设置，不是本机命令）：
+
+```bash
+python3 scripts/review_ci_artifact.py \
+  --evidence "$REVIEW_DIR" \
+  --event "$REVIEW_DIR/workflow-run-event.json" \
+  --checkout "$GITHUB_WORKSPACE"
+```
+
+生产 workflow 的 Static checks 已接入全部 workflow YAML 解析、两个 Python 脚本语法编译和 `scripts/test_review_ci_artifact.py`，仅 Actions 执行：
+
+```bash
+ruby -e 'require "yaml"; Dir.glob(".github/workflows/*.{yml,yaml}").sort.each { |path| YAML.load_file(path) }; puts "all workflows yaml ok"'
+python3 -m py_compile scripts/review_ci_artifact.py scripts/test_review_ci_artifact.py
+python3 scripts/test_review_ci_artifact.py
+```
+
+fixture 读取真实 workflow 的 preflight、权限、run-name/input 接线，并覆盖 JSON/ZIP 安全、有限重试保留、两种 profile 与 stale 拒绝；网络/下载边界使用 mock，不冒充真实 API。另有真实 Ruby failure 第四模式和等长目录篡改单失败 fixture，以及 failure excerpt 的 1/3/7/8/10 条诊断与无诊断尾部回退；这些脚本已落盘，但当前没有其云端执行结果。
+
+授权账号可通过 `gh` 触发源 workflow 的受控云端失败；例如下列命令只发起云端任务，不在本机执行测试。必须针对当前 main，注入值登记后由 completed 事件自动进入独立 review：
+
+```bash
+gh workflow run ci-results.yml --repo Altman-sam114/114 --ref main -f failure_mode=checkout
+```
+
+v1.4.8 完成条件是同一当前 main 的 push success 产品包及至少一次明确受控 failure 包分别完成独立云端第四模式和 C 核对；后者只能写“失败证据链通过，产品未通过”。当前 expired/410 源包两种结论都不满足。
+
+## Agent X 循环验证责任
 
 Agent X 只负责主控调度，不改变每轮验证责任。每一个由 Agent X 拆出的轮次仍按 Agent A -> Agent B -> Agent C 闭环执行：
 
@@ -72,6 +115,8 @@ Agent X 只负责主控调度，不改变每轮验证责任。每一个由 Agent
 - Agent X 宣布总目标完成前，最后一轮必须已有 Agent C 对最新 `origin/main` artifact 的通过结论。
 
 ## 固定前缀 / 环境要求
+
+以下测试、YAML/配置解析、构建、simulator destination 和 validator 命令全部仅供 Actions runner 执行，不授权 C 或 B 在本机运行；本机只做读码、diff 审阅及 `gh` 取证。
 
 当前项目是 Xcode SwiftUI 工程，默认机器可能将 `xcode-select` 指向 Command Line Tools。运行 Xcode 构建时优先使用：
 
@@ -142,23 +187,24 @@ Agent C 每次验收使用全新的唯一缓存目录：
 /private/tmp/chronofocus-c-review-<run_id>-<unique>/
 ```
 
-下载结果包后可用结构化脚本辅助复判：
+仅 Actions 正式第四模式调用如下；`REVIEW_DIR` 为 runner 全新证据目录，`EXTRACTED_DIR` 为其下全新解包树，原始 API/ZIP 不得放进该树：
 
 ```bash
-ruby scripts/validate_ci_artifact.rb /private/tmp/chronofocus-c-review-<run_id>-<unique>/<artifact-directory> \
+ruby scripts/validate_ci_artifact.rb "$EXTRACTED_DIR" \
   --commit <origin-main-sha> \
   --run-id <run_id> \
   --attempt <run_attempt> \
-  --archive /private/tmp/chronofocus-c-review-<run_id>-<unique>/<artifact-name>.zip \
+  --archive "$REVIEW_DIR/<artifact-name>.zip" \
   --archive-size <api-size-in-bytes> \
   --archive-digest <api-sha256-digest> \
-  --artifact-metadata /private/tmp/chronofocus-c-review-<run_id>-<unique>/artifacts-api.json \
-  --run-metadata /private/tmp/chronofocus-c-review-<run_id>-<unique>/run-api.json
+  --artifact-metadata "$REVIEW_DIR/artifacts-api.json" \
+  --run-metadata "$REVIEW_DIR/run-api.json" \
+  --branch main --expected-event push
 ```
 
 `--archive`、`--archive-size`、`--archive-digest` 必须全有或全无。完整参数组会针对同一个原始 ZIP 输出 `PASS artifact archive byte count`、`PASS artifact archive sha256 digest`、`PASS artifact archive zip integrity` 和 `PASS artifact archive extracted directory binding`；后者逐路径比较 validator 自建临时解包树与传入目录的类型、大小和 SHA-256，并拒绝 traversal、重复路径、前缀冲突、symlink 和特殊文件。Validator 保留四种 success 模式：目录-only、archive-only、archive + artifact metadata、archive + artifact metadata + run metadata；显式 `--failure-mode` 只接受完整 archive + artifact metadata + run metadata，并支持可选 `--expected-event workflow_dispatch`。`--artifact-metadata` 必须依附完整 archive 参数；`--run-metadata` 还必须同时具备完整 archive 参数与 artifact metadata，缺少任一前置输入都以参数错误退出。
 
-Agent C 必须从精确 workflow run endpoint 和 run artifacts endpoint 获取最新 run 的两份原始响应，分别写入全新目录的 `run-api.json.part`、`artifacts-api.json.part`，成功且非空、最终文件不存在时才在同一文件系统无覆盖原子改名。两份 metadata 都必须是非空普通文件、拒绝 symlink 且不超过 `1_048_576` bytes，由 `JSON.parse` 结构化复判，不得复制进 artifact 解包目录。再使用 artifacts JSON 中的唯一 id 下载 `<artifact-name>.zip.part`，启用失败即退出、跟随重定向和有限重试；在 `.part` 上核对 size、SHA-256 与 `unzip -t`，全部通过且最终 ZIP 不存在后才原子改名。任何既有目录、JSON、`.part`、最终 ZIP 或解包目录默认拒绝覆盖、删除或复用，失败证据必须保留。
+Actions 正式下载链必须从精确 workflow run endpoint 和 run artifacts endpoint 获取最新 run 的两份原始响应，分别写入全新目录的 `run-api.json.part`、`artifacts-api.json.part`，成功且非空、最终文件不存在时才在同一文件系统无覆盖原子改名。两份 metadata 都必须是非空普通文件、拒绝 symlink 且不超过 `1_048_576` bytes，由 `JSON.parse` 结构化复判，不得复制进 artifact 解包目录。再使用 artifacts JSON 中的唯一 id 下载 `<artifact-name>.zip.part`，启用失败即退出、跟随重定向和有限重试；在 `.part` 上核对 size、SHA-256 与 ZIP CRC/安全结构，全部通过且最终 ZIP 不存在后才原子改名。任何既有目录、JSON、`.part`、最终 ZIP 或解包目录默认拒绝覆盖、删除或复用，失败证据必须保留。
 
 完整 metadata 模式必须输出八项独立结果：`PASS artifact metadata response shape`、`PASS artifact metadata unique artifact`、`PASS artifact metadata id`、`PASS artifact metadata name`、`PASS artifact metadata byte count`、`PASS artifact metadata sha256 digest`、`PASS artifact metadata not expired` 和 `PASS artifact metadata workflow run`。它们分别核对顶层 `total_count=1`/数组、唯一 artifact、正整数 id、预期名称、API/参数/实际 ZIP size 与 digest 三方一致、严格 boolean `expired=false`，以及 `workflow_run.id/head_sha/head_branch`。API 不提供 `run_attempt`，不能直接证明 attempt；attempt 仍由最新 workflow run API、`--attempt`、artifact 名称、manifest、index 和 run context 共同核对。
 
@@ -265,7 +311,7 @@ xcrun --sdk macosx swiftc \
 
 ### 2. Smoke
 
-验证主要集成路径，适合大多数 Swift、脚本和 Mac UI 改动。默认由云端 `ci-results.yml` 执行；本机只在人工要求或定位问题时运行。
+验证主要集成路径，适合大多数 Swift、脚本和 Mac UI 改动。仅由云端 `ci-results.yml` 执行；定位问题也不授权本机运行。
 
 触发条件：
 
@@ -340,7 +386,7 @@ bash scripts/verify_project.sh
 
 ### 3. Stage Regression
 
-覆盖当前阶段核心模块，适合 macOS 目标、跨平台共享逻辑或平台服务改动。默认由云端 `ci-results.yml` 执行 Mac build 并上传 `.xcresult`；本机只在人工要求或定位问题时运行。
+覆盖当前阶段核心模块，适合 macOS 目标、跨平台共享逻辑或平台服务改动。仅由云端 `ci-results.yml` 执行 Mac build 并上传 `.xcresult`；定位问题不授权本机运行。
 
 触发条件：
 
@@ -385,7 +431,7 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
 - `xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration Debug -destination 'generic/platform=macOS' ... build`，生成 `xcodebuild.log` 和 `.xcresult`。
 - `xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocus -configuration Debug -destination 'generic/platform=iOS' ... build`，生成 `ios-xcodebuild.log` 和 `ChronoFocus-iOS.xcresult`。
 
-结果包最低内容：
+success 产品结果包最低内容（failure 缺失项按显式 profile 的安全 allowlist 复判，不沿用成功判据）：
 
 - `ci-artifact-manifest.json`：记录版本、branch、commitSha、run id、run attempt、workflow、Mac/iOS scheme、Mac/iOS destination、日志路径、结果路径、artifact index 路径、`overallOutcome` 和各阶段 outcome。
 - `ci-artifact-index.json`：记录 artifact 名称、关键 artifact 文件/目录是否存在、类型、文件字节数、目录递归字节数和文件数量。
@@ -400,14 +446,14 @@ xcodebuild -project ChronoFocus.xcodeproj -scheme ChronoFocusMac -configuration 
 - `project-reports/mac-snapshots/`：Mac 快照脚本产物副本。
 - `project-reports/mac-snapshots/manifest.json`：Mac 快照清单，记录 5 张快照的文件名、像素尺寸、字节数和生成时间。
 
-Agent C 验收时必须核对：
+Agent C 对 success 产品包验收时必须读取独立 Actions 结论并核对：
 
 - artifact 来自 `origin/main` 最新 commit。
 - manifest 中 `branch` 为 `main`。
 - manifest 中 `commitSha` 与 `origin/main` 最新 SHA 完全一致。
 - manifest 中 `runId` 和 `runAttempt` 与下载的 GitHub Actions run 一致。
 - `ci-run-context.txt` 中字段集合必须精确，`branch`、`commitSha`、`runId`、`runAttempt` 和 artifact 名称必须与本轮 run 一致。
-- `scripts/validate_ci_artifact.rb` 对下载目录输出全 PASS，且包含 `PASS ci process version`、`PASS manifest artifact name`、`PASS manifest overall outcome`、`PASS index artifact name`、`PASS run context exact keys`、`PASS run context artifact name`、`PASS index unexpected entries`、`PASS snapshot manifest generated at`、`PASS junit metadata`、`PASS junit errors`、`PASS junit testcase outcomes`、`PASS junit failure elements`、`PASS failure summary identity`、`PASS failure summary outcomes`、`PASS static checks log markers`、`PASS xcode version log`、`PASS unexpected local artifacts`、`PASS verify_project category summary action contracts`、`PASS verify_project category accessibility contracts`、`PASS verify_project schedule task action accessibility contracts`、`PASS verify_project timer action accessibility contracts`、`PASS verify_project plan start action accessibility contracts`、`PASS verify_project plan category badge contracts`、`PASS verify_project mac plan category context contracts`、`PASS verify_project plan panel action accessibility contracts`、`PASS verify_project schedule toolbar add category context contracts`、`PASS verify_project schedule category empty state action contracts`、`PASS verify_project mac schedule category empty state action contracts`、`PASS verify_project mac calendar range empty state quick add contracts`、`PASS verify_project mac quick add action accessibility contracts`、`PASS verify_project mac quick add title field category context contracts`、`PASS verify_project category input context contracts`、`PASS verify_project task editor save category accessibility contracts`、`PASS verify_project task editor cancel category accessibility contracts`、`PASS verify_project mac mini quick panel accessibility contracts`、`PASS verify_project analytics category share accessibility contracts`、`PASS verify_project analytics category share session count contracts`、`PASS verify_project analytics category share ranking contracts`、`PASS verify_project analytics category share sort context contracts`、`PASS verify_project analytics category share empty state contracts`、`PASS verify_project analytics category share metadata readability contracts`、`PASS verify_project analytics category share percent readability contracts`、`PASS verify_project analytics recent session category contracts`、`PASS verify_project analytics plan review category accessibility contracts`、`PASS verify_project category filter toggle contracts` 和 `PASS verify_project current task selection accessibility contracts`，作为结构化辅助证据；若脚本失败，必须人工核对失败项并退回 Agent B 或说明原因。
+- 独立 Actions 中 `scripts/validate_ci_artifact.rb` 以完整第四模式对源结果包输出全 PASS，且包含 `PASS ci process version`、`PASS manifest artifact name`、`PASS manifest overall outcome`、`PASS index artifact name`、`PASS run context exact keys`、`PASS run context artifact name`、`PASS index unexpected entries`、`PASS snapshot manifest generated at`、`PASS junit metadata`、`PASS junit errors`、`PASS junit testcase outcomes`、`PASS junit failure elements`、`PASS failure summary identity`、`PASS failure summary outcomes`、`PASS static checks log markers`、`PASS xcode version log`、`PASS unexpected local artifacts`、`PASS verify_project category summary action contracts`、`PASS verify_project category accessibility contracts`、`PASS verify_project schedule task action accessibility contracts`、`PASS verify_project timer action accessibility contracts`、`PASS verify_project plan start action accessibility contracts`、`PASS verify_project plan category badge contracts`、`PASS verify_project mac plan category context contracts`、`PASS verify_project plan panel action accessibility contracts`、`PASS verify_project schedule toolbar add category context contracts`、`PASS verify_project schedule category empty state action contracts`、`PASS verify_project mac schedule category empty state action contracts`、`PASS verify_project mac calendar range empty state quick add contracts`、`PASS verify_project mac quick add action accessibility contracts`、`PASS verify_project mac quick add title field category context contracts`、`PASS verify_project category input context contracts`、`PASS verify_project task editor save category accessibility contracts`、`PASS verify_project task editor cancel category accessibility contracts`、`PASS verify_project mac mini quick panel accessibility contracts`、`PASS verify_project analytics category share accessibility contracts`、`PASS verify_project analytics category share session count contracts`、`PASS verify_project analytics category share ranking contracts`、`PASS verify_project analytics category share sort context contracts`、`PASS verify_project analytics category share empty state contracts`、`PASS verify_project analytics category share metadata readability contracts`、`PASS verify_project analytics category share percent readability contracts`、`PASS verify_project analytics recent session category contracts`、`PASS verify_project analytics plan review category accessibility contracts`、`PASS verify_project category filter toggle contracts` 和 `PASS verify_project current task selection accessibility contracts`，作为结构化辅助证据；若脚本失败，必须人工核对失败项并退回 Agent B 或说明原因。
   另需包含 `PASS verify_project timer category empty state action contracts`、`PASS verify_project mac timer category queue contracts`、`PASS verify_project declaration boundary resilience contracts` 和 `PASS verify_project ci action Node.js 24 contracts`。
 - 最新完整 GitHub Actions job 日志不得出现 Node.js 20、`DEP0040`、`punycode`、`DEP0169` 或 `url.parse` 弃用项；必须检查 Checkout、Upload artifact 和 Post Checkout 等 Action 步骤的完整日志，不能用裁剪日志或过滤警告代替。
 - `staticChecksOutcome`、`projectVerificationOutcome`、`buildOutcome`、`macBuildOutcome`、`iosBuildOutcome` 均为 `success`。
@@ -505,9 +551,9 @@ plist / JSON / scheme 检查已包含在 `scripts/verify_project.sh` 中：
 ## 规则
 
 - 每次实现前先读本文件。
-- 默认从最小本地轻量检查开始，根据改动范围交给云端重验证扩大覆盖。
+- 本机仅静态读码、diff 审阅及 `gh` 取证；按改动范围由 Actions 执行相应测试层级。
 - 不得伪造测试结果，不得把“已验证”当作命令结果。
-- 文档-only 修改可只跑 `git diff --check`，但必须说明未跑完整业务测试的原因。
+- 文档-only 修改也不运行本地检查，仍须整合到 main 后取得最新生产与独立 review 云端证据；明确列出实际执行和未执行项。
 - 修改共享模型、计时状态机、计划生成、统计、通知、Pro 或日历同步时，不得只跑文档检查。
 - 测试脚本失败时，先判断是项目问题还是环境问题；Swift 编译、链接、签名、脚本断言失败不得忽略。
 - 不得把旧 artifact、旧 output 或 checkout 自带报告冒充本轮云端结果。

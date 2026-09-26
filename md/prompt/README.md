@@ -65,9 +65,9 @@ Agent A 写给 Agent B 的提示词必须明确：
 - 当前硬性约束下不运行本地项目测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；只做静态审阅，最终测试和验收全部由 push 后的 GitHub Actions 提供。
 - 完成后按版本号提交本轮相关文件，并 `git push origin main` 触发 `.github/workflows/ci-results.yml`。
 - Agent B 输出必须说明未运行本地测试，包含静态审阅范围、commit SHA、push 状态、workflow run 信息和 artifact 名称。
-- Agent C 必须用 `gh auth login` 后查询最新 `origin/main` 对应精确 workflow run API 和 artifacts API。两份原始响应分别先写 `run-api.json.part`、`artifacts-api.json.part`，成功且非空后无覆盖原子改名；run JSON 结构化核对 attempt、workflow、状态、结论和仓库，artifacts JSON 结构化核对唯一 artifact 的 id、name、size、digest、expired 和 workflow run 身份。
-- Agent C 每次使用全新 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 目录。原始 JSON 必须非空、不超过 1 MiB、为普通文件且不是 symlink；原始 ZIP 使用同一 JSON 中的唯一 id 下载到 `.zip.part` 并进行有限重试，size、SHA-256 和 ZIP 结构全部通过后，才在同一文件系统无覆盖原子改名并解包到全新目录。已有目录或目标文件存在时默认停止并更换唯一目录，禁止删除或覆盖。
-- Agent C 必须将解包目录、原始 ZIP、两份原始 API JSON 和 API size/digest 一并交给 validator 第四模式；v1.2 起核对十四项 run metadata（默认含 push/actor/triggering actor/head repository 来源）、八项 artifact metadata、三项 archive、manifest、failure summary、JUnit、主日志、`.xcresult` 和项目专属快照。v1.4.7 的显式 failure profile 仍要求完整第四模式；受控 `workflow_dispatch` 只能额外传 `--expected-event workflow_dispatch`，不能伪装成 push。前三种较弱模式仅用于兼容，不能替代最新原始证据验收。
+- Agent C 本机仅用 `gh auth login`/`gh auth status` 确认 `Altman-sam114` 授权后取证和读码，不运行 validator 或配置解析。正式下载链在 Actions 使用只读 `GH_TOKEN`（无需交互登录）查询最新 `origin/main` 对应精确 workflow run API 和 artifacts API。两份原始响应分别先写 `run-api.json.part`、`artifacts-api.json.part`，成功且非空后无覆盖原子改名；run JSON 结构化核对 attempt、workflow、状态、结论和仓库，artifacts JSON 结构化核对唯一 artifact 的 id、name、size、digest、expired 和 workflow run 身份。
+- Agent C 每次使用全新 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 目录。原始 JSON 必须非空、不超过 1 MiB、为普通文件且不是 symlink；Actions 正式链的原始 ZIP 使用同一 JSON 中的唯一 id 下载到 `.zip.part` 并进行有限重试，size、SHA-256 和 ZIP 结构全部通过后，才在同一文件系统无覆盖原子改名并解包到全新目录。已有目录或目标文件存在时默认停止并更换唯一目录，禁止删除或覆盖。
+- 独立 Actions 必须将解包目录、原始 ZIP、两份原始 API JSON 和 API size/digest 一并交给 validator 第四模式；v1.2 起核对十四项 run metadata（默认含 push/actor/triggering actor/head repository 来源）、八项 artifact metadata、三项 archive、manifest、failure summary、JUnit、主日志、`.xcresult` 和项目专属快照。v1.4.7 的显式 failure profile 仍要求完整第四模式；受控 `workflow_dispatch` 只能额外传 `--expected-event workflow_dispatch`，不能伪装成 push。前三种较弱模式仅用于兼容，不能替代最新原始证据验收。
 - Agent C 发现失败或结果包不一致时，退回 Agent B 在 `main` 追加修复 commit，不做回滚式处理。
 - 本轮不引入 `smalldata_test`、`develop`、`codeb/...`、PR 合并流，也不照搬 AITRANS 的漫画探针、GGUF、模型 Release、`test/1.png` 等项目特例。
 
@@ -84,7 +84,9 @@ Agent A 写给 Agent B 的提示词必须明确：
 
 - v1.4.8：`md/prompt/v1（持续优化）/v1.4.8（自定义分类代表色统一）.md`。
 - 范围：统一预设/首个任务/session-only/fallback 代表色与分类规范化比较，增加共享对比文字色和活动快照色规则，覆盖 iOS/macOS 筛选、日期格、摘要、空态、任务/计划/计时/统计入口；CI 结果包额外绑定 `bootstrap`/`createManifest`，修复 fallback 摘要日志、成功 required index 和 prepare 日志 allowlist，并在 finalizer 失败时恢复一致 fallback 包；追加 required 缺失、recovery 核心证据、branch slug、阶段摘要和 skipped-only 负向合同。
-- 状态：实现已提交到 `main`，commit `469155c69a4752fba19de804b097ff1f8c1d6e7c`；最新 push run `32653281266` 的 Project verification、Mac build 和 iOS build 失败，artifact `chronofocus-ci-v0.10-main-469155c-run32653281266-attempt1` 已保留用于退回修复证据。当前追加修复云端编译错误与 44pt 点击区契约漂移；禁止本地测试、validator、Xcode、`xcodebuild`、`simctl`、Simulator 和浏览器。修复后必须由最新 GitHub Actions 原始 run/artifacts API、ZIP 和第四模式复判，不能将本轮标为通过。
+- 状态：2026-09-08 退回修复已落盘，待整合 push 和云端验收，尚未通过，不另开版本。最新已知 main commit `5df94397d3609dc891903274cf587f4000e3737b`，源 run `32653761542` / attempt `1` / `push/main` 为 failure：旧 semantic 合同失败、MacMini 非法 frame 引发 Mac 编译超时，iOS build success。artifact `9496921830`（`chronofocus-ci-v0.10-main-5df9439-run32653761542-attempt1`）已过期，下载 410；证据目录 `/private/tmp/chronofocus-c-review-32653761542-bXNQQQMj`，完整 size/digest 见 `update_log.md`。无法完成正式第四模式，不能以旧缓存替代。
+- 退回范围：按 A 同一提示词末尾补充要求修复真实 44pt/规范化/草稿/快照合同、MacMini frame、活动任务写入保护与停止后收敛、实际白色/`#111827` 对比度，并补齐独立 Actions 正式第四模式。validator 仅 Actions 执行，C 本地只用 `gh` 取证及读码；成功 push 产品验收与明确授权 dispatch failure 证据链验收分别记录，二者齐备且匹配最新 main 后才可闭环。当前文档 worker 不 stage/commit/push，不动 A 提示词和三个未跟踪文件。
+- 补充删除 no-op：无实际可删项直接返回，自动计划开启时的活动/空/unknown 请求须保持完整计划及快照不变；测试不得关自动计划冻结身份，mixed batch 合法删除仍可重生成计划。独立入口 `.github/workflows/ci-artifact-review.yml` / `scripts/review_ci_artifact.py` 已落盘待云端验证，来源门禁、只读 token、stale 复查与独立证据包的实际流程见 `md/flow/flow.md`。
 
 - v1.4.7：`md/prompt/v1（持续优化）/v1.4.7（CI失败结果包韧性）.md`。
 - 范围：CI 记录 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build、iOS build 七阶段 outcome；失败时通过 fallback manifest/index/stage/summary/JUnit 生成可识别未加密 artifact；validator 增加显式 `--failure-mode` 和 `--expected-event`，成功 profile 保持严格完整包合同。

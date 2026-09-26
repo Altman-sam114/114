@@ -15,7 +15,7 @@ ChronoFocus 是一个 SwiftUI 番茄钟 App 原型，包含 iOS 主 App、iOS Li
 3. `md/flow/flow.md`：当前真实架构、核心数据流、执行流。
 4. `md/flow/flowchart.md`：核心逻辑和 Agent 迭代流程图。
 5. `md/test/test.md`：测试分层、命令、触发条件、当前基线。
-6. `README.md`：用户视角功能、打开方式、本地验证。
+6. `README.md`：用户视角功能、打开方式、云端验证。
 7. `md/prompt/README.md`：提示词目录、角色召唤和云端阶段要求。
 8. `.github/workflows/`：云端验证和结果包规则。
 9. 任务相关源码、脚本、最近 git 记录。
@@ -31,7 +31,7 @@ ChronoFocus 是一个 SwiftUI 番茄钟 App 原型，包含 iOS 主 App、iOS Li
 - 不做无关重构，不回滚用户或其他 Agent 的改动，不伪造测试结果。
 - 手写文件修改使用 `apply_patch`；大规模格式化或构建产物生成可以使用项目脚本。
 - 默认协作分支是 `main`，也是唯一上传、提交、推送和云端验证分支；现存 `smalldata_test` 只记录现状，不纳入默认流程。
-- 当前总目标的硬性验证策略是云端唯一：不得在本机运行项目测试、`bash scripts/verify_project.sh`、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；只允许做静态审阅后提交并由 `origin/main` 的 GitHub Actions 验证。
+- 当前总目标的硬性验证策略是云端唯一：不得在本机运行任何测试、`bash scripts/verify_project.sh`、validator、YAML/配置解析、Swift/Swift 编译器、Xcode、`xcodebuild`、`simctl`、Simulator 或浏览器；只允许做静态审阅后提交并由 `origin/main` 的 GitHub Actions 验证。
 
 ## 4. 核心架构边界
 
@@ -64,7 +64,7 @@ macOS 平台层：
 
 ## 5. 标准迭代工作流
 
-项目默认采用“人工目标 -> Agent A 设计提示词 -> Agent B 基于最新 `origin/main` 实现、轻量检查、commit 并 push 到 `origin/main` -> GitHub Actions 上传未加密 CI 结果包 -> Agent C 下载结果包验收 -> 有问题退回 Agent B 在 `main` 追加修复 commit -> 通过后人工复核 -> 下一轮”的循环。用户可用 Agent X 围绕一个总目标主控多轮 A/B/C 闭环，但 Agent X 不直接替代 A、B、C 的职责。
+项目默认采用“人工目标 -> Agent A 设计提示词 -> Agent B 基于最新 `origin/main` 实现、静态审阅、commit 并 push 到 `origin/main` -> GitHub Actions 上传未加密 CI 结果包 -> Actions 执行正式第四模式、Agent C 取证验收 -> 有问题退回 Agent B 在 `main` 追加修复 commit -> 通过后人工复核 -> 下一轮”的循环。用户可用 Agent X 围绕一个总目标主控多轮 A/B/C 闭环，但 Agent X 不直接替代 A、B、C 的职责。
 
 ### 角色召唤和身份标识
 
@@ -85,12 +85,16 @@ macOS 平台层：
 - 本轮不使用 `smalldata_test`、`develop`、`codeb/...` 或 PR 合并流；如后续人工要改流程，必须先更新本文件和 `md/flow/*`。
 - Agent B 完成后在本地提交，并直接 `git push origin main` 触发 GitHub Actions。
 - GitHub Actions 必须上传未加密 CI 结果包，至少包含 manifest、failure summary、JUnit 或等价摘要、主日志和项目专属验证产物。
-- Agent C 必须先 `gh auth login`，再通过精确 workflow run API 和 run artifacts API 获取 `origin/main` 最新 commit 对应 run 的两份原始 JSON。响应分别先写入全新目录中的 `run-api.json.part`、`artifacts-api.json.part`，成功且非空、最终文件不存在时再在同一文件系统无覆盖原子改名为 `run-api.json`、`artifacts-api.json`；禁止把两份 JSON 放入 GitHub Actions artifact 或解包目录。
-- `artifacts-api.json` 必须由 validator 通过 `--artifact-metadata` 结构化解析，`run-api.json` 必须通过 `--run-metadata` 结构化解析。两者与完整 archive 三参数、最新 commit/run/attempt/branch 和预期 artifact 名称交叉核对 artifact 与 workflow run 身份；文件必须非空、不超过 1 MiB、是普通文件且不是 symlink。API size/digest 与 run status/attempt 等字段是包外信任输入，不能由包内字段自证。
-- 每次验收使用全新的 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 缓存目录。目录、目标 ZIP、`.part` 或解包目录已存在时默认停止并改用新的唯一目录，禁止覆盖、清空或删除已有证据。
-- 原始 artifact 必须下载到同一文件系统内的 `<artifact-name>.zip.part`，使用失败即退出、跟随重定向和有限重试；先核对实际字节数、SHA-256 和 ZIP 结构，全部通过且最终 ZIP 不存在后再原子改名为 `<artifact-name>.zip`，随后解包到全新目录。
-- Agent C 复判时应把解包目录、最新 commit/run/attempt、原始 ZIP、API size/digest、原始 `artifacts-api.json` 和原始 `run-api.json` 一并交给 validator。目录-only、archive 三参数、archive 三参数加 artifact metadata、再加 run metadata 四种模式保持兼容；artifact metadata 不得脱离完整 archive 参数组，run metadata 还必须同时具备 artifact metadata。下载或校验失败时保留 JSON、`.part`、ZIP 和相关证据，不自动删除，也不得用自动解包结果代替原始 ZIP 来源核对。
-- Run artifacts API 的 `workflow_run` 不提供 `run_attempt`；完整模式由精确 run API 结构化复判 `id/run_attempt/head_sha/head_branch/name/path/status/conclusion/repository.full_name/event/actor.login/triggering_actor.login/head_repository.full_name`，并与参数、artifacts API、artifact 名称和 manifest/index/run context 交叉关联。v1.2 起正式验收只接受授权账号向授权 head repository 的 `push` run。
+- `.github/workflows/ci-artifact-review.yml` 仅响应 `ChronoFocus CI Results` 的 `workflow_run: completed`，先核对精确源 run API、事件身份和当前 main，再 checkout 已核对的源 SHA，`persist-credentials: false`。下载前和最终结论前再次核对 main SHA/源 attempt；变化即 stale，不使用 review 自身 SHA/run/attempt 冒充源身份。
+- 独立 review 的 `GITHUB_TOKEN` 仅 `contents: read`、`actions: read`，其余权限为 none；不使用 PAT、额外 secrets、OIDC、写权限、自动提交/评论/check/status 或不可信缓存，不执行解包内容。源 actor、triggering actor 均须为 `Altman-sam114`，源仓库和 head repository 均为 `Altman-sam114/114`；token 的 bot 身份不替代该授权核对。
+- 受控 failure 必须由授权账号显式 dispatch 允许的 `failure_mode`，包外 run API 的 `display_title` 绑定该输入，并与源 workflow、精确 attempt jobs API、API 原始注入日志和包内 stage outcome 交叉核对：job 本身必须 completed/failure，按名称定位唯一 completed 目标步骤；步骤 conclusion 因 continue-on-error 可为 success 或 failure，不要求 API step failure。注入失败由包内目标 stage outcome=failure 与 API 原始日志中的实际注入输出共同证明。失败 push、未登记 dispatch、dispatch success 及取消/超时等不得放行或自动切换 profile。
+- 正式证据目录中的原始 API JSON、ZIP、下载残留及 validator 日志必须与 `extracted/` 解包树隔离；只可上传独立命名、绑定 source/review 两套身份的 review evidence artifact，不得加入生产 `ci-results/` 或其 index allowlist。证据上传失败也不能宣布验收通过。
+- Agent C 本机仅用 `gh auth login`/`gh auth status` 确认授权账号后取证并读码，不运行 validator、测试或配置解析。独立 Actions 使用只读 `GH_TOKEN`，无需交互登录；正式下载和结构化复判由 Actions 执行。通过精确 workflow run API 和 run artifacts API 获取 `origin/main` 最新 commit 对应 run 的两份原始 JSON。响应分别先写入全新目录中的 `run-api.json.part`、`artifacts-api.json.part`，成功且非空、最终文件不存在时再在同一文件系统无覆盖原子改名为 `run-api.json`、`artifacts-api.json`；禁止把两份 JSON 放入生产 artifact 或解包目录；独立 review evidence artifact 可保留这些包外原文。
+- `artifacts-api.json` 必须由仅在 Actions 执行的 validator 通过 `--artifact-metadata` 结构化解析，`run-api.json` 必须通过 `--run-metadata` 结构化解析。两者与完整 archive 三参数、最新 commit/run/attempt/branch 和预期 artifact 名称交叉核对 artifact 与 workflow run 身份；文件必须非空、不超过 1 MiB、是普通文件且不是 symlink。API size/digest 与 run status/attempt 等字段是包外信任输入，不能由包内字段自证。
+- C 本机每次取证使用全新的 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/`；Actions 在 runner 临时目录建立全新 review 目录。目录、目标 ZIP、`.part` 或解包目录已存在时默认停止并改用新的唯一目录，禁止覆盖、清空或删除已有证据。
+- Actions 中的原始 artifact 必须下载到同一文件系统内的 `<artifact-name>.zip.part`，使用失败即退出、跟随重定向和有限重试；先核对实际字节数、SHA-256 和 ZIP 结构，全部通过且最终 ZIP 不存在后再原子改名为 `<artifact-name>.zip`，随后解包到全新目录。
+- 正式复判必须在独立 Actions 中把解包目录、最新 commit/run/attempt、原始 ZIP、API size/digest、原始 `artifacts-api.json` 和原始 `run-api.json` 一并交给 validator。目录-only、archive 三参数、archive 三参数加 artifact metadata、再加 run metadata 四种模式保持兼容；artifact metadata 不得脱离完整 archive 参数组，run metadata 还必须同时具备 artifact metadata。下载或校验失败时保留 JSON、`.part`、ZIP 和相关证据，不自动删除，也不得用自动解包结果代替原始 ZIP 来源核对。
+- Run artifacts API 的 `workflow_run` 不提供 `run_attempt`；完整模式由精确 run API 结构化复判 `id/run_attempt/head_sha/head_branch/name/path/status/conclusion/repository.full_name/event/actor.login/triggering_actor.login/head_repository.full_name`，并与参数、artifacts API、artifact 名称和 manifest/index/run context 交叉关联。产品通过只接受授权账号向授权 head repository 的 `push + completed + success` run；受控失败只能显式选择授权的同一当前 main `workflow_dispatch + completed + failure` run 并传 `--failure-mode --expected-event workflow_dispatch`，通过仅代表失败证据链有效，不代表产品通过。失败 push 不得自动降级为受控 failure。
 - Agent C 只验收 manifest 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新 commit 完全一致的结果包。
 - Agent C 下载 artifact 前只选择最新 run 对应的必要结果包，缓存使用上述全新唯一目录，不得下载历史 artifact、大体积测试数据、模型、DerivedData 或无关缓存。
 - push、CI 和 artifact 验收必须基于项目授权的 GitHub 账号 `Altman-sam114`，不得使用其他账号伪装完成。
@@ -108,7 +112,7 @@ Agent A 默认不直接写代码，负责把人工目标转成可执行实现提
 - 设计实现步骤、涉及模块、数据流/状态流变化、测试要求和文档更新要求。
 - 确定版本号：人工指定则按人工指定；未指定则从现有 `md/prompt/` 和 `update_log.md` 自动递增。
 - 将提示词写入 `md/prompt/v0（简要标题）/v0.1（简要说明）.md` 这类版本目录。
-- 在提示词中写清本轮 `main` 同步、轻量检查、commit/push、CI workflow、artifact 下载和 Agent C 核对要求。
+- 在提示词中写清本轮 `main` 同步、静态审阅、commit/push、CI workflow、artifact 下载和 Agent C 核对要求。
 
 提示词必须包含：版本号、版本分配依据、背景、目标、非目标、当前架构依据、实现步骤、关键文件、测试要求、文档更新要求、验收标准、风险和禁止项。
 
@@ -125,7 +129,7 @@ Agent B 按 Agent A 提示词小步实现。
 - 当前硬性约束下不运行本地项目测试或检查；只做静态审阅，完成后提交并 push 到 `origin/main`，由 GitHub Actions 产生唯一测试证据。
 - 更新 `README.md`、`update_log.md`、`md/test/test.md`、`md/flow/*` 或脚本中受影响的部分。
 - 按版本号提交本轮相关文件，push 到 `origin/main` 触发 GitHub Actions。
-- 输出改动说明、关键文件、本地检查命令和结果、云端 run/artifact 信息、未跑测试原因、已知风险、后续建议。
+- 输出改动说明、关键文件、静态审阅范围及云端命令和结果、云端 run/artifact 信息、未跑测试原因、已知风险、后续建议。
 
 ### Agent C：验收与核心逻辑更新
 
@@ -136,7 +140,7 @@ Agent C 负责验收 Agent B 结果，并维护核心逻辑文档。
 - 阅读 Agent B 输出、实际 diff、测试结果和入口文档。
 - 核对实现是否满足 Agent A 提示词和人工目标。
 - 检查架构边界、测试覆盖、文档同步和未说明风险。
-- 用 `gh auth login` 后下载最新 `origin/main` 对应的 GitHub Actions artifact。
+- 用 `gh` 确认 `Altman-sam114` 授权并取得最新 `origin/main` 源 run、独立 review run 和必要原始证据；validator 只在 Actions 执行，C 读取其日志及结论，不本地复跑。
 - 核对 manifest、JUnit 或等价摘要、主日志、failure summary 和项目专属产物。
 - 核对 manifest 的 `branch`、`commitSha`、run id、run attempt 与 `origin/main` 最新状态一致。
 - 基于当前真实实现检查 `md/flow/flow.md` 与 `md/flow/flowchart.md` 是否同步；缺失时退回 Agent B 或追加文档 commit 后重新 push 验证。
@@ -149,10 +153,12 @@ Agent C 负责验收 Agent B 结果，并维护核心逻辑文档。
 
 Agent X 是可选的主控调度角色，不直接替代 Agent A、Agent B 或 Agent C。
 
+人工明确要求不启动子智能体时，由同一会话按 A 设计、B 实现、C 取证三个阶段顺序执行并分别记录产物；X 仍负责范围和停止判断，不创建子智能体或额外会话。顺序执行不能省略版本提示词、云端测试或最新 artifact 验收。
+
 必须完成：
 
 - 接收人工给出的总目标 X，拆成多个可验收的小轮次目标。
-- 每轮按 Agent A -> Agent B -> Agent C 的顺序推进：Agent A 写版本化提示词，Agent B 实现、轻量检查、commit 并 push 到 `origin/main`，Agent C 下载最新云端 artifact 并复判。
+- 每轮按 Agent A -> Agent B -> Agent C 的顺序推进：Agent A 写版本化提示词，Agent B 实现、静态审阅、commit 并 push 到 `origin/main`，Agent C 下载最新云端 artifact 并复判。
 - 基于 Agent C 的结论判断下一步：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
 - 每轮都记录当前轮次目标、版本号、Agent A 提示词路径、Agent B commit/push 状态、GitHub Actions run/artifact 信息、Agent C 验收结论和未解决风险。
 - 在总目标未完成、Agent C 未完成最新 artifact 验收、或失败原因未解释清楚时，不得宣布完成。

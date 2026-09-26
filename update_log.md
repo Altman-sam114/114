@@ -12,9 +12,12 @@
 
 ## 当前状态
 
+- 2026-09-26 Agent X 接续：按人工要求单会话顺序执行 A/B/C 阶段，不创建子智能体。先整合既有 v1.4.8 修复及独立 Actions 复判，再推进 v1.4.9 分类搜索与后续整体界面整理。已静态确认待提交修复与上一轮记录一致；`md/1.md` 和通用迁移提示词为既有用户笔记，不纳入提交。GitHub 当前活动账号为 `Altman-sam114`，main 已同步；不执行本地测试、构建、validator 或配置解析。
+
+- v1.4.8 退回修复已落盘，待整合 push 和云端验收（2026-09-08），尚未通过。主线程已完成 main 同步，基线为 `5df94397d3609dc891903274cf587f4000e3737b`；最新已知源 run `32653761542` / attempt `1` / `push` / `main` 为 failure。artifact 已过期且下载返回 410，不能正式验收；完整证据见本版本记录。历史通过记录不能替代当前 SHA 的云端结论。
 - iOS 主 App 已具备番茄钟、日程待办、自动计划、统计分析、Pro 内购、系统日历同步、本地通知、Live Activity、铃声/音色/振动、亮暗主题。
 - macOS 版已作为状态栏 App 存在，复用共享模型、`FocusStore` 和 `TimerEngine`，提供菜单栏剩余时间、小窗、详细窗口、Mac 通知、Mac 日历同步、Mac Pro 服务和 Mac 快照测试。
-- 当前本地项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、计时页/日程页分类筛选摘要/预填/排序/快捷新增标记、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、iOS/Mac 计时主控按钮任务名和分类语义、统计分类投入占比/次数/排行/排序依据/空态语义/元信息和占比可读性、统计最近记录分类上下文、统计计划回顾分类语义、iOS 待办新增/编辑保存/取消按钮分类语义、分类 chip 点击切换、分类输入上下文、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS/Mac 日程分类空态操作、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名和分类语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划项分类 badge、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增任务名称输入框分类上下文、提交按钮分类/轮次语义、Mac 小窗快捷面板按钮语义、Mac 计划项分类上下文、分类摘要插入点和动作接线、Mac 待办筛选计数、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、Mac 分类摘要快捷新增、Mac 连续快速新增保留分类、Mac 分类预填提示、iOS 设置页音色选择、Mac 小窗分类上下文、CI 结果包校验脚本与小型成功、manifest artifactName/overallOutcome 复判、index artifactName 复判、旧 process version 负向、run context 额外字段负向、分类摘要 marker 缺失负向、日程任务操作 marker 缺失负向、计时主控 marker 缺失负向、计划开始 marker 缺失负向、计划分类 badge marker 缺失负向、Mac 计划分类 marker 缺失负向、计划面板操作 marker 缺失负向、日程 toolbar 新增 marker 缺失负向、iOS/Mac 日程分类空态操作 marker 缺失负向、Mac 快速新增 marker 缺失负向、Mac 快速新增标题分类上下文 marker 缺失负向、分类输入上下文 marker 缺失负向、待办保存分类 marker 缺失负向、待办取消分类 marker 缺失负向、Mac 小窗快捷面板 marker 缺失负向、统计分类占比 marker 缺失负向、统计分类投入次数 marker 缺失负向、统计分类投入排行 marker 缺失负向、统计分类投入排序依据 marker 缺失负向、统计分类投入空态 marker 缺失负向、统计分类投入元信息可读性 marker 缺失负向、统计分类投入占比可读性 marker 缺失负向、统计最近记录分类 marker 缺失负向、统计计划回顾分类 marker 缺失负向、JUnit 元数据负向、JUnit errors 负向、JUnit outcome 负向、JUnit failure/error 元素负向、artifactName mismatch 负向、manifest artifactName/overallOutcome 负向、index artifactName 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向、额外 artifact 文件负向、本地文件大小篡改负向、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture、快照 manifest 大小篡改负向 fixture、run context 精确键集复判、固定 CI process version、分类摘要动作/分类可访问/日程任务操作/计时主控/计划开始/计划分类 badge/Mac 计划分类/计划面板操作/日程 toolbar 新增/iOS 和 Mac 日程分类空态操作/Mac 快速新增和标题分类上下文/分类输入上下文/待办保存分类/待办取消分类/Mac 小窗快捷面板/统计分类占比/统计分类投入次数/统计分类投入排行/统计分类投入排序依据/统计分类投入空态/统计分类投入元信息可读性/统计分类投入占比可读性/统计最近记录分类/统计计划回顾分类 contract 日志复判、Mac 核心测试、Mac UI 快照和快照 manifest generatedAt/byteCount 复判。
+- 当前仅由 Actions 执行的项目专属验证入口是 `bash scripts/verify_project.sh`，会检查项目结构、关键实现标记、计时页/日程页分类筛选摘要/预填/排序/快捷新增标记、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、iOS/Mac 计时主控按钮任务名和分类语义、统计分类投入占比/次数/排行/排序依据/空态语义/元信息和占比可读性、统计最近记录分类上下文、统计计划回顾分类语义、iOS 待办新增/编辑保存/取消按钮分类语义、分类 chip 点击切换、分类输入上下文、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS/Mac 日程分类空态操作、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名和分类语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划项分类 badge、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增任务名称输入框分类上下文、提交按钮分类/轮次语义、Mac 小窗快捷面板按钮语义、Mac 计划项分类上下文、分类摘要插入点和动作接线、Mac 待办筛选计数、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、Mac 分类摘要快捷新增、Mac 连续快速新增保留分类、Mac 分类预填提示、iOS 设置页音色选择、Mac 小窗分类上下文、CI 结果包校验脚本与小型成功、manifest artifactName/overallOutcome 复判、index artifactName 复判、旧 process version 负向、run context 额外字段负向、分类摘要 marker 缺失负向、日程任务操作 marker 缺失负向、计时主控 marker 缺失负向、计划开始 marker 缺失负向、计划分类 badge marker 缺失负向、Mac 计划分类 marker 缺失负向、计划面板操作 marker 缺失负向、日程 toolbar 新增 marker 缺失负向、iOS/Mac 日程分类空态操作 marker 缺失负向、Mac 快速新增 marker 缺失负向、Mac 快速新增标题分类上下文 marker 缺失负向、分类输入上下文 marker 缺失负向、待办保存分类 marker 缺失负向、待办取消分类 marker 缺失负向、Mac 小窗快捷面板 marker 缺失负向、统计分类占比 marker 缺失负向、统计分类投入次数 marker 缺失负向、统计分类投入排行 marker 缺失负向、统计分类投入排序依据 marker 缺失负向、统计分类投入空态 marker 缺失负向、统计分类投入元信息可读性 marker 缺失负向、统计分类投入占比可读性 marker 缺失负向、统计最近记录分类 marker 缺失负向、统计计划回顾分类 marker 缺失负向、JUnit 元数据负向、JUnit errors 负向、JUnit outcome 负向、JUnit failure/error 元素负向、artifactName mismatch 负向、manifest artifactName/overallOutcome 负向、index artifactName 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向、额外 artifact 文件负向、本地文件大小篡改负向、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture、快照 manifest 大小篡改负向 fixture、run context 精确键集复判、固定 CI process version、分类摘要动作/分类可访问/日程任务操作/计时主控/计划开始/计划分类 badge/Mac 计划分类/计划面板操作/日程 toolbar 新增/iOS 和 Mac 日程分类空态操作/Mac 快速新增和标题分类上下文/分类输入上下文/待办保存分类/待办取消分类/Mac 小窗快捷面板/统计分类占比/统计分类投入次数/统计分类投入排行/统计分类投入排序依据/统计分类投入空态/统计分类投入元信息可读性/统计分类投入占比可读性/统计最近记录分类/统计计划回顾分类 contract 日志复判、Mac 核心测试、Mac UI 快照和快照 manifest generatedAt/byteCount 复判。
 - v0.79 起，当前任务选择行分类语义新增独立云端结果包复判：`Current task selection accessibility contracts verified.` 与 `PASS verify_project current task selection accessibility contracts`。
 - v0.80 起，分类筛选 chip 再次点击已选分类清除筛选新增独立云端结果包复判：`Category filter toggle contracts verified.` 与 `PASS verify_project category filter toggle contracts`。
 - v0.81 起，iOS 统计页日程计划回顾分类语义新增独立云端结果包复判：`Analytics plan review category accessibility contracts verified.` 与 `PASS verify_project analytics plan review category accessibility contracts`。
@@ -199,6 +202,8 @@
 
 日期：2026-08-23
 
+退回更新：2026-09-08；沿用 v1.4.8，不另开版本。
+
 核心变更：
 
 - 共享 `TaskCategoryPreset` / `FocusStore` 统一预设优先、首个同分类任务、session-only/fallback 的代表色规则，规范化分类比较并拒绝空/非法 HEX；iOS/macOS 分类筛选、摘要、空态、任务行、计划项、计时队列、统计和已有分类草稿复用同一查询，不新增持久化字段。
@@ -209,6 +214,7 @@
 - 新增 `scripts/recover_ci_result_package.py`：正常 finalizer 失败时在上传前重建一致的 fallback manifest、stage、summary、JUnit、index 和 run context；恢复步骤失败则 upload 被跳过，避免将陈旧成功目录冒充失败包。
 - 追加 CI 证据链加固：成功包 required 路径缺失会使 finalizer 失败并转入 failure profile，recovery 自身缺少六项核心证据时拒绝继续；所有阶段摘要逐项绑定 stage outcome，fallback artifact 名称统一按 branch slug 生成，并增加 skipped-only 伪失败负向 fixture。
 - 追加 UI 可用性收口：Mac 快捷面板在固定 popover 内提供确定性快照状态和受限垂直滚动；iOS/macOS 计划、筛选摘要、日历导航和待办操作统一提供至少 44pt 触控区，静态快照占位与真实操作尺寸保持一致。
+- 2026-09-08 退回补丁已在工作区增加独立 `ci-artifact-review.yml`、`review_ci_artifact.py` 与 `test_review_ci_artifact.py`，生产 Static checks 接入全部 workflow YAML/Python 语法与 fixture，源 `run-name` 绑定 failure_mode；来源门禁先于 checkout，token 只读，正式第四模式和独立证据上传均由 Actions 执行。文档按实际入口同步，但尚无新云端通过证据。
 
 关键文件：
 
@@ -237,13 +243,19 @@
 - `md/prompt/README.md`
 - `md/prompt/v1（持续优化）/v1.4.8（自定义分类代表色统一）.md`
 
+退回新增关键文件：`.github/workflows/ci-artifact-review.yml`、`scripts/review_ci_artifact.py`、`scripts/test_review_ci_artifact.py`；入口规则同步 `AGENTS.md`。
+
 验证结果：
 
 - 当前未运行任何本地测试、验证脚本、validator、YAML 解析、Swift/Xcode 构建、`xcodebuild`、`simctl`、Simulator 或浏览器；仅完成静态审阅和补丁准备，等待修复提交后的 GitHub Actions。
 
 遗留事项：
 
-- v1.4.8 已提交并推送；最新 `origin/main` push run `32653281266` 因 `FocusStore`/`TimerEngine` 云端编译错误和 44pt Mac 点击区静态契约滞后失败。当前追加修复这些问题，完成后必须由最新 `origin/main` push run 及 Agent C 第四模式复判 success artifact，并至少复判一次受控 failure profile 后，才能更新为通过。
+- 旧 run `32653281266` 已由修复 commit `5df94397d3609dc891903274cf587f4000e3737b` 的 run `32653761542`（attempt `1`，`push/main`，failure）取代。按主线程转述的 Agent C 证据：`projectVerification` 因旧 semantic 合同失败，MacMini 非法 frame 引发 Mac 编译超时，iOS build success；不能把单端成功写成版本通过。
+- artifact `9496921830`，名称 `chronofocus-ci-v0.10-main-5df9439-run32653761542-attempt1`，API size `116974`，digest `sha256:5525023c4335d61327bcfd770002e5479dcc5adcb1471f6978be6f1170fad843`，`expired=true`，下载 HTTP `410`。证据目录 `/private/tmp/chronofocus-c-review-32653761542-bXNQQQMj` 保留原始 JSON 和下载失败残留；本 worker 未重新联网取证，不声称已有可用原始 ZIP 或完成第四模式。该记录既不是产品通过，也不是受控 failure 证据链通过。
+- 本轮旧合同、MacMini 合法 frame、活动任务写入保护与停止后 idle 收敛、实际 `#FFFFFF` / `#111827` 候选对比度修复已落盘；独立云端正式第四模式已落盘并静态核对入口，仍待整合及云端验证。只读审阅及文档补丁不是测试结果；本 worker 不 stage/commit/push，不修改 A 提示词或三个用户未跟踪文件。
+- 新增退回修复已落盘：`deleteTasks(ids:)` 先核对非活动任务或计划 taskID 实际命中，无可删项在数组写回/persist/regen 前返回，修复自动计划 UUID/时间被无效请求重建。core 保持 `autoGeneratePomodoroPlan=true`，覆盖运行/暂停纯活动、空/unknown 请求的完整任务/计划/快照不变，以及 mixed batch、仅命中非活动计划 taskID 和停止后删除；合法删除仍保留原有计划重生成语义，不把计划项自身 UUID 作为 taskID。该修复未云端验证。
+- 必须由整合 B 推送后取得同一最新 main SHA 的正常 push success 产品包，以及明确授权的 dispatch failure 包，分别完成独立 Actions 第四模式与 Agent C 取证核对，才能宣布 v1.4.8 完成。过期、410、旧 run、旧缓存与文字汇报均不能补齐原始证据链。
 
 ### v1.4.7 / CI 失败结果包韧性
 

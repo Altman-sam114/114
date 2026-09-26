@@ -1,0 +1,193 @@
+name: ChronoFocus Artifact Review
+
+on:
+  workflow_run:
+    workflows: [ChronoFocus CI Results]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  review:
+    name: Independent fourth-mode artifact review
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Gate source identity before checkout
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          # BEGIN REVIEW PREFLIGHT
+          import ctypes
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import resource
+          import stat
+          import subprocess
+          import tempfile
+          import time
+
+          REPOSITORY = "Altman-sam114/114"
+          MAX_JSON = 1048576
+          INJECTIONS = ("checkout", "prepareMetadata", "selectXcode", "projectVerification", "macBuild", "iosBuild")
+
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+
+          def identity(run):
+              return tuple(run.get(key) for key in (
+                  "id", "run_attempt", "head_sha", "head_branch", "name", "path",
+                  "status", "conclusion", "event", "display_title", "workflow_id",
+              )) + tuple(run.get(key, {}).get(field) for key, field in (
+                  ("repository", "full_name"), ("head_repository", "full_name"),
+                  ("actor", "login"), ("triggering_actor", "login"),
+              ))
+
+          def gate(run, event_run, main_sha):
+              require(isinstance(run, dict) and isinstance(event_run, dict), "Missing source run")
+              require(identity(run) == identity(event_run), "Source API/event identity mismatch (possibly stale attempt)")
+              require(all(type(run.get(key)) is int and run[key] > 0 for key in ("id", "run_attempt", "workflow_id")), "Invalid source id/attempt")
+              require(re.fullmatch(r"[0-9a-f]{40}", run.get("head_sha", "")) is not None, "Invalid source SHA")
+              for key in ("repository", "head_repository"):
+                  require(run.get(key, {}).get("full_name") == REPOSITORY, "Unauthorized repository")
+              for key in ("actor", "triggering_actor"):
+                  require(run.get(key, {}).get("login") == "Altman-sam114", "Unauthorized actor")
+              require(run.get("name") == "ChronoFocus CI Results" and run.get("path") == ".github/workflows/ci-results.yml", "Wrong source workflow")
+              require(run.get("head_branch") == "main", "Source branch is not main")
+              require(run["head_sha"] == main_sha, "stale: source is no longer current main")
+              require(run.get("status") == "completed", "Source is not completed")
+              if run.get("event") == "push" and run.get("conclusion") == "success":
+                  require(run.get("display_title") == "ChronoFocus CI Results [failure_mode=none]", "Unexpected push registration")
+                  return "success", "none"
+              if run.get("event") == "workflow_dispatch" and run.get("conclusion") == "failure":
+                  for injection in INJECTIONS:
+                      if run.get("display_title") == f"ChronoFocus CI Results [failure_mode={injection}]":
+                          return "controlled-failure", injection
+              raise RuntimeError("Refused profile: failed push, unregistered dispatch or unsupported conclusion")
+
+          def unique_object(pairs):
+              result = {}
+              for key, value in pairs:
+                  require(key not in result, "Duplicate API JSON key")
+                  result[key] = value
+              return result
+
+          def read_json(path):
+              info = path.lstat()
+              require(stat.S_ISREG(info.st_mode) and 0 < info.st_size <= MAX_JSON, "Invalid API JSON file")
+              return json.loads(path.read_bytes(), object_pairs_hook=unique_object)
+
+          def limit_output_file_size():
+              resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_JSON, MAX_JSON))
+
+          def fetch_json(endpoint, destination):
+              require(not os.path.lexists(destination), "Evidence already exists")
+              for attempt in range(1, 4):
+                  suffix = ".part" if attempt == 1 else f".retry-{attempt}.part"
+                  part = destination.with_name(destination.name + suffix)
+                  error_path = Path(str(part) + ".stderr")
+                  with part.open("xb") as output, error_path.open("xb") as errors:
+                      try:
+                          result = subprocess.run(["gh", "api", "--hostname", "github.com", endpoint], stdout=output, stderr=errors, timeout=30, check=False, preexec_fn=limit_output_file_size)
+                          ok = result.returncode == 0
+                      except subprocess.TimeoutExpired:
+                          ok = False
+                  if not ok and (part.stat().st_size >= MAX_JSON or error_path.stat().st_size >= MAX_JSON):
+                      raise RuntimeError("Transfer size limit reached; child reaped and partial evidence retained")
+                  if ok:
+                      value = read_json(part)
+                      library = ctypes.CDLL(None, use_errno=True)
+                      rename = library.renameat2
+                      rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+                      rename.restype = ctypes.c_int
+                      if rename(-100, os.fsencode(part), -100, os.fsencode(destination), 1) != 0:
+                          error = ctypes.get_errno()
+                          raise OSError(error, os.strerror(error), str(destination))
+                      return value
+                  if attempt < 3:
+                      time.sleep(attempt)
+              raise RuntimeError("API download failed; partial evidence retained")
+
+          def main():
+              evidence = Path(tempfile.mkdtemp(prefix="chronofocus-artifact-review-", dir=os.environ["RUNNER_TEMP"]))
+              with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+                  output.write(f"evidence={evidence}\n")
+              result = {"conclusion": "rejected before checkout", "review_run": os.environ["GITHUB_RUN_ID"], "review_attempt": os.environ["GITHUB_RUN_ATTEMPT"]}
+              try:
+                  event_path = evidence / "workflow-run-event.json"
+                  with event_path.open("xb") as output:
+                      output.write(Path(os.environ["GITHUB_EVENT_PATH"]).read_bytes())
+                  event = read_json(event_path)
+                  require(event.get("action") == "completed" and event.get("repository", {}).get("full_name") == REPOSITORY, "Wrong event envelope")
+                  source = event.get("workflow_run", {})
+                  result["unverified_source"] = {key: source.get(key) for key in ("id", "run_attempt", "head_sha", "event", "conclusion")}
+                  source_id = source.get("id")
+                  require(type(source_id) is int and source_id > 0, "Invalid event source id")
+                  run = fetch_json(f"repos/{REPOSITORY}/actions/runs/{source_id}", evidence / "run-api.json")
+                  main_commit = fetch_json(f"repos/{REPOSITORY}/commits/main", evidence / "main-api.json")
+                  profile, injection = gate(run, source, main_commit.get("sha"))
+                  result.update(source_run=run["id"], source_attempt=run["run_attempt"], source_sha=run["head_sha"], profile=profile, injection=injection, conclusion="identity gate passed; NOT artifact acceptance")
+                  with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+                      output.write(f"sha={run['head_sha']}\nsource_run={run['id']}\nsource_attempt={run['run_attempt']}\n")
+              except Exception as error:
+                  result["reason"] = str(error)
+                  raise
+              finally:
+                  with (evidence / "preflight-result.json").open("x") as output:
+                      json.dump(result, output, indent=2)
+                  with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as output:
+                      output.write("## Source Identity Gate\n\n```json\n" + json.dumps(result, indent=2) + "\n```\n")
+
+          if __name__ == "__main__":
+              main()
+          # END REVIEW PREFLIGHT
+          PY
+
+      - name: Checkout only the gated source SHA
+        uses: actions/checkout@v5
+        with:
+          repository: Altman-sam114/114
+          ref: ${{ steps.gate.outputs.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Download and review original source artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_DIR: ${{ steps.gate.outputs.evidence }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -rrexml/document -rzlib -rjson -ryaml -e 'puts "Ruby review dependencies available"'
+          command -v unzip
+          python3 scripts/review_ci_artifact.py \
+            --evidence "$REVIEW_DIR" \
+            --event "$REVIEW_DIR/workflow-run-event.json" \
+            --checkout "$GITHUB_WORKSPACE"
+
+      - name: Preserve independent review evidence
+        id: upload_evidence
+        if: always() && steps.gate.outputs.evidence != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: chronofocus-review-source-${{ steps.gate.outputs.sha || 'unverified' }}-run${{ steps.gate.outputs.source_run || 'unverified' }}-attempt${{ steps.gate.outputs.source_attempt || 'unverified' }}-review${{ github.run_id }}-attempt${{ github.run_attempt }}
+          path: ${{ steps.gate.outputs.evidence }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Report review evidence upload failure
+        if: always() && steps.upload_evidence.outcome != 'success'
+        shell: bash
+        run: |
+          printf '\n## Evidence Upload Failed\nIndependent evidence was not persisted; this review is not accepted.\n' >> "$GITHUB_STEP_SUMMARY"
+          exit 1
