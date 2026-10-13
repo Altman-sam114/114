@@ -451,6 +451,27 @@ class ReviewFixtures(unittest.TestCase):
         self.assertEqual(result.stdout, marker)
         self.assertEqual((self.directory / "ci-results/prepare-metadata.log").read_text(), marker)
 
+    def test_finalizer_selects_fallback_for_unsuccessful_bootstrap_or_missing_name(self):
+        source = (ROOT / review.WORKFLOW_PATH).read_text()
+        step_start = source.index("      - name: Ensure minimal result package\n")
+        start = source.index('          if [[ "${SCAFFOLD_OUTCOME}"', step_start)
+        end = source.index("\n          fi", start) + len("\n          fi")
+        command = "set -euo pipefail\n" + textwrap.dedent(source[start:end])
+        command += '\nprintf "%s" "$ARTIFACT_NAME"\n'
+        for outcome in ("success", "failure", "skipped", "cancelled", "unknown"):
+            for artifact_name in ("normal-artifact", "", None):
+                with self.subTest(outcome=outcome, artifact_name=artifact_name):
+                    env = dict(os.environ, SCAFFOLD_OUTCOME=outcome,
+                               FALLBACK_ARTIFACT_NAME="fallback-artifact")
+                    env.pop("ARTIFACT_NAME", None)
+                    if artifact_name is not None:
+                        env["ARTIFACT_NAME"] = artifact_name
+                    result = subprocess.run(["bash", "-c", command], cwd=self.directory, env=env,
+                                            capture_output=True, text=True, check=False, timeout=10)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    expected = "normal-artifact" if outcome == "success" and artifact_name else "fallback-artifact"
+                    self.assertEqual(result.stdout, expected)
+
     def test_formal_command_cannot_omit_external_parameters_or_downgrade(self):
         run = run_fixture()
         artifact = metadata_fixture(run)["artifacts"][0]
