@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-13 Agent X / B 接续 v1.4.8：基线 `a1817e49a6f958d8abdf8bfede78c4cfb3fae8a7` 的源 run `36259714046` / attempt `1` 中两端 build 与 Static checks 成功，Project verification 因 fallback 摘要合同错误地要求 f-string 后接 `)` 而失败；独立 review `36259859061` 将 API 动态 `run.name` 误认作静态 workflow name，亦失败。现已拆分原组合合同为具名检查，保留全部 required/optional/index 约束并增加三项摘要 outcome 单点破坏；review 与两种 Ruby profile 区分静态 workflow 身份和严格登记 run-name，绑定包外已确认的 workflow ID `306720987` / path / static name，新增隔离的 `workflow-api.json` 并在下载前、最终复查。关键文件为两个 review 入口、两种 validator、`verify_project.sh` 和 review fixtures；文档同步至 README、flow、flowchart、test。仅静态审阅，未运行本地测试、validator、配置解析或编译；待本次提交及新源/review 云端证据。既有两篇用户笔记和 A 管理的 v1.4.9 提示词不纳入本轮提交；v1.4.8 尚未验收，UI 后续轮与发布级总目标尚未完成。
+
 - 2026-09-27 Agent X 接续 v1.4.8：源 run `36234981654`（`b5b8ebc` / attempt 1）双端 build 与 Static checks 成功，Project verification 的 skipped-only 负向夹具同时触发 stage failure state 与 summary entries。根因是按标签替换 outcome 的正则误匹配同名日志路径。限定合法 outcome 枚举，保留原始日志入口及单失败断言，不修改 validator 接受条件。未运行本地测试，待当前修复 push 后云端验证；v1.4.9 及整体 UI 优化尚未开始。
 
 - 2026-09-26 Agent X 接续：按人工要求单会话顺序执行 A/B/C 阶段，不创建子智能体。先整合既有 v1.4.8 修复及独立 Actions 复判，再推进 v1.4.9 分类搜索与后续整体界面整理。已静态确认待提交修复与上一轮记录一致；`md/1.md` 和通用迁移提示词为既有用户笔记，不纳入提交。GitHub 当前活动账号为 `Altman-sam114`，main 已同步；不执行本地测试、构建、validator 或配置解析。

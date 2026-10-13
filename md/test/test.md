@@ -67,9 +67,12 @@
 
 ## 独立云端 Artifact Review
 
+2026-10-13 v1.4.8 修复补充（尚待本轮云端执行）：原 fallback 摘要源码合同误要求 f-string 后的 `)`，现按具名检查保留全部原断言，增加 Checkout / Prepare / Select Xcode 摘要硬编码 `success` 的单目标拒绝 fixture。源 run API 的 `name` 可能等于登记的动态 `run-name`，不等于 workflow 静态 `name`；两种 gate 和 Ruby success/failure profile 均绑定精确 workflow ID `306720987` 与 path，run name 只允许静态名或已登记 display title，任意同名字符串、错误 ID、未知注入仍拒绝。云端 fixtures 覆盖真实动态 name、静态 name 兼容、ID 类型、name/title 错配、workflow API 静态身份及 validator 单失败隔离；不取消现有 marker 或安全负例。
+
 工作区实现入口为 `.github/workflows/ci-artifact-review.yml`（`ChronoFocus Artifact Review`）和 `scripts/review_ci_artifact.py`，仅响应生产 workflow 完成；当前尚无本轮独立 review 通过证据。生产源码、门禁脚本及 fixture 仍须一起推送验证。
 
 - 先核对精确源 run API/事件/当前 main 才 checkout 源 SHA，`persist-credentials: false`；下载前和出结论前再次核对 SHA/attempt，漂移即 stale。权限仅 `contents: read`、`actions: read`，`GH_TOKEN` 使用只读 `GITHUB_TOKEN`，不调用交互登录、不使用 PAT 或额外 secrets。
+- preflight 将 `/actions/workflows/306720987` 原始响应无覆盖落盘为独立 `workflow-api.json`，核对静态 `ChronoFocus CI Results`、精确 path、整数 ID 和 active 状态；下载前与最终复查另存带前缀的原始 workflow API。文件遵循同一 1 MiB、普通非 symlink、`.part` 无覆盖原子晋升边界，不进入生产 artifact 或 extracted 树。validator 四模式参数保持兼容，完整模式在既有 name/path 合同中绑定已登记 title 与固定 workflow ID；不新增较弱验收路径。
 - 正常 profile 仅 `push + completed + success`；受控失败仅授权 `workflow_dispatch + completed + failure`，通过包外 `display_title` 登记允许的 `failure_mode`，与源 workflow 输入、精确 attempt jobs API、API 原始注入日志和包内 stage outcome 交叉核对。job 本身必须 completed/failure，按名称定位唯一 completed 目标步骤；步骤 conclusion 因 continue-on-error 可为 success 或 failure，不要求 API step failure。注入失败由包内目标 stage outcome=failure 与 API 原始日志中的实际注入输出共同证明。失败 push、未登记/成功 dispatch、取消、超时及过时 run 不得降级放行。
 - 原始 run/artifacts API JSON、ZIP 和下载残留留在 runner 全新 review 目录，`extracted/` 是独立解包树。JSON 非空/普通非 symlink/最多 1 MiB；唯一未过期 artifact 的 size、SHA-256、ZIP CRC/安全路径全部通过后，才无覆盖原子改名。正式复判不得省略任何 archive/metadata 参数，不执行解包内容。
 - `validator.log`、`review-result.json`、`review-summary.md` 及独立 evidence artifact 同时标注 source/review 两套 run/attempt、profile、artifact id/name/size/digest、validator exit/PASS/FAIL 与结论。证据上传失败也不能接受；C 本地只 `gh` 取证及静态审阅，禁止本地 validator。

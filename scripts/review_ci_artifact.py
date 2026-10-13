@@ -25,6 +25,7 @@ REPOSITORY = "Altman-sam114/114"
 ACTOR = "Altman-sam114"
 WORKFLOW_NAME = "ChronoFocus CI Results"
 WORKFLOW_PATH = ".github/workflows/ci-results.yml"
+WORKFLOW_ID = 306720987
 RUN_NAME = "ChronoFocus CI Results [failure_mode=${{ github.event_name == 'workflow_dispatch' && inputs.failure_mode || 'none' }}]"
 INJECTIONS = {
     "checkout": ("Checkout", "Controlled failure injection: checkout"),
@@ -157,8 +158,10 @@ def gate(run, event_run, main_sha):
         require(run.get(key, {}).get("full_name") == expected, f"Unauthorized {key}")
     for key in ("actor", "triggering_actor"):
         require(run.get(key, {}).get("login") == ACTOR, f"Unauthorized {key}")
-    require(run.get("name") == WORKFLOW_NAME and run.get("path") == WORKFLOW_PATH,
-            "Wrong source workflow name/path")
+    require(run.get("workflow_id") == WORKFLOW_ID and run.get("path") == WORKFLOW_PATH,
+            "Wrong source workflow id/path")
+    require(run.get("name") in (WORKFLOW_NAME, run.get("display_title")),
+            "Wrong source run name")
     require(run.get("head_branch") == "main", "Source branch is not main")
     if run["head_sha"] != main_sha:
         raise Stale("Source SHA is no longer current main")
@@ -174,6 +177,17 @@ def gate(run, event_run, main_sha):
     raise Rejected("Source profile refused: failed push, unregistered dispatch or unsupported conclusion")
 
 
+def workflow_identity(workflow, run):
+    require(isinstance(workflow, dict)
+            and type(workflow.get("id")) is int
+            and type(run.get("workflow_id")) is int
+            and workflow["id"] == WORKFLOW_ID == run.get("workflow_id")
+            and workflow.get("name") == WORKFLOW_NAME
+            and workflow.get("path") == WORKFLOW_PATH
+            and workflow.get("state") == "active",
+            "Workflow API identity does not match the authorized workflow")
+
+
 def workflow_contract(root):
     # Read the actual gated workflow structurally; Ruby/Psych is already required
     # by the existing validator. YAML 1.1 may decode the GitHub 'on' key as true.
@@ -181,11 +195,12 @@ def workflow_contract(root):
         "ruby", "-ryaml", "-rjson", "-e",
         'w = YAML.load_file(ARGV[0]); t = w["on"] || w[true]; '
         'puts JSON.generate({version: w.fetch("env").fetch("CI_PROCESS_VERSION"), '
-        'run_name: w.fetch("run-name"), '
+        'name: w.fetch("name"), run_name: w.fetch("run-name"), '
         'options: t.fetch("workflow_dispatch").fetch("inputs").fetch("failure_mode").fetch("options")})',
         str(root / WORKFLOW_PATH),
     ], capture_output=True, text=True, check=True, timeout=30)
     contract = json.loads(result.stdout)
+    require(contract["name"] == WORKFLOW_NAME, "Source workflow static name drift")
     require(contract["run_name"] == RUN_NAME, "Run title is not bound to the trusted dispatch input")
     require(contract["options"] == ["none", *INJECTIONS], "Failure input allowlist drift")
     require(re.fullmatch(r"v\d+\.\d+", contract["version"]) is not None, "Invalid process version")
@@ -382,6 +397,9 @@ def validator_command(root, extracted, archive, artifact, run, profile, evidence
 def recheck(evidence, run, label):
     current = read_json(fetch(f"repos/{REPOSITORY}/actions/runs/{run['id']}", evidence / f"{label}-run-api.json"))
     main = read_json(fetch(f"repos/{REPOSITORY}/commits/main", evidence / f"{label}-main-api.json"))
+    workflow = read_json(fetch(f"repos/{REPOSITORY}/actions/workflows/{WORKFLOW_ID}",
+                               evidence / f"{label}-workflow-api.json"))
+    workflow_identity(workflow, current)
     if identity(current) != identity(run) or main.get("sha") != run["head_sha"]:
         raise Stale("Main SHA or source run/attempt changed during review")
 
@@ -392,6 +410,7 @@ def review(evidence, event_path, root, report):
             "Wrong workflow_run envelope")
     run = read_json(evidence / "run-api.json")
     main = read_json(evidence / "main-api.json")
+    workflow_identity(read_json(evidence / "workflow-api.json"), run)
     profile, injection = gate(run, event.get("workflow_run"), main.get("sha"))
     report.update(source_run=run["id"], source_attempt=run["run_attempt"], source_sha=run["head_sha"],
                   profile=profile, injection=injection)

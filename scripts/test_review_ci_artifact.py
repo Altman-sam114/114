@@ -31,17 +31,23 @@ SHA = "a" * 40
 
 
 def run_fixture(injection=None):
+    title = f"ChronoFocus CI Results [failure_mode={injection or 'none'}]"
     return {
-        "id": 12345, "run_attempt": 2, "workflow_id": 23456,
-        "head_sha": SHA, "head_branch": "main", "name": review.WORKFLOW_NAME,
+        "id": 12345, "run_attempt": 2, "workflow_id": review.WORKFLOW_ID,
+        "head_sha": SHA, "head_branch": "main", "name": title,
         "path": review.WORKFLOW_PATH, "status": "completed",
         "conclusion": "failure" if injection else "success",
         "event": "workflow_dispatch" if injection else "push",
-        "display_title": f"ChronoFocus CI Results [failure_mode={injection or 'none'}]",
+        "display_title": title,
         "repository": {"full_name": review.REPOSITORY},
         "head_repository": {"full_name": review.REPOSITORY},
         "actor": {"login": review.ACTOR}, "triggering_actor": {"login": review.ACTOR},
     }
+
+
+def workflow_fixture():
+    return {"id": review.WORKFLOW_ID, "name": review.WORKFLOW_NAME,
+            "path": review.WORKFLOW_PATH, "state": "active"}
 
 
 def metadata_fixture(run, data=b"zip fixture", fallback=False):
@@ -124,11 +130,27 @@ class ReviewFixtures(unittest.TestCase):
 
     def test_both_gates_accept_only_registered_profiles(self):
         for gate in (review.gate, self.bootstrap["gate"]):
-            run = run_fixture()
-            self.assertEqual(gate(run, copy.deepcopy(run), SHA), ("success", "none"))
-            for injection in review.INJECTIONS:
+            for injection in (None, *review.INJECTIONS):
                 run = run_fixture(injection)
-                self.assertEqual(gate(run, copy.deepcopy(run), SHA), ("controlled-failure", injection))
+                expected = ("controlled-failure", injection) if injection else ("success", "none")
+                self.assertEqual(gate(run, copy.deepcopy(run), SHA), expected)
+                run["name"] = review.WORKFLOW_NAME
+                self.assertEqual(gate(run, copy.deepcopy(run), SHA), expected)
+
+    def test_both_workflow_identity_gates_require_external_static_identity(self):
+        for identity in (review.workflow_identity, self.bootstrap["workflow_identity"]):
+            identity(workflow_fixture(), run_fixture())
+            for key, value in (("id", review.WORKFLOW_ID + 1), ("id", float(review.WORKFLOW_ID)),
+                               ("name", "Other CI"), ("path", ".github/workflows/other.yml"),
+                               ("state", "disabled_manually")):
+                workflow = workflow_fixture()
+                workflow[key] = value
+                with self.subTest(key=key, value=value), self.assertRaises(RuntimeError):
+                    identity(workflow, run_fixture())
+            run = run_fixture()
+            run["workflow_id"] += 1
+            with self.assertRaises(RuntimeError):
+                identity(workflow_fixture(), run)
 
     def test_both_gates_reject_identity_and_profile_mutations(self):
         mutations = [
@@ -139,6 +161,7 @@ class ReviewFixtures(unittest.TestCase):
             ("status", "in_progress"), ("conclusion", "failure"), ("conclusion", "cancelled"),
             ("conclusion", "timed_out"), ("conclusion", "skipped"),
             ("display_title", "arbitrary title"), ("id", True), ("run_attempt", 0),
+            ("workflow_id", review.WORKFLOW_ID + 1), ("workflow_id", float(review.WORKFLOW_ID)),
         ]
         for gate in (review.gate, self.bootstrap["gate"]):
             for key, value in mutations:
@@ -154,6 +177,14 @@ class ReviewFixtures(unittest.TestCase):
                     gate(run, copy.deepcopy(run), SHA)
             run = run_fixture("macBuild")
             run["conclusion"] = "success"
+            with self.assertRaises(RuntimeError):
+                gate(run, copy.deepcopy(run), SHA)
+            run = run_fixture()
+            run.update(name="arbitrary title", display_title="arbitrary title")
+            with self.assertRaises(RuntimeError):
+                gate(run, copy.deepcopy(run), SHA)
+            run = run_fixture("macBuild")
+            run["name"] = "ChronoFocus CI Results [failure_mode=iosBuild]"
             with self.assertRaises(RuntimeError):
                 gate(run, copy.deepcopy(run), SHA)
             run = run_fixture()
@@ -447,7 +478,13 @@ class ReviewFixtures(unittest.TestCase):
             changed[field] = value
 
             def fetch(endpoint, destination, **kwargs):
-                return write_json(destination, {"sha": SHA} if endpoint.endswith("commits/main") else changed)
+                if endpoint.endswith("commits/main"):
+                    value = {"sha": SHA}
+                elif "/actions/workflows/" in endpoint:
+                    value = workflow_fixture()
+                else:
+                    value = changed
+                return write_json(destination, value)
 
             with patch.object(review, "fetch", side_effect=fetch), self.assertRaises(review.Stale):
                 review.recheck(self.directory, run, label)
@@ -462,7 +499,12 @@ class ReviewFixtures(unittest.TestCase):
         summary = self.directory / "github-summary"
 
         def fetch(endpoint, destination):
-            value = {"sha": SHA} if endpoint.endswith("commits/main") else run
+            if endpoint.endswith("commits/main"):
+                value = {"sha": SHA}
+            elif "/actions/workflows/" in endpoint:
+                value = workflow_fixture()
+            else:
+                value = run
             write_json(destination, value)
             return value
 
@@ -490,6 +532,7 @@ class ReviewFixtures(unittest.TestCase):
                 })
                 write_json(evidence / "run-api.json", run)
                 write_json(evidence / "main-api.json", {"sha": SHA})
+                write_json(evidence / "workflow-api.json", workflow_fixture())
                 source_zip = evidence / "fixture-source.zip"
                 with zipfile.ZipFile(source_zip, "x") as archive:
                     archive.writestr("ci-stage-outcomes.json", json.dumps({
@@ -518,6 +561,8 @@ class ReviewFixtures(unittest.TestCase):
                         value = jobs_fixture(run, injection)
                     elif endpoint.endswith("commits/main"):
                         value = {"sha": "b" * 40 if failure_point == "final-stale" and destination.name == "final-main-api.json" else SHA}
+                    elif "/actions/workflows/" in endpoint:
+                        value = workflow_fixture()
                     else:
                         value = run
                     return write_json(destination, value)
@@ -544,6 +589,7 @@ class ReviewFixtures(unittest.TestCase):
                     self.assertEqual(report["validator_exit"], validator_exit)
                     self.assertTrue((evidence / "final-run-api.json").is_file())
                     self.assertTrue((evidence / "final-main-api.json").is_file())
+                    self.assertTrue((evidence / "final-workflow-api.json").is_file())
                 if validator_exit or failure_point:
                     self.assertEqual(report["conclusion"], "rejected")
                 self.assertFalse((evidence / "extracted/run-api.json").exists())
@@ -596,6 +642,23 @@ class ReviewFixtures(unittest.TestCase):
         positive = subprocess.run(command, capture_output=True, text=True, timeout=120)
         (self.directory / "validator-positive.log").write_text(positive.stdout + positive.stderr)
         self.assertEqual(positive.returncode, 0, positive.stdout + positive.stderr)
+        for label, fields in (
+            ("wrong-workflow-id", {"workflow_id": review.WORKFLOW_ID + 1}),
+            ("wrong-name", {"name": "Other CI"}),
+            ("arbitrary-matching-title", {"name": "Other CI", "display_title": "Other CI"}),
+            ("unregistered-title", {"name": "ChronoFocus CI Results [failure_mode=other]",
+                                    "display_title": "ChronoFocus CI Results [failure_mode=other]"}),
+        ):
+            broken = dict(run, **fields)
+            metadata_path = write_json(self.directory / f"{label}-run-api.json", broken)
+            mutated_command = list(command)
+            mutated_command[mutated_command.index("--run-metadata") + 1] = str(metadata_path)
+            result = subprocess.run(mutated_command, capture_output=True, text=True, timeout=120)
+            (self.directory / f"validator-{label}.log").write_text(result.stdout + result.stderr)
+            self.assertNotEqual(result.returncode, 0, label)
+            failures = re.findall(r"^FAIL ([^\n]+)", result.stdout, re.MULTILINE)
+            self.assertEqual(len(failures), 1, result.stdout + result.stderr)
+            self.assertTrue(failures[0].startswith("failure artifact run metadata identity"))
         for flag in ("--archive", "--archive-size", "--archive-digest", "--artifact-metadata", "--run-metadata"):
             incomplete = list(command)
             index = incomplete.index(flag)

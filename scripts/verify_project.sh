@@ -163,7 +163,36 @@ raise "Artifact upload must precede final status" unless source.index("Upload Ag
 raise "Finalized artifact identity must precede upload" unless source.index("Finalize uploaded artifact identity") < source.index("Upload Agent C result package")
 raise "Final status must evaluate all seven stage outcomes and package outcomes" unless final.include?("CHECKOUT_OUTCOME") && final.include?("PREPARE_METADATA_OUTCOME") && final.include?("SELECT_XCODE_OUTCOME") && final.include?("STATIC_OUTCOME") && final.include?("PROJECT_VERIFY_OUTCOME") && final.include?("BUILD_OUTCOME") && final.include?("IOS_BUILD_OUTCOME") && final.include?("BOOTSTRAP_OUTCOME") && final.include?("FINALIZER_OUTCOME") && final.include?("RECOVERY_OUTCOME") && final.include?("CREATE_MANIFEST_OUTCOME") && final.include?("UPLOAD_OUTCOME")
 raise "Final status summary tee missing" unless final.include?('tee -a "$GITHUB_STEP_SUMMARY" < ci-results/ci-failure-summary.md')
-raise "Stage outcome writer and fallback wiring missing" unless source.scan("stage_outcome_path.write_text").length == 1 && package.include?("write_json_if_incomplete(") && package.include?("stage_path") && package.include?("index_created_at") && package.include?("actual_entries == entries") && package.include?("missing_required_paths") && package.include?("if missing_required_paths:") && !package.include?("overall == \"success\" and missing_required_paths") && package.include?("paths.append(\"ci-results/prepare-metadata.log\")") && !package.include?("required.add(\"ci-results/prepare-metadata.log\")") && package.include?("projectSpecificReports") && package.include?("f\"- Checkout: `{dict(outcomes)['checkout']}`\")" ) && package.include?("f\"- Prepare result metadata: `{dict(outcomes)['prepareMetadata']}`\")" ) && package.include?("f\"- Select Xcode: `{dict(outcomes)['selectXcode']}`\")" )
+raise "Stage outcome writer must be unique" unless source.scan("stage_outcome_path.write_text").length == 1
+package_checks = {
+  "fallback stage writer" => ->(body) { body.include?("write_json_if_incomplete(") && body.include?("stage_path") },
+  "fallback index binding" => ->(body) { body.include?("index_created_at") && body.include?("actual_entries == entries") },
+  "required paths for every outcome" => ->(body) { body.include?("missing_required_paths") && body.include?("if missing_required_paths:") && !body.include?("overall == \"success\" and missing_required_paths") },
+  "optional prepare metadata log" => ->(body) { body.include?("paths.append(\"ci-results/prepare-metadata.log\")") && !body.include?("required.add(\"ci-results/prepare-metadata.log\")") },
+  "project reports" => ->(body) { body.include?("projectSpecificReports") }
+}
+{
+  "Checkout" => "checkout",
+  "Prepare result metadata" => "prepareMetadata",
+  "Select Xcode" => "selectXcode"
+}.each do |label, stage|
+  expression = "f\"- #{label}: `{dict(outcomes)['#{stage}']}`\""
+  package_checks["#{stage} summary outcome"] = ->(body) { body.include?(expression) }
+end
+package_failures = package_checks.filter_map { |name, check| name unless check.call(package) }
+raise "Fallback package contracts failed: #{package_failures.join(', ')}" unless package_failures.empty?
+{
+  "Checkout" => "checkout",
+  "Prepare result metadata" => "prepareMetadata",
+  "Select Xcode" => "selectXcode"
+}.each do |label, stage|
+  expression = "f\"- #{label}: `{dict(outcomes)['#{stage}']}`\""
+  mutated = package.gsub(expression, "\"- #{label}: `success`\"")
+  raise "Missing summary outcome fixture source: #{stage}" if mutated == package
+  failures = package_checks.filter_map { |name, check| name unless check.call(mutated) }
+  raise "Summary outcome #{stage} mutation rejected by #{failures.inspect}" unless failures == ["#{stage} summary outcome"]
+  puts "PASS source mutation isolation: #{stage} summary outcome"
+end
 raise "Final artifact missing-required guard must cover every outcome" unless final_artifact.include?("if missing_required != 0:") && !final_artifact.include?("if value.get(\"overallOutcome\") == \"success\" and missing_required != 0:")
 recovery_source = File.read("scripts/recover_ci_result_package.py")
 raise "Recovery required artifact guard missing" unless recovery_source.include?("Recovered fallback package is missing required paths") && recovery_source.include?("fallback_name = f\"chronofocus-ci-")
@@ -3283,7 +3312,9 @@ payload = {
   "run_attempt" => 1,
   "head_sha" => "fixture-sha",
   "head_branch" => "main",
-  "name" => "ChronoFocus CI Results",
+  "workflow_id" => 306_720_987,
+  "name" => "ChronoFocus CI Results [failure_mode=none]",
+  "display_title" => "ChronoFocus CI Results [failure_mode=none]",
   "path" => ".github/workflows/ci-results.yml",
   "status" => "completed",
   "conclusion" => "success",
@@ -4337,6 +4368,8 @@ fields = {
   "head-sha" => ["head_sha", "0000000000000000000000000000000000000000", 12_345],
   "head-branch" => ["head_branch", "wrong-branch", 12_345],
   "name" => ["name", "Wrong Workflow", 12_345],
+  "display-title" => ["display_title", "ChronoFocus CI Results [failure_mode=other]", 12_345],
+  "workflow-id" => ["workflow_id", 306_720_988, "306720987"],
   "path" => ["path", ".github/workflows/wrong.yml", 12_345],
   "status" => ["status", "in_progress", 12_345],
   "conclusion" => ["conclusion", "failure", 12_345]
@@ -4352,6 +4385,8 @@ mutate.call("negative-zero-run-attempt-run-api.json") { |payload| payload["run_a
 mutate.call("negative-negative-run-attempt-run-api.json") { |payload| payload["run_attempt"] = -1 }
 mutate.call("negative-short-head-sha-run-api.json") { |payload| payload["head_sha"] = "fixture" }
 mutate.call("negative-file-name-path-run-api.json") { |payload| payload["path"] = "ci-results.yml" }
+mutate.call("negative-floating-workflow-id-run-api.json") { |payload| payload["workflow_id"] = 306_720_987.0 }
+mutate.call("negative-matched-arbitrary-title-run-api.json") { |payload| payload["name"] = payload["display_title"] = "Other CI" }
 mutate.call("negative-queued-status-run-api.json") { |payload| payload["status"] = "queued" }
 mutate.call("negative-uppercase-status-run-api.json") { |payload| payload["status"] = "COMPLETED" }
 mutate.call("negative-null-conclusion-run-api.json") { |payload| payload["conclusion"] = nil }
@@ -4387,6 +4422,8 @@ for run_field_spec in \
   "head-sha:head sha" \
   "head-branch:head branch" \
   "name:name" \
+  "display-title:name" \
+  "workflow-id:path" \
   "path:path" \
   "status:status" \
   "conclusion:conclusion"; do
@@ -4411,6 +4448,8 @@ run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-zero-r
 run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-negative-run-attempt-run-api.json" "run attempt" "negative run attempt"
 run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-short-head-sha-run-api.json" "head sha" "short head SHA"
 run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-file-name-path-run-api.json" "path" "path file name only"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-floating-workflow-id-run-api.json" "path" "floating workflow id"
+run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-matched-arbitrary-title-run-api.json" "name" "matched arbitrary run name/title"
 run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-queued-status-run-api.json" "status" "queued status"
 run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-uppercase-status-run-api.json" "status" "uppercase status"
 run_negative_run_metadata_fixture "$artifact_archive_fixture_dir/negative-null-conclusion-run-api.json" "conclusion" "null conclusion"

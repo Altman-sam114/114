@@ -2,6 +2,8 @@
 
 ## 0. 一句话总览
 
+独立 review 区分 workflow 静态身份与 run 动态名称：包外 workflow API 的 ID `306720987`、静态名称 `ChronoFocus CI Results`、精确 path 与 active 状态须匹配，run API 的 `name` 只允许静态名称或严格登记的 `display_title`。preflight、下载前、最终复查保留独立 workflow API 原文，仍只从已核对 SHA 执行 validator；所有原始 API 与 ZIP 都位于 `extracted/` 之外，不增加生产结果包文件或放宽第四模式。
+
 ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作番茄钟/日程 -> `FocusStore` 保存设置、任务、计划、会话和活跃计时快照 -> `TimerEngine` 按真实系统时间驱动计时状态 -> 平台服务负责通知、Live Activity/占位、日历同步和 Pro 权益 -> SwiftUI 视图渲染当前状态。
 
 协作验证主链路是：Agent A 写版本化提示词 -> Agent B 只做静态审阅并在最新 `origin/main` 上实现、commit、push -> GitHub Actions 运行 `ci-results.yml` -> 上传未加密 CI 结果包 -> Agent C 下载并核对 manifest、artifact index、run context 精确键集、artifact 名称、七个业务阶段与 `bootstrap`/`createManifest` 包阶段、日志和产物，由独立 Actions 执行 `scripts/validate_ci_artifact.rb` 正式第四模式，C 本机仅以 `gh` 取证及读码。成功包 required 路径缺失时 finalizer 必须失败；若正常 finalizer 失败，workflow 先由 `scripts/recover_ci_result_package.py` 按 branch slug 重建一致的 fallback 包，恢复包缺少六项核心证据或恢复失败则不上传陈旧目录；阶段摘要必须逐项绑定 outcome，skipped-only 包由 failure validator 拒绝。失败时退回 Agent B 在 `main` 追加修复 commit。Agent X 可围绕人工总目标主控多轮 A/B/C 闭环，但每轮仍必须经过 Agent A 提示词、Agent B push 和 Agent C artifact 验收；本轮禁止本地项目测试、构建和 validator。

@@ -401,7 +401,9 @@ def validate_failure_profile(
       run_metadata["run_attempt"].to_s == options["attempt"] &&
       run_metadata["head_sha"] == options["commit"] &&
       run_metadata["head_branch"] == options["branch"] &&
-      run_metadata["name"] == EXPECTED_WORKFLOW_RUN_NAME &&
+      registered_run_name?(run_metadata, failure_mode: true) &&
+      run_metadata["workflow_id"].is_a?(Integer) &&
+      run_metadata["workflow_id"] == EXPECTED_WORKFLOW_ID &&
       run_metadata["path"] == EXPECTED_WORKFLOW_RUN_PATH &&
       run_metadata["status"] == "completed" &&
       run_metadata["conclusion"] == "failure" &&

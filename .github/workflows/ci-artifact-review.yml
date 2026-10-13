@@ -36,6 +36,9 @@ jobs:
           import time
 
           REPOSITORY = "Altman-sam114/114"
+          WORKFLOW_ID = 306720987
+          WORKFLOW_NAME = "ChronoFocus CI Results"
+          WORKFLOW_PATH = ".github/workflows/ci-results.yml"
           MAX_JSON = 1048576
           INJECTIONS = ("checkout", "prepareMetadata", "selectXcode", "projectVerification", "macBuild", "iosBuild")
 
@@ -61,7 +64,8 @@ jobs:
                   require(run.get(key, {}).get("full_name") == REPOSITORY, "Unauthorized repository")
               for key in ("actor", "triggering_actor"):
                   require(run.get(key, {}).get("login") == "Altman-sam114", "Unauthorized actor")
-              require(run.get("name") == "ChronoFocus CI Results" and run.get("path") == ".github/workflows/ci-results.yml", "Wrong source workflow")
+              require(run.get("workflow_id") == WORKFLOW_ID and run.get("path") == WORKFLOW_PATH, "Wrong source workflow id/path")
+              require(run.get("name") in (WORKFLOW_NAME, run.get("display_title")), "Wrong source run name")
               require(run.get("head_branch") == "main", "Source branch is not main")
               require(run["head_sha"] == main_sha, "stale: source is no longer current main")
               require(run.get("status") == "completed", "Source is not completed")
@@ -73,6 +77,16 @@ jobs:
                       if run.get("display_title") == f"ChronoFocus CI Results [failure_mode={injection}]":
                           return "controlled-failure", injection
               raise RuntimeError("Refused profile: failed push, unregistered dispatch or unsupported conclusion")
+
+          def workflow_identity(workflow, run):
+              require(isinstance(workflow, dict)
+                      and type(workflow.get("id")) is int
+                      and type(run.get("workflow_id")) is int
+                      and workflow["id"] == WORKFLOW_ID == run.get("workflow_id")
+                      and workflow.get("name") == WORKFLOW_NAME
+                      and workflow.get("path") == WORKFLOW_PATH
+                      and workflow.get("state") == "active",
+                      "Workflow API identity does not match the authorized workflow")
 
           def unique_object(pairs):
               result = {}
@@ -133,6 +147,8 @@ jobs:
                   source_id = source.get("id")
                   require(type(source_id) is int and source_id > 0, "Invalid event source id")
                   run = fetch_json(f"repos/{REPOSITORY}/actions/runs/{source_id}", evidence / "run-api.json")
+                  workflow = fetch_json(f"repos/{REPOSITORY}/actions/workflows/{WORKFLOW_ID}", evidence / "workflow-api.json")
+                  workflow_identity(workflow, run)
                   main_commit = fetch_json(f"repos/{REPOSITORY}/commits/main", evidence / "main-api.json")
                   profile, injection = gate(run, source, main_commit.get("sha"))
                   result.update(source_run=run["id"], source_attempt=run["run_attempt"], source_sha=run["head_sha"], profile=profile, injection=injection, conclusion="identity gate passed; NOT artifact acceptance")

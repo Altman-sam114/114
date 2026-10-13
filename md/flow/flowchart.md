@@ -154,7 +154,8 @@ flowchart TD
   OK --> REVIEW["独立ChronoFocus Artifact Review<br/>仅workflow_run: completed<br/>contents:read + actions:read<br/>其余权限none，不使用PAT/额外secret"]
   FAIL --> REVIEW
   REVIEW --> RUNAPI["checkout前精确源run API + 当前main + 事件<br/>run-api.json.part -> run-api.json<br/>成功非空后无覆盖原子改名"]
-  RUNAPI --> GATE{"来源与profile通过?<br/>授权actor/triggering actor/仓库<br/>源SHA等于当前main且attempt匹配"}
+  RUNAPI --> WFAPI["独立workflow-api.json<br/>固定ID 306720987、静态name、path、active<br/>run.name仅静态名或严格登记display_title<br/>下载前和最终再次核对workflow API"]
+  WFAPI --> GATE{"来源与profile通过?<br/>授权actor/triggering actor/仓库<br/>源SHA等于当前main且attempt匹配"}
   GATE -->|否| BACK
   GATE -->|是| CHECKOUT["只checkout核对后的源SHA<br/>persist-credentials:false<br/>不执行解包代码、不恢复不可信缓存"]
   CHECKOUT --> FRESH["下载前重查main SHA与源attempt<br/>变化即stale停止"]

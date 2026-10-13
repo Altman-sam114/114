@@ -21,11 +21,20 @@ MAX_ARCHIVE_SINGLE_FILE_BYTES = 4 * 1024 * 1024 * 1024
 MAX_ARCHIVE_TOTAL_UNCOMPRESSED_BYTES = 8 * 1024 * 1024 * 1024
 EXPECTED_WORKFLOW_RUN_NAME = "ChronoFocus CI Results"
 EXPECTED_WORKFLOW_RUN_PATH = ".github/workflows/ci-results.yml"
+EXPECTED_WORKFLOW_ID = 306_720_987
+EXPECTED_FAILURE_INJECTIONS = %w[checkout prepareMetadata selectXcode projectVerification macBuild iosBuild].freeze
 EXPECTED_WORKFLOW_RUN_REPOSITORY = "Altman-sam114/114"
 EXPECTED_WORKFLOW_RUN_EVENT = "push"
 EXPECTED_WORKFLOW_RUN_EVENTS = %w[push workflow_dispatch].freeze
 EXPECTED_WORKFLOW_RUN_ACTOR = "Altman-sam114"
 EXPECTED_WORKFLOW_RUN_HEAD_REPOSITORY = "Altman-sam114/114"
+
+def registered_run_name?(metadata, failure_mode: false)
+  injections = failure_mode && metadata["event"] == "workflow_dispatch" ? EXPECTED_FAILURE_INJECTIONS : ["none"]
+  titles = injections.map { |injection| "#{EXPECTED_WORKFLOW_RUN_NAME} [failure_mode=#{injection}]" }
+  titles.include?(metadata["display_title"]) &&
+    [EXPECTED_WORKFLOW_RUN_NAME, metadata["display_title"]].include?(metadata["name"])
+end
 
 EXPECTED_SNAPSHOTS = %w[
   mini-timer.png
@@ -1097,14 +1106,15 @@ if run_metadata_path
   check(checks, "workflow run metadata name") do
     next true unless run_metadata_shape_ok
 
-    run_metadata["name"].is_a?(String) &&
-      run_metadata["name"] == EXPECTED_WORKFLOW_RUN_NAME
+    registered_run_name?(run_metadata)
   end
   check(checks, "workflow run metadata path") do
     next true unless run_metadata_shape_ok
 
     run_metadata["path"].is_a?(String) &&
-      run_metadata["path"] == EXPECTED_WORKFLOW_RUN_PATH
+      run_metadata["path"] == EXPECTED_WORKFLOW_RUN_PATH &&
+      run_metadata["workflow_id"].is_a?(Integer) &&
+      run_metadata["workflow_id"] == EXPECTED_WORKFLOW_ID
   end
   check(checks, "workflow run metadata status") do
     next true unless run_metadata_shape_ok
