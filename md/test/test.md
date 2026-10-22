@@ -8,6 +8,8 @@ v1.5：生产`bash scripts/verify_project.sh`复用`bash scripts/build_mac_snaps
 
 独立`ChronoFocus UI Evidence`在生产成功push完成后，checkout前以精确run/workflow/main API和原事件验证授权来源，checkout固定SHA且不持久凭证。它只编译同一renderer，以`--ui-evidence-output`生成9张辅助PNG、fixtures和身份manifest，920/1100pt指包含190pt侧栏的整窗；包括紧凑全页、720pt首屏、较大字体长文本、暂停、只设开始和空队列。上传前与上传后复查main/attempt，失败证据也保留。C单独核对UI run/artifact和manifest再读图，不在本机执行gate、renderer、解析器或validator。该层仍是ImageRenderer静态布局证据，iOS运行截图与原生交互测试为后续发布门槛。
 
+长画布前景检测使用96×96网格，原有亮度/饱和度和12点阈值不变；`checks/blank-negative.png`为920×1800pt同尺寸空白负例，必须触发空内容拒绝。它是检测器证据，不计入9张产品fixture。旧28行采样曾在UI run`39813410487`漏过实际存在的文字，C已读图确认，不能以删除前景断言处理。
+
 前置v1.4.9最新已验收基线：`3c8ca51` / source`39805823292` / review`39806603342` / attempt1，第四模式148 PASS / 0 FAIL、JUnit4/0/0、两端build及分类搜索core成功。其证据仅适用于该SHA。
 
 v1.4.9：云端 core 实际执行搜索空查询、大小写/变音/宽度 folding、排序/计数/颜色保留、未匹配选中项单独保留、不重复选中项、已删除分类、空结果和 6 -> 5 阈值回退。verifier 核对三个组件到四个页面的接线及无结果/44pt/辅助功能；validator 同时要求静态 marker 与 core 行为通过日志，缺静态 marker 的第四模式负例仅允许该项失败。正式 Mac 五图的详情页使用“产品”查询以检查可见结果；iOS 仍只有云端编译与共享 core 证据，不能称为已完成 iOS UI 交互测试。

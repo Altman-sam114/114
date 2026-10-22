@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.5 首轮C退回：`d62c4c0` / source `39812832551` 与 review `39813410900`均success，第四模式148 PASS / 0 FAIL、21项review fixtures、5项UI gate回归、真实主控core和双端build通过。独立UI run `39813410487`在`timer-920-full.png`触发旧28×28采样误报；C下载artifact `12439959148`至`/private/tmp/chronofocus-c-review-39812832551-zzg7mCSb`，实际长图完整呈现文字主控、队列和统计，无空白布局。改为96×96采样，保留亮度/饱和度阈值与至少12个前景点，并新增同尺寸空白图必须被拒绝的云端负例。全部9图与独立UI成功仍需新SHA验证；未放行本轮，未运行本机测试。
+
 - 2026-10-23 v1.5 实现待云端验收：iOS计时主控增加开始专注/开始休息/暂停/继续文字，提醒默认折叠，任务队列前置，辅助字体使用线性计时摘要；日程把任务置于计划和同步前。Mac共享自适应列布局处理920pt整窗，真实和快照任务顺序一致、暂停标题统一为“继续”，两位数分类数量不再折行。新增独立UI Evidence workflow、来源gate回归、9张辅助状态图与身份manifest，生产和辅助共用renderer编译脚本；新增真实主控core行为回归。关键文件：四个Timer/Schedule View、MacGlassPanel、core/renderer/verifier、ui-evidence.yml与对应A提示词；本机只静态审阅，未执行测试、编译、validator或配置解析。仍缺iOS运行交互、完整主题适配、正式签名/Bundle ID/商品和系统服务发行验证，不宣称发布。
 
 - 2026-10-23 C 完成v1.4.9：main `3c8ca51ee0be1a237e2c2a6cbf8b871f68701b33` / 源run `39805823292` attempt1，唯一artifact `chronofocus-ci-v0.10-main-3c8ca51-run39805823292-attempt1`（id `12438640963`，16889358 bytes，SHA-256 `831003c2a5f50ffebd8288d100d1cf7f453c03144076822d452de99270ea70a9`）；独立review `39806603342`为148 PASS / 0 FAIL，evidence artifact `12437053647`上传成功。C在`/private/tmp/chronofocus-c-review-39805823292-Ibxjmitl`保存包外原始API、下载独立evidence并读取原始ZIP/manifest/index/context、JUnit4/0/0、全部success摘要、搜索core与两端build，查看两张正式PNG。发现两位数分类badge折行列入v1.5；本机无复跑。v1.4.9闭环，总目标继续。

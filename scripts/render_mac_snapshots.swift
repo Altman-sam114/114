@@ -245,6 +245,17 @@ struct MacSnapshotRenderer {
             throw SnapshotError("UI output directory already exists")
         }
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+        let checksDirectory = outputDirectory.appendingPathComponent("checks", isDirectory: true)
+        try FileManager.default.createDirectory(at: checksDirectory, withIntermediateDirectories: true)
+        let blankURL = checksDirectory.appendingPathComponent("blank-negative.png")
+        try render(Color(red: 0.10, green: 0.12, blue: 0.14).frame(width: 920, height: 1800), to: blankURL)
+        var blankRejected = false
+        do {
+            try assertForegroundContent(at: blankURL, minimumXRatio: 0.22)
+        } catch let error as SnapshotError {
+            blankRejected = error.description.contains("Rendered detail content appears empty")
+        }
+        guard blankRejected else { throw SnapshotError("Foreground detector accepted the blank negative fixture") }
         let suiteName = "ChronoFocusUIEvidence-\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {
             throw SnapshotError("Could not create UI evidence suite")
@@ -470,8 +481,9 @@ struct MacSnapshotRenderer {
         let width = max(bitmap.pixelsWide, 1)
         let height = max(bitmap.pixelsHigh, 1)
         let startX = Int(Double(width) * minimumXRatio)
-        let stepX = max(1, (width - startX) / 28)
-        let stepY = max(1, height / 28)
+        // A sparse 28-row grid can miss glyphs on a tall, otherwise valid page.
+        let stepX = max(1, (width - startX) / 96)
+        let stepY = max(1, height / 96)
         var foregroundSamples = 0
 
         for x in stride(from: startX, to: width, by: stepX) {
