@@ -52,7 +52,8 @@ struct ChronoFocusApp: App {
                 let title = arguments.contains("--ui-fixture=long")
                     ? "整理跨团队产品体验评审中的问题，完成下一阶段的可访问性与发布准备"
                     : "云端分类验收任务"
-                _ = store.addTask(title: title, category: "产品", dueDate: nil, estimatedRounds: 2, accentHex: "#3DE8C5")
+                let dueDate = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date())
+                _ = store.addTask(title: title, category: "产品", dueDate: dueDate, estimatedRounds: 2, accentHex: "#3DE8C5")
             }
             return store
         }
@@ -62,7 +63,7 @@ struct ChronoFocusApp: App {
 
     var body: some Scene {
         WindowGroup {
-            DashboardView()
+            rootView
                 .environmentObject(store)
                 .environmentObject(engine)
                 .environmentObject(notifications)
@@ -70,5 +71,19 @@ struct ChronoFocusApp: App {
                 .environmentObject(calendarSync)
                 .preferredColorScheme(store.settings.appThemeMode == .light ? .light : .dark)
         }
+    }
+
+    @ViewBuilder
+    private var rootView: some View {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing"),
+           ProcessInfo.processInfo.arguments.contains("--ui-large-type") {
+            DashboardView().dynamicTypeSize(.accessibility5)
+        } else {
+            DashboardView()
+        }
+        #else
+        DashboardView()
+        #endif
     }
 }

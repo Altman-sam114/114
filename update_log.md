@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.6原生C退回：`b6a7ed8` source`39838633569`与review`39839954484`success，第四模式148/0，空数据/损坏原文和主控core通过；UI`39839954309`的Mac通过，两种iPhone各实际执行4条、2通过2失败。C读原生图确认字号已放大，旧>80pt倒计时断言错误，改为长标题展开、倒计时边界/语义与主控44pt/可达性，并显式注入accessibility5。375pt默认首屏主按钮确被TabBar遮挡，改inline导航与按真实视口高度缩小圆盘，新增未滚动主按钮边界断言。无日期fixture周范围计数0使分类处于横向尾部，改当前自然日fixture并实际搜索分类后预填保存，日程滚动收键盘。iOS转ARM并拆分boot/test时限和日志，保持4/0/0与至少12图。375失败包`12454596080`及原始API在`/private/tmp/chronofocus-c-review-39838633569-Y3GvFkL2`；尚未通过，待新SHA。
+
 - 2026-10-23 v1.6首轮C退回：`c66403b` / source `39835523991`的Static checks和双端build成功，Project verification的真实core断言发现损坏JSON原文被覆盖。根因是`@Published`包装属性在初始化赋值时进入保存入口；新增仅限初始化的`isRestoring`保护，加载结束后恢复原有自动保存，保留原损坏数据断言。CI失败摘要额外识别Swift的Assertion failed/Precondition failed，既有excerpt fixture增加真实格式回归。UI矩阵因生产失败未获得可接受运行证据；未放行、未在本机复跑，待追加commit云端验证。
 
 - 2026-10-23 v1.6 实现待云端：新增`ChronoFocusUITests`原生target和scheme接线，Debug显式隔离fixture、真实按钮identifier、大字体计时排版；独立UI workflow扩为Mac/ios-390/ios-375矩阵，各平台包绑定同源身份，iOS保存xcresult、原始摘要和原生附件，要求每设备4/0/0与至少12图。FocusStore不再在空数据启动时添加演示任务，旧数据保留；core新增空数据重启和损坏JSON保留回归。关键文件为App/Timer/Schedule、FocusStore、project/scheme、UITests、两个iOS证据脚本与UI workflow。未运行任何本机测试/解析/编译；等待本次main push。真实购买/系统权限、完整Mac浅色、正式身份/签名与隐私发行材料仍未完成。

@@ -13,7 +13,7 @@ jobs:
   ui-evidence:
     name: UI evidence (${{ matrix.platform }})
     if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
-    runs-on: macos-26-intel
+    runs-on: ${{ matrix.platform == 'mac' && 'macos-26-intel' || 'macos-26' }}
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -171,8 +171,20 @@ jobs:
           bash scripts/build_mac_snapshot_renderer.sh 2>&1 | tee "$UI_DIR/compile.log"
           /tmp/chrono_focus_render_mac_snapshots --ui-evidence-output "$UI_DIR/images" 2>&1 | tee "$UI_DIR/render.log"
 
+      - name: Prepare iOS simulator
+        if: matrix.platform != 'mac'
+        timeout-minutes: 8
+        env:
+          UI_DIR: ${{ steps.gate.outputs.directory }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+          bash scripts/prepare_ios_ui_simulator.sh
+
       - name: Run native iOS UI tests
         if: matrix.platform != 'mac'
+        timeout-minutes: 18
         env:
           UI_DIR: ${{ steps.gate.outputs.directory }}
         shell: bash

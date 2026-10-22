@@ -17,6 +17,8 @@ final class ChronoFocusUITests: XCTestCase {
         launch(fixture: "empty")
         capture("timer-idle")
         let primary = app.buttons["timer.primary"]
+        XCTAssertTrue(primary.isHittable, "The default primary action must be visible without scrolling")
+        XCTAssertLessThanOrEqual(primary.frame.maxY, app.tabBars.firstMatch.frame.minY, "The tab bar must not cover the primary action")
         reveal(primary)
         primary.tap()
         waitForLabel(primary, prefix: "暂停")
@@ -53,6 +55,10 @@ final class ChronoFocusUITests: XCTestCase {
     func testScheduleCategoryPrefillAndSave() {
         launch(fixture: "tasks")
         app.tabBars.buttons["日程"].tap()
+        let search = app.textFields["category.search"]
+        reveal(search)
+        search.tap()
+        search.typeText("产品\n")
         let category = app.buttons["schedule.category.产品"]
         reveal(category)
         category.tap()
@@ -80,7 +86,9 @@ final class ChronoFocusUITests: XCTestCase {
         let remaining = app.staticTexts["timer.remaining"]
         XCTAssertTrue(remaining.waitForExistence(timeout: 5))
         XCTAssertEqual(remaining.value as? String, "25:00")
-        XCTAssertGreaterThan(remaining.frame.height, 80, "The accessibility content size must actually affect the countdown")
+        let taskTitle = app.staticTexts["timer.task-title"]
+        XCTAssertGreaterThan(taskTitle.frame.height, 120, "The long task title must actually expand in the accessibility layout")
+        XCTAssertLessThanOrEqual(remaining.frame.maxX, app.frame.maxX, "The countdown must remain inside the viewport")
         let primary = app.buttons["timer.primary"]
         reveal(primary)
         XCTAssertGreaterThanOrEqual(primary.frame.height, 44)
@@ -94,7 +102,7 @@ final class ChronoFocusUITests: XCTestCase {
         app = XCUIApplication()
         app.launchArguments = ["--ui-testing", "--ui-fixture=\(fixture)", "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         if largeType {
-            app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+            app.launchArguments += ["--ui-large-type"]
         }
         app.launch()
         XCTAssertTrue(app.buttons["timer.primary"].waitForExistence(timeout: 10))

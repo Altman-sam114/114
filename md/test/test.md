@@ -10,6 +10,8 @@ v1.6：共享core新增`Empty persistence behavior passed.`实际回归，覆盖
 
 UI矩阵每个job独立证据包，正式生产仍一包；C须核对3个平台包分别属于同一UI run及源SHA、上传与final freshness均success，再看截图。Debug显式launch flag使用隔离defaults，正常/Release启动不清理用户数据，也不伪造Pro或TimerEngine状态。未经云端执行不得报告这些新增测试已通过。
 
+v1.6首轮原生运行修复：截图证明UIKit字号参数已放大标题，旧断言误把倒计时语义字体高度要求为>80pt；改为验证长标题在辅助布局实际展开、倒计时边界/完整语义、44pt主控与可达性。Debug显式`--ui-large-type`注入`.accessibility5`使夹具确定。375pt原生图还发现默认主按钮被TabBar遮挡，计时导航改inline、按真实视口高度缩小矮屏圆盘，测试新增未滚动时主按钮完整位于TabBar上方。分类fixture固定当前自然日截止时间，搜索“产品”后点击筛选，覆盖真实搜索/分类预填保存；日程支持滚动收起键盘。iOS矩阵改ARM `macos-26`，Mac图仍Intel；独立设备准备限8分钟，bootstatus限300秒，Native步骤限18分钟，单测默认120/最多180秒，完整argv记录到test-command。不放宽4/0/0/12图条件。
+
 v1.5：生产`bash scripts/verify_project.sh`复用`bash scripts/build_mac_snapshot_renderer.sh`，保留正式五张图。共享core新增真实开始、暂停、恢复、跳过、休息开始/停止和只设开始完成路径，输出`Primary timer actions behavior passed.`；布局顺序和文字主控纳入既有timer action合同并有重排拒绝回归。Static checks增加UI来源gate的5项执行回归，测试真实内联gate对授权、事件、SHA/attempt、workflow与包隔离的判断。所有命令仅Actions执行。
 
 独立`ChronoFocus UI Evidence`在生产成功push完成后，checkout前以精确run/workflow/main API和原事件验证授权来源，checkout固定SHA且不持久凭证。它只编译同一renderer，以`--ui-evidence-output`生成9张辅助PNG、fixtures和身份manifest，920/1100pt指包含190pt侧栏的整窗；包括紧凑全页、720pt首屏、较大字体长文本、暂停、只设开始和空队列。上传前与上传后复查main/attempt，失败证据也保留。C单独核对UI run/artifact和manifest再读图，不在本机执行gate、renderer、解析器或validator。该层仍是ImageRenderer静态布局证据，iOS运行截图与原生交互测试为后续发布门槛。
@@ -141,7 +143,7 @@ Agent X 只负责主控调度，不改变每轮验证责任。每一个由 Agent
 
 ## 固定前缀 / 环境要求
 
-2026-10-23起生产与辅助UI使用官方GA `macos-26-intel` runner；GitHub的`macos-latest`当前指向ARM容量池，曾导致源run`39814830962`长时间未分配runner。仅固定云端资源与架构，不改变generic destination、实际Swift/core/快照或两端build判据。独立review继续Ubuntu只读第四模式。
+2026-10-23起生产与Mac辅助UI使用官方GA `macos-26-intel` runner；iOS原生矩阵使用`macos-26` ARM，避免Intel模拟器冷启动和x86编译耗时。GitHub的`macos-latest`滚动ARM容量池曾导致源run`39814830962`长时间未分配runner。仅固定云端资源与架构，不改变generic destination、实际Swift/core/快照或两端build判据。独立review继续Ubuntu只读第四模式。
 
 2026-09-26 起，云端 Static checks 在 fixture 前先执行 `for script in scripts/*.rb; do ruby -c "$script"; done` 和 `bash -n scripts/verify_project.sh`，避免 validator 语法错误延迟到正式复判。队列收起合同对应当前实现：iOS 观察筛选后的任务 ID，macOS 观察完整筛选任务内容，可覆盖数量未变但成员替换的情况；本机不执行这些检查。
 

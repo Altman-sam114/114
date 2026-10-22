@@ -10,6 +10,7 @@ struct TimerView: View {
     @State private var showingCategoryEditor = false
     @State private var isTaskQueueExpanded = false
     @State private var isReminderExpanded = false
+    @State private var viewportHeight: CGFloat = 600
     let timerHandoffRequest: TimerHandoffRequest?
     let onConsumeTimerHandoff: (UUID) -> Void
 
@@ -188,8 +189,14 @@ struct TimerView: View {
                 .padding(18)
                 .padding(.bottom, 24)
             }
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { height in
+                viewportHeight = height
+            }
             .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("ChronoFocus")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(store.settings.appThemeMode == .dark ? .dark : .light, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -260,6 +267,7 @@ struct TimerView: View {
                     .font(.system(.title2, design: .rounded).bold())
                     .foregroundStyle(AppTheme.primaryText)
                     .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("timer.task-title")
                 if let category = timerActionCategory {
                     Label(category, systemImage: "tag.fill")
                         .font(.caption.weight(.semibold))
@@ -326,7 +334,7 @@ struct TimerView: View {
                     }
                     .padding(18)
                 }
-                .frame(maxWidth: 280)
+                .frame(maxWidth: viewportHeight < 560 ? 210 : 280)
                 .aspectRatio(1, contentMode: .fit)
                 .frame(maxWidth: .infinity)
             }

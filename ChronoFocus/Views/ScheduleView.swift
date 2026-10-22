@@ -101,6 +101,7 @@ struct ScheduleView: View {
                 .padding(18)
                 .padding(.bottom, 26)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("日程")
             .toolbar {
@@ -909,6 +910,8 @@ struct CategoryFilterSearchField: View {
                 TextField("搜索分类", text: $query)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .accessibilityIdentifier("category.search")
                     .accessibilityLabel("搜索分类")
                     .accessibilityHint("按名称查找分类，不改变当前筛选")
                     .accessibilityInputLabels([Text("搜索分类")])

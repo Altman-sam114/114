@@ -270,6 +270,7 @@ required_files=(
   "scripts/recover_ci_result_package.py"
   "ChronoFocusUITests/ChronoFocusUITests.swift"
   "scripts/run_ios_ui_tests.sh"
+  "scripts/prepare_ios_ui_simulator.sh"
   "scripts/verify_ios_ui_evidence.py"
   "scripts/validate_ci_artifact.rb"
   "scripts/resolve_ios_simulator_destination.rb"
