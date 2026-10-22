@@ -32,6 +32,8 @@ struct MacScheduleDetailView: View {
         self.onConsumeQuickAddRequest = onConsumeQuickAddRequest
         self.onTimerHandoff = onTimerHandoff
         _selectedCategory = State(initialValue: initialTaskCategory)
+        _category = State(initialValue: initialTaskCategory ?? "工作")
+        _accentHex = State(initialValue: TaskCategoryPreset.accentHex(for: initialTaskCategory ?? "工作"))
         _existingCategorySearchQuery = State(initialValue: initialExistingCategorySearchQuery)
     }
 
@@ -69,16 +71,12 @@ struct MacScheduleDetailView: View {
         return existingCategoryOptions.filter { $0.comparisonKey.contains(queryKey) }
     }
 
-    private var snapshotExistingCategory: MacExistingCategoryOption? {
-        filteredExistingCategoryOptions.first ?? existingCategoryOptions.first
-    }
-
     private var snapshotQuickAddCategoryName: String {
-        snapshotExistingCategory?.displayName ?? quickAddCategoryName
+        quickAddCategoryName
     }
 
     private var snapshotQuickAddAccentHex: String {
-        snapshotExistingCategory?.representativeAccentHex ?? accentHex
+        store.representativeAccentHex(for: quickAddCategoryName, preferred: accentHex)
     }
 
     private var isQuickAddCategoryPrefilled: Bool {
@@ -391,13 +389,14 @@ private struct MacStaticCategoryPresetStrip: View {
     let selectedCategory: String
 
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(Array(TaskCategoryPreset.defaults.prefix(3))) { preset in
+        MacWrappingLayout(spacing: 8) {
+            ForEach(TaskCategoryPreset.defaults) { preset in
                 Label(preset.title, systemImage: preset.symbolName)
                     .font(.caption.bold())
                     .foregroundStyle(macCategoryComparisonKey(preset.title) == macCategoryComparisonKey(selectedCategory) ? Color(hex: TaskCategoryPreset.contrastTextHex(on: preset.accentHex)) : MacTheme.primaryText)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
+                    .frame(minHeight: 44)
                     .background(
                         macCategoryComparisonKey(preset.title) == macCategoryComparisonKey(selectedCategory) ? Color(hex: preset.accentHex) : Color.white.opacity(0.06),
                         in: Capsule()
@@ -407,13 +406,6 @@ private struct MacStaticCategoryPresetStrip: View {
                             .stroke(Color(hex: preset.accentHex).opacity(macCategoryComparisonKey(preset.title) == macCategoryComparisonKey(selectedCategory) ? 0.9 : 0.42), lineWidth: 1)
                     }
             }
-
-            Text("更多")
-                .font(.caption.bold())
-                .foregroundStyle(MacTheme.secondaryText)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(Color.white.opacity(0.06), in: Capsule())
         }
         .padding(.vertical, 1)
     }
@@ -462,33 +454,31 @@ private struct MacExistingCategoryPicker: View {
             if options.isEmpty {
                 existingCategoryNoResultsView
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(options) { option in
-                            let isSelected = isSelected(option)
-                            Button {
-                                onSelect(option)
-                            } label: {
-                                MacExistingCategoryChipContent(
-                                    option: option,
-                                    isSelected: isSelected,
-                                    fallbackAccentHex: fallbackAccentHex
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(accessibilityLabel(for: option, isSelected: isSelected))
-                            .accessibilityHint(accessibilityHint(for: option, isSelected: isSelected))
-                            .accessibilityAddTraits(isSelected ? .isSelected : [])
-                            .accessibilityInputLabels([
-                                Text(option.displayName),
-                                Text("\(option.displayName)分类"),
-                                Text("选择\(option.displayName)分类")
-                            ])
+                MacWrappingLayout(spacing: 8) {
+                    ForEach(options) { option in
+                        let isSelected = isSelected(option)
+                        Button {
+                            onSelect(option)
+                        } label: {
+                            MacExistingCategoryChipContent(
+                                option: option,
+                                isSelected: isSelected,
+                                fallbackAccentHex: fallbackAccentHex
+                            )
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(accessibilityLabel(for: option, isSelected: isSelected))
+                        .accessibilityHint(accessibilityHint(for: option, isSelected: isSelected))
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
+                        .accessibilityInputLabels([
+                            Text(option.displayName),
+                            Text("\(option.displayName)分类"),
+                            Text("选择\(option.displayName)分类")
+                        ])
                     }
-                    .padding(.vertical, 1)
                 }
+                .padding(.vertical, 1)
             }
         }
         .accessibilityElement(children: .contain)
@@ -535,7 +525,7 @@ private struct MacStaticExistingCategoryStrip: View {
             if options.isEmpty {
                 existingCategoryNoResultsView
             } else {
-                HStack(spacing: 8) {
+                MacWrappingLayout(spacing: 8) {
                     ForEach(options) { option in
                         let isSelected = macCategoryComparisonKey(selectedCategory) == option.comparisonKey
                         MacExistingCategoryChipContent(
@@ -1925,31 +1915,33 @@ private struct MacCategoryPresetPicker: View {
     @Binding var accentHex: String
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(TaskCategoryPreset.defaults) { preset in
-                    Button(preset.title, systemImage: preset.symbolName) {
-                        category = preset.title
-                        accentHex = preset.accentHex
-                    }
+        MacWrappingLayout(spacing: 8) {
+            ForEach(TaskCategoryPreset.defaults) { preset in
+                Button {
+                    category = preset.title
+                    accentHex = preset.accentHex
+                } label: {
+                    Label(preset.title, systemImage: preset.symbolName)
                     .font(.caption.bold())
                     .foregroundStyle(isSelected(preset) ? Color(hex: TaskCategoryPreset.contrastTextHex(on: preset.accentHex)) : MacTheme.primaryText)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
+                    .frame(minHeight: 44)
+                    .contentShape(Capsule())
                     .background(isSelected(preset) ? Color(hex: preset.accentHex) : Color.white.opacity(0.06), in: Capsule())
                     .overlay {
                         Capsule()
                             .stroke(Color(hex: preset.accentHex).opacity(isSelected(preset) ? 0.9 : 0.42), lineWidth: 1)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(preset.title)分类\(accessibilityStateText(for: preset))")
-                    .accessibilityHint(accessibilityHintText(for: preset))
-                    .accessibilityAddTraits(accessibilityTraits(for: preset))
-                    .accessibilityInputLabels(voiceControlInputLabels(for: preset))
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(preset.title)分类\(accessibilityStateText(for: preset))")
+                .accessibilityHint(accessibilityHintText(for: preset))
+                .accessibilityAddTraits(accessibilityTraits(for: preset))
+                .accessibilityInputLabels(voiceControlInputLabels(for: preset))
             }
-            .padding(.vertical, 1)
         }
+        .padding(.vertical, 1)
         .accessibilityLabel("常用分类")
     }
 

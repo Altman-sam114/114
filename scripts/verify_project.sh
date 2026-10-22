@@ -1389,7 +1389,7 @@ ios_filtered_existing_category_source = segment_slice(
 mac_filtered_existing_category_source = segment_slice(
   mac_existing_category_source,
   "private var filteredExistingCategoryOptions",
-  "private var snapshotExistingCategory",
+  "private var snapshotQuickAddCategoryName",
   "Mac filtered existing category source missing"
 )
 raise "iOS existing category filtered options missing" unless ios_filtered_existing_category_source.include?("existingCategorySearchKey(for: existingCategorySearch)") && ios_filtered_existing_category_source.include?("existingCategoryOptions.filter") && ios_filtered_existing_category_source.include?("option.comparisonKey.contains(queryKey)")
@@ -1421,7 +1421,9 @@ mac_static_existing_category_search_source = segment_slice(
   "Mac static existing category search source missing"
 )
 raise "Mac static existing category results must avoid snapshot ScrollView loss" if mac_static_existing_category_search_source.include?("ScrollView")
-raise "Mac static existing category results must use a direct HStack" unless mac_static_existing_category_search_source.include?("HStack(spacing: 8)") && mac_static_existing_category_search_source.include?("ForEach(options)")
+raise "Mac static existing category results must use the bounded wrapping layout" unless mac_static_existing_category_search_source.include?("MacWrappingLayout(spacing: 8)") && mac_static_existing_category_search_source.include?("ForEach(options)")
+mac_live_existing_category_source = segment_slice(mac_existing_category_source, "private struct MacExistingCategoryPicker", "private struct MacStaticExistingCategoryStrip", "Mac live existing category source missing")
+raise "Mac live existing categories must use the same wrapping layout" unless mac_live_existing_category_source.include?("MacWrappingLayout(spacing: 8)") && !mac_live_existing_category_source.include?("ScrollView")
 raise "iOS selecting an existing category must retain the search query" if ios_select_source.include?("existingCategorySearch")
 raise "Mac selecting an existing category must retain the search query" if mac_select_source.include?("existingCategorySearchQuery") || mac_select_source.include?("searchQuery")
 

@@ -10,6 +10,8 @@ v1.5：生产`bash scripts/verify_project.sh`复用`bash scripts/build_mac_snaps
 
 长画布前景检测使用96×96网格，原有亮度/饱和度和12点阈值不变；`checks/blank-negative.png`为920×1800pt同尺寸空白负例，必须触发空内容拒绝。它是检测器证据，不计入9张产品fixture。旧28行采样曾在UI run`39813410487`漏过实际存在的文字，C已读图确认，不能以删除前景断言处理。
 
+已有/常用分类真实和静态路径共用`MacWrappingLayout`，按分配列宽放置全部选项；不使用会撑宽面板的直接HStack，也不靠裁切隐藏选项。`MacAdaptiveColumns`在云端renderer的双列测量中断言两列实际宽度不超过各自分配值，避免只验证整图尺寸而漏过内部重叠。C仍须读1100pt日程图，像素非空不能证明无覆盖。
+
 前置v1.4.9最新已验收基线：`3c8ca51` / source`39805823292` / review`39806603342` / attempt1，第四模式148 PASS / 0 FAIL、JUnit4/0/0、两端build及分类搜索core成功。其证据仅适用于该SHA。
 
 v1.4.9：云端 core 实际执行搜索空查询、大小写/变音/宽度 folding、排序/计数/颜色保留、未匹配选中项单独保留、不重复选中项、已删除分类、空结果和 6 -> 5 阈值回退。verifier 核对三个组件到四个页面的接线及无结果/44pt/辅助功能；validator 同时要求静态 marker 与 core 行为通过日志，缺静态 marker 的第四模式负例仅允许该项失败。正式 Mac 五图的详情页使用“产品”查询以检查可见结果；iOS 仍只有云端编译与共享 core 证据，不能称为已完成 iOS UI 交互测试。

@@ -68,6 +68,50 @@ struct MacAdaptiveColumns: Layout {
         let secondWidth = isWide ? width - firstWidth - spacing : width
         let first = subviews[0].sizeThatFits(ProposedViewSize(width: firstWidth, height: nil))
         let second = subviews[1].sizeThatFits(ProposedViewSize(width: secondWidth, height: nil))
+        if isWide {
+            assert(first.width <= firstWidth + 1, "Leading panel overflowed its allocated column")
+            assert(second.width <= secondWidth + 1, "Trailing panel overflowed its allocated column")
+        }
         return (CGSize(width: firstWidth, height: first.height), CGSize(width: secondWidth, height: second.height))
+    }
+}
+
+struct MacWrappingLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? 300
+        let rows = positions(width: max(width, 1), subviews: subviews)
+        return CGSize(width: width, height: rows.map(\.maxY).max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let frames = positions(width: bounds.width, subviews: subviews)
+        for (index, frame) in frames.enumerated() {
+            subviews[index].place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                proposal: ProposedViewSize(frame.size)
+            )
+        }
+    }
+
+    private func positions(width: CGFloat, subviews: Subviews) -> [CGRect] {
+        var frames = [CGRect]()
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let itemWidth = min(width, subview.sizeThatFits(.unspecified).width)
+            let size = subview.sizeThatFits(ProposedViewSize(width: itemWidth, height: nil))
+            if x > 0 && x + itemWidth > width {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            frames.append(CGRect(x: x, y: y, width: itemWidth, height: size.height))
+            x += itemWidth + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        return frames
     }
 }

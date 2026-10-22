@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.5视觉C退回：`04403f4` / source `39816837075`、review `39818265552`和UI `39818265535`均success；生产artifact `12443082501`（16330563 bytes，SHA-256 `0a210512f49f6a34979d99ea5ac0340ecdf37d684d3c1bae127637055f943719`）、UI artifact `12443431407`已下载至`/private/tmp/chronofocus-c-review-39816837075-XUIrkJs2`。9图中920pt、暂停、空态与只设开始可用，但1100pt日程中旧静态已有分类HStack撑宽左列并覆盖右列。新增真实/静态共用`MacWrappingLayout`，常用和已有分类均按列宽换行，保留全部选项、44pt及语义；自适应列加入实际测量宽度断言。初始化分类与静态上下文改为真实草稿，搜索不再假装选择首个结果。保留空白负例和完整云端验收，C尚未通过本轮。
+
 - 2026-10-23 v1.5 CI资源修复：采样修复`5ca689d`的源`39814830962`持续queued、runner_name为空，GitHub注解提示macOS ARM容量限制；查阅actions/runner-images官方镜像目录确认GA `macos-26-intel`可用，将生产和UI workflow固定该标准标签。原ARM队列若被新SHA替代则取消以释放资源，不以取消或旧success冒充当前验收。全部云端测试和artifact判据保留，待新run执行。
 
 - 2026-10-23 v1.5 首轮C退回：`d62c4c0` / source `39812832551` 与 review `39813410900`均success，第四模式148 PASS / 0 FAIL、21项review fixtures、5项UI gate回归、真实主控core和双端build通过。独立UI run `39813410487`在`timer-920-full.png`触发旧28×28采样误报；C下载artifact `12439959148`至`/private/tmp/chronofocus-c-review-39812832551-zzg7mCSb`，实际长图完整呈现文字主控、队列和统计，无空白布局。改为96×96采样，保留亮度/饱和度阈值与至少12个前景点，并新增同尺寸空白图必须被拒绝的云端负例。全部9图与独立UI成功仍需新SHA验证；未放行本轮，未运行本机测试。
