@@ -1251,7 +1251,7 @@ verify_source_contracts(snapshot_surface_sources, snapshot_surface_checks, [
 raise "Category breakdown normalization missing" unless category_appearance_store_source.include?("displayNamesByKey") && category_appearance_store_source.include?("sessionsByKey") && category_appearance_store_source.include?("categoryOrder") && category_appearance_store_source.include?("Self.normalizedCategory(session.category)")
 normalization_sources = {
   key: segment_slice(category_appearance_model_source, "static func categoryComparisonKey", "static func categoriesMatch", "Shared category key missing"),
-  match: segment_slice(category_appearance_model_source, "static func categoriesMatch", "static func accentHex", "Shared category match missing"),
+  match: function_slices_matching(category_appearance_model_source, "categoriesMatch").first || raise("Shared category match missing"),
   store_key: segment_slice(category_appearance_store_source, "private static func categoryComparisonKey", "private static func uniqueCategories", "Store category key missing"),
   store_match: segment_slice(category_appearance_store_source, "func categoryMatches", "@discardableResult", "Store category match missing")
 }

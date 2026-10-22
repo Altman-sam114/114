@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-22 v1.4.9 首轮退回：`3c057d297839a03ae0ce91dd5188a36b04f3cb38` / 源 run `39804544304` 的 Static checks 与 Mac/iOS build 成功，Project verification 的旧 categoriesMatch 到 accentHex 切片把新增 searchKey 误纳入精确函数断言。改为已有函数括号边界 helper 提取，保留相等判断正向与 `lhs == rhs` 单点破坏负例；不改变产品实现或 validator 接受条件。本机未执行测试，待追加修复云端验证。
+
 - 2026-10-22 v1.4.8 已闭环，进入 v1.4.9：`8e1dea325c475566f26fa24b2637f8cb42caa6ea` push 源 `39798788136` / attempt 1，artifact `chronofocus-ci-v0.10-main-8e1dea3-run39798788136-attempt1`（id `12434298580`，16884314 bytes，SHA-256 `bac0ad1d27584c35aa1802560ad98093d71e2c042b27be383bc1c6044b240d10`），review `39799250542` 为 147 PASS / 0 FAIL，JUnit 4/0/0、21 项 review fixtures、core、双端 build 成功。受控 selectXcode 源 `39798859897` / attempt 1，artifact `12435615393`（16884608 bytes，SHA-256 `17ac81dd22b7ba7db47cdaf16aa86b679b0fa413bfb49d29a6b7d531703a33cd`），review `39800511002` 为 49 PASS / 0 FAIL，仅代表失败证据链通过。两份 review evidence 上传成功，C 下载至 `/private/tmp/chronofocus-c-review-39798788136-fQc0X43f` 与 `/private/tmp/chronofocus-c-review-39798859897-zAuTEmq5`，核对当前 main、原始 API/ZIP、结果摘要、注入日志与正式第四模式，无本机复跑。
 
 - 2026-10-22 v1.4.9 待云端验收：iOS 日程/计时与 Mac 日程/计时分类栏在至少 6 类时显示搜索、匹配数、清除和空态；不匹配的选中项保持可见可清除。查询规范化与阈值共享，分类数降到 5 时忽略隐藏查询。Mac 分类采用自适应网格，真实控件和快照使用同一结果，正式图注入“产品”搜索状态。关键文件：AppModels、ScheduleView、TimerView、MacScheduleDetailView、MacTheme、core/snapshot/verifier/validator 与 v1.4.9 提示词。新增共享算法执行回归和独立缺 marker 负例；本机仅静态审阅，未执行测试、编译或配置解析。v1.5 页面层级、iOS 运行证据、发行身份/签名及系统服务验证仍待后续，不宣称发布级。
