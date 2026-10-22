@@ -11,12 +11,13 @@ final class CalendarSyncService: ObservableObject {
     private let eventStore = EKEventStore()
 
     func syncUpcomingEvents(into store: FocusStore) async {
+        guard !isSyncing else { return }
         isSyncing = true
         defer { isSyncing = false }
 
         do {
             guard try await requestAccessIfNeeded() else {
-                statusText = "未获得日历访问权限。"
+                statusText = "读取日程需要完整日历访问权限，请在系统设置中允许完整访问。"
                 return
             }
 
@@ -52,31 +53,25 @@ final class CalendarSyncService: ObservableObject {
     }
 
     private func requestAccessIfNeeded() async throws -> Bool {
+        defer {
+            authorizationStatus = EKEventStore.authorizationStatus(for: .event)
+        }
+        return try await CalendarReadAccessGate.ensureAccess(
+            currentStatus: readAuthorization,
+            requestFullAccess: { try await self.eventStore.requestFullAccessToEvents() }
+        )
+    }
+
+    private func readAuthorization() -> CalendarReadAuthorization {
         authorizationStatus = EKEventStore.authorizationStatus(for: .event)
         switch authorizationStatus {
-        case .fullAccess, .writeOnly, .authorized:
-            return true
-        case .notDetermined:
-            let granted: Bool
-            if #available(iOS 17.0, *) {
-                granted = try await eventStore.requestFullAccessToEvents()
-            } else {
-                granted = try await withCheckedThrowingContinuation { continuation in
-                    eventStore.requestAccess(to: .event) { granted, error in
-                        if let error {
-                            continuation.resume(throwing: error)
-                        } else {
-                            continuation.resume(returning: granted)
-                        }
-                    }
-                }
-            }
-            authorizationStatus = EKEventStore.authorizationStatus(for: .event)
-            return granted
-        case .denied, .restricted:
-            return false
+        case .fullAccess, .authorized: return .fullAccess
+        case .writeOnly: return .writeOnly
+        case .notDetermined: return .notDetermined
+        case .denied: return .denied
+        case .restricted: return .restricted
         @unknown default:
-            return false
+            return .unknown
         }
     }
 }

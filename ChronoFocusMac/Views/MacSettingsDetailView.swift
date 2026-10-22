@@ -159,7 +159,24 @@ struct MacSettingsDetailView: View {
                             .disabled(premium.isLoading)
                         }
                     }
+                    Text(premium.statusText)
+                        .font(.caption)
+                        .foregroundStyle(MacTheme.secondaryText)
                 }
+            }
+
+            MacGlassPanel {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("数据与隐私", systemImage: "hand.raised.fill")
+                        .font(.headline)
+                        .foregroundStyle(MacTheme.primaryText)
+                    Text("待办、计时记录和导入的日历内容保存在此设备。App 不会向开发者服务器上传这些内容；系统备份由你的系统设置管理。")
+                    Text("桌面通知可能显示任务名称，可在系统设置中管理显示范围。购买和日历授权由 Apple 的系统服务处理。")
+                }
+                .font(.subheadline)
+                .foregroundStyle(MacTheme.secondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(24)

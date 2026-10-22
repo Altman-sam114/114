@@ -48,13 +48,8 @@ struct ChronoFocusLiveActivity: Widget {
         }
     }
 
-    @ViewBuilder
     private func timerText(for context: ActivityViewContext<PomodoroActivityAttributes>) -> some View {
-        if context.state.isPaused {
-            Text(context.state.remainingSeconds.clockString)
-        } else {
-            Text(timerInterval: Date()...context.state.endDate, countsDown: true)
-        }
+        ActivityCountdownText(endDate: context.state.endDate, isPaused: context.state.isPaused, remainingSeconds: context.state.remainingSeconds)
     }
 
     private func progress(for context: ActivityViewContext<PomodoroActivityAttributes>) -> Double {
@@ -96,20 +91,31 @@ private struct LockScreenLiveActivityView: View {
             Spacer(minLength: 10)
 
             VStack(alignment: .trailing, spacing: 4) {
-                if context.state.isPaused {
-                    Text(context.state.remainingSeconds.clockString)
-                        .font(.title2.monospacedDigit().weight(.bold))
-                } else {
-                    Text(timerInterval: Date()...context.state.endDate, countsDown: true)
-                        .font(.title2.monospacedDigit().weight(.bold))
-                }
-                Text(context.state.isPaused ? "暂停" : "后台运行")
+                ActivityCountdownText(endDate: context.state.endDate, isPaused: context.state.isPaused, remainingSeconds: context.state.remainingSeconds)
+                    .font(.title2.monospacedDigit().weight(.bold))
+                Text(context.state.isPaused ? "暂停" : (context.state.endDate <= Date() ? "已到时" : "后台运行"))
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.62))
             }
             .foregroundStyle(.white)
         }
         .padding()
+    }
+}
+
+private struct ActivityCountdownText: View {
+    let endDate: Date
+    let isPaused: Bool
+    let remainingSeconds: Int
+
+    var body: some View {
+        if isPaused {
+            Text(max(0, remainingSeconds).clockString)
+        } else if let interval = Date().futureCountdownRange(until: endDate) {
+            Text(timerInterval: interval, countsDown: true)
+        } else {
+            Text("00:00")
+        }
     }
 }
 

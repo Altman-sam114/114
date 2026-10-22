@@ -12,6 +12,10 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.8实现待云端：日历两服务共享CalendarReadAccessGate，writeOnly先升级完整访问并在await后复查，拒绝并发同步；Live Activity共用安全倒计时组件，未来/到点/过期与暂停值不会构造倒置区间。新增实际core回归及平台接线单点破坏。三个bundle加入符合实际使用的隐私manifest，设置补数据说明和Mac购买反馈；iOS浅色强调文字/原生动作加深，mini合成后只施加外阴影，主题UI测试增设置数据说明截图（5/0/0、至少16图）。独立矩阵新增Release双端构建与真实资源/架构/最低系统/版本/Debug入口检查，明确未签名、distributionReady=false；生产唯一包/五图/第四模式不变。关键文件为Shared权限与Date helper、两日历服务、Live Activity、两端Views、pbx/resources、新Release脚本和md/release/readiness.md。仅静态审阅，无本机测试/解析/编译；真实发行资料与系统服务实测仍待人工。
+
+- 2026-10-23 C完成v1.7：main`66920580007a9f1cfdbd8cde12b3e8dae709bff2`，source`39862235024`、review`39863488160`、UI`39863487992`均success/attempt1；生产artifact`12462109578`（16413558 bytes，SHA-256 `ff432b673746c097f24fbdbe7d0ca47d3a59202c3b6eb4cc73edcbf8c544bce0`），review evidence`12463066701`，UI Mac/375/390为`12463670164`/`12463118105`/`12462868391`，证据`/private/tmp/chronofocus-c-review-39862235024-1mdagOgP`。第四模式148/0、JUnit4/0/0、分类展示core与双端build通过；15张Mac图含5浅色，mini亮暗面板内容可见且局部空白负例被拒绝；两种iPhone各5/0/0与15原生图、上传/freshness成功。C只读码/gh/读图无本机复跑。残余浅色iOS强调文字与mini重影列入v1.8发布UI收口，日历权限、Live Activity过期区间、Release和隐私发行准备继续。
+
 - 2026-10-23 v1.7视觉C退回：`18f4206` / source`39858323932`与review`39859208912`均success，第四模式148/0、JUnit4/0/0、分类展示core与双端build通过。Mac artifact`12460149120`（51266480 bytes，SHA-256 `488d295c0f676602b1ea4759a4188ad34380cecae3d3d4494807f8da914f6d4a`）的15图中浅色四页与分类展开可读，但mini-light快捷面板内容为空；这是ImageRenderer滚动容器缺内容，整图非空无法发现。真实ScrollView保留，快照改直接渲染共享panelContent并裁到相同视口；正式暗色mini和独立浅色mini新增区域前景检查与亮暗空白面板负例。证据`/private/tmp/chronofocus-c-review-39858323932-wC1MmYJy`保留，本轮未放行，待新SHA。
 
 - 2026-10-23 v1.7首轮C退回：`9b1d43f` / source`39856495737`最终failure，review`39857212135`拒绝失败push，UI`39857212254`正确skipped。Static checks通过，core及双端编译共同报`AppModels.swift:330 constant self.pinnedSelection captured by a closure before being initialized`；修复为先生成局部visible数组，再赋值所有存储属性，闭包不捕获未初始化self。原测试和门禁不变，禁止把continue-on-error的API步骤success当作业务成功；取证目录`/private/tmp/chronofocus-c-review-39856495737-dxNV64F9`，待追加commit云端验证。

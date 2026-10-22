@@ -12,6 +12,10 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 
 ## 1. 当前核心数据流
 
+v1.8平台边界：两日历服务先拒绝并发同步，再经共享`CalendarReadAccessGate`读取真实授权。fullAccess允许读取，notDetermined/writeOnly请求完整访问后同时核对返回值和刷新状态，denied/restricted/unknown拒绝；异常也刷新平台状态。只有允许后才查询EventKit并通过既有Store导入。Live Activity锁屏/灵动岛共用`ActivityCountdownText`，暂停显示非负快照值，运行中只对未来日期构造`futureCountdownRange`，到点/过期显示00:00而不创建倒置区间。
+
+发布证据扩展为同一UI workflow的release矩阵项：验证源身份后checkout当前源SHA，双端Release构建后从真实App/appex核对隐私资源、身份/版本/最低系统/架构和Debug入口缺失，再绑定source/UI两套身份与freshness上传独立包。该工程检查没有签名发行能力，报告保留distributionReady=false；生产结果包与第四模式结构不变。
+
 v1.7展示派生：Mac详情与popover读取同一`store.settings.appThemeMode`；MacTheme按原生appearance提供背景、面板、正文、次要文字、边框和轨道，浅色强调文字单独加深，选中填色保留原分类色和共享对比文字。Mac筛选和快速新增从完整搜索结果再经`CategoryOptionPresentation`派生默认6/4项；非空查询显示全部匹配，当前选择从完整来源查找并在前缀/匹配之外单独保留，匹配计数不使用可见前缀。展开仅为View状态，查询/分类/选项身份变化恢复收起，iOS保留原横向栏。
 
 v1.5展示层：iOS计时依次呈现当前任务、模式/倒计时、主控、任务队列、可折叠提醒、今日统计。辅助大字体使用线性计时摘要，主控文字随开始/暂停/继续和专注/休息改变，仍调用TimerEngine原入口。日程把待办放在计划/同步前。Mac两页使用`MacAdaptiveColumns`按实际内容宽度测量；低于780pt时纵排，计时主区在前、日程待办区在前。布局切换不复制或重建核心状态，真实/快照只在原生控件替身上分支，内容顺序一致。

@@ -15,6 +15,7 @@ struct SettingsView: View {
                     premiumPanel
                     soundPanel
                     systemPanel
+                    privacyPanel
                 }
                 .padding(18)
                 .padding(.bottom, 26)
@@ -49,6 +50,24 @@ struct SettingsView: View {
                 DurationStepper(title: "长休间隔", value: $store.settings.roundsBeforeLongBreak, range: 2...12, suffix: "轮", tint: .mint)
                 DurationStepper(title: "每日目标", value: $store.settings.dailyGoalMinutes, range: 15...720, tint: .blue)
             }
+        }
+    }
+
+    private var privacyPanel: some View {
+        GlassPanel {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("数据与隐私", systemImage: "hand.raised.fill")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.primaryText)
+                    .accessibilityIdentifier("settings.privacy")
+                    .accessibilityAddTraits(.isHeader)
+                Text("待办、计时记录和导入的日历内容保存在此设备。App 不会向开发者服务器上传这些内容；系统备份由你的系统设置管理。")
+                Text("通知和实时活动可能显示任务名称，可在系统设置中管理显示范围。购买和日历授权由 Apple 的系统服务处理。")
+                    .accessibilityIdentifier("settings.privacy.notice")
+            }
+            .font(.subheadline)
+            .foregroundStyle(AppTheme.secondaryText)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -101,7 +120,7 @@ struct SettingsView: View {
 
                 HStack(spacing: 12) {
                     Image(systemName: notificationStatusIcon)
-                        .foregroundStyle(notificationStatusColor)
+                        .foregroundStyle(AppTheme.readableTint(notificationStatusColor))
                     Text(notificationStatusText)
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.secondaryText)
@@ -114,7 +133,7 @@ struct SettingsView: View {
                             handleNotificationAuthorizationAction()
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(.cyan)
+                        .tint(AppTheme.readableTint(.cyan))
                         .frame(minHeight: 44)
                     }
                 }
@@ -137,7 +156,7 @@ struct SettingsView: View {
                     Spacer()
                     Text(premium.isProUnlocked ? "已解锁" : "Pro")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(premium.isProUnlocked ? .mint : .cyan)
+                        .foregroundStyle(AppTheme.readableTint(premium.isProUnlocked ? .mint : .cyan))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background((premium.isProUnlocked ? Color.mint : Color.cyan).opacity(0.12), in: Capsule())
@@ -163,7 +182,7 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .tint(.cyan)
+                    .tint(AppTheme.readableTint(.cyan))
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .disabled(!premium.isProUnlocked && store.settings.completionSound.isPro)
 
@@ -175,7 +194,7 @@ struct SettingsView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(.cyan)
+                        .tint(AppTheme.readableTint(.cyan))
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .disabled(premium.isLoading)
                     }
@@ -195,7 +214,7 @@ struct SettingsView: View {
                     Spacer()
                     Text(premium.isProUnlocked ? "已解锁" : premium.priceText)
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(premium.isProUnlocked ? .mint : .cyan)
+                        .foregroundStyle(AppTheme.readableTint(premium.isProUnlocked ? .mint : .cyan))
                 }
 
                 Text(premium.statusText)
@@ -211,7 +230,7 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
+                    .tint(AppTheme.readableTint(.cyan))
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .disabled(premium.isLoading || premium.isProUnlocked)
 
@@ -222,7 +241,7 @@ struct SettingsView: View {
                             .frame(width: 44, height: 34)
                     }
                     .buttonStyle(.bordered)
-                    .tint(.mint)
+                    .tint(AppTheme.readableTint(.mint))
                     .disabled(premium.isLoading)
                     .frame(width: 44, height: 44)
                     .accessibilityLabel("恢复购买")
@@ -310,7 +329,7 @@ private struct DurationStepper: View {
 
             Stepper("", value: $value, in: range)
                 .labelsHidden()
-                .tint(tint)
+                .tint(AppTheme.readableTint(tint))
                 .frame(minWidth: 96, minHeight: 44)
                 .contentShape(Rectangle())
                 .accessibilityLabel(title)

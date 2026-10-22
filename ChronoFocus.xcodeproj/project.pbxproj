@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        100000000000000000000017 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000119 /* PrivacyInfo.xcprivacy */; };
+        100000000000000000000018 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000011A /* PrivacyInfo.xcprivacy */; };
+        100000000000000000000019 /* CalendarReadAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000118 /* CalendarReadAccess.swift */; };
+        200000000000000000000016 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000119 /* PrivacyInfo.xcprivacy */; };
+        200000000000000000000017 /* CalendarReadAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000118 /* CalendarReadAccess.swift */; };
         300000000000000000000001 /* ChronoFocusUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300000000000000000000101 /* ChronoFocusUITests.swift */; };
 		100000000000000000000001 /* ChronoFocusApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000101 /* ChronoFocusApp.swift */; };
 		100000000000000000000002 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000102 /* DashboardView.swift */; };
@@ -85,6 +90,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+        100000000000000000000118 /* CalendarReadAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReadAccess.swift; sourceTree = "<group>"; };
+        100000000000000000000119 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+        10000000000000000000011A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
         300000000000000000000101 /* ChronoFocusUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronoFocusUITests.swift; sourceTree = "<group>"; };
         300000000000000000000201 /* ChronoFocusUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChronoFocusUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		100000000000000000000101 /* ChronoFocusApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronoFocusApp.swift; sourceTree = "<group>"; };
@@ -232,6 +240,8 @@
 			children = (
 				10000000000000000000010C /* PomodoroActivityAttributes.swift */,
 				10000000000000000000010D /* SharedExtensions.swift */,
+                100000000000000000000118 /* CalendarReadAccess.swift */,
+                100000000000000000000119 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -243,6 +253,7 @@
 				100000000000000000000110 /* ChronoFocusLiveActivity.swift */,
 				100000000000000000000113 /* Info.plist */,
 				100000000000000000000114 /* ChronoFocusLiveActivity.entitlements */,
+                10000000000000000000011A /* PrivacyInfo.xcprivacy */,
 			);
 			path = ChronoFocusLiveActivity;
 			sourceTree = "<group>";
@@ -434,6 +445,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				10000000000000000000000E /* Assets.xcassets in Resources */,
+                100000000000000000000017 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -441,6 +453,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+                100000000000000000000018 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -449,6 +462,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				200000000000000000000012 /* Assets.xcassets in Resources */,
+                200000000000000000000016 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -481,6 +495,7 @@
 				100000000000000000000016 /* TimerPlatformServices.swift in Sources */,
 				10000000000000000000000C /* PomodoroActivityAttributes.swift in Sources */,
 				10000000000000000000000D /* SharedExtensions.swift in Sources */,
+                100000000000000000000019 /* CalendarReadAccess.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -519,6 +534,7 @@
 				20000000000000000000000F /* TimerEngine.swift in Sources */,
 				200000000000000000000010 /* TimerPlatformServices.swift in Sources */,
 				200000000000000000000011 /* SharedExtensions.swift in Sources */,
+                200000000000000000000017 /* CalendarReadAccess.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

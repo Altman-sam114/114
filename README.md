@@ -1,6 +1,8 @@
 # ChronoFocus
 
-当前迭代 v1.7：Mac详情、设置和小窗接入既有亮暗主题，浅色正文/强调文字/边框与背景分开处理；分类筛选默认6项、快速新增已有分类默认4项，可查看全部，搜索覆盖完整列表且当前选择单独保留。独立云端Mac证据扩至15图（5张浅色及分类展开），两种iPhone各增加亮暗切页测试，要求5/0/0、至少15张原生PNG；本轮待新SHA云端验收。
+当前迭代 v1.8：修复日历仅写入权限不能读取和Live Activity到点后倒置区间；补齐隐私API资源、两端设置的数据说明、iOS浅色强调文字与独立Release产品检查。工程验证均走同一最新main的Actions；正式签名/身份、购买/权限/真机验证和发行资料见`md/release/readiness.md`。
+
+v1.7已在`6692058`完成source`39862235024`、review`39863488160`、UI`39863487992`验收：148/0，两种iPhone各5/0/0、15张原生图，Mac15图含5浅色。Mac主题贯穿详情与小窗，分类默认6/4项、完整搜索和选中项保留；空白快捷面板快照已修复并加入局部空白负例。
 
 v1.6已在`9f50b47`完成source`39848949801`、review`39849631678`、UI`39849632075`验收：第四模式148/0、双端build和共享core成功，两种iPhone各实际4/0/0与12图、Mac9图。SE首屏主控完整露出，大字体长标题、搜索分类预填保存和提醒展开收起均有原生运行证据。首次安装和清空后重启保持真实空数据，已有数据保留。
 
@@ -61,13 +63,15 @@ Pro 权益使用 StoreKit 2，iOS 和 macOS 共用商品 ID `com.example.ChronoF
 
 不要通过直接改 `UserDefaults`、`FocusStore` 或新增调试开关伪造 Pro 权益。真实入口是 `PremiumAccessService` / `MacPremiumAccessService` 的商品加载、购买、恢复和 entitlement 刷新；Mac 快照里用于避免联网加载的初始化参数只服务快照渲染，不代表真实权益路径。
 
-日历同步使用 EventKit。iOS 读取 iPhone 日历，macOS 读取 Mac 日历；日程 UI 的同步入口受 Pro 权益保护，`CalendarSyncService` / `MacCalendarSyncService` 只负责权限请求和导入。首次授权在 iOS 17 / macOS 14+ 请求完整日历访问；当前实现也接受系统已有的 `writeOnly` / `authorized` 状态。同步时导入从今天零点起 45 天范围内的非全天事件，分类来自系统日历标题，事件开始时间作为待办时间，导入后仍通过 `FocusStore.upsertExternalTask(...)` 参与计划、筛选和统计。
+日历同步使用 EventKit。iOS 读取 iPhone 日历，macOS 读取 Mac 日历；日程 UI 的同步入口受 Pro 权益保护，`CalendarSyncService` / `MacCalendarSyncService` 只负责权限请求和导入。首次授权和已有writeOnly状态都须申请完整日历访问，await后重新查询实际权限；拒绝/受限/未知状态不读取事件。同步时导入从今天零点起 45 天范围内的非全天事件，分类来自系统日历标题，事件开始时间作为待办时间，导入后仍通过 `FocusStore.upsertExternalTask(...)` 参与计划、筛选和统计。
 
 手工验证时，先用 StoreKit 配置或 sandbox 账号解锁 Pro，再在系统日历中创建一个从今天零点起 45 天范围内的非全天事件，回到日程页执行日历同步，确认待办列表出现同标题任务、分类为来源日历名称，并且重新同步不会重复创建同一外部事件。拒绝日历权限或移除商品配置时，应看到对应状态文案，而不是崩溃或静默失败。
 
 ## 云端验证（唯一测试路径）
 
-生产 `ci-results.yml` 保留唯一结果包和独立第四模式复判；最新实现仍必须重新push、编译和验收。`ui-evidence.yml`仅响应授权当前main的成功push，矩阵分别执行Mac9图、iPhone13（390pt）和iPhoneSE3（375pt）原生UI测试；每个job上传带平台及source/UI两套身份的独立证据，生产run仍精确一个artifact。上传前后复查来源与main，证据漂移、测试跳过/失败、附件缺失或上传失败均不能通过。iOS测试只覆盖已列出的App内路径，真实购买、系统授权与真机后台仍须独立验证。
+v1.8独立证据矩阵包含Mac、两种iPhone和Release：Mac15图，两种iPhone各5/0/0与至少16张原生图，Release检查Mac通用架构与iOS/Live Activity真实产物和隐私资源。生产唯一结果包和正式五图不变。Release使用CODE_SIGNING_ALLOWED=NO，报告明确distributionReady=false，不代表已完成签名、真实商品或发行审核。
+
+生产 `ci-results.yml` 保留唯一结果包和独立第四模式复判；最新实现仍必须重新push、编译和验收。`ui-evidence.yml`仅响应授权当前main的成功push，矩阵执行Mac15图、iPhone13（390pt）、iPhoneSE3（375pt）原生UI测试和独立Release检查；每个job上传带平台及source/UI两套身份的独立证据，生产run仍精确一个artifact。上传前后复查来源与main，证据漂移、测试跳过/失败、附件缺失或上传失败均不能通过。iOS测试只覆盖已列出的App内路径，真实购买、系统授权与真机后台仍须独立验证。
 
 项目主结构验证入口仅由 GitHub Actions 执行，本机不得运行：
 

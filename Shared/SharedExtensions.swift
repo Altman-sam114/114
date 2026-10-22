@@ -50,6 +50,11 @@ extension Color {
 }
 
 extension Date {
+    func futureCountdownRange(until endDate: Date) -> ClosedRange<Date>? {
+        guard endDate > self else { return nil }
+        return self...endDate
+    }
+
     var scheduleTimeText: String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_CN")

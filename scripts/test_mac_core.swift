@@ -168,8 +168,71 @@ struct MacCoreTests {
         await runTimerEngineBoundaryTests(store: store)
         runPrimaryTimerActionTests()
         runEmptyPersistenceTests()
+        await runCalendarReadAccessTests()
+        runCountdownRangeTests()
 
         print("Mac core tests passed.")
+    }
+
+    @MainActor
+    private static func runCalendarReadAccessTests() async {
+        for initial in [CalendarReadAuthorization.fullAccess, .denied, .restricted, .unknown] {
+            var requests = 0
+            let allowed = try! await CalendarReadAccessGate.ensureAccess(currentStatus: { initial }, requestFullAccess: {
+                requests += 1
+                return true
+            })
+            assert(allowed == (initial == .fullAccess) && requests == 0, "Determined read access must not issue unnecessary permission requests")
+        }
+        for initial in [CalendarReadAuthorization.notDetermined, .writeOnly] {
+            var status = initial
+            var requests = 0
+            let allowed = try! await CalendarReadAccessGate.ensureAccess(currentStatus: { status }, requestFullAccess: {
+                requests += 1
+                status = .fullAccess
+                return true
+            })
+            assert(allowed && requests == 1, "New and write-only access must request full calendar access")
+        }
+        for refreshed in [CalendarReadAuthorization.writeOnly, .denied, .restricted, .unknown] {
+            var status = CalendarReadAuthorization.writeOnly
+            let allowed = try! await CalendarReadAccessGate.ensureAccess(currentStatus: { status }, requestFullAccess: {
+                status = refreshed
+                return true
+            })
+            assert(!allowed, "A true callback must not authorize reads without actual full access")
+        }
+        var deniedStatus = CalendarReadAuthorization.notDetermined
+        let denied = try! await CalendarReadAccessGate.ensureAccess(currentStatus: { deniedStatus }, requestFullAccess: {
+            deniedStatus = .denied
+            return false
+        })
+        assert(!denied && deniedStatus == .denied, "A denied request must remain denied")
+        var falseCallbackStatus = CalendarReadAuthorization.notDetermined
+        let falseCallback = try! await CalendarReadAccessGate.ensureAccess(currentStatus: { falseCallbackStatus }, requestFullAccess: {
+            falseCallbackStatus = .fullAccess
+            return false
+        })
+        assert(!falseCallback, "A false completion callback must not be treated as a successful permission request")
+        do {
+            _ = try await CalendarReadAccessGate.ensureAccess(currentStatus: { .writeOnly }, requestFullAccess: {
+                throw NSError(domain: "CalendarReadAccessFixture", code: 1)
+            })
+            fail("Permission request errors must propagate")
+        } catch {
+            assert((error as NSError).domain == "CalendarReadAccessFixture", "Permission errors must not be silently accepted")
+        }
+        print("Calendar read access behavior passed.")
+    }
+
+    private static func runCountdownRangeTests() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let future = now.addingTimeInterval(60)
+        let range = now.futureCountdownRange(until: future)
+        assert(range?.lowerBound == now && range?.upperBound == future, "Future countdown must preserve its exact endpoints")
+        assert(now.futureCountdownRange(until: now) == nil, "Exactly expired countdowns must not create a timer interval")
+        assert(now.futureCountdownRange(until: now.addingTimeInterval(-60)) == nil, "Expired Live Activities must never construct inverted ranges")
+        print("Live Activity countdown boundary behavior passed.")
     }
 
     @MainActor

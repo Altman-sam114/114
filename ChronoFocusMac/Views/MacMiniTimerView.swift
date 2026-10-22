@@ -491,7 +491,8 @@ private struct MacMiniQuickPanelView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(MacTheme.border, lineWidth: 1)
         }
-        .shadow(color: Color.black.opacity(0.35), radius: 18, x: 0, y: 10)
+        .compositingGroup()
+        .shadow(color: Color.black.opacity(0.22), radius: 18, x: 0, y: 10)
     }
 
     private var panelContent: some View {

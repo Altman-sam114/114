@@ -42,6 +42,7 @@ ChronoFocus 是一个 SwiftUI 番茄钟 App 原型，包含 iOS 主 App、iOS Li
 - `ChronoFocus/Services/TimerEngine.swift`
 - `ChronoFocus/Services/TimerPlatformServices.swift`
 - `Shared/SharedExtensions.swift`
+- `Shared/CalendarReadAccess.swift`：日历完整读取权限的非持久化策略，不依赖 EventKit 类型。
 - `Shared/PomodoroActivityAttributes.swift`
 
 iOS 平台层：

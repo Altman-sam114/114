@@ -13,12 +13,12 @@ jobs:
   ui-evidence:
     name: UI evidence (${{ matrix.platform }})
     if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
-    runs-on: ${{ matrix.platform == 'mac' && 'macos-26-intel' || 'macos-26' }}
+    runs-on: ${{ (matrix.platform == 'mac' || matrix.platform == 'release') && 'macos-26-intel' || 'macos-26' }}
     timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
-        platform: [mac, ios-390, ios-375]
+        platform: [mac, ios-390, ios-375, release]
     env:
       UI_PLATFORM: ${{ matrix.platform }}
     steps:
@@ -125,7 +125,7 @@ jobs:
                         "uiWorkflow": "ChronoFocus UI Evidence", "uiWorkflowPath": ".github/workflows/ui-evidence.yml",
                         "uiWorkflowHeadSha": os.environ["GITHUB_SHA"], "platform": os.environ["UI_PLATFORM"], "phase": phase, "conclusion": "source verified"}
               if phase == "initial":
-                  artifact = f"chronofocus-ui-v1.7-{os.environ['UI_PLATFORM']}-{run['head_sha']}-source{run['id']}-attempt{run['run_attempt']}-ui{os.environ['GITHUB_RUN_ID']}-attempt{os.environ['GITHUB_RUN_ATTEMPT']}"
+                  artifact = f"chronofocus-ui-v1.8-{os.environ['UI_PLATFORM']}-{run['head_sha']}-source{run['id']}-attempt{run['run_attempt']}-ui{os.environ['GITHUB_RUN_ID']}-attempt{os.environ['GITHUB_RUN_ATTEMPT']}"
                   with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                       output.write(f"sha={run['head_sha']}\nartifact={artifact}\n")
               else:
@@ -138,6 +138,10 @@ jobs:
                           require(len(result["fixtures"]) == 15, "Missing UI fixtures")
                           require(sum(item["theme"] == "light" for item in result["fixtures"]) == 5, "Missing light theme fixtures")
                           require(any(item["categoriesExpanded"] for item in result["fixtures"]), "Missing expanded categories fixture")
+                      elif os.environ["UI_PLATFORM"] == "release":
+                          result["releaseEvidence"] = load(ROOT / "release-evidence.json")
+                          require(result["releaseEvidence"]["engineeringChecksPassed"] is True, "Release engineering checks failed")
+                          require(result["releaseEvidence"]["commitSha"] == run["head_sha"], "Release products are from a different source")
                       else:
                           result["nativeUIEvidence"] = load(ROOT / "ios-evidence.json")
                           require(result["nativeUIEvidence"]["summary"]["passedTests"] == 5, "Missing native UI test results")
@@ -174,7 +178,7 @@ jobs:
           /tmp/chrono_focus_render_mac_snapshots --ui-evidence-output "$UI_DIR/images" 2>&1 | tee "$UI_DIR/render.log"
 
       - name: Prepare iOS simulator
-        if: matrix.platform != 'mac'
+        if: startsWith(matrix.platform, 'ios-')
         timeout-minutes: 8
         env:
           UI_DIR: ${{ steps.gate.outputs.directory }}
@@ -185,7 +189,7 @@ jobs:
           bash scripts/prepare_ios_ui_simulator.sh
 
       - name: Run native iOS UI tests
-        if: matrix.platform != 'mac'
+        if: startsWith(matrix.platform, 'ios-')
         timeout-minutes: 18
         env:
           UI_DIR: ${{ steps.gate.outputs.directory }}
@@ -194,6 +198,17 @@ jobs:
           set -euo pipefail
           export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
           bash scripts/run_ios_ui_tests.sh
+
+      - name: Build and inspect unsigned Release products
+        if: matrix.platform == 'release'
+        timeout-minutes: 24
+        env:
+          UI_DIR: ${{ steps.gate.outputs.directory }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+          bash scripts/run_release_readiness.sh
 
       - name: Recheck source and bind visual manifest
         env:

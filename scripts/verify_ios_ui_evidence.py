@@ -19,7 +19,7 @@ for image in sorted((root / "attachments").rglob("*.png")):
     assert width == device["pointWidth"] * device["scale"] and height > width, "Screenshot does not match the declared portrait device"
     screenshots.append({"path": str(image.relative_to(root)), "width": width, "height": height,
                         "byteCount": image.stat().st_size, "sha256": hashlib.sha256(image.read_bytes()).hexdigest()})
-assert len(screenshots) >= 15, "Missing native screenshot attachments"
+assert len(screenshots) >= 16, "Missing native screenshot attachments"
 with (root / "ios-evidence.json").open("x") as output:
     json.dump({"device": device, "summary": summary, "screenshots": screenshots}, output, indent=2)
 print(f"Native iOS UI evidence verified: 5 passed, 0 failed, 0 skipped; {len(screenshots)} screenshots")

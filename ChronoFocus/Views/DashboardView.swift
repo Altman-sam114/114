@@ -43,7 +43,7 @@ struct DashboardView: View {
                 .tabItem { Label("设置", systemImage: "slider.horizontal.3") }
                 .tag(AppTab.settings)
         }
-        .tint(.cyan)
+        .tint(AppTheme.readableTint(.cyan))
         .background(AppTheme.background.ignoresSafeArea())
         .task {
             await notifications.refreshAuthorizationStatus()
@@ -150,6 +150,20 @@ enum AppTheme {
     static let primaryText = dynamicColor(dark: .white, light: UIColor(red: 0.06, green: 0.08, blue: 0.12, alpha: 1))
     static let secondaryText = dynamicColor(dark: UIColor.white.withAlphaComponent(0.64), light: UIColor(red: 0.28, green: 0.33, blue: 0.42, alpha: 1))
 
+    static func readableTint(_ tint: Color) -> Color {
+        let original = UIColor(tint)
+        return Color(UIColor { traits in
+            let resolved = original.resolvedColor(with: traits)
+            guard traits.userInterfaceStyle != .dark else { return resolved }
+            var red: CGFloat = 0
+            var green: CGFloat = 0
+            var blue: CGFloat = 0
+            var alpha: CGFloat = 0
+            guard resolved.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else { return resolved }
+            return UIColor(red: red * 0.42, green: green * 0.42, blue: blue * 0.42, alpha: alpha)
+        })
+    }
+
     private static func dynamicColor(dark: UIColor, light: UIColor) -> Color {
         Color(UIColor { traitCollection in
             traitCollection.userInterfaceStyle == .dark ? dark : light
@@ -185,7 +199,7 @@ struct MetricTile: View {
         VStack(alignment: .leading, spacing: 10) {
             Image(systemName: symbol)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(tint)
+                .foregroundStyle(AppTheme.readableTint(tint))
                 .frame(width: 34, height: 34)
                 .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 

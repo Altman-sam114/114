@@ -265,7 +265,7 @@ struct TimerView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(engine.isRunning ? "当前专注" : "准备好，专注当下")
                     .font(.caption)
-                    .foregroundStyle(currentTint)
+                    .foregroundStyle(AppTheme.readableTint(currentTint))
                 Text(timerActionTitle)
                     .font(.system(.title2, design: .rounded).bold())
                     .foregroundStyle(AppTheme.primaryText)
@@ -274,7 +274,7 @@ struct TimerView: View {
                 if let category = timerActionCategory {
                     Label(category, systemImage: "tag.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(currentTint)
+                        .foregroundStyle(AppTheme.readableTint(currentTint))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -331,7 +331,7 @@ struct TimerView: View {
                     VStack(spacing: 8) {
                         Image(systemName: engine.mode.symbolName)
                             .font(.system(size: 26, weight: .semibold))
-                            .foregroundStyle(currentTint)
+                            .foregroundStyle(AppTheme.readableTint(currentTint))
                         countdownText
                         timerPhaseCaption
                     }
@@ -364,7 +364,7 @@ struct TimerView: View {
                 .foregroundStyle(AppTheme.secondaryText)
             Text("下一步 \(engine.nextModeHint)")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(currentTint)
+                .foregroundStyle(AppTheme.readableTint(currentTint))
         }
     }
 
@@ -469,7 +469,7 @@ struct TimerView: View {
                 if isReminderExpanded {
                     HStack(spacing: 12) {
                         Image(systemName: store.settings.soundVolume <= 0 ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                            .foregroundStyle(currentTint)
+                            .foregroundStyle(AppTheme.readableTint(currentTint))
                             .frame(width: 28)
                         Slider(
                             value: Binding(
@@ -575,7 +575,7 @@ struct TimerView: View {
                                 .fixedSize(horizontal: false, vertical: true)
                             }
                             .buttonStyle(.plain)
-                            .foregroundStyle(currentTint)
+                            .foregroundStyle(AppTheme.readableTint(currentTint))
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .contentShape(Rectangle())
                             .accessibilityLabel(taskQueueToggleAccessibilityLabel)
@@ -698,7 +698,7 @@ private struct TaskRow: View {
                 .frame(width: 58)
 
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isSelected ? categoryTint : AppTheme.secondaryText)
+                .foregroundStyle(isSelected ? AppTheme.readableTint(categoryTint) : AppTheme.secondaryText)
         }
         .padding(12)
         .background(isSelected ? categoryTint.opacity(0.13) : AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -827,7 +827,7 @@ private struct TimerTaskCategoryFilterChip: View {
                 Text(title)
                 Text("\(count)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(isSelected ? selectedText.opacity(0.82) : tint)
+                    .foregroundStyle(isSelected ? selectedText.opacity(0.82) : AppTheme.readableTint(tint))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(isSelected ? Color.black.opacity(0.08) : tint.opacity(0.16), in: Capsule())
@@ -962,7 +962,7 @@ private struct TimerSelectedTaskCategorySummaryContent: View {
 
                 Text("\(filteredCount)/\(totalCount) 项")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(tint)
+                    .foregroundStyle(AppTheme.readableTint(tint))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(tint.opacity(0.14), in: Capsule())
@@ -989,7 +989,7 @@ private struct TimerSelectedTaskCategorySummaryContent: View {
 
                 Button("清除筛选", systemImage: "xmark.circle.fill", action: onClear)
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(tint)
+                    .foregroundStyle(AppTheme.readableTint(tint))
                     .buttonStyle(.plain)
                     .frame(minWidth: 72)
                     .frame(maxWidth: axis == .vertical ? .infinity : nil)
@@ -1043,7 +1043,7 @@ private struct TimerTaskCategoryEmptyView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 Image(systemName: "tag.slash")
-                    .foregroundStyle(tint)
+                    .foregroundStyle(AppTheme.readableTint(tint))
                 Text("\(category) 分类暂无可启动待办")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.secondaryText)
@@ -1120,7 +1120,7 @@ private struct TimerTaskCategoryEmptyActions: View {
             Button("清除", systemImage: "xmark.circle.fill", action: onClear)
                 .font(.caption.weight(.bold))
                 .buttonStyle(.plain)
-                .foregroundStyle(tint)
+                .foregroundStyle(AppTheme.readableTint(tint))
                 .frame(minWidth: 72)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 44)
@@ -1152,7 +1152,7 @@ private struct TimerTaskCategoryBadge: View {
         Label(task.category, systemImage: categorySymbolName)
             .lineLimit(1)
             .font(.caption.weight(.bold))
-            .foregroundStyle(tint)
+            .foregroundStyle(AppTheme.readableTint(tint))
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
             .background(tint.opacity(0.14), in: Capsule())
@@ -1175,7 +1175,7 @@ private struct IconActionButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let foreground = filled
             ? Color(hex: TaskCategoryPreset.contrastTextHex(on: tintHex))
-            : tint
+            : AppTheme.readableTint(tint)
 
         configuration.label
             .font(.headline)

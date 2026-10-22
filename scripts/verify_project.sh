@@ -1523,6 +1523,26 @@ raise "Mac presentation must expose the pinned selection" unless mac_filter_sear
 raise "Mac category presentation resets missing" unless mac_filter_search.include?(".onChange(of: searchQuery)") && mac_filter_search.include?(".onChange(of: selectedCategory)") && mac_filter_search.include?(".onChange(of: categoryOptions.map(\\.id))")
 puts "Category presentation contracts verified."
 
+["ChronoFocus/Services/CalendarSyncService.swift", "ChronoFocusMac/Services/MacCalendarSyncService.swift"].each do |path|
+  source = File.read(path)
+  request = function_slices_matching(source, "requestAccessIfNeeded").first
+  status = function_slices_matching(source, "readAuthorization").first
+  sync = function_slices_matching(source, "syncUpcomingEvents").first
+  checks = {
+    "#{path} shared calendar read gate" => ->(s) { s[:request]&.include?("CalendarReadAccessGate.ensureAccess(") && s[:request].include?("currentStatus: readAuthorization,") && s[:request].include?("requestFullAccess: { try await self.eventStore.requestFullAccessToEvents() }") && s[:request].match?(/defer\s*\{\s*authorizationStatus = EKEventStore.authorizationStatus\(for: \.event\)/) },
+    "#{path} write only is not readable" => ->(s) { s[:status]&.match?(/case \.writeOnly:\s*return \.writeOnly/) && s[:status].include?("authorizationStatus = EKEventStore.authorizationStatus(for: .event)") },
+    "#{path} no concurrent calendar requests" => ->(s) { s[:sync]&.match?(/\{\s*guard !isSyncing else \{ return \}\s*isSyncing = true/) }
+  }
+  verify_source_contracts({request: request, status: status, sync: sync}, checks, [
+    [:request, "currentStatus: readAuthorization,", "currentStatus: { .fullAccess },", "#{path} shared calendar read gate"],
+    [:status, "case .writeOnly: return .writeOnly", "case .writeOnly: return .fullAccess", "#{path} write only is not readable"],
+    [:sync, "guard !isSyncing else { return }", "", "#{path} no concurrent calendar requests"]
+  ])
+end
+live_activity_source = File.read("ChronoFocusLiveActivity/ChronoFocusLiveActivity.swift")
+raise "Lock screen and Dynamic Island must share safe countdown rendering" unless live_activity_source.scan("ActivityCountdownText(endDate:").length == 2 && live_activity_source.include?("Date().futureCountdownRange(until: endDate)") && live_activity_source.include?("Text(max(0, remainingSeconds).clockString)") && live_activity_source.include?("Text(\"00:00\")") && !live_activity_source.include?("Text(timerInterval: Date()...")
+puts "Release boundary source contracts verified."
+
 dashboard_source = File.read("ChronoFocus/Views/DashboardView.swift")
 ios_schedule_handoff_source = File.read("ChronoFocus/Views/ScheduleView.swift")
 ios_timer_handoff_source = File.read("ChronoFocus/Views/TimerView.swift")
@@ -6648,6 +6668,7 @@ xcrun --sdk macosx swiftc \
   ChronoFocus/Services/TimerEngine.swift \
   ChronoFocus/Services/TimerPlatformServices.swift \
   Shared/SharedExtensions.swift \
+  Shared/CalendarReadAccess.swift \
   scripts/test_mac_core.swift \
   -o /tmp/chrono_focus_mac_core_tests
 /tmp/chrono_focus_mac_core_tests

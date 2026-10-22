@@ -82,6 +82,8 @@ Agent A 写给 Agent B 的提示词必须明确：
 
 ## 当前实现轮次
 
+- v1.8：`md/prompt/v1（持续优化）/v1.8（发布构建与日历权限边界）.md`。前置v1.7在6692058完成source/review/UI矩阵C验收；本轮权限和Live Activity过期边界、Release真实产物/隐私资源、设置数据说明及iOS浅色UI收口，仍须最新main云端验收。
+
 - v1.7：`md/prompt/v1（持续优化）/v1.7（Mac主题与分类密度收口）.md`。前置v1.6在`9f50b47`完成source/review/UI矩阵和C原始证据验收；本轮完整Mac亮暗主题、分类6/4项展示派生和iOS真实主题切页，待最新main云端验收。
 
 - v1.6：`md/prompt/v1（持续优化）/v1.6（iOS原生交互与空数据意愿）.md`。前置v1.5已在`76c115f`完成source/review/UI三链验收；本轮新增两种iPhone点宽原生UITest与空数据持久化回归，等待新SHA云端执行。

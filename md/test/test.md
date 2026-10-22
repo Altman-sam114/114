@@ -4,6 +4,14 @@
 
 ## 默认验证策略
 
+v1.8：core执行`Calendar read access behavior passed.`及`Live Activity countdown boundary behavior passed.`，分别覆盖权限各状态、不必要请求、只写升级、await后仍无完整权限、返回false和异常，以及未来/相等/过去时间。两平台共享gate、writeOnly映射及防并发入口有边界源码合同与单点破坏；锁屏/灵动岛共用安全显示组件。Static checks增加3项隐私声明执行回归，拒绝缺少本App理由、SDK理由误用、扩展/API范围错配、追踪/新增收集和错误Bool类型。
+
+独立矩阵新增release平台，使用同一个checkout前来源gate和上传前后freshness，执行`bash scripts/run_release_readiness.sh`。实际命令为Mac/iOS的`xcodebuild -configuration Release ... CODE_SIGNING_ALLOWED=NO build`；Mac显式arm64+x86_64。仅云端`verify_release_products.py`检查三个真实bundle的最低系统、版本、架构、二进制摘要、Debug测试入口缺失、嵌入扩展与资源中隐私manifest；保留两份xcresult、主日志、完整argv、隐私原文和release-evidence.json，不上传DerivedData或App。工程通过与distributionReady=false明确分开，C须核对第4份独立artifact并保留原始API。
+
+iPhone仍各5条实际测试，主题测试增加设置数据说明滚动、边界与截图，原生PNG下限提高至16。AppTheme仅为浅色文字和原生动作加深强调色，选中分类填色和持久化不变。C必须看新SHA的浅色计时/日程/设置图与Mac mini阴影收口，不能用theme value代替视觉审阅。本轮仍不在本机执行测试、配置解析、编译、validator或浏览器。
+
+前置v1.7已于6692058完成source39862235024/review39863488160/UI39863487992验收，148/0，Mac15图、两设备各5/0/0与15图；以下15图下限为该轮历史基线。
+
 v1.7：云端共享core执行`Category presentation behavior passed.`，覆盖6/4项前缀、展开、完整搜索、选中项位于前缀之外/搜索之外、无结果、删除选择、阈值回落和完整计数/颜色/顺序不变。源码合同按Mac实际派生路径核对并注入截断完整搜索、从匹配结果错误查选择和关闭查询的单点破坏；iOS横向分类栏保持原合同。
 
 v1.7视觉C发现ImageRenderer没有渲染popover快捷面板的ScrollView内容，整图非空曾漏报。真实路径保留210pt/410pt滚动边界；快照直接渲染同一个panelContent并裁至相同视口，不复制控件或状态。正式暗色mini和独立浅色mini额外检查面板内部矩形区域的前景；独立证据生成两张“左侧有计时文字、右侧面板空白”的亮暗负例，整图非空必须通过而区域检测必须拒绝。C必须读实际mini图，不能只接受15图数量或绿色run。

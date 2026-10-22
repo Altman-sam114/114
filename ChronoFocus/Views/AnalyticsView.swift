@@ -105,7 +105,7 @@ struct AnalyticsView: View {
                     Text("\(Int(dailyGoalProgress * 100))%")
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(AppTheme.readableTint(.cyan))
                 }
 
                 ProgressView(value: dailyGoalProgress)
@@ -135,7 +135,7 @@ struct AnalyticsView: View {
                     Spacer()
                     Text(premium.priceText)
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(AppTheme.readableTint(.cyan))
                 }
 
                 VStack(spacing: 10) {
@@ -149,7 +149,7 @@ struct AnalyticsView: View {
                     VStack(spacing: 8) {
                         Image(systemName: "lock.fill")
                             .font(.title2)
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(AppTheme.readableTint(.cyan))
                         Text("解锁 Pro 查看完整统计、工作压力和任务安排建议")
                             .font(.caption.weight(.semibold))
                             .multilineTextAlignment(.center)
@@ -166,7 +166,7 @@ struct AnalyticsView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
+                    .tint(AppTheme.readableTint(.cyan))
                     .disabled(premium.isLoading)
 
                     Button {
@@ -176,7 +176,7 @@ struct AnalyticsView: View {
                             .frame(width: 44, height: 34)
                     }
                     .buttonStyle(.bordered)
-                    .tint(.mint)
+                    .tint(AppTheme.readableTint(.mint))
                     .disabled(premium.isLoading)
                     .accessibilityLabel("恢复购买")
                 }
@@ -198,7 +198,7 @@ struct AnalyticsView: View {
                     Spacer()
                     Text("压力 \(analysis.pressureLevel)")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(pressureTint)
+                        .foregroundStyle(AppTheme.readableTint(pressureTint))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(pressureTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -333,7 +333,7 @@ struct AnalyticsView: View {
                     Spacer()
                     Text("\(Int(analysis.planCoverage * 100))%")
                         .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(.mint)
+                        .foregroundStyle(AppTheme.readableTint(.mint))
                 }
 
                 ProgressView(value: analysis.planCoverage)
@@ -427,7 +427,7 @@ struct AnalyticsView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Label(item.category, systemImage: "circle.fill")
-                                        .foregroundStyle(Color(hex: store.representativeAccentHex(for: item.category)))
+                                        .foregroundStyle(AppTheme.readableTint(Color(hex: store.representativeAccentHex(for: item.category))))
                                     HStack(spacing: 6) {
                                         Text(categoryShareSessionCountText(for: item))
                                         Text(categoryShareRankText(for: rank))
@@ -442,7 +442,7 @@ struct AnalyticsView: View {
                                 Text("\(categorySharePercent(for: item.seconds))%")
                                     .font(categorySharePercentFont())
                                     .monospacedDigit()
-                                    .foregroundStyle(Color(hex: store.representativeAccentHex(for: item.category)))
+                                    .foregroundStyle(AppTheme.readableTint(Color(hex: store.representativeAccentHex(for: item.category))))
                                     .padding(.horizontal, 7)
                                     .padding(.vertical, 3)
                                     .background(Color(hex: store.representativeAccentHex(for: item.category)).opacity(0.14), in: Capsule())
@@ -526,7 +526,7 @@ struct AnalyticsView: View {
                     ForEach(store.sessions.prefix(8)) { session in
                         HStack {
                             Image(systemName: session.completed ? "checkmark.seal.fill" : "exclamationmark.circle")
-                                .foregroundStyle(session.completed ? .mint : .orange)
+                                .foregroundStyle(AppTheme.readableTint(session.completed ? .mint : .orange))
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(session.taskTitle)
                                     .font(.subheadline.weight(.semibold))
@@ -598,7 +598,7 @@ private struct AnalyticsPlanReviewCategoryBadge: View {
     var body: some View {
         Label(item.category, systemImage: categorySymbolName)
             .font(.caption2.weight(.bold))
-            .foregroundStyle(tint)
+            .foregroundStyle(AppTheme.readableTint(tint))
             .lineLimit(1)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
@@ -628,7 +628,7 @@ private struct RecentSessionCategoryBadge: View {
     var body: some View {
         Label(category, systemImage: categorySymbolName)
             .font(.caption2.weight(.bold))
-            .foregroundStyle(tint)
+            .foregroundStyle(AppTheme.readableTint(tint))
             .lineLimit(1)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
@@ -648,7 +648,7 @@ private struct AnalysisTile: View {
         HStack(spacing: 10) {
             Image(systemName: symbol)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(tint)
+                .foregroundStyle(AppTheme.readableTint(tint))
                 .frame(width: 30, height: 30)
                 .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
@@ -679,7 +679,7 @@ private struct LockedInsightRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: symbol)
-                .foregroundStyle(tint)
+                .foregroundStyle(AppTheme.readableTint(tint))
                 .frame(width: 28, height: 28)
             Text(title)
                 .font(.subheadline.weight(.semibold))
@@ -687,7 +687,7 @@ private struct LockedInsightRow: View {
             Spacer()
             Text(value)
                 .font(.caption.weight(.bold))
-                .foregroundStyle(tint)
+                .foregroundStyle(AppTheme.readableTint(tint))
         }
         .padding(12)
         .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))

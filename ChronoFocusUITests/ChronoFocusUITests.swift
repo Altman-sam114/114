@@ -63,6 +63,16 @@ final class ChronoFocusUITests: XCTestCase {
         app.tabBars.buttons["日程"].tap()
         XCTAssertTrue(app.buttons["schedule.add"].waitForExistence(timeout: 5))
         capture("schedule-light")
+        app.tabBars.buttons["设置"].tap()
+        let privacy = app.descendants(matching: .any)["settings.privacy"].firstMatch
+        reveal(privacy)
+        let notice = app.staticTexts["settings.privacy.notice"]
+        reveal(notice)
+        if notice.frame.maxY > app.tabBars.firstMatch.frame.minY { app.swipeUp() }
+        XCTAssertGreaterThanOrEqual(notice.frame.height, 44)
+        XCTAssertLessThanOrEqual(notice.frame.maxX, app.frame.maxX)
+        XCTAssertLessThanOrEqual(notice.frame.maxY, app.tabBars.firstMatch.frame.minY, "Data notice must remain above the tab bar")
+        capture("settings-privacy-light")
         app.tabBars.buttons["计时"].tap()
         XCTAssertEqual(theme.value as? String, "亮色", "Theme must survive switching tabs")
         theme.tap()

@@ -1,5 +1,26 @@
 # 项目流程图
 
+读图说明：v1.8把读取权限和过期倒计时的边界前置处理；Release工程检查复用既有来源门禁，但不把未签名构建等同于正式发行。
+
+```mermaid
+flowchart LR
+  SYNC[用户同步日历] --> BUSY{是否正在同步}
+  BUSY -->|否| ACCESS[读取实际授权]
+  ACCESS -->|完整访问| READ[EventKit读取 / Store合并]
+  ACCESS -->|首次或仅写入| REQUEST[请求完整访问 / await后复查]
+  REQUEST -->|返回成功且实际完整| READ
+  REQUEST -->|其他| DENY[显示权限说明 / 不读取]
+  ACCESS -->|拒绝受限未知| DENY
+  LIVE[Live Activity重绘] --> RANGE{暂停或结束日期}
+  RANGE -->|暂停| PAUSE[非负快照剩余时间]
+  RANGE -->|未来| FUTURE[合法倒计时区间]
+  RANGE -->|到点过期| ZERO[00:00 / 已到时]
+  GATE[当前main来源门禁] --> RELEASE[双端Release构建]
+  RELEASE --> PRODUCT[真实App与appex / 隐私与版本架构]
+  PRODUCT --> EVIDENCE[独立Release工程证据 / 上传前后复查]
+  EVIDENCE --> HUMAN[签名身份与真实服务发行验证待完成]
+```
+
 读图说明：主题沿用已有设置；分类先完成搜索与计数，再决定展示数量，收起不会修改真实分类或任务。
 
 ```mermaid
@@ -42,7 +63,7 @@ flowchart LR
   GATE --> MAC[Mac同源renderer / 15图与亮暗空白负例]
   GATE --> PHONE1[iPhone13 / 390pt / 5个原生UI测试]
   GATE --> PHONE2[iPhoneSE3 / 375pt / 5个原生UI测试]
-  PHONE1 --> XC[xcresult与原始摘要 / 至少15张截图每设备]
+  PHONE1 --> XC[xcresult与原始摘要 / 至少16张截图每设备]
   PHONE2 --> XC
   XC --> VERIFY[摘要5通过0失败0跳过 / 截图物理尺寸核对]
   MAC --> FRESH[上传前后复查main与attempt]

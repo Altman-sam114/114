@@ -171,7 +171,7 @@ struct ScheduleView: View {
                         selectedDate = Date()
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
+                    .tint(AppTheme.readableTint(.cyan))
                     .frame(minHeight: 44)
 
                     Spacer()
@@ -204,7 +204,7 @@ struct ScheduleView: View {
                     Spacer()
                     Text("Pro")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.cyan)
+                    .foregroundStyle(AppTheme.readableTint(.cyan))
                 }
 
                 Text("支持同步 iPhone 日历；通过 Siri 语音创建的日程，进入 App 后一键同步为待办。")
@@ -219,7 +219,7 @@ struct ScheduleView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
+                    .tint(AppTheme.readableTint(.cyan))
                     .disabled(calendarSync.isSyncing)
 
                     Text(calendarSync.statusText)
@@ -233,7 +233,7 @@ struct ScheduleView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
+                    .tint(AppTheme.readableTint(.cyan))
                 }
             }
         }
@@ -249,7 +249,7 @@ struct ScheduleView: View {
                     Spacer()
                     Text("\(store.pomodoroPlan.filter { !$0.isCompleted }.count) 轮")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(AppTheme.readableTint(.cyan))
                 }
 
                 HStack(spacing: 10) {
@@ -260,7 +260,7 @@ struct ScheduleView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.cyan)
+                    .tint(AppTheme.readableTint(.cyan))
                     .accessibilityLabel("按日程生成番茄钟计划，当前\(remainingPlanCount)轮未完成")
                     .accessibilityInputLabels([
                         Text("按日程生成"),
@@ -381,7 +381,7 @@ struct ScheduleView: View {
                                 } label: {
                                     Label("编辑", systemImage: "pencil")
                                 }
-                                .tint(.cyan)
+                                .tint(AppTheme.readableTint(.cyan))
                                 .accessibilityLabel("编辑\(semanticTaskTitle(task))待办，\(semanticTaskCategory(task))分类")
                                 .accessibilityInputLabels([
                                     Text("编辑\(semanticTaskTitle(task))"),
@@ -584,7 +584,7 @@ private struct SelectedCategorySummaryView: View {
 
                 Text("\(count) 项")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(tint)
+                    .foregroundStyle(AppTheme.readableTint(tint))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(tint.opacity(0.14), in: Capsule())
@@ -633,7 +633,7 @@ private struct SelectedCategorySummaryView: View {
     private var timerHandoffButton: some View {
         Button("转到计时", systemImage: "timer", action: onTimerHandoff)
             .font(.caption.weight(.bold))
-            .foregroundStyle(tint)
+            .foregroundStyle(AppTheme.readableTint(tint))
             .buttonStyle(.plain)
             .frame(maxWidth: .infinity)
             .frame(minHeight: 44)
@@ -651,7 +651,7 @@ private struct SelectedCategorySummaryView: View {
     private var clearButton: some View {
         Button("清除", systemImage: "xmark.circle.fill", action: onClear)
             .font(.caption.weight(.bold))
-            .foregroundStyle(tint)
+            .foregroundStyle(AppTheme.readableTint(tint))
             .buttonStyle(.plain)
             .frame(minWidth: 72)
             .frame(maxWidth: .infinity)
@@ -806,7 +806,7 @@ private struct CalendarDayButton: View {
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .foregroundStyle(isSelected ? selectedText.opacity(0.84) : (taskCount > 0 ? selectedTint : AppTheme.secondaryText))
+                    .foregroundStyle(isSelected ? selectedText.opacity(0.84) : (taskCount > 0 ? AppTheme.readableTint(selectedTint) : AppTheme.secondaryText))
                     .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity)
@@ -981,7 +981,7 @@ private struct TaskCategoryFilterChip: View {
                 Text(title)
                 Text("\(count)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(isSelected ? selectedText.opacity(0.82) : tint)
+                    .foregroundStyle(isSelected ? selectedText.opacity(0.82) : AppTheme.readableTint(tint))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(isSelected ? Color.black.opacity(0.08) : tint.opacity(0.16), in: Capsule())
@@ -1131,7 +1131,7 @@ private struct ScheduleTaskCell: View {
             Button(action: onToggle) {
                 Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(task.isDone ? .mint : categoryTint)
+                    .foregroundStyle(AppTheme.readableTint(task.isDone ? .mint : categoryTint))
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
@@ -1149,7 +1149,7 @@ private struct ScheduleTaskCell: View {
                     Spacer()
                     Text(task.startMode.title)
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(categoryTint)
+                        .foregroundStyle(AppTheme.readableTint(categoryTint))
                 }
 
                 ProgressView(value: task.progress)
@@ -1158,7 +1158,7 @@ private struct ScheduleTaskCell: View {
                 HStack(spacing: 8) {
                     Label(task.category, systemImage: categorySymbolName)
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(categoryTint)
+                        .foregroundStyle(AppTheme.readableTint(categoryTint))
                         .lineLimit(1)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
@@ -1184,7 +1184,7 @@ private struct ScheduleTaskCell: View {
                 Button(action: onTimerHandoff) {
                     Image(systemName: "timer")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(task.isEnabled && !task.isDone ? categoryTint : AppTheme.secondaryText)
+                        .foregroundStyle(task.isEnabled && !task.isDone ? AppTheme.readableTint(categoryTint) : AppTheme.secondaryText)
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
@@ -1196,7 +1196,7 @@ private struct ScheduleTaskCell: View {
                 Button(action: onEnable) {
                     Image(systemName: task.isEnabled ? "bolt.circle.fill" : "bolt.slash.circle")
                         .font(.system(size: 19, weight: .semibold))
-                        .foregroundStyle(task.isEnabled ? .cyan : AppTheme.secondaryText)
+                        .foregroundStyle(task.isEnabled ? AppTheme.readableTint(.cyan) : AppTheme.secondaryText)
                 }
                 .buttonStyle(.plain)
                 .frame(width: 44, height: 44)
@@ -1564,7 +1564,7 @@ struct TaskEditorView: View {
 
                 Text(option.taskCount > 0 ? "\(option.taskCount)" : "历史")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(isSelected ? tint : AppTheme.secondaryText)
+                    .foregroundStyle(isSelected ? AppTheme.readableTint(tint) : AppTheme.secondaryText)
                     .fixedSize()
                     .accessibilityHidden(true)
 
@@ -1575,7 +1575,7 @@ struct TaskEditorView: View {
                 }
             }
             .font(.caption.weight(.semibold))
-            .foregroundStyle(isSelected ? tint : AppTheme.primaryText)
+            .foregroundStyle(isSelected ? AppTheme.readableTint(tint) : AppTheme.primaryText)
             .frame(maxWidth: 220, minHeight: 44, alignment: .leading)
             .padding(.horizontal, 10)
             .background(isSelected ? tint.opacity(0.18) : AppTheme.panel, in: Capsule())
@@ -1671,7 +1671,7 @@ private struct TaskEditorCategoryContextView: View {
     var body: some View {
         Label("当前分类：\(category)", systemImage: symbolName)
             .font(.caption.weight(.semibold))
-            .foregroundStyle(tint)
+            .foregroundStyle(AppTheme.readableTint(tint))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
@@ -1780,7 +1780,7 @@ private struct PomodoroPlanRow: View {
         HStack(spacing: 12) {
             Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "timer")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(item.isCompleted ? .mint : categoryTint)
+                .foregroundStyle(AppTheme.readableTint(item.isCompleted ? .mint : categoryTint))
                 .frame(width: 34, height: 34)
                 .background(categoryTint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
@@ -1797,7 +1797,7 @@ private struct PomodoroPlanRow: View {
 
                     Label(item.category, systemImage: categorySymbolName)
                         .font(.caption2.weight(.semibold))
-                        .foregroundStyle(categoryTint)
+                        .foregroundStyle(AppTheme.readableTint(categoryTint))
                         .lineLimit(1)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 4)
@@ -1819,7 +1819,7 @@ private struct PomodoroPlanRow: View {
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.borderedProminent)
-            .tint(categoryTint)
+            .tint(AppTheme.readableTint(categoryTint))
             .contentShape(Rectangle())
             .disabled(item.isCompleted || isRunning)
             .accessibilityLabel("开始\(item.taskTitle)计划番茄钟，\(item.timeRangeText)，第 \(item.roundNumber) 轮，\(item.category)分类")
