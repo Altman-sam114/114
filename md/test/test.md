@@ -6,6 +6,8 @@
 
 v1.7：云端共享core执行`Category presentation behavior passed.`，覆盖6/4项前缀、展开、完整搜索、选中项位于前缀之外/搜索之外、无结果、删除选择、阈值回落和完整计数/颜色/顺序不变。源码合同按Mac实际派生路径核对并注入截断完整搜索、从匹配结果错误查选择和关闭查询的单点破坏；iOS横向分类栏保持原合同。
 
+v1.7视觉C发现ImageRenderer没有渲染popover快捷面板的ScrollView内容，整图非空曾漏报。真实路径保留210pt/410pt滚动边界；快照直接渲染同一个panelContent并裁至相同视口，不复制控件或状态。正式暗色mini和独立浅色mini额外检查面板内部矩形区域的前景；独立证据生成两张“左侧有计时文字、右侧面板空白”的亮暗负例，整图非空必须通过而区域检测必须拒绝。C必须读实际mini图，不能只接受15图数量或绿色run。
+
 独立Mac renderer保留9个既有状态，增加分类全展开及计时/日程/统计/设置/popover共5张浅色图，总计15；每图记录真实尺寸、theme和展开状态。显式NSAppearance与SwiftUI colorScheme一致，核对背景像素确为要求的亮/暗色；light foreground detector按深色文字或饱和强调像素判定，浅色空白渐变负例必须拒绝，保留原暗色空白负例。正式生产仍精确五张图及唯一artifact。
 
 两种iPhone当前要求各5 passed/0 failed/0 skipped、至少15张原生PNG，第5条实际切换亮色→日程→计时→暗色并验证设置保留。Actions命令仍为`bash scripts/run_ios_ui_tests.sh`和脚本记录的完整`xcodebuild ... test`参数；摘要、xcresult及截图不得省略。C最终核对最新source/review/UI三链及全部平台上传/freshness，再读浅色与分类图。本机不执行这些命令或任何解析/测试。

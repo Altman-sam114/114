@@ -463,6 +463,7 @@ private struct MacMiniQuickPanelView: View {
     @EnvironmentObject private var engine: TimerEngine
     @EnvironmentObject private var premium: MacPremiumAccessService
     @EnvironmentObject private var notifications: MacNotificationService
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     let currentTint: Color
     let currentTintHex: String
@@ -471,8 +472,30 @@ private struct MacMiniQuickPanelView: View {
     private let quickFocusMinutes = [15, 25, 45]
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 12) {
+        Group {
+            if isSnapshotRendering {
+                panelContent
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(width: 210, height: 410, alignment: .top)
+                    .clipped()
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    panelContent
+                }
+            }
+        }
+        .frame(width: 210)
+        .frame(maxHeight: 410)
+        .background(MacTheme.quickPanel, in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(MacTheme.border, lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.35), radius: 18, x: 0, y: 10)
+    }
+
+    private var panelContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
             Label("快捷操作", systemImage: "bolt.fill")
                 .font(.headline)
                 .foregroundStyle(MacTheme.primaryText)
@@ -603,15 +626,6 @@ private struct MacMiniQuickPanelView: View {
             }
         }
         .padding(14)
-        }
-        .frame(width: 210)
-        .frame(maxHeight: 410)
-        .background(MacTheme.quickPanel, in: RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(MacTheme.border, lineWidth: 1)
-        }
-        .shadow(color: Color.black.opacity(0.35), radius: 18, x: 0, y: 10)
     }
 
     private func cycleCompletionSound() {

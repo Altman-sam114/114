@@ -48,6 +48,7 @@ struct MacSnapshotRenderer {
         let miniURL = outputDirectory.appendingPathComponent("mini-timer.png")
         try render(miniView, to: miniURL)
         try assertNonBlankImage(at: miniURL)
+        try assertForegroundContent(at: miniURL, minimumXRatio: 0.64, maximumXRatio: 0.94, minimumYRatio: 0.16, maximumYRatio: 0.80)
         try assertNoMissingControlPlaceholders(at: miniURL)
         var snapshotMetadata = [try metadata(for: miniURL)]
 
@@ -266,6 +267,33 @@ struct MacSnapshotRenderer {
             lightBlankRejected = error.description.contains("Rendered detail content appears empty")
         }
         guard lightBlankRejected else { throw SnapshotError("Foreground detector accepted the blank light negative fixture") }
+        for theme in AppThemeMode.allCases {
+            let blankPanelURL = checksDirectory.appendingPathComponent("blank-panel-\(theme.rawValue)-negative.png")
+            let blankPanel = ZStack(alignment: .topTrailing) {
+                MacTheme.background
+                Text("25:00")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(MacTheme.primaryText)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .padding(.leading, 20)
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(MacTheme.quickPanel)
+                    .frame(width: 210, height: 410)
+                    .padding(.top, 58)
+                    .padding(.trailing, 20)
+            }
+            .frame(width: 560, height: 500)
+            try render(blankPanel, to: blankPanelURL, theme: theme)
+            try assertNonBlankImage(at: blankPanelURL)
+            var panelRejected = false
+            do {
+                try assertForegroundContent(at: blankPanelURL, minimumXRatio: 0.64, theme: theme, maximumXRatio: 0.94, minimumYRatio: 0.16, maximumYRatio: 0.80)
+            } catch let error as SnapshotError {
+                panelRejected = error.description.contains("Rendered detail content appears empty")
+            }
+            guard panelRejected else { throw SnapshotError("Panel detector accepted a blank \(theme.rawValue) panel beside visible timer content") }
+        }
+        print("Quick panel blank-region negatives rejected for dark and light.")
         let suiteName = "ChronoFocusUIEvidence-\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {
             throw SnapshotError("Could not create UI evidence suite")
@@ -336,6 +364,7 @@ struct MacSnapshotRenderer {
         try render(miniLight, to: miniLightURL, theme: .light)
         try assertNonBlankImage(at: miniLightURL)
         try assertForegroundContent(at: miniLightURL, minimumXRatio: 0, theme: .light)
+        try assertForegroundContent(at: miniLightURL, minimumXRatio: 0.64, theme: .light, maximumXRatio: 0.94, minimumYRatio: 0.16, maximumYRatio: 0.80)
         try assertBackgroundTheme(at: miniLightURL, theme: .light)
         try assertNoMissingControlPlaceholders(at: miniLightURL)
         let miniMetadata = try metadata(for: miniLightURL)
@@ -516,7 +545,9 @@ struct MacSnapshotRenderer {
         }
     }
 
-    private static func assertForegroundContent(at url: URL, minimumXRatio: Double, theme: AppThemeMode = .dark) throws {
+    private static func assertForegroundContent(at url: URL, minimumXRatio: Double, theme: AppThemeMode = .dark,
+                                                maximumXRatio: Double = 1, minimumYRatio: Double = 0,
+                                                maximumYRatio: Double = 1) throws {
         guard
             let image = NSImage(contentsOf: url),
             let tiffData = image.tiffRepresentation,
@@ -528,13 +559,16 @@ struct MacSnapshotRenderer {
         let width = max(bitmap.pixelsWide, 1)
         let height = max(bitmap.pixelsHigh, 1)
         let startX = Int(Double(width) * minimumXRatio)
+        let endX = Int(Double(width) * maximumXRatio)
+        let startY = Int(Double(height) * minimumYRatio)
+        let endY = Int(Double(height) * maximumYRatio)
         // A sparse 28-row grid can miss glyphs on a tall, otherwise valid page.
-        let stepX = max(1, (width - startX) / 96)
-        let stepY = max(1, height / 96)
+        let stepX = max(1, (endX - startX) / 96)
+        let stepY = max(1, (endY - startY) / 96)
         var foregroundSamples = 0
 
-        for x in stride(from: startX, to: width, by: stepX) {
-            for y in stride(from: 0, to: height, by: stepY) {
+        for x in stride(from: startX, to: endX, by: stepX) {
+            for y in stride(from: startY, to: endY, by: stepY) {
                 guard let color = bitmap.colorAt(x: x, y: y) else { continue }
                 let brightness = max(color.redComponent, color.greenComponent, color.blueComponent)
                 let saturation = brightness - min(color.redComponent, color.greenComponent, color.blueComponent)

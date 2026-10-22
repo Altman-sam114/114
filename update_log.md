@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.7视觉C退回：`18f4206` / source`39858323932`与review`39859208912`均success，第四模式148/0、JUnit4/0/0、分类展示core与双端build通过。Mac artifact`12460149120`（51266480 bytes，SHA-256 `488d295c0f676602b1ea4759a4188ad34380cecae3d3d4494807f8da914f6d4a`）的15图中浅色四页与分类展开可读，但mini-light快捷面板内容为空；这是ImageRenderer滚动容器缺内容，整图非空无法发现。真实ScrollView保留，快照改直接渲染共享panelContent并裁到相同视口；正式暗色mini和独立浅色mini新增区域前景检查与亮暗空白面板负例。证据`/private/tmp/chronofocus-c-review-39858323932-wC1MmYJy`保留，本轮未放行，待新SHA。
+
 - 2026-10-23 v1.7首轮C退回：`9b1d43f` / source`39856495737`最终failure，review`39857212135`拒绝失败push，UI`39857212254`正确skipped。Static checks通过，core及双端编译共同报`AppModels.swift:330 constant self.pinnedSelection captured by a closure before being initialized`；修复为先生成局部visible数组，再赋值所有存储属性，闭包不捕获未初始化self。原测试和门禁不变，禁止把continue-on-error的API步骤success当作业务成功；取证目录`/private/tmp/chronofocus-c-review-39856495737-dxNV64F9`，待追加commit云端验证。
 
 - 2026-10-23 v1.7实现待云端：Mac详情、设置和popover沿用appThemeMode，增加自适应背景/正文/轨道及浅色强调文字；分类筛选6项、快速新增已有分类4项，保留完整搜索、独立匹配数和前缀/搜索外当前选择，不新增持久化。共享core新增实际展示派生回归，源码合同增加有边界的单点破坏；Mac独立UI扩至15图（5浅色与分类展开），增加亮暗背景及浅色空白负例；iPhone增加主题切页测试，每设备5/0/0、至少15原生图。关键文件为AppModels、MacTheme/四页/Mini、UITests、renderer、verifier与UI workflow。仅静态读码/diff，未运行本机测试/解析/编译；正式身份、签名与真实系统服务仍待后续。

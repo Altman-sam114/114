@@ -1668,8 +1668,9 @@ raise "Mac mini detail quick button accessibility missing" unless mac_mini_quick
 mac_mini_root_source = File.read("ChronoFocusMac/Views/MacMiniTimerView.swift")
 raise "Mac mini quick panel snapshot state must be deterministic" unless mac_mini_root_source.include?("snapshotShowsQuickPanel") && mac_mini_root_source.include?("shouldShowQuickPanel")
 quick_panel_layout_checks = {
-  "Mac mini quick panel vertical scrolling" => ->(s) { s[:panel].match?(/var body: some View\s*\{\s*ScrollView\(\.vertical, showsIndicators: false\)\s*\{/) },
-  "Mac mini quick panel bounded frame" => ->(s) { s[:panel].match?(/\.padding\(14\)\s*\}\s*\.frame\(width: 210\)\s*\.frame\(maxHeight: 410\)\s*\.background\(/) },
+  "Mac mini quick panel vertical scrolling" => ->(s) { s[:panel].match?(/\} else \{\s*ScrollView\(\.vertical, showsIndicators: false\)\s*\{\s*panelContent\s*\}/) },
+  "Mac mini quick panel bounded frame" => ->(s) { s[:panel].match?(/\}\s*\.frame\(width: 210\)\s*\.frame\(maxHeight: 410\)\s*\.background\(/) },
+  "Mac mini snapshot panel viewport" => ->(s) { s[:panel].match?(/if isSnapshotRendering\s*\{\s*panelContent\s*\.fixedSize\(horizontal: false, vertical: true\)\s*\.frame\(width: 210, height: 410, alignment: \.top\)\s*\.clipped\(\)/) },
   "Mac mini popover height" => ->(s) { s[:root].include?(".frame(width: shouldShowQuickPanel ? 560 : 430, height: 500)") },
   "Mac mini quick panel snapshot rendering" => ->(s) { s[:root].match?(/private var shouldShowQuickPanel: Bool\s*\{\s*isShowingQuickPanel \|\| snapshotShowsQuickPanel\s*\}/) && s[:root].match?(/if shouldShowQuickPanel\s*\{\s*MacMiniQuickPanelView\(/) }
 }
@@ -1682,6 +1683,7 @@ verify_source_contracts(quick_panel_layout_sources, quick_panel_layout_checks, [
   [:panel, "ScrollView(.vertical, showsIndicators: false)", "VStack", "Mac mini quick panel vertical scrolling"],
   [:panel, ".frame(maxHeight: 410)", ".frame(height: 410)", "Mac mini quick panel bounded frame"],
   [:panel, ".frame(width: 210)", ".frame(width: 211)", "Mac mini quick panel bounded frame"],
+  [:panel, ".clipped()", "", "Mac mini snapshot panel viewport"],
   [:root, "height: 500)", "height: 400)", "Mac mini popover height"],
   [:root, "isShowingQuickPanel || snapshotShowsQuickPanel", "isShowingQuickPanel", "Mac mini quick panel snapshot rendering"]
 ])
