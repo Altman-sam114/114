@@ -163,7 +163,8 @@ jobs:
             for script in scripts/*.rb; do ruby -c "$script"; done
             bash -n scripts/verify_project.sh
             bash -n scripts/build_mac_snapshot_renderer.sh
-            python3 -m py_compile scripts/review_ci_artifact.py scripts/test_review_ci_artifact.py scripts/test_ui_evidence.py
+            bash -n scripts/run_ios_ui_tests.sh
+            python3 -m py_compile scripts/review_ci_artifact.py scripts/test_review_ci_artifact.py scripts/test_ui_evidence.py scripts/verify_ios_ui_evidence.py
             python3 scripts/test_review_ci_artifact.py
             python3 scripts/test_ui_evidence.py
           } 2>&1 | tee ci-results/static-checks.log

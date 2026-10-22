@@ -17,6 +17,24 @@ flowchart LR
   UIART --> C[C分别核对生产review和UI证据并读图]
 ```
 
+读图说明：v1.6在同一个独立UI run里分别执行Mac静态布局与两种iPhone原生交互，三份平台证据不进入生产结果包。新安装与清空后的空数据不再触发演示任务。
+
+```mermaid
+flowchart LR
+  SOURCE[授权当前main成功push] --> GATE[每个job先核对源身份再checkout]
+  GATE --> MAC[Mac同源renderer / 9图]
+  GATE --> PHONE1[iPhone13 / 390pt / 4个原生UI测试]
+  GATE --> PHONE2[iPhoneSE3 / 375pt / 4个原生UI测试]
+  PHONE1 --> XC[xcresult与原始摘要 / 至少12张截图每设备]
+  PHONE2 --> XC
+  XC --> VERIFY[摘要4通过0失败0跳过 / 截图物理尺寸核对]
+  MAC --> FRESH[上传前后复查main与attempt]
+  VERIFY --> FRESH
+  FRESH --> PACK[按平台独立artifact / 两套来源身份]
+  EMPTY[首次安装或持久化空数组] --> STORE[FocusStore保留真实空数据]
+  STORE --> FREE[仍可开始自由专注或新增任务]
+```
+
 读图说明：分类搜索仅改变可见选项，选中分类与任务筛选保持独立；计数和代表色继续来自完整的原始选项。
 
 ```mermaid

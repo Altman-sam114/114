@@ -11,9 +11,16 @@ permissions:
 
 jobs:
   ui-evidence:
+    name: UI evidence (${{ matrix.platform }})
     if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
     runs-on: macos-26-intel
-    timeout-minutes: 20
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [mac, ios-390, ios-375]
+    env:
+      UI_PLATFORM: ${{ matrix.platform }}
     steps:
       - name: Gate rendering source before checkout
         id: gate
@@ -116,9 +123,9 @@ jobs:
               result = {"sourceCommitSha": run["head_sha"], "sourceRunId": run["id"], "sourceRunAttempt": run["run_attempt"],
                         "uiRunId": os.environ["GITHUB_RUN_ID"], "uiRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
                         "uiWorkflow": "ChronoFocus UI Evidence", "uiWorkflowPath": ".github/workflows/ui-evidence.yml",
-                        "uiWorkflowHeadSha": os.environ["GITHUB_SHA"], "phase": phase, "conclusion": "source verified"}
+                        "uiWorkflowHeadSha": os.environ["GITHUB_SHA"], "platform": os.environ["UI_PLATFORM"], "phase": phase, "conclusion": "source verified"}
               if phase == "initial":
-                  artifact = f"chronofocus-ui-v1.5-{run['head_sha']}-source{run['id']}-attempt{run['run_attempt']}-ui{os.environ['GITHUB_RUN_ID']}-attempt{os.environ['GITHUB_RUN_ATTEMPT']}"
+                  artifact = f"chronofocus-ui-v1.6-{os.environ['UI_PLATFORM']}-{run['head_sha']}-source{run['id']}-attempt{run['run_attempt']}-ui{os.environ['GITHUB_RUN_ID']}-attempt{os.environ['GITHUB_RUN_ATTEMPT']}"
                   with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                       output.write(f"sha={run['head_sha']}\nartifact={artifact}\n")
               else:
@@ -126,8 +133,12 @@ jobs:
                   require(actual == run["head_sha"], "Checkout differs from the verified source SHA")
                   result["actualCheckoutSha"] = actual
                   if phase == "before-upload":
-                      result["fixtures"] = load(ROOT / "images" / "fixtures.json")
-                      require(len(result["fixtures"]) == 9, "Missing UI fixtures")
+                      if os.environ["UI_PLATFORM"] == "mac":
+                          result["fixtures"] = load(ROOT / "images" / "fixtures.json")
+                          require(len(result["fixtures"]) == 9, "Missing UI fixtures")
+                      else:
+                          result["nativeUIEvidence"] = load(ROOT / "ios-evidence.json")
+                          require(result["nativeUIEvidence"]["summary"]["passedTests"] == 4, "Missing native UI test results")
                       with (ROOT / "ui-manifest.json").open("x") as output:
                           json.dump(result, output, indent=2)
               with (ROOT / (phase + "-gate-result.json")).open("x") as output:
@@ -149,6 +160,7 @@ jobs:
           fetch-depth: 1
 
       - name: Render actual detail layouts
+        if: matrix.platform == 'mac'
         env:
           UI_DIR: ${{ steps.gate.outputs.directory }}
         shell: bash
@@ -158,6 +170,16 @@ jobs:
           printf '%s\n' 'bash scripts/build_mac_snapshot_renderer.sh' '/tmp/chrono_focus_render_mac_snapshots --ui-evidence-output "$UI_DIR/images"' > "$UI_DIR/render-command.txt"
           bash scripts/build_mac_snapshot_renderer.sh 2>&1 | tee "$UI_DIR/compile.log"
           /tmp/chrono_focus_render_mac_snapshots --ui-evidence-output "$UI_DIR/images" 2>&1 | tee "$UI_DIR/render.log"
+
+      - name: Run native iOS UI tests
+        if: matrix.platform != 'mac'
+        env:
+          UI_DIR: ${{ steps.gate.outputs.directory }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+          bash scripts/run_ios_ui_tests.sh
 
       - name: Recheck source and bind visual manifest
         env:

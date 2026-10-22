@@ -268,6 +268,9 @@ required_files=(
   "scripts/test_mac_core.swift"
   "scripts/render_mac_snapshots.swift"
   "scripts/recover_ci_result_package.py"
+  "ChronoFocusUITests/ChronoFocusUITests.swift"
+  "scripts/run_ios_ui_tests.sh"
+  "scripts/verify_ios_ui_evidence.py"
   "scripts/validate_ci_artifact.rb"
   "scripts/resolve_ios_simulator_destination.rb"
 )
@@ -307,6 +310,8 @@ grep -q "CodeSignOnCopy" "$project"
 echo "Checking shared schemes..."
 grep -q "BlueprintIdentifier = \"100000000000000000000501\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocus.xcscheme
 grep -q "BuildableName = \"ChronoFocus.app\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocus.xcscheme
+grep -q "BuildableName = \"ChronoFocusUITests.xctest\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocus.xcscheme
+grep -q 'com.apple.product-type.bundle.ui-testing' "$project"
 grep -q "BlueprintIdentifier = \"100000000000000000000502\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusLiveActivity.xcscheme
 grep -q "BuildableName = \"ChronoFocusLiveActivity.appex\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusLiveActivity.xcscheme
 grep -q "BlueprintIdentifier = \"200000000000000000000501\"" ChronoFocus.xcodeproj/xcshareddata/xcschemes/ChronoFocusMac.xcscheme

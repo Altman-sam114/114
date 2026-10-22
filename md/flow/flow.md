@@ -42,6 +42,8 @@ v1.5展示层：iOS计时依次呈现当前任务、模式/倒计时、主控、
 
 ### 2.1 App 启动
 
+FocusStore启动只加载已有JSON或模型默认值；没有任务时保持空列表，不再因tasks/sessions为空写入演示任务。已保存的旧任务不迁移、不删除；解码失败回退为空展示，原始任务JSON不在加载阶段被覆盖。空列表仍可从TimerEngine开始自由专注。iOS Debug显式UI测试flag才切入隔离suite并种确定性fixture；正常/Release使用.standard。
+
 iOS：
 
 - `ChronoFocusApp` 创建 `FocusStore`、`NotificationService`、`LiveActivityService`、`PremiumAccessService`、`CalendarSyncService` 和 `TimerEngine`。
@@ -299,7 +301,7 @@ Agent X 禁止跳过 Agent C artifact 验收，禁止把旧 run、旧 artifact �
 
 ## 8. 已确认的铁律
 
-辅助UI证据独立于生产唯一artifact：`ui-evidence.yml`仅响应生产完成，成功push经精确run/workflow/main和事件授权gate后才checkout源SHA。`build_mac_snapshot_renderer.sh`供生产与辅助workflow共用，`render_mac_snapshots.swift --ui-evidence-output`输出9张整窗/状态图与fixture元数据；身份manifest分别记录source SHA/run/attempt、UI workflow自身head SHA/run/attempt和实际checkout SHA。上传前后复查main与源attempt，stale或上传失败不接受；这条辅助路径不改变生产index、第四模式或唯一包判据。C下载三套run必要证据并读图，iOS运行测试仍需另补。
+辅助UI证据独立于生产唯一artifact：`ui-evidence.yml`仅响应成功生产push，各矩阵job经精确run/workflow/main和事件授权gate后才checkout源SHA。Mac共用`build_mac_snapshot_renderer.sh`生成9图；ios-390/ios-375由`run_ios_ui_tests.sh`执行原生UITest、保存xcresult、结构化摘要和附件，由`verify_ios_ui_evidence.py`核对4/0/0及原生截图。每包manifest区分source SHA/run/attempt、UI自身head SHA/run/attempt、平台和实际checkout。上传前后复查main/attempt；stale、测试跳过或上传失败不接受。不改变生产index、第四模式或唯一包判据，C分别取证读图。
 
 - Mac 版复用现有核心逻辑，不重写业务层。
 - `TimerEngine` 是唯一计时状态机。

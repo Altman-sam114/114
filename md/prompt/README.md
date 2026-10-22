@@ -82,6 +82,8 @@ Agent A 写给 Agent B 的提示词必须明确：
 
 ## 当前实现轮次
 
+- v1.6：`md/prompt/v1（持续优化）/v1.6（iOS原生交互与空数据意愿）.md`。前置v1.5已在`76c115f`完成source/review/UI三链验收；本轮新增两种iPhone点宽原生UITest与空数据持久化回归，等待新SHA云端执行。
+
 - v1.5：`md/prompt/v1（持续优化）/v1.5（计时与日程信息层级）.md`，2026-10-23单会话A/B/C接续。前置v1.4.9于`3c8ca51` / source`39805823292` / review`39806603342`完成148 PASS / 0 FAIL。当前实现文字主控、折叠提醒、任务优先、自适应Mac布局和独立UI证据；待本轮新SHA云端验收。iOS运行测试、主题与发行身份仍为后续门槛。
 
 - v1.4.9：`md/prompt/v1（持续优化）/v1.4.9（可搜索分类筛选）.md`，前置 v1.4.8 已于 2026-10-22 在 `8e1dea3` 完成 push success 与 controlled-failure 双 profile 独立云端验收。当前实现分类栏搜索与选中项保留，等待本轮新 SHA 的构建、core、快照和 artifact 验收；v1.5 信息层级提示词保留为后续轮次。

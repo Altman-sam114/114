@@ -4,6 +4,12 @@
 
 ## 默认验证策略
 
+v1.6：共享core新增`Empty persistence behavior passed.`实际回归，覆盖新安装、持久化空数组、清空重启、保留旧任务/会话、损坏JSON原文保留。生产scheme显式登记`ChronoFocusUITests`，但生产job仍只做generic build；原生点击由独立UI矩阵的`ios-390`/`ios-375`执行`bash scripts/run_ios_ui_tests.sh`。
+
+云端在指定iPhone13/SE3类型上创建模拟器，记录实际UDID/runtime/390或375pt及scale；运行`xcodebuild ... -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test`。四个实际XCTest分别测试自由专注开始/暂停/继续/停止、提醒展开收起、日程分类预填并保存、辅助大字体长标题。每种设备必须4 passed/0 failed/0 skipped，`xcresulttool get test-results summary`原文和附件必须存在；`verify_ios_ui_evidence.py`校验原始摘要与至少12张原生PNG尺寸/字节/摘要。大字体还断言计时文本实际高度和主控44pt及边界，避免只登记请求字体。
+
+UI矩阵每个job独立证据包，正式生产仍一包；C须核对3个平台包分别属于同一UI run及源SHA、上传与final freshness均success，再看截图。Debug显式launch flag使用隔离defaults，正常/Release启动不清理用户数据，也不伪造Pro或TimerEngine状态。未经云端执行不得报告这些新增测试已通过。
+
 v1.5：生产`bash scripts/verify_project.sh`复用`bash scripts/build_mac_snapshot_renderer.sh`，保留正式五张图。共享core新增真实开始、暂停、恢复、跳过、休息开始/停止和只设开始完成路径，输出`Primary timer actions behavior passed.`；布局顺序和文字主控纳入既有timer action合同并有重排拒绝回归。Static checks增加UI来源gate的5项执行回归，测试真实内联gate对授权、事件、SHA/attempt、workflow与包隔离的判断。所有命令仅Actions执行。
 
 独立`ChronoFocus UI Evidence`在生产成功push完成后，checkout前以精确run/workflow/main API和原事件验证授权来源，checkout固定SHA且不持久凭证。它只编译同一renderer，以`--ui-evidence-output`生成9张辅助PNG、fixtures和身份manifest，920/1100pt指包含190pt侧栏的整窗；包括紧凑全页、720pt首屏、较大字体长文本、暂停、只设开始和空队列。上传前与上传后复查main/attempt，失败证据也保留。C单独核对UI run/artifact和manifest再读图，不在本机执行gate、renderer、解析器或validator。该层仍是ImageRenderer静态布局证据，iOS运行截图与原生交互测试为后续发布门槛。

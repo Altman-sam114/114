@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        300000000000000000000001 /* ChronoFocusUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300000000000000000000101 /* ChronoFocusUITests.swift */; };
 		100000000000000000000001 /* ChronoFocusApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000101 /* ChronoFocusApp.swift */; };
 		100000000000000000000002 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000102 /* DashboardView.swift */; };
 		100000000000000000000003 /* TimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000103 /* TimerView.swift */; };
@@ -53,6 +54,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+        300000000000000000000301 /* PBXContainerItemProxy */ = {
+            isa = PBXContainerItemProxy;
+            containerPortal = 100000000000000000000401 /* Project object */;
+            proxyType = 1;
+            remoteGlobalIDString = 100000000000000000000501;
+            remoteInfo = ChronoFocus;
+        };
 		100000000000000000000301 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 100000000000000000000401 /* Project object */;
@@ -77,6 +85,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+        300000000000000000000101 /* ChronoFocusUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronoFocusUITests.swift; sourceTree = "<group>"; };
+        300000000000000000000201 /* ChronoFocusUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChronoFocusUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		100000000000000000000101 /* ChronoFocusApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronoFocusApp.swift; sourceTree = "<group>"; };
 		100000000000000000000102 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		100000000000000000000103 /* TimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerView.swift; sourceTree = "<group>"; };
@@ -121,6 +131,12 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+        300000000000000000000701 /* Frameworks */ = {
+            isa = PBXFrameworksBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            runOnlyForDeploymentPostprocessing = 0;
+        };
 		100000000000000000000701 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -145,6 +161,12 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+        300000000000000000000801 /* ChronoFocusUITests */ = {
+            isa = PBXGroup;
+            children = (300000000000000000000101 /* ChronoFocusUITests.swift */, );
+            path = ChronoFocusUITests;
+            sourceTree = "<group>";
+        };
 		100000000000000000000801 = {
 			isa = PBXGroup;
 			children = (
@@ -152,6 +174,7 @@
 				100000000000000000000806 /* Shared */,
 				200000000000000000000801 /* ChronoFocusMac */,
 				100000000000000000000807 /* ChronoFocusLiveActivity */,
+                300000000000000000000801 /* ChronoFocusUITests */,
 				100000000000000000000808 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -230,6 +253,7 @@
 				100000000000000000000201 /* ChronoFocus.app */,
 				100000000000000000000202 /* ChronoFocusLiveActivity.appex */,
 				200000000000000000000201 /* ChronoFocusMac.app */,
+                300000000000000000000201 /* ChronoFocusUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -283,6 +307,21 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+        300000000000000000000501 /* ChronoFocusUITests */ = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = 300000000000000000000B01 /* Build configuration list for PBXNativeTarget "ChronoFocusUITests" */;
+            buildPhases = (
+                300000000000000000000901 /* Sources */,
+                300000000000000000000701 /* Frameworks */,
+                300000000000000000000A01 /* Resources */,
+            );
+            buildRules = ();
+            dependencies = (300000000000000000000302 /* PBXTargetDependency */, );
+            name = ChronoFocusUITests;
+            productName = ChronoFocusUITests;
+            productReference = 300000000000000000000201 /* ChronoFocusUITests.xctest */;
+            productType = "com.apple.product-type.bundle.ui-testing";
+        };
 		100000000000000000000501 /* ChronoFocus */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 100000000000000000000B01 /* Build configuration list for PBXNativeTarget "ChronoFocus" */;
@@ -346,6 +385,10 @@
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+                    300000000000000000000501 = {
+                        CreatedOnToolsVersion = 16.0;
+                        TestTargetID = 100000000000000000000501;
+                    };
 					100000000000000000000501 = {
 						CreatedOnToolsVersion = 16.0;
 					};
@@ -374,11 +417,18 @@
 				100000000000000000000501 /* ChronoFocus */,
 				100000000000000000000502 /* ChronoFocusLiveActivity */,
 				200000000000000000000501 /* ChronoFocusMac */,
+                300000000000000000000501 /* ChronoFocusUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+        300000000000000000000A01 /* Resources */ = {
+            isa = PBXResourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            runOnlyForDeploymentPostprocessing = 0;
+        };
 		100000000000000000000A01 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -405,6 +455,12 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+        300000000000000000000901 /* Sources */ = {
+            isa = PBXSourcesBuildPhase;
+            buildActionMask = 2147483647;
+            files = (300000000000000000000001 /* ChronoFocusUITests.swift in Sources */, );
+            runOnlyForDeploymentPostprocessing = 0;
+        };
 		100000000000000000000901 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -469,6 +525,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+        300000000000000000000302 /* PBXTargetDependency */ = {
+            isa = PBXTargetDependency;
+            target = 100000000000000000000501 /* ChronoFocus */;
+            targetProxy = 300000000000000000000301 /* PBXContainerItemProxy */;
+        };
 		100000000000000000000302 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 100000000000000000000502 /* ChronoFocusLiveActivity */;
@@ -477,6 +538,42 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+        300000000000000000000C01 /* Debug */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                CURRENT_PROJECT_VERSION = 1;
+                DEVELOPMENT_TEAM = "";
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+                MARKETING_VERSION = 1.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.example.ChronoFocus.UITests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                TEST_TARGET_NAME = ChronoFocus;
+            };
+            name = Debug;
+        };
+        300000000000000000000C02 /* Release */ = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                CODE_SIGN_STYLE = Automatic;
+                CURRENT_PROJECT_VERSION = 1;
+                DEVELOPMENT_TEAM = "";
+                GENERATE_INFOPLIST_FILE = YES;
+                IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+                MARKETING_VERSION = 1.0;
+                PRODUCT_BUNDLE_IDENTIFIER = com.example.ChronoFocus.UITests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+                SWIFT_VERSION = 5.0;
+                TARGETED_DEVICE_FAMILY = "1,2";
+                TEST_TARGET_NAME = ChronoFocus;
+            };
+            name = Release;
+        };
 		100000000000000000000C01 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -765,6 +862,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+        300000000000000000000B01 /* Build configuration list for PBXNativeTarget "ChronoFocusUITests" */ = {
+            isa = XCConfigurationList;
+            buildConfigurations = (
+                300000000000000000000C01 /* Debug */,
+                300000000000000000000C02 /* Release */,
+            );
+            defaultConfigurationIsVisible = 0;
+            defaultConfigurationName = Release;
+        };
 		100000000000000000000B00 /* Build configuration list for PBXProject "ChronoFocus" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

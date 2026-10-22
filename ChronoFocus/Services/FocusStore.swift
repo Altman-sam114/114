@@ -42,15 +42,6 @@ final class FocusStore: ObservableObject {
         pomodoroPlan = Self.load([PomodoroPlanItem].self, key: Keys.pomodoroPlan, defaults: defaults) ?? []
         activeTimer = Self.load(ActiveTimerSnapshot.self, key: Keys.activeTimer, defaults: defaults)
 
-        if tasks.isEmpty && sessions.isEmpty {
-            tasks = [
-                FocusTask(title: "产品原型整理", category: "工作", dueDate: Date().addingTimeInterval(3600 * 5), estimatedRounds: 4, completedRounds: 1, accentHex: "#3DE8C5"),
-                FocusTask(title: "SwiftUI 学习", category: "成长", dueDate: Date().addingTimeInterval(3600 * 28), estimatedRounds: 3, accentHex: "#A78BFA"),
-                FocusTask(title: "晚间复盘", category: "生活", dueDate: Date().addingTimeInterval(3600 * 10), estimatedRounds: 1, accentHex: "#FF6B6B")
-            ]
-            save(tasks, key: Keys.tasks)
-        }
-
         if settings.autoGeneratePomodoroPlan && pomodoroPlan.isEmpty {
             generatePomodoroPlanFromSchedule()
         }

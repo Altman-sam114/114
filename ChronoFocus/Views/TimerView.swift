@@ -335,12 +335,15 @@ struct TimerView: View {
 
     private var countdownText: some View {
         Text(engine.formattedRemaining)
-            .font(.system(size: timerFontSize, weight: .bold, design: .rounded))
+            .font(dynamicTypeSize.isAccessibilitySize
+                  ? .system(.title, design: .rounded).bold()
+                  : .system(size: timerFontSize, weight: .bold, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(AppTheme.primaryText)
             .contentTransition(.numericText(countsDown: true))
             .accessibilityLabel("剩余时间")
             .accessibilityValue(engine.formattedRemaining)
+            .accessibilityIdentifier("timer.remaining")
     }
 
     private var timerPhaseCaption: some View {

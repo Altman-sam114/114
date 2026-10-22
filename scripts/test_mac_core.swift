@@ -166,8 +166,39 @@ struct MacCoreTests {
         await runStartableTaskTests(store: store)
         await runTimerEngineBoundaryTests(store: store)
         runPrimaryTimerActionTests()
+        runEmptyPersistenceTests()
 
         print("Mac core tests passed.")
+    }
+
+    @MainActor
+    private static func runEmptyPersistenceTests() {
+        let suiteName = "ChronoFocusEmptyPersistence-\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else { fail("Could not create persistence suite") }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let fresh = FocusStore(defaults: defaults)
+        assert(fresh.tasks.isEmpty && fresh.sessions.isEmpty && fresh.pomodoroPlan.isEmpty, "A fresh install must contain only the user's data")
+        fresh.tasks = []
+        fresh.sessions = []
+        assert(FocusStore(defaults: defaults).tasks.isEmpty, "Persisted empty arrays must survive a restart")
+        guard let task = fresh.addTask(title: "保留已有任务", category: "工作", dueDate: nil, estimatedRounds: 2, accentHex: "#3DE8C5") else {
+            fail("Could not create persisted task")
+        }
+        assert(FocusStore(defaults: defaults).tasks == [task], "Existing persisted tasks must keep their identity and fields")
+        fresh.deleteTasks(ids: [task.id])
+        let cleared = FocusStore(defaults: defaults)
+        assert(cleared.tasks.isEmpty && cleared.pomodoroPlan.isEmpty, "Deleting all tasks must not resurrect demo tasks or plans")
+        fresh.recordSession(FocusSession(taskID: nil, taskTitle: "自由专注", category: "自由", mode: .focus,
+                                        startedAt: Date().addingTimeInterval(-60), endedAt: Date(),
+                                        plannedSeconds: 1500, actualSeconds: 60, completed: true))
+        let history = FocusStore(defaults: defaults)
+        assert(history.tasks.isEmpty && history.sessions.count == 1, "Session-only histories must remain intact without generated tasks")
+        let damaged = Data("invalid-task-json".utf8)
+        defaults.set(damaged, forKey: "chrono.focus.tasks")
+        let recovered = FocusStore(defaults: defaults)
+        assert(recovered.tasks.isEmpty && recovered.sessions.count == 1, "Damaged task data must not fabricate sample tasks or erase history")
+        assert(defaults.data(forKey: "chrono.focus.tasks") == damaged, "Loading damaged JSON must preserve the original bytes for recovery")
+        print("Empty persistence behavior passed.")
     }
 
     @MainActor

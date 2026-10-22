@@ -998,6 +998,7 @@ private struct TaskCategoryFilterChip: View {
         .accessibilityHint(accessibilityHintText)
         .accessibilityAddTraits(accessibilityTraits)
         .accessibilityInputLabels(voiceControlInputLabels)
+        .accessibilityIdentifier("schedule.category.\(title)")
     }
 }
 
@@ -1387,7 +1388,9 @@ struct TaskEditorView: View {
             Form {
                 Section("待办") {
                     TextField("标题", text: $title)
+                        .accessibilityIdentifier("task.editor.title")
                     TextField("分类", text: $category)
+                        .accessibilityIdentifier("task.editor.category")
                         .accessibilityLabel(categoryInputAccessibilityLabel)
                         .accessibilityHint("可输入自定义分类，或选择常用分类")
                         .accessibilityInputLabels(categoryInputLabels)
@@ -1454,6 +1457,7 @@ struct TaskEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
+                        .accessibilityIdentifier("task.editor.cancel")
                         .accessibilityLabel(cancelButtonAccessibilityLabel)
                         .accessibilityInputLabels(cancelButtonInputLabels)
                 }
@@ -1463,6 +1467,7 @@ struct TaskEditorView: View {
                         dismiss()
                     }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("task.editor.save")
                     .accessibilityLabel(saveButtonAccessibilityLabel)
                     .accessibilityInputLabels(saveButtonInputLabels)
                 }

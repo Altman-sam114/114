@@ -12,6 +12,10 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.6 实现待云端：新增`ChronoFocusUITests`原生target和scheme接线，Debug显式隔离fixture、真实按钮identifier、大字体计时排版；独立UI workflow扩为Mac/ios-390/ios-375矩阵，各平台包绑定同源身份，iOS保存xcresult、原始摘要和原生附件，要求每设备4/0/0与至少12图。FocusStore不再在空数据启动时添加演示任务，旧数据保留；core新增空数据重启和损坏JSON保留回归。关键文件为App/Timer/Schedule、FocusStore、project/scheme、UITests、两个iOS证据脚本与UI workflow。未运行任何本机测试/解析/编译；等待本次main push。真实购买/系统权限、完整Mac浅色、正式身份/签名与隐私发行材料仍未完成。
+
+- 2026-10-23 C完成v1.5：main `76c115fe8b6881d83269143a1c0d3d54eb98dbd1`，source `39825824608`、review `39827335267`、UI `39827335221`均success/attempt1。生产artifact `12447116681`（16362860 bytes，SHA-256 `e90d8f2ed8c9f8cde034eb96d6afe149456247db202fa7a2f594af3156cc6f78`），review evidence `12447377316`，UI `12447661946`（30813960 bytes，SHA-256 `966b016cfe35781e42ace4c452290be4deae8c0def5107ad8b545f220c1f49e5`），保留于`/private/tmp/chronofocus-c-review-39825824608-1PwmJMCt`。第四模式148 PASS / 0 FAIL、JUnit4/0/0、core和双端build成功；9图/fixture/实际checkout一致，1100pt日程无原覆盖，分类完整换行且当前产品分类预填正确，上传及最终freshness成功。C只gh取证读码/读图，无本机复跑；总目标继续v1.6。
+
 - 2026-10-23 v1.5视觉C退回：`04403f4` / source `39816837075`、review `39818265552`和UI `39818265535`均success；生产artifact `12443082501`（16330563 bytes，SHA-256 `0a210512f49f6a34979d99ea5ac0340ecdf37d684d3c1bae127637055f943719`）、UI artifact `12443431407`已下载至`/private/tmp/chronofocus-c-review-39816837075-XUIrkJs2`。9图中920pt、暂停、空态与只设开始可用，但1100pt日程中旧静态已有分类HStack撑宽左列并覆盖右列。新增真实/静态共用`MacWrappingLayout`，常用和已有分类均按列宽换行，保留全部选项、44pt及语义；自适应列加入实际测量宽度断言。初始化分类与静态上下文改为真实草稿，搜索不再假装选择首个结果。保留空白负例和完整云端验收，C尚未通过本轮。
 
 - 2026-10-23 v1.5 CI资源修复：采样修复`5ca689d`的源`39814830962`持续queued、runner_name为空，GitHub注解提示macOS ARM容量限制；查阅actions/runner-images官方镜像目录确认GA `macos-26-intel`可用，将生产和UI workflow固定该标准标签。原ARM队列若被新SHA替代则取消以释放资源，不以取消或旧success冒充当前验收。全部云端测试和artifact判据保留，待新run执行。
