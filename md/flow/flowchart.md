@@ -1,5 +1,22 @@
 # 项目流程图
 
+读图说明：v1.5只重排展示层，计时、任务和持久化仍由既有共享入口处理。独立UI证据与正式生产包分开上传，分别核对同一源SHA。
+
+```mermaid
+flowchart LR
+  IOS[iOS当前任务/倒计时/文字主控] --> QUEUE[当前待办队列]
+  QUEUE --> REMIND[默认收起的提醒与统计]
+  MAC[Mac实际内容宽度] --> WIDTH{至少780pt}
+  WIDTH -->|是| TWO[计时主区与队列双列 / 日程表单与待办双列]
+  WIDTH -->|否| ONE[单列：计时主区优先 / 日程待办优先]
+  PUSH[授权main成功push] --> GATE[UI独立workflow来源gate]
+  GATE --> SHA[仅checkout已核对SHA]
+  SHA --> RENDER[共用renderer编译入口 / 9张辅助状态PNG]
+  RENDER --> CHECK[上传前后复查main与源attempt]
+  CHECK --> UIART[独立UI artifact与身份manifest]
+  UIART --> C[C分别核对生产review和UI证据并读图]
+```
+
 读图说明：分类搜索仅改变可见选项，选中分类与任务筛选保持独立；计数和代表色继续来自完整的原始选项。
 
 ```mermaid

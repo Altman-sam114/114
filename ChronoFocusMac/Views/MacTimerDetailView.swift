@@ -1,5 +1,10 @@
 import SwiftUI
 
+private func macPrimaryTimerTitle(isRunning: Bool, isPaused: Bool, mode: TimerMode) -> String {
+    if isRunning { return isPaused ? "继续" : "暂停" }
+    return mode == .focus ? "开始专注" : "开始休息"
+}
+
 func resolveMacTimerHandoffTask(
     _ request: MacTimerHandoffRequest,
     from startableTasks: [FocusTask]
@@ -49,12 +54,12 @@ struct MacTimerDetailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             MacPageHeaderView(
-                title: "专注中枢",
-                subtitle: "状态栏小窗保持轻量，详细界面负责计划、复盘和设置。",
+                title: "专注当下",
+                subtitle: "选择一件事，留一段完整的时间。",
                 symbolName: "timer"
             )
 
-            HStack(alignment: .top, spacing: 18) {
+            MacAdaptiveColumns {
                 MacGlassPanel {
                     VStack(spacing: 18) {
                         MacModePickerView(currentTint: currentTint)
@@ -62,10 +67,8 @@ struct MacTimerDetailView: View {
                         MacTimerActionRowView(currentTint: currentTint, currentTintHex: currentTintHex)
                     }
                 }
-                .frame(minWidth: 420)
 
                 VStack(spacing: 18) {
-                    MacTodaySummaryView()
                     MacTaskQueueView(
                         currentTint: currentTint,
                         initialTaskCategory: initialTaskCategory,
@@ -73,8 +76,8 @@ struct MacTimerDetailView: View {
                         timerHandoffRequest: timerHandoffRequest,
                         onConsumeTimerHandoffRequest: onConsumeTimerHandoffRequest
                     )
+                    MacTodaySummaryView()
                 }
-                .frame(minWidth: 320)
             }
         }
         .padding(24)
@@ -125,36 +128,47 @@ private struct MacTimerDialView: View {
     }
 
     var body: some View {
-        ZStack {
-            Circle()
-                .stroke(Color.white.opacity(0.10), lineWidth: 18)
-            Circle()
-                .trim(from: 0, to: engine.progress)
-                .stroke(currentTint, style: StrokeStyle(lineWidth: 18, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .shadow(color: currentTint.opacity(0.35), radius: 18)
-
-            VStack(spacing: 10) {
-                Image(systemName: displayedMode.symbolName)
-                    .font(.title2)
-                    .foregroundStyle(currentTint)
-                Text(engine.formattedRemaining)
-                    .font(.system(size: 72, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(MacTheme.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.65)
+        VStack(spacing: 16) {
+            VStack(spacing: 6) {
                 Text(displayedTaskTitle)
-                    .font(.headline)
-                    .foregroundStyle(MacTheme.secondaryText)
-                    .lineLimit(1)
-                Text("下一步 \(engine.nextModeHint)")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(MacTheme.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(engine.isRunning ? (engine.isPaused ? "已暂停" : "正在\(displayedMode.title)") : "第 \(store.completedFocusRounds + 1) 轮 · 准备开始")
                     .font(.caption)
-                    .foregroundStyle(currentTint)
+                    .foregroundStyle(MacTheme.secondaryText)
             }
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.10), lineWidth: 18)
+                Circle()
+                    .trim(from: 0, to: engine.progress)
+                    .stroke(currentTint, style: StrokeStyle(lineWidth: 18, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .shadow(color: currentTint.opacity(0.35), radius: 18)
+
+                VStack(spacing: 10) {
+                    Image(systemName: displayedMode.symbolName)
+                        .font(.title2)
+                        .foregroundStyle(currentTint)
+                    Text(engine.formattedRemaining)
+                        .font(.system(size: 72, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(MacTheme.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                    Text(displayedMode.title)
+                        .font(.headline)
+                        .foregroundStyle(MacTheme.secondaryText)
+                    Text("下一步 \(engine.nextModeHint)")
+                        .font(.caption)
+                        .foregroundStyle(currentTint)
+                }
+            }
+            .frame(maxWidth: 300)
+            .aspectRatio(1, contentMode: .fit)
         }
-        .frame(maxWidth: 360)
-        .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -192,10 +206,12 @@ private struct MacTimerActionRowView: View {
             ? AnyLayout(HStackLayout(spacing: 12))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
 
-        return layout {
-            stopButton
-            skipButton
+        return VStack(spacing: 10) {
             primaryButton
+            layout {
+                stopButton
+                skipButton
+            }
 
             if engine.isRunning && engine.isCurrentTaskOpenEnded {
                 finishButton
@@ -205,8 +221,12 @@ private struct MacTimerActionRowView: View {
     }
 
     private var stopButton: some View {
-        Button("停止", systemImage: "stop.fill") {
+        Button {
             engine.stop()
+        } label: {
+            Label("停止", systemImage: "stop.fill")
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .disabled(!engine.isRunning)
         .accessibilityLabel("停止\(timerActionContext)计时")
@@ -214,24 +234,36 @@ private struct MacTimerActionRowView: View {
     }
 
     private var skipButton: some View {
-        Button("跳过", systemImage: "forward.end.fill", action: engine.skipToNextSession)
-            .disabled(!engine.isRunning)
-            .accessibilityLabel("跳过\(timerActionContext)当前轮")
-            .accessibilityInputLabels(timerActionInputLabels("跳过"))
+        Button(action: engine.skipToNextSession) {
+            Label("跳过", systemImage: "forward.end.fill")
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .disabled(!engine.isRunning)
+        .accessibilityLabel("跳过\(timerActionContext)当前轮")
+        .accessibilityInputLabels(timerActionInputLabels("跳过"))
     }
 
     private var primaryButton: some View {
-        Button(primaryTitle, systemImage: primarySymbol, action: toggleTimer)
-            .buttonStyle(.borderedProminent)
-            .tint(currentTint)
-            .foregroundStyle(currentTintText)
-            .accessibilityLabel(primaryTimerActionLabel)
-            .accessibilityInputLabels(timerActionInputLabels(primaryTimerActionInputCommand))
+        Button(action: toggleTimer) {
+            Label(primaryTitle, systemImage: primarySymbol)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(currentTint)
+        .foregroundStyle(currentTintText)
+        .accessibilityLabel(primaryTimerActionLabel)
+        .accessibilityInputLabels(timerActionInputLabels(primaryTimerActionInputCommand))
     }
 
     private var finishButton: some View {
-        Button("完成当前待办", systemImage: "checkmark.seal.fill") {
+        Button {
             engine.finishCurrentTask()
+        } label: {
+            Label("完成当前待办", systemImage: "checkmark.seal.fill")
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.borderedProminent)
         .tint(currentTint)
@@ -255,7 +287,7 @@ private struct MacTimerActionRowView: View {
     }
 
     private var primaryTitle: String {
-        !engine.isRunning || engine.isPaused ? "开始" : "暂停"
+        macPrimaryTimerTitle(isRunning: engine.isRunning, isPaused: engine.isPaused, mode: engine.mode)
     }
 
     private var primaryTimerActionLabel: String {
@@ -312,7 +344,39 @@ private struct MacStaticTimerActionRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 10) {
+            staticChip(
+                title: primaryTitle,
+                symbolName: primarySymbol,
+                tint: currentTint,
+                isProminent: true,
+                accessibilityLabel: primaryTimerActionLabel,
+                inputLabels: timerActionInputLabels(primaryTimerActionInputCommand),
+                prominentForeground: currentTintText
+            )
+            ViewThatFits(in: .horizontal) {
+                secondaryActions(axis: .horizontal)
+                secondaryActions(axis: .vertical)
+            }
+            if engine.isRunning && engine.isCurrentTaskOpenEnded {
+                staticChip(
+                    title: "完成当前待办",
+                    symbolName: "checkmark.seal.fill",
+                    tint: currentTint,
+                    isProminent: true,
+                    accessibilityLabel: "完成\(timerActionContext)待办",
+                    inputLabels: timerActionInputLabels("完成"),
+                    prominentForeground: currentTintText
+                )
+            }
+        }
+    }
+
+    private func secondaryActions(axis: Axis) -> some View {
+        let layout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 12))
+            : AnyLayout(VStackLayout(spacing: 8))
+        return layout {
             staticChip(
                 title: "停止",
                 symbolName: "stop.fill",
@@ -329,27 +393,6 @@ private struct MacStaticTimerActionRowView: View {
                 accessibilityLabel: "跳过\(timerActionContext)当前轮",
                 inputLabels: timerActionInputLabels("跳过")
             )
-            staticChip(
-                title: primaryTitle,
-                symbolName: primarySymbol,
-                tint: currentTint,
-                isProminent: true,
-                accessibilityLabel: primaryTimerActionLabel,
-                inputLabels: timerActionInputLabels(primaryTimerActionInputCommand),
-                prominentForeground: currentTintText
-            )
-
-            if engine.isRunning && engine.isCurrentTaskOpenEnded {
-                staticChip(
-                    title: "完成当前待办",
-                    symbolName: "checkmark.seal.fill",
-                    tint: currentTint,
-                    isProminent: true,
-                    accessibilityLabel: "完成\(timerActionContext)待办",
-                    inputLabels: timerActionInputLabels("完成"),
-                    prominentForeground: currentTintText
-                )
-            }
         }
     }
 
@@ -368,7 +411,7 @@ private struct MacStaticTimerActionRowView: View {
     }
 
     private var primaryTitle: String {
-        !engine.isRunning || engine.isPaused ? "开始" : "暂停"
+        macPrimaryTimerTitle(isRunning: engine.isRunning, isPaused: engine.isPaused, mode: engine.mode)
     }
 
     private var primarySymbol: String {
@@ -406,7 +449,8 @@ private struct MacStaticTimerActionRowView: View {
         Label(title, systemImage: symbolName)
             .font(.headline)
             .foregroundStyle(isProminent ? (prominentForeground ?? MacTheme.primaryText) : tint)
-            .frame(minWidth: 96, minHeight: 44)
+            .padding(.horizontal, 12)
+            .frame(minWidth: 96, maxWidth: .infinity, minHeight: 44)
             .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
             .overlay {
                 Capsule()

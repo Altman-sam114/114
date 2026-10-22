@@ -1,0 +1,183 @@
+name: ChronoFocus UI Evidence
+
+on:
+  workflow_run:
+    workflows: [ChronoFocus CI Results]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  ui-evidence:
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Gate rendering source before checkout
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ui_dir="$(mktemp -d "$RUNNER_TEMP/chronofocus-ui-XXXXXXXX")"
+          echo "directory=$ui_dir" >> "$GITHUB_OUTPUT"
+          cat > "$ui_dir/verify-source.py" <<'PY'
+          # BEGIN UI SOURCE GATE
+          import ctypes
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import resource
+          import stat
+          import subprocess
+          import sys
+
+          REPO = "Altman-sam114/114"
+          WORKFLOW_ID = 306720987
+          LIMIT = 1048576
+          ROOT = Path(__file__).parent
+
+          def require(condition, message):
+              if not condition:
+                  raise RuntimeError(message)
+
+          def unique_object(pairs):
+              result = {}
+              for key, value in pairs:
+                  require(key not in result, "Duplicate JSON key")
+                  result[key] = value
+              return result
+
+          def load(path):
+              info = path.lstat()
+              require(stat.S_ISREG(info.st_mode) and 0 < info.st_size <= LIMIT, "Invalid metadata file")
+              return json.loads(path.read_bytes(), object_pairs_hook=unique_object)
+
+          def limit_size():
+              resource.setrlimit(resource.RLIMIT_FSIZE, (LIMIT, LIMIT))
+
+          def fetch(endpoint, filename):
+              destination = ROOT / filename
+              part = ROOT / (filename + ".part")
+              with part.open("xb") as output, (ROOT / (filename + ".stderr")).open("xb") as errors:
+                  subprocess.run(["gh", "api", "--hostname", "github.com", endpoint], stdout=output,
+                                 stderr=errors, timeout=30, check=True, preexec_fn=limit_size)
+              value = load(part)
+              library = ctypes.CDLL(None, use_errno=True)
+              rename = library.renamex_np
+              rename.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
+              rename.restype = ctypes.c_int
+              if rename(os.fsencode(part), os.fsencode(destination), 4) != 0:
+                  error = ctypes.get_errno()
+                  raise OSError(error, os.strerror(error), str(destination))
+              return value
+
+          def identity(run):
+              return tuple(run.get(key) for key in ("id", "run_attempt", "head_sha", "head_branch", "name", "path",
+                                                    "status", "conclusion", "event", "workflow_id", "display_title")) + tuple(
+                  run.get(key, {}).get(field) for key, field in (("repository", "full_name"), ("head_repository", "full_name"),
+                                                               ("actor", "login"), ("triggering_actor", "login")))
+
+          def gate(run, event, main_sha, workflow):
+              require(isinstance(run, dict) and isinstance(event, dict), "Missing source run")
+              require(identity(run) == identity(event), "Source event/API mismatch")
+              require(all(type(run.get(key)) is int and run[key] > 0 for key in ("id", "run_attempt", "workflow_id")), "Invalid run identity")
+              require(run.get("workflow_id") == WORKFLOW_ID and run.get("path") == ".github/workflows/ci-results.yml", "Wrong source workflow")
+              require(run.get("name") in ("ChronoFocus CI Results", run.get("display_title")), "Wrong source name")
+              require(run.get("display_title") == "ChronoFocus CI Results [failure_mode=none]", "Source is not a registered production push")
+              require(type(workflow.get("id")) is int and workflow["id"] == WORKFLOW_ID and workflow.get("name") == "ChronoFocus CI Results"
+                      and workflow.get("path") == ".github/workflows/ci-results.yml" and workflow.get("state") == "active", "Wrong workflow API identity")
+              require(re.fullmatch(r"[0-9a-f]{40}", run.get("head_sha", "")) is not None, "Invalid source SHA")
+              require(run.get("head_branch") == "main" and run["head_sha"] == main_sha, "stale: source is not current main")
+              require((run.get("event"), run.get("status"), run.get("conclusion")) == ("push", "completed", "success"), "Refused source profile")
+              for key in ("repository", "head_repository"):
+                  require(run.get(key, {}).get("full_name") == REPO, "Unauthorized repository")
+              for key in ("actor", "triggering_actor"):
+                  require(run.get(key, {}).get("login") == "Altman-sam114", "Unauthorized actor")
+
+          def main():
+              phase = sys.argv[1]
+              require(phase in ("initial", "before-upload", "after-upload"), "Unknown gate phase")
+              if phase == "initial":
+                  with (ROOT / "event.json").open("xb") as output:
+                      output.write(Path(os.environ["GITHUB_EVENT_PATH"]).read_bytes())
+              event = load(ROOT / "event.json")
+              require(event.get("action") == "completed" and event.get("repository", {}).get("full_name") == REPO, "Wrong event envelope")
+              source = event.get("workflow_run", {})
+              require(type(source.get("id")) is int and source["id"] > 0, "Invalid event source id")
+              run = fetch(f"repos/{REPO}/actions/runs/{source['id']}", phase + "-run-api.json")
+              workflow = fetch(f"repos/{REPO}/actions/workflows/{WORKFLOW_ID}", phase + "-workflow-api.json")
+              current = fetch(f"repos/{REPO}/commits/main", phase + "-main-api.json")
+              gate(run, source, current.get("sha"), workflow)
+              result = {"sourceCommitSha": run["head_sha"], "sourceRunId": run["id"], "sourceRunAttempt": run["run_attempt"],
+                        "uiRunId": os.environ["GITHUB_RUN_ID"], "uiRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+                        "uiWorkflow": "ChronoFocus UI Evidence", "uiWorkflowPath": ".github/workflows/ui-evidence.yml",
+                        "uiWorkflowHeadSha": os.environ["GITHUB_SHA"], "phase": phase, "conclusion": "source verified"}
+              if phase == "initial":
+                  artifact = f"chronofocus-ui-v1.5-{run['head_sha']}-source{run['id']}-attempt{run['run_attempt']}-ui{os.environ['GITHUB_RUN_ID']}-attempt{os.environ['GITHUB_RUN_ATTEMPT']}"
+                  with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+                      output.write(f"sha={run['head_sha']}\nartifact={artifact}\n")
+              else:
+                  actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+                  require(actual == run["head_sha"], "Checkout differs from the verified source SHA")
+                  result["actualCheckoutSha"] = actual
+                  if phase == "before-upload":
+                      result["fixtures"] = load(ROOT / "images" / "fixtures.json")
+                      require(len(result["fixtures"]) == 9, "Missing UI fixtures")
+                      with (ROOT / "ui-manifest.json").open("x") as output:
+                          json.dump(result, output, indent=2)
+              with (ROOT / (phase + "-gate-result.json")).open("x") as output:
+                  json.dump(result, output, indent=2)
+              print(f"UI source verified at {phase}: {run['head_sha']} / {run['id']} / {run['run_attempt']}")
+
+          if __name__ == "__main__":
+              main()
+          # END UI SOURCE GATE
+          PY
+          python3 "$ui_dir/verify-source.py" initial
+
+      - name: Checkout verified rendering source
+        uses: actions/checkout@v5
+        with:
+          repository: Altman-sam114/114
+          ref: ${{ steps.gate.outputs.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Render actual detail layouts
+        env:
+          UI_DIR: ${{ steps.gate.outputs.directory }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+          printf '%s\n' 'bash scripts/build_mac_snapshot_renderer.sh' '/tmp/chrono_focus_render_mac_snapshots --ui-evidence-output "$UI_DIR/images"' > "$UI_DIR/render-command.txt"
+          bash scripts/build_mac_snapshot_renderer.sh 2>&1 | tee "$UI_DIR/compile.log"
+          /tmp/chrono_focus_render_mac_snapshots --ui-evidence-output "$UI_DIR/images" 2>&1 | tee "$UI_DIR/render.log"
+
+      - name: Recheck source and bind visual manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UI_DIR: ${{ steps.gate.outputs.directory }}
+        run: python3 "$UI_DIR/verify-source.py" before-upload
+
+      - name: Upload independent UI evidence
+        id: upload
+        if: always() && steps.gate.outputs.directory != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ steps.gate.outputs.artifact || format('chronofocus-ui-unverified-{0}-{1}', github.run_id, github.run_attempt) }}
+          path: ${{ steps.gate.outputs.directory }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Final source freshness check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UI_DIR: ${{ steps.gate.outputs.directory }}
+        run: python3 "$UI_DIR/verify-source.py" after-upload

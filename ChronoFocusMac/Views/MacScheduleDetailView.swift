@@ -124,12 +124,12 @@ struct MacScheduleDetailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             MacPageHeaderView(
-                title: "日程计划",
-                subtitle: "先把 Mac 版基础待办、计划生成和启动流程跑通。",
+                title: "安排每一件事",
+                subtitle: "按日期与分类整理待办，把计划变成专注。",
                 symbolName: "calendar"
             )
 
-            HStack(alignment: .top, spacing: 18) {
+            MacAdaptiveColumns(leadingWidth: 300, compactLeadingFirst: false) {
                 MacGlassPanel {
                     VStack(alignment: .leading, spacing: 14) {
                         Label("快速新增", systemImage: "plus.circle.fill")
@@ -202,21 +202,15 @@ struct MacScheduleDetailView: View {
                         }
                     }
                 }
-                .frame(width: 320)
 
                 VStack(spacing: 18) {
-                    if isSnapshotRendering {
-                        taskListPanel
-                    }
+                    taskListPanel
                     MacCalendarPanelView(
                         selectedCategory: $selectedCategory,
                         onAddTaskAtDate: prepareQuickAdd(at:)
                     )
                     MacCalendarSyncPanelView()
                     MacPlanPanelView()
-                    if !isSnapshotRendering {
-                        taskListPanel
-                    }
                 }
             }
         }
@@ -2125,6 +2119,8 @@ private struct MacCategoryFilterChip: View {
                 Text(title)
                 Text("\(count)")
                     .font(.caption.bold())
+                    .monospacedDigit()
+                    .fixedSize()
                     .foregroundStyle(isSelected ? selectedText.opacity(0.82) : tint)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

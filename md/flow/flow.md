@@ -12,6 +12,8 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 
 ## 1. 当前核心数据流
 
+v1.5展示层：iOS计时依次呈现当前任务、模式/倒计时、主控、任务队列、可折叠提醒、今日统计。辅助大字体使用线性计时摘要，主控文字随开始/暂停/继续和专注/休息改变，仍调用TimerEngine原入口。日程把待办放在计划/同步前。Mac两页使用`MacAdaptiveColumns`按实际内容宽度测量；低于780pt时纵排，计时主区在前、日程待办区在前。布局切换不复制或重建核心状态，真实/快照只在原生控件替身上分支，内容顺序一致。
+
 分类筛选先由 `prioritizedFilterOptions` 生成原顺序/计数/颜色，再由 `TaskCategorySearchResult` 按共享 query key 过滤。至少 6 类显示搜索；少于 6 类忽略隐藏 query。匹配数不包含单独的 `pinnedSelection`；未匹配但仍存在的选中分类显示为“当前已选”，选中分类不存在时仍可由“全部”或已有摘要清除。query 仅由各 View 持有，不写 Store、不改变选择/任务/计划。iOS 两个筛选栏共用输入控件，Mac 两页共用自适应网格；快照环境只提供查询初始值，过滤逻辑一致。
 
 ```text
@@ -255,7 +257,7 @@ macOS：
 
 ### 7.3 独立 Actions 正式第四模式
 
-当前工作区已提供 `.github/workflows/ci-artifact-review.yml` 和 `scripts/review_ci_artifact.py`，尚待整合推送及新云端证据；落盘实现不等于验收通过。
+`.github/workflows/ci-artifact-review.yml` 和 `scripts/review_ci_artifact.py` 已在v1.4.8完成success/controlled-failure双profile云端闭环，v1.4.9的`3c8ca51`再次完成产品验收；后续每个SHA仍须重新执行。
 
 1. `ChronoFocus Artifact Review` 在 Ubuntu runner 上仅响应生产 `ChronoFocus CI Results` 的 completed 事件。checkout 前的内联 preflight 以 `gh api` 保存源 run、当前 main 和原始事件，核对源 workflow/path、两套仓库、两个授权 actor、main SHA、attempt、状态及 profile；只 checkout 核对后的源 SHA，关闭持久凭证，不执行 artifact 中的代码。
 2. `GITHUB_TOKEN` 仅 `contents: read`、`actions: read`，通过 `GH_TOKEN` 调用 API；不需要交互登录，不提升写权限。授权人由源 API 核对为 `Altman-sam114`，不把 bot token 当作人工身份。
@@ -296,6 +298,8 @@ Agent X 停止条件：
 Agent X 禁止跳过 Agent C artifact 验收，禁止把旧 run、旧 artifact 或本地输出冒充最新云端结果，禁止为了推进循环扩大无关改动范围。
 
 ## 8. 已确认的铁律
+
+辅助UI证据独立于生产唯一artifact：`ui-evidence.yml`仅响应生产完成，成功push经精确run/workflow/main和事件授权gate后才checkout源SHA。`build_mac_snapshot_renderer.sh`供生产与辅助workflow共用，`render_mac_snapshots.swift --ui-evidence-output`输出9张整窗/状态图与fixture元数据；身份manifest分别记录source SHA/run/attempt、UI workflow自身head SHA/run/attempt和实际checkout SHA。上传前后复查main与源attempt，stale或上传失败不接受；这条辅助路径不改变生产index、第四模式或唯一包判据。C下载三套run必要证据并读图，iOS运行测试仍需另补。
 
 - Mac 版复用现有核心逻辑，不重写业务层。
 - `TimerEngine` 是唯一计时状态机。

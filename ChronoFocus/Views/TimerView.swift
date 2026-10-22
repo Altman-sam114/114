@@ -4,9 +4,12 @@ struct TimerView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
     @EnvironmentObject private var notifications: NotificationService
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 58
     @State private var selectedTaskCategory: String?
     @State private var showingCategoryEditor = false
     @State private var isTaskQueueExpanded = false
+    @State private var isReminderExpanded = false
     let timerHandoffRequest: TimerHandoffRequest?
     let onConsumeTimerHandoff: (UUID) -> Void
 
@@ -146,6 +149,17 @@ struct TimerView: View {
         return engine.isPaused ? "继续" : "暂停"
     }
 
+    private var primaryActionTitle: String {
+        if engine.isRunning { return engine.isPaused ? "继续" : "暂停" }
+        return engine.mode == .focus ? "开始专注" : "开始休息"
+    }
+
+    private var reminderSummary: String {
+        let volume = store.settings.soundEnabled && store.settings.soundVolume > 0
+            ? "音量 \(Int(store.settings.soundVolume * 100))%" : "静音"
+        return store.settings.keepScreenAwake ? "\(volume) · 屏幕常亮" : volume
+    }
+
     private func timerActionInputLabels(_ action: String) -> [Text] {
         var labels = [
             Text(action),
@@ -167,8 +181,8 @@ struct TimerView: View {
                     timerDial
                     actionBar
                     openEndedFinishButton
-                    timerControlPanel
                     taskPicker
+                    timerControlPanel
                     todayStrip
                 }
                 .padding(18)
@@ -234,20 +248,25 @@ struct TimerView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+        return layout {
             VStack(alignment: .leading, spacing: 6) {
-                Text("智能专注中枢")
+                Text(engine.isRunning ? "当前专注" : "准备好，专注当下")
                     .font(.caption)
                     .foregroundStyle(currentTint)
-                    .textCase(.uppercase)
-                Text(engine.currentTaskTitle)
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                Text(timerActionTitle)
+                    .font(.system(.title2, design: .rounded).bold())
                     .foregroundStyle(AppTheme.primaryText)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.78)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let category = timerActionCategory {
+                    Label(category, systemImage: "tag.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(currentTint)
+                }
             }
-
-            Spacer(minLength: 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 6) {
                 Text("第 \(store.completedFocusRounds + 1) 轮")
@@ -278,77 +297,65 @@ struct TimerView: View {
 
     private var timerDial: some View {
         GlassPanel {
-            VStack(spacing: 22) {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: 12) {
+                    countdownText
+                    ProgressView(value: engine.progress)
+                        .tint(currentTint)
+                    timerPhaseCaption
+                }
+            } else {
                 ZStack {
                     Circle()
-                        .stroke(Color.white.opacity(0.08), lineWidth: 18)
+                        .stroke(AppTheme.border, lineWidth: 12)
                     Circle()
                         .trim(from: 0, to: engine.progress)
                         .stroke(
-                            AngularGradient(
-                                colors: [currentTint, .white, currentTint.opacity(0.62), currentTint],
-                                center: .center
-                            ),
-                            style: StrokeStyle(lineWidth: 18, lineCap: .round)
+                            currentTint,
+                            style: StrokeStyle(lineWidth: 12, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
-                        .shadow(color: currentTint.opacity(0.38), radius: 18)
+                        .shadow(color: currentTint.opacity(0.22), radius: 12)
 
                     VStack(spacing: 8) {
                         Image(systemName: engine.mode.symbolName)
                             .font(.system(size: 26, weight: .semibold))
                             .foregroundStyle(currentTint)
-                        Text(engine.formattedRemaining)
-                            .font(.system(size: 62, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(AppTheme.primaryText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.55)
-                        Text("\(engine.mode.title) · \(engine.plannedSeconds.hourMinuteText)")
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.secondaryText)
-                        Text("下一步 \(engine.nextModeHint)")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(currentTint)
+                        countdownText
+                        timerPhaseCaption
                     }
-                    .padding(20)
+                    .padding(18)
                 }
-                .frame(maxWidth: 330)
+                .frame(maxWidth: 280)
                 .aspectRatio(1, contentMode: .fit)
-
-                HStack(spacing: 10) {
-                    MetricPill(title: "今日", value: store.todayFocusSeconds.hourMinuteText, tint: .cyan)
-                    MetricPill(title: "本周", value: store.weekFocusSeconds.hourMinuteText, tint: .mint)
-                    MetricPill(title: "完成", value: "\(store.completedFocusRounds)", tint: .orange)
-                }
+                .frame(maxWidth: .infinity)
             }
         }
     }
 
+    private var countdownText: some View {
+        Text(engine.formattedRemaining)
+            .font(.system(size: timerFontSize, weight: .bold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(AppTheme.primaryText)
+            .contentTransition(.numericText(countsDown: true))
+            .accessibilityLabel("剩余时间")
+            .accessibilityValue(engine.formattedRemaining)
+    }
+
+    private var timerPhaseCaption: some View {
+        VStack(spacing: 6) {
+            Text("\(engine.mode.title) · \(engine.plannedSeconds.hourMinuteText)")
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.secondaryText)
+            Text("下一步 \(engine.nextModeHint)")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(currentTint)
+        }
+    }
+
     private var actionBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                engine.stop()
-            } label: {
-                Image(systemName: "stop.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(IconActionButtonStyle(tint: .red.opacity(0.88), filled: false))
-            .disabled(!engine.isRunning)
-            .accessibilityLabel("停止\(timerActionContext)计时")
-            .accessibilityInputLabels(timerActionInputLabels("停止"))
-
-            Button {
-                engine.skipToNextSession()
-            } label: {
-                Image(systemName: "forward.end.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(IconActionButtonStyle(tint: .orange.opacity(0.9), filled: false))
-            .disabled(!engine.isRunning)
-            .accessibilityLabel("跳过\(timerActionContext)当前轮")
-            .accessibilityInputLabels(timerActionInputLabels("跳过"))
-
+        VStack(spacing: 10) {
             Button {
                 if !engine.isRunning {
                     engine.start()
@@ -358,15 +365,50 @@ struct TimerView: View {
                     engine.pause()
                 }
             } label: {
-                Image(systemName: !engine.isRunning || engine.isPaused ? "play.fill" : "pause.fill")
-                    .font(.system(size: 26, weight: .bold))
+                Label(primaryActionTitle, systemImage: !engine.isRunning || engine.isPaused ? "play.fill" : "pause.fill")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(IconActionButtonStyle(tint: currentTint, filled: true, tintHex: currentTintHex))
+            .accessibilityIdentifier("timer.primary")
             .accessibilityLabel(primaryTimerActionLabel)
             .accessibilityInputLabels(timerActionInputLabels(primaryTimerActionInputCommand))
+
+            ViewThatFits(in: .horizontal) {
+                secondaryActionLayout(axis: .horizontal)
+                secondaryActionLayout(axis: .vertical)
+            }
         }
-        .frame(height: 58)
+    }
+
+    private func secondaryActionLayout(axis: Axis) -> some View {
+        let layout = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 12))
+            : AnyLayout(VStackLayout(spacing: 8))
+        return layout {
+            Button {
+                engine.stop()
+            } label: {
+                Label("停止", systemImage: "stop.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(IconActionButtonStyle(tint: AppTheme.secondaryText, filled: false))
+            .disabled(!engine.isRunning)
+            .accessibilityIdentifier("timer.stop")
+            .accessibilityLabel("停止\(timerActionContext)计时")
+            .accessibilityInputLabels(timerActionInputLabels("停止"))
+
+            Button {
+                engine.skipToNextSession()
+            } label: {
+                Label("跳过", systemImage: "forward.end.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(IconActionButtonStyle(tint: AppTheme.secondaryText, filled: false))
+            .disabled(!engine.isRunning)
+            .accessibilityIdentifier("timer.skip")
+            .accessibilityLabel("跳过\(timerActionContext)当前轮")
+            .accessibilityInputLabels(timerActionInputLabels("跳过"))
+        }
     }
 
     @ViewBuilder
@@ -387,39 +429,54 @@ struct TimerView: View {
     private var timerControlPanel: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Label("提醒与屏幕", systemImage: "bell.and.waves.left.and.right.fill")
-                        .font(.headline)
-                        .foregroundStyle(AppTheme.primaryText)
-                    Spacer()
-                    Text(store.settings.soundVolume <= 0 ? "静音" : "\(Int(store.settings.soundVolume * 100))%")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(currentTint)
+                Button {
+                    isReminderExpanded.toggle()
+                } label: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Label("提醒与屏幕", systemImage: "bell.and.waves.left.and.right.fill")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.primaryText)
+                            Spacer(minLength: 8)
+                            Image(systemName: isReminderExpanded ? "chevron.up" : "chevron.down")
+                        }
+                        Text(reminderSummary)
+                            .font(.caption)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("timer.reminders")
+                .accessibilityLabel("提醒与屏幕")
+                .accessibilityValue("\(isReminderExpanded ? "已展开" : "已收起")，\(reminderSummary)")
+                .accessibilityHint("展开或收起音量、振动和屏幕常亮设置")
 
-                HStack(spacing: 12) {
-                    Image(systemName: store.settings.soundVolume <= 0 ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                        .foregroundStyle(currentTint)
-                        .frame(width: 28)
-                    Slider(
-                        value: Binding(
-                            get: { store.settings.soundVolume },
-                            set: { newValue in
-                                store.settings.soundVolume = newValue
-                                store.settings.soundEnabled = newValue > 0
-                            }
-                        ),
-                        in: 0...1
-                    )
-                    .tint(currentTint)
-                }
+                if isReminderExpanded {
+                    HStack(spacing: 12) {
+                        Image(systemName: store.settings.soundVolume <= 0 ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                            .foregroundStyle(currentTint)
+                            .frame(width: 28)
+                        Slider(
+                            value: Binding(
+                                get: { store.settings.soundVolume },
+                                set: { newValue in
+                                    store.settings.soundVolume = newValue
+                                    store.settings.soundEnabled = newValue > 0
+                                }
+                            ),
+                            in: 0...1
+                        )
+                        .tint(currentTint)
+                    }
 
-                Toggle(isOn: $store.settings.vibrationEnabled) {
-                    Label("到点振动", systemImage: "iphone.radiowaves.left.and.right")
-                }
+                    Toggle(isOn: $store.settings.vibrationEnabled) {
+                        Label("到点振动", systemImage: "iphone.radiowaves.left.and.right")
+                    }
 
-                Toggle(isOn: $store.settings.keepScreenAwake) {
-                    Label("运行时屏幕常亮", systemImage: "display")
+                    Toggle(isOn: $store.settings.keepScreenAwake) {
+                        Label("运行时屏幕常亮", systemImage: "display")
+                    }
                 }
             }
             .toggleStyle(SwitchToggleStyle(tint: currentTint))
@@ -525,9 +582,13 @@ struct TimerView: View {
     }
 
     private var todayStrip: some View {
-        HStack(spacing: 10) {
-            MetricTile(title: "通知栏", value: store.settings.liveActivityEnabled ? "开启" : "关闭", symbol: "iphone.radiowaves.left.and.right", tint: .cyan)
-            MetricTile(title: "铃声", value: store.settings.soundVolume > 0 ? "\(Int(store.settings.soundVolume * 100))%" : "静音", symbol: "bell.and.waves.left.and.right.fill", tint: .orange)
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 10))
+        return layout {
+            MetricPill(title: "今日", value: store.todayFocusSeconds.hourMinuteText, tint: .cyan)
+            MetricPill(title: "本周", value: store.weekFocusSeconds.hourMinuteText, tint: .mint)
+            MetricPill(title: "完成轮次", value: "\(store.completedFocusRounds)", tint: .orange)
         }
     }
 }
@@ -540,7 +601,7 @@ private struct MetricPill: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .font(.system(.headline, design: .rounded).bold())
                 .monospacedDigit()
                 .foregroundStyle(AppTheme.primaryText)
                 .lineLimit(1)
@@ -1103,9 +1164,12 @@ private struct IconActionButtonStyle: ButtonStyle {
             : tint
 
         configuration.label
-            .font(.system(size: 19, weight: .bold))
+            .font(.headline)
             .foregroundStyle(foreground)
-            .frame(height: 58)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(minHeight: 48)
+            .contentShape(Rectangle())
             .background(filled ? tint : tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)

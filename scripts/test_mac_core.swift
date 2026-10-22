@@ -165,8 +165,56 @@ struct MacCoreTests {
         runCategoryFilterSearchTests()
         await runStartableTaskTests(store: store)
         await runTimerEngineBoundaryTests(store: store)
+        runPrimaryTimerActionTests()
 
         print("Mac core tests passed.")
+    }
+
+    @MainActor
+    private static func runPrimaryTimerActionTests() {
+        let suiteName = "ChronoFocusPrimaryActions-\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else { fail("Could not create primary action suite") }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = FocusStore(defaults: defaults)
+        store.tasks.removeAll()
+        store.sessions.removeAll()
+        store.pomodoroPlan.removeAll()
+        store.settings.autoStartFocus = false
+        store.settings.autoStartBreaks = false
+        store.settings.liveActivityEnabled = false
+        let engine = TimerEngine(store: store, notifications: FakeTimerNotificationService(), liveActivities: FakeTimerLiveActivityService())
+        engine.selectTask(nil)
+        engine.start()
+        guard let free = store.activeTimer else { fail("Free focus start must produce a snapshot") }
+        assert(free.taskID == nil && free.taskTitle == "自由专注" && engine.isRunning, "Empty queues must still start free focus")
+        engine.pause()
+        assert(engine.isPaused && store.activeTimer?.sessionID == free.sessionID, "Pause must preserve session identity")
+        let remaining = engine.remainingSeconds
+        engine.resume()
+        assert(engine.isRunning && !engine.isPaused && engine.remainingSeconds == remaining, "Resume must retain paused remaining time")
+        assert(store.activeTimer?.sessionID == free.sessionID, "Resume must not create a second session")
+        engine.skipToNextSession()
+        assert(store.activeTimer == nil && !engine.isRunning && engine.mode == .shortBreak, "Skip must enter the next idle mode")
+        assert(store.sessions.isEmpty && store.completedFocusRounds == 0, "Skip must not record a completed round")
+        engine.start()
+        assert(store.activeTimer?.mode == .shortBreak, "Break start must start the selected break")
+        engine.stop(markIncomplete: false)
+        assert(store.activeTimer == nil && !engine.isRunning && store.sessions.isEmpty, "Stop must clear the break without a fabricated record")
+
+        guard let task = store.addTask(title: "只设开始主控验收", category: "阅读", dueDate: nil, estimatedRounds: 1, accentHex: "#3DE8C5", startMode: .openEnded) else {
+            fail("Could not create open-ended action task")
+        }
+        engine.selectMode(.focus)
+        engine.selectTask(task)
+        engine.start()
+        assert(store.activeTimer?.taskID == task.id && engine.isCurrentTaskOpenEnded, "Task start must keep the open-ended task")
+        engine.pause()
+        engine.resume()
+        engine.finishCurrentTask()
+        assert(store.task(for: task.id)?.isDone == true && store.activeTimer == nil && !engine.isRunning, "Finish must complete the open-ended task and clear the timer")
+        assert(store.sessions.count == 1 && store.sessions.first?.taskID == task.id && store.sessions.first?.completed == true, "Finish must record exactly the selected task's completed session")
+        assert(engine.selectedTaskID == nil, "Completed open-ended selection must reconcile to free focus")
+        print("Primary timer actions behavior passed.")
     }
 
     private static func runCategoryFilterSearchTests() {

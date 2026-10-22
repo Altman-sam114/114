@@ -94,9 +94,9 @@ struct ScheduleView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
                     calendarPanel
-                    calendarSyncPanel
-                    pomodoroPlanPanel
                     taskList
+                    pomodoroPlanPanel
+                    calendarSyncPanel
                 }
                 .padding(18)
                 .padding(.bottom, 26)
@@ -108,8 +108,10 @@ struct ScheduleView: View {
                     Button {
                         showingEditor = true
                     } label: {
-                        Image(systemName: "plus")
+                        Label("新增", systemImage: "plus")
+                            .frame(minHeight: 44)
                     }
+                    .accessibilityIdentifier("schedule.add")
                     .accessibilityLabel(addTaskAccessibilityLabel)
                     .accessibilityHint(addTaskAccessibilityHint)
                     .accessibilityInputLabels(addTaskInputLabels)

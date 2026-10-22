@@ -2062,6 +2062,25 @@ mac_static_source = mac_source[/private struct MacStaticTimerActionRowView[\s\S]
 raise "Mac static timer action snapshot context missing" unless mac_static_source && mac_static_source.match?(/private var timerActionContext: String\s*\{\s*if let snapshot = store\.activeTimer\s*\{\s*return "\\\(snapshot\.taskTitle\)，\\\(snapshot\.category\)分类"\s*\}\s*if let task = timerActionTask\s*\{\s*return "\\\(task\.title\)，\\\(task\.category\)分类"\s*\}\s*return engine\.currentTaskTitle\s*\}/)
 raise "Mac static timer action snapshot injection missing" unless mac_source.match?(/if isSnapshotRendering\s*\{\s*MacStaticTimerActionRowView\(currentTint: currentTint, currentTintHex: currentTintHex\)/)
 
+ios_body = ios_source[/var body: some View[\s\S]*?private func consumeTimerHandoffRequest/]
+schedule_body = File.read("ChronoFocus/Views/ScheduleView.swift")[/var body: some View[\s\S]*?private var defaultNewTaskDate/]
+order_check = lambda do |source, names|
+  positions = names.map { |name| source.index(/^\s*#{Regexp.escape(name)}\s*$/) }
+  positions.none?(&:nil?) && positions.each_cons(2).all? { |left, right| left < right }
+end
+raise "iOS timer must prioritize tasks over reminder settings" unless order_check.call(ios_body, %w[header modePicker timerDial actionBar openEndedFinishButton taskPicker timerControlPanel todayStrip])
+raise "iOS schedule must prioritize tasks over plan and sync" unless order_check.call(schedule_body, %w[calendarPanel taskList pomodoroPlanPanel calendarSyncPanel])
+reordered = ios_body.sub("                    taskPicker\n                    timerControlPanel", "                    timerControlPanel\n                    taskPicker")
+raise "Timer order regression fixture did not reject reversed panels" if reordered == ios_body || order_check.call(reordered, %w[taskPicker timerControlPanel])
+raise "iOS primary action must use a visible label" unless ios_source.include?('Label(primaryActionTitle, systemImage:') && ios_source.include?('Label("停止", systemImage: "stop.fill")') && ios_source.include?('Label("跳过", systemImage: "forward.end.fill")')
+raise "iOS reminder disclosure state missing" unless ios_source.include?("@State private var isReminderExpanded = false") && ios_source.include?("if isReminderExpanded {") && ios_source.include?("isReminderExpanded.toggle()")
+raise "iOS timer must handle accessibility text without a fixed button height" unless ios_source.include?("dynamicTypeSize.isAccessibilitySize") && ios_source.include?(".frame(minHeight: 48)") && !ios_source.include?(".frame(height: 58)")
+raise "Mac timer must use adaptive columns" unless mac_source.include?("MacAdaptiveColumns {") && !mac_source.include?(".frame(minWidth: 420)")
+mac_schedule = File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift")
+mac_schedule_body = mac_schedule[/var body: some View[\s\S]*?private var taskListPanel/]
+raise "Mac task order must be shared by live and snapshot rendering" unless mac_schedule_body.scan(/^\s*taskListPanel\s*$/).length == 1 && mac_schedule_body.index("taskListPanel") < mac_schedule_body.index("MacCalendarPanelView(") && mac_schedule_body.include?("MacAdaptiveColumns(leadingWidth: 300, compactLeadingFirst: false)")
+raise "Mac static and real primary title must match" unless mac_source.scan("macPrimaryTimerTitle(isRunning: engine.isRunning, isPaused: engine.isPaused, mode: engine.mode)").length == 2
+
 require_timer_action_contract(
   "ChronoFocusMac/Views/MacMiniTimerView.swift",
   "private struct MacMiniControlsView",
@@ -6608,28 +6627,7 @@ xcrun --sdk macosx swiftc \
 /tmp/chrono_focus_mac_core_tests
 
 echo "Rendering Mac UI snapshots..."
-xcrun --sdk macosx swiftc \
-  -module-cache-path /tmp/chrono_focus_mac_snapshot_module_cache \
-  ChronoFocus/Models/AppModels.swift \
-  ChronoFocus/Services/FocusStore.swift \
-  ChronoFocus/Services/TimerEngine.swift \
-  ChronoFocus/Services/TimerPlatformServices.swift \
-  Shared/SharedExtensions.swift \
-  ChronoFocusMac/Services/MacNotificationService.swift \
-  ChronoFocusMac/Services/MacLiveActivityService.swift \
-  ChronoFocusMac/Services/MacPremiumAccessService.swift \
-  ChronoFocusMac/Services/MacCalendarSyncService.swift \
-  ChronoFocusMac/Views/MacTheme.swift \
-  ChronoFocusMac/Views/MacGlassPanel.swift \
-  ChronoFocusMac/Views/MacLinearProgressView.swift \
-  ChronoFocusMac/Views/MacMiniTimerView.swift \
-  ChronoFocusMac/Views/MacDetailView.swift \
-  ChronoFocusMac/Views/MacTimerDetailView.swift \
-  ChronoFocusMac/Views/MacScheduleDetailView.swift \
-  ChronoFocusMac/Views/MacAnalyticsDetailView.swift \
-  ChronoFocusMac/Views/MacSettingsDetailView.swift \
-  scripts/render_mac_snapshots.swift \
-  -o /tmp/chrono_focus_render_mac_snapshots
+bash scripts/build_mac_snapshot_renderer.sh
 /tmp/chrono_focus_render_mac_snapshots
 test -s /tmp/chronofocus-mac-timer-normal-queue.png
 test -s /tmp/chronofocus-mac-snapshots/mini-timer.png

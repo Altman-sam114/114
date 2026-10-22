@@ -4,6 +4,12 @@
 
 ## 默认验证策略
 
+v1.5：生产`bash scripts/verify_project.sh`复用`bash scripts/build_mac_snapshot_renderer.sh`，保留正式五张图。共享core新增真实开始、暂停、恢复、跳过、休息开始/停止和只设开始完成路径，输出`Primary timer actions behavior passed.`；布局顺序和文字主控纳入既有timer action合同并有重排拒绝回归。Static checks增加UI来源gate的5项执行回归，测试真实内联gate对授权、事件、SHA/attempt、workflow与包隔离的判断。所有命令仅Actions执行。
+
+独立`ChronoFocus UI Evidence`在生产成功push完成后，checkout前以精确run/workflow/main API和原事件验证授权来源，checkout固定SHA且不持久凭证。它只编译同一renderer，以`--ui-evidence-output`生成9张辅助PNG、fixtures和身份manifest，920/1100pt指包含190pt侧栏的整窗；包括紧凑全页、720pt首屏、较大字体长文本、暂停、只设开始和空队列。上传前与上传后复查main/attempt，失败证据也保留。C单独核对UI run/artifact和manifest再读图，不在本机执行gate、renderer、解析器或validator。该层仍是ImageRenderer静态布局证据，iOS运行截图与原生交互测试为后续发布门槛。
+
+前置v1.4.9最新已验收基线：`3c8ca51` / source`39805823292` / review`39806603342` / attempt1，第四模式148 PASS / 0 FAIL、JUnit4/0/0、两端build及分类搜索core成功。其证据仅适用于该SHA。
+
 v1.4.9：云端 core 实际执行搜索空查询、大小写/变音/宽度 folding、排序/计数/颜色保留、未匹配选中项单独保留、不重复选中项、已删除分类、空结果和 6 -> 5 阈值回退。verifier 核对三个组件到四个页面的接线及无结果/44pt/辅助功能；validator 同时要求静态 marker 与 core 行为通过日志，缺静态 marker 的第四模式负例仅允许该项失败。正式 Mac 五图的详情页使用“产品”查询以检查可见结果；iOS 仍只有云端编译与共享 core 证据，不能称为已完成 iOS UI 交互测试。
 
 - 默认路径：静态审阅 -> commit 到 `main` -> `git push origin main` -> GitHub Actions 上传未加密 CI 结果包 -> 独立 Actions 正式第四模式 -> Agent C 用 `gh` 取证并审阅结论。

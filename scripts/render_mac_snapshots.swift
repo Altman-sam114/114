@@ -12,6 +12,10 @@ struct MacSnapshotRenderer {
 
     @MainActor
     private static func renderSnapshots() throws {
+        if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--ui-evidence-output" {
+            try renderUIEvidence(to: URL(fileURLWithPath: CommandLine.arguments[2], isDirectory: true))
+            return
+        }
         let outputDirectory = URL(fileURLWithPath: "/tmp/chronofocus-mac-snapshots", isDirectory: true)
         try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
 
@@ -233,6 +237,87 @@ struct MacSnapshotRenderer {
         try writeManifest(snapshotMetadata, to: manifestURL)
         try assertSnapshotManifest(at: manifestURL)
         print(manifestURL.path)
+    }
+
+    @MainActor
+    private static func renderUIEvidence(to outputDirectory: URL) throws {
+        guard !FileManager.default.fileExists(atPath: outputDirectory.path) else {
+            throw SnapshotError("UI output directory already exists")
+        }
+        try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+        let suiteName = "ChronoFocusUIEvidence-\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            throw SnapshotError("Could not create UI evidence suite")
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = FocusStore(defaults: defaults)
+        seedSnapshotData(into: store)
+        store.settings.autoStartFocus = false
+        store.settings.autoStartBreaks = false
+        let notifications = MacNotificationService(disabledForSnapshots: true)
+        let engine = TimerEngine(store: store, notifications: notifications, liveActivities: MacLiveActivityService())
+        let premium = MacPremiumAccessService(loadProductsOnInit: false, isProUnlockedForSnapshots: true)
+        let calendarSync = MacCalendarSyncService()
+        var fixtures = [UIFixtureMetadata]()
+
+        @MainActor
+        func capture(_ name: String, section: SnapshotDetailSection, content: AnyView, width: CGFloat,
+                     height: CGFloat = 720, state: String, largeType: Bool = false) throws {
+            let view = SnapshotDetailView(selectedSection: section, content: content, contentHeight: height, windowWidth: width)
+                .environmentObject(store)
+                .environmentObject(engine)
+                .environmentObject(notifications)
+                .environmentObject(premium)
+                .environmentObject(calendarSync)
+                .environment(\.macSnapshotRendering, true)
+                .dynamicTypeSize(largeType ? .accessibility2 : .large)
+                .frame(width: width, height: height)
+            let url = outputDirectory.appendingPathComponent(name)
+            try render(view, to: url)
+            try assertNonBlankImage(at: url)
+            try assertForegroundContent(at: url, minimumXRatio: 0.22)
+            try assertNoMissingControlPlaceholders(at: url)
+            let image = try metadata(for: url)
+            guard image.width == Int(width * 2), image.height == Int(height * 2) else {
+                throw SnapshotError("UI fixture dimensions do not match the entire window: \(name)")
+            }
+            fixtures.append(UIFixtureMetadata(image: image, windowWidth: Int(width), windowHeight: Int(height),
+                                              sidebarWidth: 190, contentWidth: Int(width) - 190,
+                                              state: state, dynamicType: largeType ? "accessibility2" : "large"))
+            print("Rendered UI fixture: \(name), window=\(Int(width))x\(Int(height)), state=\(state)")
+        }
+
+        try capture("timer-1100.png", section: .timer, content: AnyView(MacTimerDetailView()), width: 1100, state: "idle, full queue")
+        try capture("timer-920.png", section: .timer, content: AnyView(MacTimerDetailView()), width: 920, state: "idle, compact columns")
+        try capture("timer-920-full.png", section: .timer, content: AnyView(MacTimerDetailView()), width: 920, height: 1800, state: "idle, compact full page")
+        try capture("schedule-1100.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskCategory: "产品")), width: 1100, state: "product category, task-first viewport")
+        try capture("schedule-920.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskCategory: "产品")), width: 920, state: "product category, compact task-first viewport")
+
+        guard let longTask = store.addTask(title: "整理跨团队产品体验评审中的问题，完成下一阶段的可访问性与发布准备", category: "跨团队产品体验与设计系统", dueDate: nil, estimatedRounds: 2, accentHex: "#3DE8C5") else {
+            throw SnapshotError("Could not create long title fixture")
+        }
+        engine.selectTask(longTask)
+        try capture("timer-long-text.png", section: .timer, content: AnyView(MacTimerDetailView(initialTaskCategory: longTask.category)), width: 920, height: 1500, state: "long Chinese task and category", largeType: true)
+        engine.start()
+        engine.pause()
+        guard engine.isPaused, store.activeTimer?.taskID == longTask.id else { throw SnapshotError("Paused fixture did not pause") }
+        try capture("timer-paused.png", section: .timer, content: AnyView(MacTimerDetailView()), width: 1100, state: "paused, resume action")
+        engine.stop(markIncomplete: false)
+
+        guard let openTask = store.addTask(title: "阅读与记录想法", category: "阅读", dueDate: nil, estimatedRounds: 1, accentHex: "#FFB84D", startMode: .openEnded) else {
+            throw SnapshotError("Could not create open-ended fixture")
+        }
+        engine.selectTask(openTask)
+        engine.start()
+        try capture("timer-open-ended.png", section: .timer, content: AnyView(MacTimerDetailView()), width: 920, state: "open-ended, finish task action")
+        engine.stop(markIncomplete: false)
+        engine.selectTask(nil)
+        store.tasks.removeAll()
+        store.pomodoroPlan.removeAll()
+        try capture("timer-empty.png", section: .timer, content: AnyView(MacTimerDetailView()), width: 1100, state: "empty queue, free focus available")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(fixtures).write(to: outputDirectory.appendingPathComponent("fixtures.json"))
     }
 
     @MainActor
@@ -516,6 +601,16 @@ private struct SnapshotMetadata: Codable {
     let byteCount: Int
 }
 
+private struct UIFixtureMetadata: Codable {
+    let image: SnapshotMetadata
+    let windowWidth: Int
+    let windowHeight: Int
+    let sidebarWidth: Int
+    let contentWidth: Int
+    let state: String
+    let dynamicType: String
+}
+
 struct SnapshotError: Error, CustomStringConvertible {
     let description: String
 
@@ -528,15 +623,18 @@ private struct SnapshotDetailView: View {
     let selectedSection: SnapshotDetailSection
     let content: AnyView
     let contentHeight: CGFloat
+    let windowWidth: CGFloat
 
     init(
         selectedSection: SnapshotDetailSection,
         content: AnyView,
-        contentHeight: CGFloat = 720
+        contentHeight: CGFloat = 720,
+        windowWidth: CGFloat = 1100
     ) {
         self.selectedSection = selectedSection
         self.content = content
         self.contentHeight = contentHeight
+        self.windowWidth = windowWidth
     }
 
     var body: some View {
@@ -560,12 +658,12 @@ private struct SnapshotDetailView: View {
             }
             .font(.headline)
             .foregroundStyle(MacTheme.primaryText)
-            .frame(width: 190, alignment: .topLeading)
             .padding(18)
+            .frame(width: 190, alignment: .topLeading)
             .background(Color.black.opacity(0.18))
 
             content
-                .frame(width: 910, height: contentHeight, alignment: .topLeading)
+                .frame(width: windowWidth - 190, height: contentHeight, alignment: .topLeading)
             .background(MacTheme.background)
             .clipped()
         }

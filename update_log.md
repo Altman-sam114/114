@@ -12,6 +12,10 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.5 实现待云端验收：iOS计时主控增加开始专注/开始休息/暂停/继续文字，提醒默认折叠，任务队列前置，辅助字体使用线性计时摘要；日程把任务置于计划和同步前。Mac共享自适应列布局处理920pt整窗，真实和快照任务顺序一致、暂停标题统一为“继续”，两位数分类数量不再折行。新增独立UI Evidence workflow、来源gate回归、9张辅助状态图与身份manifest，生产和辅助共用renderer编译脚本；新增真实主控core行为回归。关键文件：四个Timer/Schedule View、MacGlassPanel、core/renderer/verifier、ui-evidence.yml与对应A提示词；本机只静态审阅，未执行测试、编译、validator或配置解析。仍缺iOS运行交互、完整主题适配、正式签名/Bundle ID/商品和系统服务发行验证，不宣称发布。
+
+- 2026-10-23 C 完成v1.4.9：main `3c8ca51ee0be1a237e2c2a6cbf8b871f68701b33` / 源run `39805823292` attempt1，唯一artifact `chronofocus-ci-v0.10-main-3c8ca51-run39805823292-attempt1`（id `12438640963`，16889358 bytes，SHA-256 `831003c2a5f50ffebd8288d100d1cf7f453c03144076822d452de99270ea70a9`）；独立review `39806603342`为148 PASS / 0 FAIL，evidence artifact `12437053647`上传成功。C在`/private/tmp/chronofocus-c-review-39805823292-Ibxjmitl`保存包外原始API、下载独立evidence并读取原始ZIP/manifest/index/context、JUnit4/0/0、全部success摘要、搜索core与两端build，查看两张正式PNG。发现两位数分类badge折行列入v1.5；本机无复跑。v1.4.9闭环，总目标继续。
+
 - 2026-10-22 v1.4.9 首轮退回：`3c057d297839a03ae0ce91dd5188a36b04f3cb38` / 源 run `39804544304` 的 Static checks 与 Mac/iOS build 成功，Project verification 的旧 categoriesMatch 到 accentHex 切片把新增 searchKey 误纳入精确函数断言。改为已有函数括号边界 helper 提取，保留相等判断正向与 `lhs == rhs` 单点破坏负例；不改变产品实现或 validator 接受条件。本机未执行测试，待追加修复云端验证。
 
 - 2026-10-22 v1.4.8 已闭环，进入 v1.4.9：`8e1dea325c475566f26fa24b2637f8cb42caa6ea` push 源 `39798788136` / attempt 1，artifact `chronofocus-ci-v0.10-main-8e1dea3-run39798788136-attempt1`（id `12434298580`，16884314 bytes，SHA-256 `bac0ad1d27584c35aa1802560ad98093d71e2c042b27be383bc1c6044b240d10`），review `39799250542` 为 147 PASS / 0 FAIL，JUnit 4/0/0、21 项 review fixtures、core、双端 build 成功。受控 selectXcode 源 `39798859897` / attempt 1，artifact `12435615393`（16884608 bytes，SHA-256 `17ac81dd22b7ba7db47cdaf16aa86b679b0fa413bfb49d29a6b7d531703a33cd`），review `39800511002` 为 49 PASS / 0 FAIL，仅代表失败证据链通过。两份 review evidence 上传成功，C 下载至 `/private/tmp/chronofocus-c-review-39798788136-fQc0X43f` 与 `/private/tmp/chronofocus-c-review-39798859897-zAuTEmq5`，核对当前 main、原始 API/ZIP、结果摘要、注入日志与正式第四模式，无本机复跑。

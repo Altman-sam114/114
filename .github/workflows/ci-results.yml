@@ -162,8 +162,10 @@ jobs:
             echo "Checking independent artifact review scripts..."
             for script in scripts/*.rb; do ruby -c "$script"; done
             bash -n scripts/verify_project.sh
-            python3 -m py_compile scripts/review_ci_artifact.py scripts/test_review_ci_artifact.py
+            bash -n scripts/build_mac_snapshot_renderer.sh
+            python3 -m py_compile scripts/review_ci_artifact.py scripts/test_review_ci_artifact.py scripts/test_ui_evidence.py
             python3 scripts/test_review_ci_artifact.py
+            python3 scripts/test_ui_evidence.py
           } 2>&1 | tee ci-results/static-checks.log
 
       - name: Project verification
