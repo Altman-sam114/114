@@ -2,6 +2,8 @@
 
 ## 0. 一句话总览
 
+原始日志和 ZIP 下载由 gh 显式允许转义字节并写入独占 `.part` 文件，避免新版 CLI 的终端保护阻断原始证据；不打印、不清洗这些字节。JSON 下载维持默认保护，下载大小、重试、ZIP 摘要校验、原子晋升及注入输出时间窗口核对保持不变。
+
 独立 review 区分 workflow 静态身份与 run 动态名称：包外 workflow API 的 ID `306720987`、静态名称 `ChronoFocus CI Results`、精确 path 与 active 状态须匹配，run API 的 `name` 只允许静态名称或严格登记的 `display_title`。preflight、下载前、最终复查保留独立 workflow API 原文，仍只从已核对 SHA 执行 validator；所有原始 API 与 ZIP 都位于 `extracted/` 之外，不增加生产结果包文件或放宽第四模式。
 
 ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作番茄钟/日程 -> `FocusStore` 保存设置、任务、计划、会话和活跃计时快照 -> `TimerEngine` 按真实系统时间驱动计时状态 -> 平台服务负责通知、Live Activity/占位、日历同步和 Pro 权益 -> SwiftUI 视图渲染当前状态。

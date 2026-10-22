@@ -279,6 +279,7 @@ class ReviewFixtures(unittest.TestCase):
         with patch.object(review.subprocess, "run", side_effect=download), patch.object(review.time, "sleep"):
             review.fetch("repos/example/actions/runs/1", destination)
         self.assertEqual(len(calls), 2)
+        self.assertTrue(all("--allow-escape-sequences" not in command for command in calls))
         self.assertEqual((self.directory / "api.json.part").read_bytes(), b"partial")
         self.assertEqual(review.read_json(destination), {"ok": True})
         with self.assertRaises(review.Rejected):
@@ -288,6 +289,27 @@ class ReviewFixtures(unittest.TestCase):
                 review.fetch("unavailable", self.directory / "failed.json")
         self.assertEqual(len(list(self.directory.glob("failed.json*.part"))), 3)
         self.assertFalse((self.directory / "failed.json").exists())
+
+    def test_raw_download_preserves_escape_bytes_without_premature_promotion(self):
+        destination = self.directory / "source-job.log"
+        raw = b"2026-10-22T01:00:00Z \x1b[36;1mcommand\x1b[0m\n\x00raw\xff"
+        calls = []
+
+        def download(command, **kwargs):
+            calls.append(command)
+            if "--allow-escape-sequences" not in command:
+                kwargs["stderr"].write(b"the response contains terminal escape sequences")
+                return subprocess.CompletedProcess(command, 1)
+            kwargs["stdout"].write(raw)
+            return subprocess.CompletedProcess(command, 0)
+
+        with patch.object(review.subprocess, "run", side_effect=download), patch.object(review.time, "sleep"):
+            part = review.fetch("repos/example/actions/jobs/1/logs", destination,
+                                limit=review.MAX_ZIP, json_response=False)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(part, Path(str(destination) + ".part"))
+        self.assertEqual(part.read_bytes(), raw)
+        self.assertFalse(destination.exists())
 
     def test_real_child_transfer_limit_stops_both_download_paths(self):
         real_run = subprocess.run

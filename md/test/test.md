@@ -67,6 +67,8 @@
 
 ## 独立云端 Artifact Review
 
+2026-10-22 下载回归：原始 job 日志可能含 ANSI 字节，新版 gh 默认拒绝。非 JSON 下载（日志及 ZIP）显式使用 `--allow-escape-sequences` 并只写证据文件，不输出终端、不清洗字节；JSON 下载保留默认保护。云端 fixture 验证缺参拒绝路径、原始字节完整、返回 part 且不提前晋升，既有大小限制/重试/注入窗口与第四模式继续执行。实际受控失败验收必须重新运行，mock 不替代网络证据。
+
 2026-10-13 v1.4.8 修复补充（尚待本轮云端执行）：原 fallback 摘要源码合同误要求 f-string 后的 `)`，现按具名检查保留全部原断言，增加 Checkout / Prepare / Select Xcode 摘要硬编码 `success` 的单目标拒绝 fixture。源 run API 的 `name` 可能等于登记的动态 `run-name`，不等于 workflow 静态 `name`；两种 gate 和 Ruby success/failure profile 均绑定精确 workflow ID `306720987` 与 path，run name 只允许静态名或已登记 display title，任意同名字符串、错误 ID、未知注入仍拒绝。云端 fixtures 覆盖真实动态 name、静态 name 兼容、ID 类型、name/title 错配、workflow API 静态身份及 validator 单失败隔离；不取消现有 marker 或安全负例。
 
 同日追加：源 run `38343638117` 已执行并通过 19 个 review fixtures，但项目验证中的 fallback selector 破坏测试发现旧合同只检查变量出现、未约束比较值。当前增加有步骤边界的 selector 条件/两分支赋值检查，保留 `success -> ok` 负例；新增 Actions-only Bash 实执行回归覆盖 5 个 bootstrap outcome 与 3 种 artifact name 状态的全部 15 个组合。它只执行从真实 workflow 提取的 selector，不执行完整 workflow，也不替代端到端失败包验收。

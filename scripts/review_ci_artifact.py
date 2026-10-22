@@ -106,6 +106,11 @@ def promote(part, final):
 def fetch(endpoint, destination, limit=MAX_JSON, json_response=True):
     require(not os.path.lexists(destination), f"Evidence already exists: {destination}")
     require(positive_int(limit) and limit <= MAX_ZIP, "Invalid transfer size limit")
+    command = ["gh", "api", "--hostname", "github.com"]
+    if not json_response:
+        # Raw logs can contain ANSI bytes; preserve evidence in files, not a terminal.
+        command.append("--allow-escape-sequences")
+    command.append(endpoint)
     # gh api follows the artifact endpoint's redirect. Each failed request has its
     # own exclusive .part and stderr, so bounded retries never overwrite evidence.
     for attempt in range(1, 4):
@@ -115,7 +120,7 @@ def fetch(endpoint, destination, limit=MAX_JSON, json_response=True):
         with part.open("xb") as output, error_path.open("xb") as errors:
             try:
                 result = subprocess.run(
-                    ["gh", "api", "--hostname", "github.com", endpoint],
+                    command,
                     stdout=output, stderr=errors, timeout=30 if json_response else 120, check=False,
                     preexec_fn=lambda: limit_output_file_size(limit),
                 )
