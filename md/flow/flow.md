@@ -12,6 +12,8 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 
 ## 1. 当前核心数据流
 
+v1.7展示派生：Mac详情与popover读取同一`store.settings.appThemeMode`；MacTheme按原生appearance提供背景、面板、正文、次要文字、边框和轨道，浅色强调文字单独加深，选中填色保留原分类色和共享对比文字。Mac筛选和快速新增从完整搜索结果再经`CategoryOptionPresentation`派生默认6/4项；非空查询显示全部匹配，当前选择从完整来源查找并在前缀/匹配之外单独保留，匹配计数不使用可见前缀。展开仅为View状态，查询/分类/选项身份变化恢复收起，iOS保留原横向栏。
+
 v1.5展示层：iOS计时依次呈现当前任务、模式/倒计时、主控、任务队列、可折叠提醒、今日统计。辅助大字体使用线性计时摘要，主控文字随开始/暂停/继续和专注/休息改变，仍调用TimerEngine原入口。日程把待办放在计划/同步前。Mac两页使用`MacAdaptiveColumns`按实际内容宽度测量；低于780pt时纵排，计时主区在前、日程待办区在前。布局切换不复制或重建核心状态，真实/快照只在原生控件替身上分支，内容顺序一致。
 
 分类筛选先由 `prioritizedFilterOptions` 生成原顺序/计数/颜色，再由 `TaskCategorySearchResult` 按共享 query key 过滤。至少 6 类显示搜索；少于 6 类忽略隐藏 query。匹配数不包含单独的 `pinnedSelection`；未匹配但仍存在的选中分类显示为“当前已选”，选中分类不存在时仍可由“全部”或已有摘要清除。query 仅由各 View 持有，不写 Store、不改变选择/任务/计划。iOS 两个筛选栏共用输入控件，Mac 两页共用自适应网格；快照环境只提供查询初始值，过滤逻辑一致。

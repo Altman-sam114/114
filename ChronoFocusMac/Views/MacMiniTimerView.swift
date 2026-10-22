@@ -58,6 +58,7 @@ struct MacMiniTimerView: View {
         .padding(20)
         .frame(width: shouldShowQuickPanel ? 560 : 430, height: 500)
         .background(MacTheme.background)
+        .preferredColorScheme(store.settings.appThemeMode == .dark ? .dark : .light)
         .animation(.smooth(duration: 0.22), value: shouldShowQuickPanel)
         .onChange(of: isShowingQuickPanel) { _, isShowing in
             onQuickPanelChange(isShowing)
@@ -104,7 +105,7 @@ private struct MacMiniHeaderView: View {
                     .font(.headline.weight(.bold))
                     .foregroundStyle(MacTheme.primaryText)
                     .frame(width: 28, height: 24)
-                    .background(isShowingQuickPanel ? Color.white.opacity(0.18) : MacTheme.panel, in: Capsule())
+                    .background(isShowingQuickPanel ? MacTheme.track : MacTheme.panel, in: Capsule())
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
@@ -160,7 +161,7 @@ private struct MacMiniFlowProgressView: View {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(Color.white.opacity(0.10))
+                        .fill(MacTheme.track)
                     Capsule()
                         .fill(
                             LinearGradient(
@@ -192,7 +193,7 @@ private struct MacMiniFlowProgressView: View {
     }
 
     private func dotColor(index: Int) -> Color {
-        Double(index + 1) / 4 <= clampedProgress ? tint.opacity(0.9) : Color.white.opacity(0.18)
+        Double(index + 1) / 4 <= clampedProgress ? tint.opacity(0.9) : MacTheme.track
     }
 }
 
@@ -382,7 +383,7 @@ private struct MacMiniTaskPickerView: View {
     }
 
     private func rowBackground(for task: FocusTask) -> Color {
-        engine.selectedTaskID == task.id ? currentTint.opacity(0.18) : Color.white.opacity(0.05)
+        engine.selectedTaskID == task.id ? currentTint.opacity(0.18) : MacTheme.inset
     }
 
     private func selectionStateText(isSelected: Bool) -> String {
@@ -448,7 +449,7 @@ private struct MacMiniTaskCategoryBadgeView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
-        .foregroundStyle(tint)
+        .foregroundStyle(MacTheme.readableTint(tint))
         .padding(.horizontal, 7)
         .padding(.vertical, 2)
         .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -605,7 +606,7 @@ private struct MacMiniQuickPanelView: View {
         }
         .frame(width: 210)
         .frame(maxHeight: 410)
-        .background(Color(red: 0.10, green: 0.14, blue: 0.20).opacity(0.98), in: RoundedRectangle(cornerRadius: 8))
+        .background(MacTheme.quickPanel, in: RoundedRectangle(cornerRadius: 8))
         .overlay {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(MacTheme.border, lineWidth: 1)
@@ -699,7 +700,7 @@ private struct MacMiniQuickButton: View {
             HStack(spacing: 9) {
                 Image(systemName: systemImage)
                     .font(.subheadline.bold())
-                    .foregroundStyle(isSelected ? selectedText : tint)
+                    .foregroundStyle(isSelected ? selectedText : MacTheme.readableTint(tint))
                     .frame(width: 22)
                 Text(title)
                     .font(.subheadline.bold())
@@ -714,7 +715,7 @@ private struct MacMiniQuickButton: View {
             .padding(.vertical, 8)
             .padding(.horizontal, 9)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .background(isSelected ? tint : Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+            .background(isSelected ? tint : MacTheme.inset, in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabelText ?? title)
@@ -736,7 +737,7 @@ private struct MacMiniPillButtonStyle: ButtonStyle {
             .foregroundStyle(isSelected ? foreground : MacTheme.primaryText)
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.vertical, 7)
-            .background(isSelected ? tint : Color.white.opacity(configuration.isPressed ? 0.16 : 0.08), in: RoundedRectangle(cornerRadius: 8))
+            .background(isSelected ? tint : (configuration.isPressed ? MacTheme.track : MacTheme.inset), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -749,7 +750,7 @@ private struct MacIconButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: size > 60 ? 24 : 16, weight: .semibold))
-            .foregroundStyle(filled ? (foreground ?? MacTheme.primaryText) : tint)
+            .foregroundStyle(filled ? (foreground ?? MacTheme.primaryText) : MacTheme.readableTint(tint))
             .frame(width: size, height: size)
             .background(
                 filled ? tint : tint.opacity(configuration.isPressed ? 0.20 : 0.10),

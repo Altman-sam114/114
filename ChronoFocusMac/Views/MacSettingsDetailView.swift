@@ -17,7 +17,28 @@ struct MacSettingsDetailView: View {
                 symbolName: "slider.horizontal.3"
             )
 
-            HStack(alignment: .top, spacing: 18) {
+            MacGlassPanel {
+                HStack {
+                    Label("外观", systemImage: store.settings.appThemeMode.symbolName)
+                        .font(.headline)
+                        .foregroundStyle(MacTheme.primaryText)
+                    Spacer()
+                    if isSnapshotRendering {
+                        MacStaticSegmentedView(title: "主题", selectedTitle: store.settings.appThemeMode.title, options: AppThemeMode.allCases.map(\.title))
+                    } else {
+                        Picker("主题", selection: $store.settings.appThemeMode) {
+                            ForEach(AppThemeMode.allCases) { mode in
+                                Label(mode.title, systemImage: mode.symbolName).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 180)
+                        .accessibilityValue(store.settings.appThemeMode.title)
+                    }
+                }
+            }
+
+            MacAdaptiveColumns {
                 MacGlassPanel {
                     VStack(alignment: .leading, spacing: 16) {
                         Label("每轮时间", systemImage: "dial.medium")
@@ -60,7 +81,7 @@ struct MacSettingsDetailView: View {
 
                         HStack {
                             Label(notificationStatusText, systemImage: notificationStatusIcon)
-                                .foregroundStyle(notificationStatusColor)
+                                .foregroundStyle(MacTheme.readableTint(notificationStatusColor))
                             Spacer()
                             if notifications.shouldShowAuthorizationAction {
                                 if isSnapshotRendering {
@@ -105,7 +126,7 @@ struct MacSettingsDetailView: View {
 
                     LabeledContent("Pro 状态") {
                         Text(premium.isProUnlocked ? "已解锁" : premium.priceText)
-                            .foregroundStyle(premium.isProUnlocked ? Color.mint : Color.cyan)
+                            .foregroundStyle(MacTheme.readableTint(premium.isProUnlocked ? .mint : .cyan))
                     }
 
                     LabeledContent("日历同步") {
@@ -228,10 +249,10 @@ private struct MacStaticSettingsActionChipView: View {
     var body: some View {
         Label(title, systemImage: symbolName)
             .font(.subheadline.bold())
-            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : tint)
+            .foregroundStyle(isProminent ? Color.black.opacity(0.82) : MacTheme.readableTint(tint))
             .frame(minHeight: 44)
             .padding(.horizontal, 10)
-            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .background(isProminent ? tint : MacTheme.inset, in: Capsule())
             .overlay {
                 Capsule()
                     .stroke(isProminent ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)
@@ -255,7 +276,7 @@ private struct MacCompletionSoundPickerView: View {
                 Spacer()
                 Text(premium.isProUnlocked ? "已解锁" : "Pro")
                     .font(.caption.bold())
-                    .foregroundStyle(premium.isProUnlocked ? .mint : .cyan)
+                    .foregroundStyle(MacTheme.readableTint(premium.isProUnlocked ? .mint : .cyan))
             }
 
             if isSnapshotRendering {
@@ -335,13 +356,13 @@ private struct MacDurationStepper: View {
             if isSnapshotRendering {
                 Text("\(value)")
                     .font(.headline.monospacedDigit())
-                    .foregroundStyle(.cyan)
+                    .foregroundStyle(MacTheme.readableTint(.cyan))
             } else {
                 Stepper(title, value: $value, in: range)
                     .labelsHidden()
             }
         }
         .padding(12)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+        .background(MacTheme.inset, in: RoundedRectangle(cornerRadius: 8))
     }
 }

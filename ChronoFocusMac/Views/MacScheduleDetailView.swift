@@ -18,8 +18,10 @@ struct MacScheduleDetailView: View {
     @State private var accentHex = "#3DE8C5"
     @State private var selectedCategory: String?
     @State private var existingCategorySearchQuery: String
+    @State private var isExistingCategoryExpanded = false
     @FocusState private var isTaskTitleFocused: Bool
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
+    @Environment(\.macSnapshotCategoriesExpanded) private var snapshotCategoriesExpanded
 
     init(
         quickAddRequest: MacQuickAddRequest? = nil,
@@ -81,6 +83,16 @@ struct MacScheduleDetailView: View {
 
     private var isQuickAddCategoryPrefilled: Bool {
         selectedCategory?.trimmingCharacters(in: .whitespacesAndNewlines) == quickAddCategoryName
+    }
+
+    private var existingCategoryPresentation: CategoryOptionPresentation<MacExistingCategoryOption> {
+        CategoryOptionPresentation(
+            matches: filteredExistingCategoryOptions,
+            selectedOption: existingCategoryOptions.first { $0.comparisonKey == macCategoryComparisonKey(category) },
+            hasQuery: existingCategoryOptions.count >= macExistingCategorySearchThreshold && !macExistingCategorySearchKey(existingCategorySearchQuery).isEmpty,
+            isExpanded: isExistingCategoryExpanded || (isSnapshotRendering && snapshotCategoriesExpanded),
+            limit: 4
+        )
     }
 
     private var quickAddCategoryInputAccessibilityLabel: String {
@@ -146,11 +158,15 @@ struct MacScheduleDetailView: View {
                             MacStaticCategoryPresetStrip(selectedCategory: snapshotQuickAddCategoryName)
                             if !existingCategoryOptions.isEmpty {
                                 MacStaticExistingCategoryStrip(
-                                    options: filteredExistingCategoryOptions,
+                                    options: existingCategoryPresentation.visibleOptions,
+                                    resultCount: filteredExistingCategoryOptions.count,
                                     totalCount: existingCategoryOptions.count,
                                     searchQuery: existingCategorySearchQuery,
                                     selectedCategory: snapshotQuickAddCategoryName,
-                                    fallbackAccentHex: snapshotQuickAddAccentHex
+                                    fallbackAccentHex: snapshotQuickAddAccentHex,
+                                    pinnedSelection: existingCategoryPresentation.pinnedSelection,
+                                    canToggle: existingCategoryPresentation.canToggle,
+                                    isExpanded: snapshotCategoriesExpanded
                                 )
                             }
                             MacStaticInputRowView(title: "截止时间", value: dueDate.scheduleTimeText)
@@ -176,11 +192,15 @@ struct MacScheduleDetailView: View {
                             MacCategoryPresetPicker(category: $category, accentHex: $accentHex)
                             if !existingCategoryOptions.isEmpty {
                                 MacExistingCategoryPicker(
-                                    options: filteredExistingCategoryOptions,
+                                    options: existingCategoryPresentation.visibleOptions,
+                                    resultCount: filteredExistingCategoryOptions.count,
                                     totalCount: existingCategoryOptions.count,
                                     searchQuery: $existingCategorySearchQuery,
                                     selectedCategory: category,
                                     fallbackAccentHex: accentHex,
+                                    pinnedSelection: existingCategoryPresentation.pinnedSelection,
+                                    canToggle: existingCategoryPresentation.canToggle,
+                                    isExpanded: $isExistingCategoryExpanded,
                                     onSelect: selectExistingCategory
                                 )
                             }
@@ -214,11 +234,14 @@ struct MacScheduleDetailView: View {
         }
         .padding(24)
         .onChange(of: selectedCategory) { _, newCategory in
+            isExistingCategoryExpanded = false
             guard let newCategory else { return }
             existingCategorySearchQuery = ""
             category = newCategory
             accentHex = store.representativeAccentHex(for: newCategory, preferred: accentHex)
         }
+        .onChange(of: existingCategorySearchQuery) { _, _ in isExistingCategoryExpanded = false }
+        .onChange(of: existingCategoryOptions.map(\.id)) { _, _ in isExistingCategoryExpanded = false }
         .task(id: quickAddRequest?.id) {
             guard let quickAddRequest else { return }
             existingCategorySearchQuery = ""
@@ -367,7 +390,7 @@ private struct MacQuickAddCategoryContextView: View {
     var body: some View {
         Label(title, systemImage: symbolName)
             .font(.caption.bold())
-            .foregroundStyle(tint)
+            .foregroundStyle(MacTheme.readableTint(tint))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
@@ -398,7 +421,7 @@ private struct MacStaticCategoryPresetStrip: View {
                     .padding(.vertical, 7)
                     .frame(minHeight: 44)
                     .background(
-                        macCategoryComparisonKey(preset.title) == macCategoryComparisonKey(selectedCategory) ? Color(hex: preset.accentHex) : Color.white.opacity(0.06),
+                        macCategoryComparisonKey(preset.title) == macCategoryComparisonKey(selectedCategory) ? Color(hex: preset.accentHex) : MacTheme.inset,
                         in: Capsule()
                     )
                     .overlay {
@@ -413,15 +436,19 @@ private struct MacStaticCategoryPresetStrip: View {
 
 private struct MacExistingCategoryPicker: View {
     let options: [MacExistingCategoryOption]
+    let resultCount: Int
     let totalCount: Int
     @Binding var searchQuery: String
     let selectedCategory: String
     let fallbackAccentHex: String
+    let pinnedSelection: MacExistingCategoryOption?
+    let canToggle: Bool
+    @Binding var isExpanded: Bool
     let onSelect: (MacExistingCategoryOption) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            existingCategoryHeader(resultCount: options.count, totalCount: totalCount)
+            existingCategoryHeader(resultCount: resultCount, totalCount: totalCount)
 
             if totalCount >= macExistingCategorySearchThreshold {
                 HStack(spacing: 7) {
@@ -480,6 +507,22 @@ private struct MacExistingCategoryPicker: View {
                 }
                 .padding(.vertical, 1)
             }
+            if let option = pinnedSelection {
+                Text("当前已选")
+                    .font(.caption)
+                    .foregroundStyle(MacTheme.secondaryText)
+                Button { onSelect(option) } label: {
+                    MacExistingCategoryChipContent(option: option, isSelected: true, fallbackAccentHex: fallbackAccentHex)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(accessibilityLabel(for: option, isSelected: true))
+                .accessibilityHint(accessibilityHint(for: option, isSelected: true))
+                .accessibilityAddTraits(.isSelected)
+                .accessibilityInputLabels([Text(option.displayName), Text("选择\(option.displayName)分类")])
+            }
+            if canToggle {
+                MacCategoryDisclosureView(isExpanded: isExpanded, totalCount: totalCount) { isExpanded.toggle() }
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("已有分类")
@@ -509,14 +552,18 @@ private struct MacExistingCategoryPicker: View {
 
 private struct MacStaticExistingCategoryStrip: View {
     let options: [MacExistingCategoryOption]
+    let resultCount: Int
     let totalCount: Int
     let searchQuery: String
     let selectedCategory: String
     let fallbackAccentHex: String
+    let pinnedSelection: MacExistingCategoryOption?
+    let canToggle: Bool
+    let isExpanded: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            existingCategoryHeader(resultCount: options.count, totalCount: totalCount)
+            existingCategoryHeader(resultCount: resultCount, totalCount: totalCount)
 
             if totalCount >= macExistingCategorySearchThreshold {
                 MacStaticExistingCategorySearchField(query: searchQuery)
@@ -542,6 +589,17 @@ private struct MacStaticExistingCategoryStrip: View {
                 }
                 .padding(.vertical, 1)
             }
+            if let option = pinnedSelection {
+                Text("当前已选")
+                    .font(.caption)
+                    .foregroundStyle(MacTheme.secondaryText)
+                MacExistingCategoryChipContent(option: option, isSelected: true, fallbackAccentHex: fallbackAccentHex)
+                    .accessibilityLabel("\(option.displayName)分类，\(option.accessibilityUsageText)，已选中")
+                    .accessibilityAddTraits(.isSelected)
+            }
+            if canToggle {
+                MacCategoryDisclosureView(isExpanded: isExpanded, totalCount: totalCount, action: {})
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("已有分类")
@@ -552,13 +610,13 @@ private func existingCategoryHeader(resultCount: Int, totalCount: Int) -> some V
     HStack(spacing: 8) {
         Text("已有分类")
         Spacer(minLength: 8)
-        Text("\(resultCount)/\(totalCount)")
+        Text("匹配 \(resultCount)/\(totalCount)")
             .monospacedDigit()
     }
     .font(.caption.bold())
     .foregroundStyle(MacTheme.secondaryText)
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("显示 \(resultCount) 个，共 \(totalCount) 个已有分类")
+    .accessibilityLabel("匹配 \(resultCount) 个，共 \(totalCount) 个已有分类")
 }
 
 private var existingCategoryNoResultsView: some View {
@@ -588,7 +646,7 @@ private struct MacStaticExistingCategorySearchField: View {
         .font(.caption)
         .padding(.horizontal, 8)
         .frame(height: 24)
-        .background(Color.black.opacity(0.16), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .background(MacTheme.inset, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 5, style: .continuous)
                 .stroke(MacTheme.border, lineWidth: 1)
@@ -638,7 +696,7 @@ private struct MacExistingCategoryChipContent: View {
         .foregroundStyle(isSelected ? selectedText : MacTheme.primaryText)
         .frame(minHeight: 44)
         .padding(.horizontal, 10)
-        .background(isSelected ? tint : Color.white.opacity(0.06), in: Capsule())
+        .background(isSelected ? tint : MacTheme.inset, in: Capsule())
         .overlay {
             Capsule()
                 .stroke(tint.opacity(isSelected ? 0.9 : 0.42), lineWidth: isSelected ? 1.5 : 1)
@@ -669,8 +727,8 @@ private struct MacStaticScheduleActionChipView: View {
                         .padding(.horizontal, 10)
             }
         }
-        .foregroundStyle(isProminent ? (prominentForeground ?? MacTheme.primaryText) : tint)
-        .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+        .foregroundStyle(isProminent ? (prominentForeground ?? MacTheme.primaryText) : MacTheme.readableTint(tint))
+        .background(isProminent ? tint : MacTheme.inset, in: Capsule())
         .overlay {
             Capsule()
                 .stroke(isProminent ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)
@@ -686,7 +744,7 @@ private struct MacStaticTaskEnablePillView: View {
 
     var body: some View {
         Capsule()
-            .fill(isEnabled ? Color.cyan.opacity(0.95) : Color.white.opacity(0.14))
+            .fill(isEnabled ? Color.cyan.opacity(0.95) : MacTheme.track)
             .frame(width: 38, height: 22)
             .overlay(alignment: isEnabled ? .trailing : .leading) {
                 Circle()
@@ -1185,13 +1243,13 @@ private struct MacCalendarDayCell: View {
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .foregroundStyle(isSelected ? selectedText.opacity(0.84) : (taskCount > 0 ? selectedTint : MacTheme.secondaryText))
+                    .foregroundStyle(isSelected ? selectedText.opacity(0.84) : (taskCount > 0 ? MacTheme.readableTint(selectedTint) : MacTheme.secondaryText))
                     .frame(maxWidth: .infinity)
             }
             .foregroundStyle(isSelected ? selectedText : (isMuted ? MacTheme.secondaryText : MacTheme.primaryText))
             .frame(maxWidth: .infinity)
             .frame(height: 44)
-            .background(isSelected ? selectedTint : Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+            .background(isSelected ? selectedTint : MacTheme.inset, in: RoundedRectangle(cornerRadius: 8))
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isSelected ? selectedTint.opacity(0.75) : MacTheme.border, lineWidth: 1)
@@ -1223,7 +1281,7 @@ private struct MacCalendarSyncPanelView: View {
                     Spacer()
                     Text(premium.isProUnlocked ? "Pro 已解锁" : "Pro")
                         .font(.caption.bold())
-                        .foregroundStyle(premium.isProUnlocked ? .mint : .cyan)
+                        .foregroundStyle(MacTheme.readableTint(premium.isProUnlocked ? .mint : .cyan))
                 }
 
                 Text("同步未来 45 天的非全天日程，并按专注时长估算番茄钟轮次。")
@@ -1372,7 +1430,7 @@ private struct MacPlanPanelView: View {
                         }
                     }
                     .padding(10)
-                    .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+                    .background(MacTheme.inset, in: RoundedRectangle(cornerRadius: 8))
                 }
             }
         }
@@ -1399,7 +1457,7 @@ private struct MacPlanCategoryBadgeView: View {
     var body: some View {
         Label(item.category, systemImage: categorySymbolName)
             .font(.caption2.bold())
-            .foregroundStyle(categoryTint)
+            .foregroundStyle(MacTheme.readableTint(categoryTint))
             .lineLimit(1)
             .padding(.horizontal, 7)
             .padding(.vertical, 4)
@@ -1730,11 +1788,11 @@ private struct MacScheduleCategoryEmptyStateView: View {
 
                     Button("清除筛选", systemImage: "xmark.circle.fill", action: onClear)
                         .font(.caption.bold())
-                        .foregroundStyle(tint)
+                        .foregroundStyle(MacTheme.readableTint(tint))
                         .buttonStyle(.plain)
                         .padding(.horizontal, 10)
                         .frame(minWidth: 88, minHeight: 44)
-                        .background(Color.white.opacity(0.07), in: Capsule())
+                        .background(MacTheme.inset, in: Capsule())
                         .overlay {
                             Capsule()
                                 .stroke(tint.opacity(0.36), lineWidth: 1)
@@ -1747,7 +1805,7 @@ private struct MacScheduleCategoryEmptyStateView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+        .background(MacTheme.inset, in: RoundedRectangle(cornerRadius: 8))
         .overlay {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(tint.opacity(0.32), lineWidth: 1)
@@ -1800,7 +1858,7 @@ private struct MacSelectedCategorySummaryView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+        .background(MacTheme.inset, in: RoundedRectangle(cornerRadius: 8))
         .overlay {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(tint.opacity(0.36), lineWidth: 1)
@@ -1821,7 +1879,7 @@ private struct MacSelectedCategorySummaryView: View {
 
             Text("\(count) 项")
                 .font(.caption.bold())
-                .foregroundStyle(tint)
+                .foregroundStyle(MacTheme.readableTint(tint))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(tint.opacity(0.16), in: Capsule())
@@ -1851,12 +1909,12 @@ private struct MacSelectedCategorySummaryView: View {
             } else {
                 Button("转到计时", systemImage: "timer", action: onTimerHandoff)
                     .font(.caption.bold())
-                    .foregroundStyle(tint)
+                    .foregroundStyle(MacTheme.readableTint(tint))
                     .buttonStyle(.plain)
                     .padding(.horizontal, 10)
                     .frame(minWidth: 92, minHeight: 44)
                     .frame(maxWidth: axis == .vertical ? .infinity : nil)
-                    .background(Color.white.opacity(0.07), in: Capsule())
+                    .background(MacTheme.inset, in: Capsule())
                     .overlay {
                         Capsule()
                             .stroke(tint.opacity(0.36), lineWidth: 1)
@@ -1878,7 +1936,7 @@ private struct MacSelectedCategorySummaryView: View {
 
                 Button("清除", systemImage: "xmark.circle.fill", action: onClear)
                     .font(.caption.bold())
-                    .foregroundStyle(tint)
+                    .foregroundStyle(MacTheme.readableTint(tint))
                     .buttonStyle(.plain)
                     .frame(minWidth: 72, minHeight: 44)
                     .frame(maxWidth: axis == .vertical ? .infinity : nil)
@@ -1899,10 +1957,10 @@ private struct MacSummaryStaticActionView: View {
     var body: some View {
         Text(title)
             .font(.caption.bold())
-            .foregroundStyle(isProminent ? (prominentForeground ?? MacTheme.primaryText) : tint)
+            .foregroundStyle(isProminent ? (prominentForeground ?? MacTheme.primaryText) : MacTheme.readableTint(tint))
             .frame(minWidth: isProminent ? 104 : 72, minHeight: 44)
             .padding(.horizontal, 10)
-            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .background(isProminent ? tint : MacTheme.inset, in: Capsule())
             .overlay {
                 Capsule()
                     .stroke(tint.opacity(isProminent ? 0.9 : 0.36), lineWidth: 1)
@@ -1928,7 +1986,7 @@ private struct MacCategoryPresetPicker: View {
                     .padding(.vertical, 7)
                     .frame(minHeight: 44)
                     .contentShape(Capsule())
-                    .background(isSelected(preset) ? Color(hex: preset.accentHex) : Color.white.opacity(0.06), in: Capsule())
+                    .background(isSelected(preset) ? Color(hex: preset.accentHex) : MacTheme.inset, in: Capsule())
                     .overlay {
                         Capsule()
                             .stroke(Color(hex: preset.accentHex).opacity(isSelected(preset) ? 0.9 : 0.42), lineWidth: 1)
@@ -1970,7 +2028,9 @@ struct MacCategoryFilterBar: View {
     @EnvironmentObject private var store: FocusStore
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
     @Environment(\.macSnapshotCategorySearch) private var snapshotSearchQuery
+    @Environment(\.macSnapshotCategoriesExpanded) private var snapshotCategoriesExpanded
     @State private var searchQuery = ""
+    @State private var isExpanded = false
 
     let categories: [String]
     @Binding var selectedCategory: String?
@@ -1986,6 +2046,18 @@ struct MacCategoryFilterBar: View {
 
     private var searchResult: TaskCategorySearchResult {
         TaskCategorySearchResult(options: categoryOptions, query: isSnapshotRendering ? snapshotSearchQuery : searchQuery, selectedCategory: selectedCategory)
+    }
+
+    private var presentation: CategoryOptionPresentation<TaskCategoryFilterOption> {
+        CategoryOptionPresentation(
+            matches: searchResult.matches,
+            selectedOption: searchResult.pinnedSelection ?? categoryOptions.first { option in
+                selectedCategory.map { store.categoryMatches($0, option.category) } ?? false
+            },
+            hasQuery: searchResult.showsSearch && !TaskCategoryPreset.searchKey(for: isSnapshotRendering ? snapshotSearchQuery : searchQuery).isEmpty,
+            isExpanded: isExpanded || (isSnapshotRendering && snapshotCategoriesExpanded),
+            limit: 6
+        )
     }
 
     var body: some View {
@@ -2009,7 +2081,7 @@ struct MacCategoryFilterBar: View {
                     selectedCategory = nil
                 }
 
-                ForEach(searchResult.matches) { option in
+                ForEach(presentation.visibleOptions) { option in
                     MacCategoryFilterChip(
                         title: option.category,
                         symbolName: option.symbolName,
@@ -2022,7 +2094,7 @@ struct MacCategoryFilterBar: View {
                 }
             }
             .padding(.vertical, 1)
-            if let option = searchResult.pinnedSelection {
+            if let option = presentation.pinnedSelection {
                 Text("当前已选")
                     .font(.caption)
                     .foregroundStyle(MacTheme.secondaryText)
@@ -2030,7 +2102,15 @@ struct MacCategoryFilterBar: View {
                     toggleCategory(option.category)
                 }
             }
+            if presentation.canToggle {
+                MacCategoryDisclosureView(isExpanded: isExpanded || (isSnapshotRendering && snapshotCategoriesExpanded), totalCount: searchResult.totalCount) {
+                    isExpanded.toggle()
+                }
+            }
         }
+        .onChange(of: searchQuery) { _, _ in isExpanded = false }
+        .onChange(of: selectedCategory) { _, _ in isExpanded = false }
+        .onChange(of: categoryOptions.map(\.id)) { _, _ in isExpanded = false }
     }
 
     private var searchField: some View {
@@ -2061,11 +2141,46 @@ struct MacCategoryFilterBar: View {
         }
         .frame(minHeight: 44)
         .padding(.horizontal, 10)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+        .background(MacTheme.inset, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func toggleCategory(_ category: String) {
         selectedCategory = selectedCategory.map { store.categoryMatches($0, category) ? nil : category } ?? category
+    }
+}
+
+private struct MacCategoryDisclosureView: View {
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
+    let isExpanded: Bool
+    let totalCount: Int
+    let action: () -> Void
+
+    private var title: String {
+        isExpanded ? "收起分类" : "查看全部 \(totalCount) 个分类"
+    }
+
+    var body: some View {
+        Group {
+            if isSnapshotRendering {
+                label
+            } else {
+                Button(action: action) { label }
+                    .buttonStyle(.plain)
+            }
+        }
+        .accessibilityLabel(title)
+        .accessibilityValue(isExpanded ? "已展开" : "已收起")
+        .accessibilityHint("只调整分类选项的显示数量，保留当前分类和完整搜索")
+        .accessibilityInputLabels([Text(title), Text(isExpanded ? "收起分类" : "展开分类")])
+    }
+
+    private var label: some View {
+        Label(title, systemImage: isExpanded ? "chevron.up" : "chevron.down")
+            .font(.caption.bold())
+            .foregroundStyle(MacTheme.readableTint(.cyan))
+            .frame(minHeight: 44)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
     }
 }
 
@@ -2113,7 +2228,7 @@ private struct MacCategoryFilterChip: View {
                     .font(.caption.bold())
                     .monospacedDigit()
                     .fixedSize()
-                    .foregroundStyle(isSelected ? selectedText.opacity(0.82) : tint)
+                    .foregroundStyle(isSelected ? selectedText.opacity(0.82) : MacTheme.readableTint(tint))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(isSelected ? Color.black.opacity(0.08) : tint.opacity(0.16), in: Capsule())
@@ -2122,7 +2237,7 @@ private struct MacCategoryFilterChip: View {
             .foregroundStyle(isSelected ? selectedText : MacTheme.primaryText)
             .frame(minHeight: 44)
             .padding(.horizontal, 10)
-            .background(isSelected ? tint : Color.white.opacity(0.06), in: Capsule())
+            .background(isSelected ? tint : MacTheme.inset, in: Capsule())
             .overlay {
                 Capsule()
                     .stroke(isSelected ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)

@@ -1,5 +1,22 @@
 # 项目流程图
 
+读图说明：主题沿用已有设置；分类先完成搜索与计数，再决定展示数量，收起不会修改真实分类或任务。
+
+```mermaid
+flowchart LR
+  THEME[FocusStore既有appThemeMode] --> ROOT[Mac详情与popover / iOS根视图]
+  ROOT --> COLOR[亮暗背景与正文 / 浅色强调文字]
+  FULL[完整排序分类与计数] --> SEARCH[共享规范化搜索]
+  SEARCH --> SHOW[展示派生：筛选6项 / 表单4项]
+  SELECT[完整来源中的当前选择] --> PIN[前缀或搜索之外单独保留]
+  SHOW --> QUERY{有查询或已展开}
+  QUERY -->|是| ALL[全部匹配选项]
+  QUERY -->|否| PREFIX[前缀与查看全部入口]
+  PIN --> UI[Mac分类视图]
+  ALL --> UI
+  PREFIX --> UI
+```
+
 读图说明：v1.5只重排展示层，计时、任务和持久化仍由既有共享入口处理。独立UI证据与正式生产包分开上传，分别核对同一源SHA。
 
 ```mermaid
@@ -11,7 +28,7 @@ flowchart LR
   WIDTH -->|否| ONE[单列：计时主区优先 / 日程待办优先]
   PUSH[授权main成功push] --> GATE[UI独立workflow来源gate]
   GATE --> SHA[仅checkout已核对SHA]
-  SHA --> RENDER[共用renderer编译入口 / 9张辅助状态PNG]
+  SHA --> RENDER[共用renderer编译入口 / 15张辅助状态PNG含5张浅色]
   RENDER --> CHECK[上传前后复查main与源attempt]
   CHECK --> UIART[独立UI artifact与身份manifest]
   UIART --> C[C分别核对生产review和UI证据并读图]
@@ -22,12 +39,12 @@ flowchart LR
 ```mermaid
 flowchart LR
   SOURCE[授权当前main成功push] --> GATE[每个job先核对源身份再checkout]
-  GATE --> MAC[Mac同源renderer / 9图]
-  GATE --> PHONE1[iPhone13 / 390pt / 4个原生UI测试]
-  GATE --> PHONE2[iPhoneSE3 / 375pt / 4个原生UI测试]
-  PHONE1 --> XC[xcresult与原始摘要 / 至少12张截图每设备]
+  GATE --> MAC[Mac同源renderer / 15图与亮暗空白负例]
+  GATE --> PHONE1[iPhone13 / 390pt / 5个原生UI测试]
+  GATE --> PHONE2[iPhoneSE3 / 375pt / 5个原生UI测试]
+  PHONE1 --> XC[xcresult与原始摘要 / 至少15张截图每设备]
   PHONE2 --> XC
-  XC --> VERIFY[摘要4通过0失败0跳过 / 截图物理尺寸核对]
+  XC --> VERIFY[摘要5通过0失败0跳过 / 截图物理尺寸核对]
   MAC --> FRESH[上传前后复查main与attempt]
   VERIFY --> FRESH
   FRESH --> PACK[按平台独立artifact / 两套来源身份]

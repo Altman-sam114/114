@@ -163,6 +163,7 @@ struct MacCoreTests {
         assert(coloredOptions.map(\.accentHex) == ["#FFB84D", "#3DE8C5", TaskCategoryPreset.fallbackAccentHex], "Expected filter options to reuse representative accents")
 
         runCategoryFilterSearchTests()
+        runCategoryPresentationTests()
         await runStartableTaskTests(store: store)
         await runTimerEngineBoundaryTests(store: store)
         runPrimaryTimerActionTests()
@@ -272,6 +273,33 @@ struct MacCoreTests {
         assert(TaskCategoryPreset.searchKey(for: " \n ").isEmpty, "Empty query must not become the uncategorized name")
         assert(TaskCategorySearchResult(options: [], query: "x", selectedCategory: nil).totalCount == 0, "Empty categories must remain empty")
         print("Category filter search behavior passed.")
+    }
+
+    private static func runCategoryPresentationTests() {
+        let options = (0..<12).map { index in
+            TaskCategoryFilterOption(category: "分类\(index)", count: 12 - index, preset: nil, accentHex: "#123456")
+        }
+        let collapsed = CategoryOptionPresentation(matches: options, selectedOption: options[10], hasQuery: false, isExpanded: false, limit: 6)
+        assert(collapsed.visibleOptions == Array(options.prefix(6)) && collapsed.canToggle && collapsed.hiddenCount == 6, "Collapsed presentation must preserve complete option values and source order")
+        assert(collapsed.pinnedSelection == options[10], "A selection outside the prefix must remain available with its count and color")
+        let selectedVisible = CategoryOptionPresentation(matches: options, selectedOption: options[1], hasQuery: false, isExpanded: false, limit: 6)
+        assert(selectedVisible.pinnedSelection == nil, "Visible selected categories must not be duplicated")
+        let expanded = CategoryOptionPresentation(matches: options, selectedOption: options[10], hasQuery: false, isExpanded: true, limit: 6)
+        assert(expanded.visibleOptions == options && expanded.pinnedSelection == nil && expanded.hiddenCount == 0 && expanded.canToggle, "Expanded categories must retain every option and allow collapse")
+        let searched = CategoryOptionPresentation(matches: Array(options.suffix(8)), selectedOption: options[1], hasQuery: true, isExpanded: false, limit: 6)
+        assert(searched.visibleOptions == Array(options.suffix(8)) && !searched.canToggle && searched.hiddenCount == 0, "Search must not be truncated to the collapsed prefix")
+        assert(searched.pinnedSelection == options[1], "Nonmatching selection must be separately preserved without entering result counts")
+        let empty = CategoryOptionPresentation(matches: [TaskCategoryFilterOption](), selectedOption: options[1], hasQuery: true, isExpanded: false, limit: 6)
+        assert(empty.visibleOptions.isEmpty && empty.pinnedSelection == options[1] && !empty.canToggle, "Empty search must retain a known selection")
+        let removed = CategoryOptionPresentation(matches: options, selectedOption: nil, hasQuery: false, isExpanded: false, limit: 6)
+        assert(removed.pinnedSelection == nil, "A removed selection must not fabricate an option")
+        let shortSearch = TaskCategorySearchResult(options: Array(options.prefix(5)), query: "不存在", selectedCategory: nil)
+        let short = CategoryOptionPresentation(matches: shortSearch.matches, selectedOption: nil, hasQuery: shortSearch.showsSearch, isExpanded: false, limit: 6)
+        assert(short.visibleOptions == Array(options.prefix(5)) && !short.canToggle, "Dropping below the threshold must ignore stale hidden queries and omit meaningless toggles")
+        let form = CategoryOptionPresentation(matches: options, selectedOption: options[10], hasQuery: false, isExpanded: false, limit: 4)
+        assert(form.visibleOptions == Array(options.prefix(4)) && form.pinnedSelection == options[10], "Quick add must use four options while preserving its current draft category")
+        assert(options.map(\.count) == Array((1...12).reversed()), "Presentation must never change full result counts or ordering")
+        print("Category presentation behavior passed.")
     }
 
     @MainActor

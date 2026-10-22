@@ -205,7 +205,10 @@ struct TimerView: View {
                     } label: {
                         Image(systemName: store.settings.appThemeMode.symbolName)
                     }
+                    .accessibilityIdentifier("theme.toggle")
                     .accessibilityLabel("切换亮暗主题")
+                    .accessibilityValue(store.settings.appThemeMode.title)
+                    .accessibilityHint("切换整个应用的亮色和暗色外观")
                 }
             }
             .sheet(isPresented: $showingCategoryEditor) {

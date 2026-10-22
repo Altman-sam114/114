@@ -1340,7 +1340,7 @@ for source, platform, name_expression in [[ios_existing_category_source, "iOS", 
   raise "#{platform} existing category Voice Control labels missing" unless source.include?("Text(\\(#{name_expression}))") || (source.include?("Text(#{name_expression})") && source.include?("Text(\"选择\\(#{name_expression})分类\")"))
 end
 raise "Mac existing category snapshot branch missing" unless mac_existing_category_source.include?("if isSnapshotRendering") && mac_existing_category_source.include?("MacStaticExistingCategoryStrip(")
-raise "Mac snapshot and live paths must share existing category options" unless mac_existing_category_source.scan("options: filteredExistingCategoryOptions").length >= 2
+raise "Mac snapshot and live paths must share existing category options" unless mac_existing_category_source.scan("options: existingCategoryPresentation.visibleOptions").length == 2
 raise "Mac existing category snapshot must avoid native button placeholders" unless mac_existing_category_source.include?("private struct MacStaticExistingCategoryStrip") && !segment_slice(mac_existing_category_source, "private struct MacStaticExistingCategoryStrip", "private struct MacExistingCategoryChipContent", "Mac static existing category source missing").include?("Button")
 mac_snapshot_source = File.read("scripts/render_mac_snapshots.swift")
 raise "Mac schedule snapshot must seed a non-preset existing category" unless mac_snapshot_source.include?("AnyView(MacScheduleDetailView(") && mac_snapshot_source.include?("category: \"产品\"")
@@ -1358,7 +1358,7 @@ raise "iOS existing category usage must remain readable beside selection state" 
 raise "Mac existing category usage must remain readable beside selection state" unless mac_existing_category_source.include?(".lineLimit(2)") && mac_existing_category_source.include?(".fixedSize(horizontal: false, vertical: true)") && mac_existing_category_source.include?("Text(option.usageText)") && mac_existing_category_source.include?(".fixedSize(horizontal: true, vertical: true)") && mac_existing_category_source.include?("Image(systemName: \"checkmark\")")
 raise "iOS existing category usage accessibility missing" unless ios_existing_category_source.include?("\\(option.name)分类，\\(option.taskCount > 0 ? \"\\(option.taskCount)项任务\" : \"仅历史专注记录\")") && ios_existing_category_source.include?(".accessibilityAddTraits(isSelected ? .isSelected : [])")
 raise "Mac live and static existing category usage accessibility missing" unless mac_existing_category_source.scan("\\(option.displayName)分类，\\(option.accessibilityUsageText)\\(isSelected ? \"，已选中\" : \"\")").length >= 2 && mac_existing_category_source.scan(".accessibilityAddTraits(isSelected ? .isSelected : [])").length >= 2
-raise "Mac live and static existing category paths must share counted options" unless mac_existing_category_source.scan("options: filteredExistingCategoryOptions").length >= 2 && mac_existing_category_source.scan("MacExistingCategoryChipContent(").length >= 2
+raise "Mac live and static existing category paths must share counted options" unless mac_existing_category_source.scan("options: existingCategoryPresentation.visibleOptions").length == 2 && mac_existing_category_source.scan("MacExistingCategoryChipContent(").length >= 2
 raise "Mac schedule snapshot must cover task-backed and session-only existing categories" unless mac_snapshot_source.include?("category: \"产品\"") && mac_snapshot_source.include?("category: sessionCategory") && mac_snapshot_source.include?("\"历史归档\"")
 puts "Existing category usage context contracts verified."
 
@@ -1410,7 +1410,7 @@ end
 raise "iOS existing category search field missing" unless ios_existing_category_source.include?("TextField(\"搜索已有分类\", text: $existingCategorySearch)")
 raise "Mac existing category search field missing" unless mac_existing_category_source.include?("TextField(\"搜索已有分类\", text: $searchQuery)") && mac_existing_category_source.include?("searchQuery: $existingCategorySearchQuery")
 raise "iOS existing category result count missing" unless ios_existing_category_source.include?("\\(filteredExistingCategoryOptions.count)/\\(existingCategoryOptions.count)") && ios_existing_category_source.include?("显示\\(filteredExistingCategoryOptions.count)个，共\\(existingCategoryOptions.count)个已有分类")
-raise "Mac existing category result count missing" unless mac_existing_category_source.include?("Text(\"\\(resultCount)/\\(totalCount)\")") && mac_existing_category_source.include?("显示 \\(resultCount) 个，共 \\(totalCount) 个已有分类")
+raise "Mac existing category result count missing" unless mac_existing_category_source.include?("Text(\"匹配 \\(resultCount)/\\(totalCount)\")") && mac_existing_category_source.include?("匹配 \\(resultCount) 个，共 \\(totalCount) 个已有分类") && mac_existing_category_source.scan("resultCount: filteredExistingCategoryOptions.count").length == 2
 raise "iOS existing category search clear action missing" unless ios_existing_category_source.include?("Image(systemName: \"xmark.circle.fill\")") && ios_existing_category_source.include?("existingCategorySearch = \"\"") && ios_existing_category_source.include?(".accessibilityLabel(\"清除已有分类搜索\")") && ios_existing_category_source.include?("Text(\"清除已有分类搜索\")")
 raise "Mac existing category search clear action missing" unless mac_existing_category_source.include?("Image(systemName: \"xmark.circle.fill\")") && mac_existing_category_source.include?("searchQuery = \"\"") && mac_existing_category_source.include?(".accessibilityLabel(\"清除已有分类搜索\")") && mac_existing_category_source.include?("Text(\"清除已有分类搜索\")")
 raise "iOS existing category search clear target must be at least 44 points" unless ios_existing_category_source.match?(/xmark\.circle\.fill[\s\S]{0,400}\.frame\([^\n]*(?:width:\s*44[^\n]*height:\s*44|height:\s*44[^\n]*width:\s*44|minWidth:\s*44[^\n]*minHeight:\s*44|minHeight:\s*44[^\n]*minWidth:\s*44)/)
@@ -1419,7 +1419,7 @@ raise "Mac existing category search accessibility hint missing" unless mac_exist
 raise "iOS existing category search empty state missing" unless ios_existing_category_source.include?("没有匹配的已有分类") && ios_existing_category_source.include?("filteredExistingCategoryOptions.isEmpty") && ios_existing_category_source.include?("已有分类搜索结果为空")
 raise "Mac existing category search empty state missing" unless mac_existing_category_source.include?("没有匹配的已有分类") && mac_existing_category_source.scan("existingCategoryNoResultsView").length >= 3 && mac_existing_category_source.include?("已有分类搜索结果为空")
 raise "iOS existing category results must drive displayed chips" unless ios_existing_category_source.include?("ForEach(filteredExistingCategoryOptions)")
-raise "Mac live and static search results must drive displayed chips" unless mac_existing_category_source.scan("options: filteredExistingCategoryOptions").length >= 2 && mac_existing_category_source.scan("ForEach(options)").length >= 2
+raise "Mac live and static search results must drive displayed chips" unless mac_existing_category_source.scan("options: existingCategoryPresentation.visibleOptions").length == 2 && mac_existing_category_source.scan("ForEach(options)").length >= 2
 mac_static_existing_category_search_source = segment_slice(
   mac_existing_category_source,
   "private struct MacStaticExistingCategoryStrip",
@@ -1491,7 +1491,8 @@ puts "Existing category search contracts verified."
   ["ChronoFocusMac/Views/MacScheduleDetailView.swift", "struct MacCategoryFilterBar", "private struct MacCategoryFilterChip"]
 ].each do |path, first, last|
   bar = source_slice(path, first, last, "#{path} category search bar missing")
-  ["@State private var searchQuery", "TaskCategorySearchResult(options: categoryOptions", "selectedCategory: selectedCategory)", "searchResult.showsSearch", "ForEach(searchResult.matches)", "searchResult.pinnedSelection", "当前已选", "countProvider(nil)", "selectedCategory = nil", "toggleCategory(option.category)"].each do |token|
+  collection = path.start_with?("ChronoFocusMac/") ? "ForEach(presentation.visibleOptions)" : "ForEach(searchResult.matches)"
+  ["@State private var searchQuery", "TaskCategorySearchResult(options: categoryOptions", "selectedCategory: selectedCategory)", "searchResult.showsSearch", collection, "searchResult.pinnedSelection", "当前已选", "countProvider(nil)", "selectedCategory = nil", "toggleCategory(option.category)"].each do |token|
     raise "#{path} missing filter search connection: #{token}" unless bar.include?(token)
   end
 end
@@ -1506,6 +1507,21 @@ raise "Mac snapshot search must use the same result derivation" unless mac_filte
 raise "Mac search snapshot fixture missing" unless mac_snapshot_source.include?(".environment(\\.macSnapshotCategorySearch, \"产品\")")
 raise "Mac timer queue search connection missing" unless File.read("ChronoFocusMac/Views/MacTimerDetailView.swift").include?("MacCategoryFilterBar(")
 puts "Category filter search contracts verified."
+
+mac_filter_presentation = segment_slice(mac_filter_search, "private var presentation:", "var body: some View", "Mac filter presentation missing")
+mac_form_presentation = segment_slice(mac_existing_category_source, "private var existingCategoryPresentation:", "private var quickAddCategoryInputAccessibilityLabel", "Mac form presentation missing")
+presentation_checks = {
+  "Mac filter full matches and known selected option" => ->(s) { s[:filter].include?("matches: searchResult.matches,") && s[:filter].include?("selectedOption: searchResult.pinnedSelection ?? categoryOptions.first") && s[:filter].include?("selectedCategory.map { store.categoryMatches($0, option.category) } ?? false") && s[:filter].include?("hasQuery: searchResult.showsSearch && !TaskCategoryPreset.searchKey") && s[:filter].include?("limit: 6") },
+  "Mac form full matches and draft selection" => ->(s) { s[:form].include?("matches: filteredExistingCategoryOptions,") && s[:form].include?("selectedOption: existingCategoryOptions.first { $0.comparisonKey == macCategoryComparisonKey(category) }") && s[:form].include?("hasQuery: existingCategoryOptions.count >= macExistingCategorySearchThreshold && !macExistingCategorySearchKey(existingCategorySearchQuery).isEmpty") && s[:form].include?("limit: 4") }
+}
+verify_source_contracts({filter: mac_filter_presentation, form: mac_form_presentation}, presentation_checks, [
+  [:filter, "matches: searchResult.matches,", "matches: Array(searchResult.matches.prefix(6)),", "Mac filter full matches and known selected option"],
+  [:filter, "selectedOption: searchResult.pinnedSelection ?? categoryOptions.first", "selectedOption: searchResult.pinnedSelection ?? searchResult.matches.first", "Mac filter full matches and known selected option"],
+  [:form, "hasQuery: existingCategoryOptions.count >= macExistingCategorySearchThreshold && !macExistingCategorySearchKey(existingCategorySearchQuery).isEmpty", "hasQuery: false", "Mac form full matches and draft selection"]
+])
+raise "Mac presentation must expose the pinned selection" unless mac_filter_search.include?("if let option = presentation.pinnedSelection") && mac_existing_category_source.scan("pinnedSelection: existingCategoryPresentation.pinnedSelection").length == 2
+raise "Mac category presentation resets missing" unless mac_filter_search.include?(".onChange(of: searchQuery)") && mac_filter_search.include?(".onChange(of: selectedCategory)") && mac_filter_search.include?(".onChange(of: categoryOptions.map(\\.id))")
+puts "Category presentation contracts verified."
 
 dashboard_source = File.read("ChronoFocus/Views/DashboardView.swift")
 ios_schedule_handoff_source = File.read("ChronoFocus/Views/ScheduleView.swift")

@@ -15,7 +15,7 @@ struct MacLinearProgressView: View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.white.opacity(0.12))
+                    .fill(MacTheme.track)
                 Capsule()
                     .fill(tint)
                     .frame(width: max(height, proxy.size.width * fraction))

@@ -316,6 +316,23 @@ struct TaskCategoryFilterOption: Identifiable, Hashable {
 
 }
 
+struct CategoryOptionPresentation<Option: Identifiable> {
+    let visibleOptions: [Option]
+    let pinnedSelection: Option?
+    let hiddenCount: Int
+    let canToggle: Bool
+
+    init(matches: [Option], selectedOption: Option?, hasQuery: Bool, isExpanded: Bool, limit: Int) {
+        let collapsedLimit = max(1, limit)
+        canToggle = !hasQuery && matches.count > collapsedLimit
+        visibleOptions = hasQuery || isExpanded ? matches : Array(matches.prefix(collapsedLimit))
+        hiddenCount = matches.count - visibleOptions.count
+        pinnedSelection = selectedOption.flatMap { selected in
+            visibleOptions.contains(where: { $0.id == selected.id }) ? nil : selected
+        }
+    }
+}
+
 struct TimerSettings: Codable, Equatable {
     var focusMinutes: Int = 25
     var shortBreakMinutes: Int = 5

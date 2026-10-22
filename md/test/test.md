@@ -4,9 +4,17 @@
 
 ## 默认验证策略
 
+v1.7：云端共享core执行`Category presentation behavior passed.`，覆盖6/4项前缀、展开、完整搜索、选中项位于前缀之外/搜索之外、无结果、删除选择、阈值回落和完整计数/颜色/顺序不变。源码合同按Mac实际派生路径核对并注入截断完整搜索、从匹配结果错误查选择和关闭查询的单点破坏；iOS横向分类栏保持原合同。
+
+独立Mac renderer保留9个既有状态，增加分类全展开及计时/日程/统计/设置/popover共5张浅色图，总计15；每图记录真实尺寸、theme和展开状态。显式NSAppearance与SwiftUI colorScheme一致，核对背景像素确为要求的亮/暗色；light foreground detector按深色文字或饱和强调像素判定，浅色空白渐变负例必须拒绝，保留原暗色空白负例。正式生产仍精确五张图及唯一artifact。
+
+两种iPhone当前要求各5 passed/0 failed/0 skipped、至少15张原生PNG，第5条实际切换亮色→日程→计时→暗色并验证设置保留。Actions命令仍为`bash scripts/run_ios_ui_tests.sh`和脚本记录的完整`xcodebuild ... test`参数；摘要、xcresult及截图不得省略。C最终核对最新source/review/UI三链及全部平台上传/freshness，再读浅色与分类图。本机不执行这些命令或任何解析/测试。
+
+前置v1.6已在`9f50b47`完成验收，source`39848949801`/review`39849631678`/UI`39849632075`均success，两种iPhone每设备4/0/0、12图；以下v1.6记录是该轮基线，不是v1.7测试数量。
+
 v1.6：共享core新增`Empty persistence behavior passed.`实际回归，覆盖新安装、持久化空数组、清空重启、保留旧任务/会话、损坏JSON原文保留。生产scheme显式登记`ChronoFocusUITests`，但生产job仍只做generic build；原生点击由独立UI矩阵的`ios-390`/`ios-375`执行`bash scripts/run_ios_ui_tests.sh`。
 
-云端在指定iPhone13/SE3类型上创建模拟器，记录实际UDID/runtime/390或375pt及scale；运行`xcodebuild ... -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test`。四个实际XCTest分别测试自由专注开始/暂停/继续/停止、提醒展开收起、日程分类预填并保存、辅助大字体长标题。每种设备必须4 passed/0 failed/0 skipped，`xcresulttool get test-results summary`原文和附件必须存在；`verify_ios_ui_evidence.py`校验原始摘要与至少12张原生PNG尺寸/字节/摘要。大字体还断言计时文本实际高度和主控44pt及边界，避免只登记请求字体。
+v1.6云端在指定iPhone13/SE3类型上创建模拟器，记录实际UDID/runtime/390或375pt及scale；运行`xcodebuild ... -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test`。四个实际XCTest分别测试自由专注开始/暂停/继续/停止、提醒展开收起、日程分类预填并保存、辅助大字体长标题。每种设备必须4 passed/0 failed/0 skipped，`xcresulttool get test-results summary`原文和附件必须存在；该轮校验原始摘要与至少12张原生PNG尺寸/字节/摘要。大字体断言长任务标题实际展开高度、完整倒计时值/边界和主控44pt及可达性，避免只登记请求字体。
 
 UI矩阵每个job独立证据包，正式生产仍一包；C须核对3个平台包分别属于同一UI run及源SHA、上传与final freshness均success，再看截图。Debug显式launch flag使用隔离defaults，正常/Release启动不清理用户数据，也不伪造Pro或TimerEngine状态。未经云端执行不得报告这些新增测试已通过。
 

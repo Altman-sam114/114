@@ -52,6 +52,25 @@ final class ChronoFocusUITests: XCTestCase {
         capture("reminders-collapsed")
     }
 
+    func testThemeSwitchAcrossTabs() {
+        launch(fixture: "tasks")
+        let theme = app.buttons["theme.toggle"]
+        XCTAssertEqual(theme.value as? String, "暗色")
+        theme.tap()
+        expectation(for: NSPredicate(format: "value == %@", "亮色"), evaluatedWith: theme)
+        waitForExpectations(timeout: 5)
+        capture("timer-light")
+        app.tabBars.buttons["日程"].tap()
+        XCTAssertTrue(app.buttons["schedule.add"].waitForExistence(timeout: 5))
+        capture("schedule-light")
+        app.tabBars.buttons["计时"].tap()
+        XCTAssertEqual(theme.value as? String, "亮色", "Theme must survive switching tabs")
+        theme.tap()
+        expectation(for: NSPredicate(format: "value == %@", "暗色"), evaluatedWith: theme)
+        waitForExpectations(timeout: 5)
+        capture("timer-dark-restored")
+    }
+
     func testScheduleCategoryPrefillAndSave() {
         launch(fixture: "tasks")
         app.tabBars.buttons["日程"].tap()

@@ -140,7 +140,7 @@ private struct MacTimerDialView: View {
             }
             ZStack {
                 Circle()
-                    .stroke(Color.white.opacity(0.10), lineWidth: 18)
+                    .stroke(MacTheme.track, lineWidth: 18)
                 Circle()
                     .trim(from: 0, to: engine.progress)
                     .stroke(currentTint, style: StrokeStyle(lineWidth: 18, lineCap: .round))
@@ -150,7 +150,7 @@ private struct MacTimerDialView: View {
                 VStack(spacing: 10) {
                     Image(systemName: displayedMode.symbolName)
                         .font(.title2)
-                        .foregroundStyle(currentTint)
+                        .foregroundStyle(MacTheme.readableTint(currentTint))
                     Text(engine.formattedRemaining)
                         .font(.system(size: 72, weight: .bold, design: .rounded))
                         .monospacedDigit()
@@ -162,7 +162,7 @@ private struct MacTimerDialView: View {
                         .foregroundStyle(MacTheme.secondaryText)
                     Text("下一步 \(engine.nextModeHint)")
                         .font(.caption)
-                        .foregroundStyle(currentTint)
+                        .foregroundStyle(MacTheme.readableTint(currentTint))
                 }
             }
             .frame(maxWidth: 300)
@@ -448,10 +448,10 @@ private struct MacStaticTimerActionRowView: View {
     private func staticChip(title: String, symbolName: String, tint: Color, isProminent: Bool, accessibilityLabel: String, inputLabels: [Text], prominentForeground: Color? = nil) -> some View {
         Label(title, systemImage: symbolName)
             .font(.headline)
-            .foregroundStyle(isProminent ? (prominentForeground ?? MacTheme.primaryText) : tint)
+            .foregroundStyle(isProminent ? (prominentForeground ?? MacTheme.primaryText) : MacTheme.readableTint(tint))
             .padding(.horizontal, 12)
             .frame(minWidth: 96, maxWidth: .infinity, minHeight: 44)
-            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .background(isProminent ? tint : MacTheme.inset, in: Capsule())
             .overlay {
                 Capsule()
                     .stroke(isProminent ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)
@@ -661,7 +661,7 @@ private struct MacTaskQueueView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         }
                         .buttonStyle(.plain)
-                        .foregroundStyle(currentTint)
+                        .foregroundStyle(MacTheme.readableTint(currentTint))
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .contentShape(Rectangle())
                         .accessibilityLabel(taskQueueToggleAccessibilityLabel)
@@ -781,7 +781,7 @@ struct MacTimerCategoryContextView: View {
         VStack(alignment: .leading, spacing: 3) {
             Label(category, systemImage: preset?.symbolName ?? "tag.fill")
                 .font(.caption.bold())
-                .foregroundStyle(tint)
+                .foregroundStyle(MacTheme.readableTint(tint))
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
 
@@ -853,12 +853,12 @@ private struct MacTimerCategoryContextActions: View {
     ) -> some View {
         let label = Label(title, systemImage: symbolName)
             .font(.caption.bold())
-            .foregroundStyle(isProminent ? tintText : tint)
+            .foregroundStyle(isProminent ? tintText : MacTheme.readableTint(tint))
             .lineLimit(1)
             .minimumScaleFactor(0.82)
             .padding(.horizontal, 9)
             .frame(minWidth: minWidth, maxWidth: axis == .vertical ? .infinity : nil, minHeight: 44)
-            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .background(isProminent ? tint : MacTheme.inset, in: Capsule())
             .overlay {
                 Capsule()
                     .stroke(tint.opacity(isProminent ? 0.9 : 0.36), lineWidth: 1)
@@ -948,7 +948,7 @@ struct MacTimerCategoryEmptyStateView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+        .background(MacTheme.inset, in: RoundedRectangle(cornerRadius: 8))
         .overlay {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(tint.opacity(0.32), lineWidth: 1)
@@ -995,11 +995,11 @@ private struct MacTimerCategoryEmptyActions: View {
 
                 Button("清除筛选", systemImage: "xmark.circle.fill", action: onClear)
                     .font(.caption.bold())
-                    .foregroundStyle(tint)
+                    .foregroundStyle(MacTheme.readableTint(tint))
                     .buttonStyle(.plain)
                     .padding(.horizontal, 10)
                     .frame(minWidth: 88, maxWidth: .infinity, minHeight: 44)
-                    .background(Color.white.opacity(0.07), in: Capsule())
+                    .background(MacTheme.inset, in: Capsule())
                     .overlay {
                         Capsule()
                             .stroke(tint.opacity(0.36), lineWidth: 1)
@@ -1014,10 +1014,10 @@ private struct MacTimerCategoryEmptyActions: View {
     private func staticAction(title: String, isProminent: Bool) -> some View {
         Text(title)
             .font(.caption.bold())
-            .foregroundStyle(isProminent ? tintText : tint)
+            .foregroundStyle(isProminent ? tintText : MacTheme.readableTint(tint))
             .frame(minWidth: isProminent ? 104 : 88, maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 10)
-            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .background(isProminent ? tint : MacTheme.inset, in: Capsule())
             .overlay {
                 Capsule()
                     .stroke(tint.opacity(isProminent ? 0.9 : 0.36), lineWidth: 1)
@@ -1093,7 +1093,7 @@ struct MacTaskRowView: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle.fill")
-                .foregroundStyle(categoryTint)
+                .foregroundStyle(MacTheme.readableTint(categoryTint))
             VStack(alignment: .leading, spacing: 3) {
                 Text(task.title)
                     .font(.subheadline.weight(.semibold))
@@ -1103,7 +1103,7 @@ struct MacTaskRowView: View {
                     if showsCategoryBadge {
                         Label(task.category, systemImage: categorySymbolName)
                             .font(.caption.bold())
-                            .foregroundStyle(categoryTint)
+                            .foregroundStyle(MacTheme.readableTint(categoryTint))
                             .lineLimit(1)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 2)
@@ -1125,7 +1125,7 @@ struct MacTaskRowView: View {
                 .frame(width: 74)
         }
         .padding(10)
-        .background(isSelected ? categoryTint.opacity(0.16) : Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+        .background(isSelected ? categoryTint.opacity(0.16) : MacTheme.inset, in: RoundedRectangle(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText)")
         .accessibilityHint(selectionHintText)
@@ -1143,7 +1143,7 @@ struct MacPageHeaderView: View {
         HStack(spacing: 14) {
             Image(systemName: symbolName)
                 .font(.title2)
-                .foregroundStyle(.cyan)
+                .foregroundStyle(MacTheme.readableTint(.cyan))
                 .frame(width: 44, height: 44)
                 .background(Color.cyan.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 4) {

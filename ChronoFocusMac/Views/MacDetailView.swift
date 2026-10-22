@@ -46,6 +46,7 @@ struct MacTimerHandoffRequest: Identifiable, Equatable {
 }
 
 struct MacDetailView: View {
+    @EnvironmentObject private var store: FocusStore
     @ObservedObject var selection: MacDetailSelection
 
     var body: some View {
@@ -56,13 +57,13 @@ struct MacDetailView: View {
             }
             .navigationTitle("ChronoFocus")
             .scrollContentBackground(.hidden)
-            .background(Color.black.opacity(0.18))
+            .background(MacTheme.sidebar)
             .frame(minWidth: 190)
         } detail: {
             MacDetailContentView(selection: selection)
         }
         .background(MacTheme.background)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(store.settings.appThemeMode == .dark ? .dark : .light)
     }
 }
 

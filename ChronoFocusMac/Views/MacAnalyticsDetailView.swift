@@ -129,7 +129,7 @@ private struct MacDailyGoalPanelView: View {
                     Text("\(Int(dailyGoalProgress * 100))%")
                         .font(.title2.bold())
                         .monospacedDigit()
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(MacTheme.readableTint(.cyan))
                 }
 
                 MacLinearProgressView(value: dailyGoalProgress, tint: .cyan, height: 10)
@@ -164,7 +164,7 @@ private struct MacProPreviewPanelView: View {
                     Spacer()
                     Text(premium.priceText)
                         .font(.caption.bold())
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(MacTheme.readableTint(.cyan))
                 }
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
@@ -223,10 +223,10 @@ private struct MacStaticAnalyticsActionChipView: View {
     var body: some View {
         Label(title, systemImage: symbolName)
             .font(.subheadline.bold())
-            .foregroundStyle(isProminent ? prominentForeground : tint)
+            .foregroundStyle(isProminent ? prominentForeground : MacTheme.readableTint(tint))
             .frame(minHeight: 44)
             .padding(.horizontal, 10)
-            .background(isProminent ? tint : Color.white.opacity(0.07), in: Capsule())
+            .background(isProminent ? tint : MacTheme.inset, in: Capsule())
             .overlay {
                 Capsule()
                     .stroke(isProminent ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)
@@ -307,7 +307,7 @@ private struct MacWorkloadPanelView: View {
                     Spacer()
                     Text("压力 \(analysis.pressureLevel)")
                         .font(.caption.bold())
-                        .foregroundStyle(pressureTint)
+                        .foregroundStyle(MacTheme.readableTint(pressureTint))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(pressureTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
@@ -357,7 +357,7 @@ private struct MacPlanCoveragePanelView: View {
                     Text("\(Int(analysis.planCoverage * 100))%")
                         .font(.title2.bold())
                         .monospacedDigit()
-                        .foregroundStyle(.mint)
+                        .foregroundStyle(MacTheme.readableTint(.mint))
                 }
 
                 MacLinearProgressView(value: analysis.planCoverage, tint: .mint, height: 10)
@@ -455,7 +455,7 @@ private struct MacCategoryChartPanelView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Label(item.category, systemImage: "circle.fill")
-                                        .foregroundStyle(Color(hex: store.representativeAccentHex(for: item.category)))
+                                        .foregroundStyle(MacTheme.readableTint(Color(hex: store.representativeAccentHex(for: item.category))))
                                     HStack(spacing: 6) {
                                         Text(categoryShareSessionCountText(for: item))
                                         Text(categoryShareRankText(for: rank))
@@ -470,7 +470,7 @@ private struct MacCategoryChartPanelView: View {
                                 Text("\(categorySharePercent(for: item.seconds))%")
                                     .font(categorySharePercentFont())
                                     .monospacedDigit()
-                                    .foregroundStyle(Color(hex: store.representativeAccentHex(for: item.category)))
+                                    .foregroundStyle(MacTheme.readableTint(Color(hex: store.representativeAccentHex(for: item.category))))
                                     .padding(.horizontal, 7)
                                     .padding(.vertical, 3)
                                     .background(Color(hex: store.representativeAccentHex(for: item.category)).opacity(0.14), in: Capsule())
@@ -564,7 +564,7 @@ private struct MacRecentSessionsPanelView: View {
                     ForEach(store.sessions.prefix(10)) { session in
                         HStack {
                             Image(systemName: session.completed ? "checkmark.seal.fill" : "exclamationmark.circle")
-                                .foregroundStyle(session.completed ? Color.mint : Color.orange)
+                                .foregroundStyle(MacTheme.readableTint(session.completed ? .mint : .orange))
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(session.taskTitle)
                                     .font(.subheadline.bold())
@@ -624,7 +624,7 @@ private struct MacRecentSessionCategoryBadgeView: View {
     var body: some View {
         Label(category, systemImage: categorySymbolName)
             .font(.caption2.bold())
-            .foregroundStyle(tint)
+            .foregroundStyle(MacTheme.readableTint(tint))
             .lineLimit(1)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
@@ -644,7 +644,7 @@ private struct MacAnalysisTileView: View {
         HStack(spacing: 10) {
             Image(systemName: symbol)
                 .font(.headline)
-                .foregroundStyle(tint)
+                .foregroundStyle(MacTheme.readableTint(tint))
                 .frame(width: 30, height: 30)
                 .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
 
@@ -675,7 +675,7 @@ private struct MacLockedInsightView: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: symbol)
-                .foregroundStyle(tint)
+                .foregroundStyle(MacTheme.readableTint(tint))
                 .frame(width: 28, height: 28)
             Text(title)
                 .font(.subheadline.bold())
@@ -683,7 +683,7 @@ private struct MacLockedInsightView: View {
             Spacer()
             Text(value)
                 .font(.caption.bold())
-                .foregroundStyle(tint)
+                .foregroundStyle(MacTheme.readableTint(tint))
         }
         .padding(12)
         .background(MacTheme.panel, in: RoundedRectangle(cornerRadius: 8))

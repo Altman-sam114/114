@@ -12,6 +12,10 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.7实现待云端：Mac详情、设置和popover沿用appThemeMode，增加自适应背景/正文/轨道及浅色强调文字；分类筛选6项、快速新增已有分类4项，保留完整搜索、独立匹配数和前缀/搜索外当前选择，不新增持久化。共享core新增实际展示派生回归，源码合同增加有边界的单点破坏；Mac独立UI扩至15图（5浅色与分类展开），增加亮暗背景及浅色空白负例；iPhone增加主题切页测试，每设备5/0/0、至少15原生图。关键文件为AppModels、MacTheme/四页/Mini、UITests、renderer、verifier与UI workflow。仅静态读码/diff，未运行本机测试/解析/编译；正式身份、签名与真实系统服务仍待后续。
+
+- 2026-10-23 C完成v1.6：main`9f50b47673ca58dbabeb3a990db524aeabaff92e`，source`39848949801`、review`39849631678`、UI`39849632075`均success/attempt1。生产artifact`12457031592`（16361938 bytes，SHA-256 `271a227e39394d60fc90e8df7e4f2d1d5be7fc097a3a299b3e761637e362fbfc`），review evidence`12457330912`，UI Mac/390/375分别`12457675011`/`12456269351`/`12456039621`。证据位于`/private/tmp/chronofocus-c-review-39848949801-dlcyNacG`。第四模式148/0、JUnit4/0/0、共享core与双端build成功；两种iPhone各实际4 passed/0 failed/0 skipped、12张原生PNG和xcresult，Mac9图；上传及final freshness均通过。C读图确认SE默认主控完整露出、分类预填保存与大字体可达性，未运行本机测试。继续v1.7主题与分类密度，真实系统服务与发行身份仍待完成。
+
 - 2026-10-23 v1.6原生C退回：`b6a7ed8` source`39838633569`与review`39839954484`success，第四模式148/0，空数据/损坏原文和主控core通过；UI`39839954309`的Mac通过，两种iPhone各实际执行4条、2通过2失败。C读原生图确认字号已放大，旧>80pt倒计时断言错误，改为长标题展开、倒计时边界/语义与主控44pt/可达性，并显式注入accessibility5。375pt默认首屏主按钮确被TabBar遮挡，改inline导航与按真实视口高度缩小圆盘，新增未滚动主按钮边界断言。无日期fixture周范围计数0使分类处于横向尾部，改当前自然日fixture并实际搜索分类后预填保存，日程滚动收键盘。iOS转ARM并拆分boot/test时限和日志，保持4/0/0与至少12图。375失败包`12454596080`及原始API在`/private/tmp/chronofocus-c-review-39838633569-Y3GvFkL2`；尚未通过，待新SHA。
 
 - 2026-10-23 v1.6首轮C退回：`c66403b` / source `39835523991`的Static checks和双端build成功，Project verification的真实core断言发现损坏JSON原文被覆盖。根因是`@Published`包装属性在初始化赋值时进入保存入口；新增仅限初始化的`isRestoring`保护，加载结束后恢复原有自动保存，保留原损坏数据断言。CI失败摘要额外识别Swift的Assertion failed/Precondition failed，既有excerpt fixture增加真实格式回归。UI矩阵因生产失败未获得可接受运行证据；未放行、未在本机复跑，待追加commit云端验证。

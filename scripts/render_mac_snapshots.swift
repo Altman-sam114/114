@@ -256,6 +256,16 @@ struct MacSnapshotRenderer {
             blankRejected = error.description.contains("Rendered detail content appears empty")
         }
         guard blankRejected else { throw SnapshotError("Foreground detector accepted the blank negative fixture") }
+        let blankLightURL = checksDirectory.appendingPathComponent("blank-light-negative.png")
+        try render(MacTheme.background.frame(width: 920, height: 1800), to: blankLightURL, theme: .light)
+        try assertBackgroundTheme(at: blankLightURL, theme: .light)
+        var lightBlankRejected = false
+        do {
+            try assertForegroundContent(at: blankLightURL, minimumXRatio: 0.22, theme: .light)
+        } catch let error as SnapshotError {
+            lightBlankRejected = error.description.contains("Rendered detail content appears empty")
+        }
+        guard lightBlankRejected else { throw SnapshotError("Foreground detector accepted the blank light negative fixture") }
         let suiteName = "ChronoFocusUIEvidence-\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {
             throw SnapshotError("Could not create UI evidence suite")
@@ -273,7 +283,9 @@ struct MacSnapshotRenderer {
 
         @MainActor
         func capture(_ name: String, section: SnapshotDetailSection, content: AnyView, width: CGFloat,
-                     height: CGFloat = 720, state: String, largeType: Bool = false) throws {
+                     height: CGFloat = 720, state: String, largeType: Bool = false,
+                     theme: AppThemeMode = .dark, categoriesExpanded: Bool = false) throws {
+            store.settings.appThemeMode = theme
             let view = SnapshotDetailView(selectedSection: section, content: content, contentHeight: height, windowWidth: width)
                 .environmentObject(store)
                 .environmentObject(engine)
@@ -281,12 +293,14 @@ struct MacSnapshotRenderer {
                 .environmentObject(premium)
                 .environmentObject(calendarSync)
                 .environment(\.macSnapshotRendering, true)
+                .environment(\.macSnapshotCategoriesExpanded, categoriesExpanded)
                 .dynamicTypeSize(largeType ? .accessibility2 : .large)
                 .frame(width: width, height: height)
             let url = outputDirectory.appendingPathComponent(name)
-            try render(view, to: url)
+            try render(view, to: url, theme: theme)
             try assertNonBlankImage(at: url)
-            try assertForegroundContent(at: url, minimumXRatio: 0.22)
+            try assertForegroundContent(at: url, minimumXRatio: 0.22, theme: theme)
+            try assertBackgroundTheme(at: url, theme: theme)
             try assertNoMissingControlPlaceholders(at: url)
             let image = try metadata(for: url)
             guard image.width == Int(width * 2), image.height == Int(height * 2) else {
@@ -294,7 +308,8 @@ struct MacSnapshotRenderer {
             }
             fixtures.append(UIFixtureMetadata(image: image, windowWidth: Int(width), windowHeight: Int(height),
                                               sidebarWidth: 190, contentWidth: Int(width) - 190,
-                                              state: state, dynamicType: largeType ? "accessibility2" : "large"))
+                                              state: state, dynamicType: largeType ? "accessibility2" : "large",
+                                              theme: theme.rawValue, categoriesExpanded: categoriesExpanded))
             print("Rendered UI fixture: \(name), window=\(Int(width))x\(Int(height)), state=\(state)")
         }
 
@@ -303,6 +318,31 @@ struct MacSnapshotRenderer {
         try capture("timer-920-full.png", section: .timer, content: AnyView(MacTimerDetailView()), width: 920, height: 1800, state: "idle, compact full page")
         try capture("schedule-1100.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskCategory: "产品")), width: 1100, state: "product category, task-first viewport")
         try capture("schedule-920.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskCategory: "产品")), width: 920, state: "product category, compact task-first viewport")
+        try capture("schedule-expanded.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskCategory: "产品")), width: 1100, height: 1400, state: "all categories expanded", categoriesExpanded: true)
+        try capture("timer-light.png", section: .timer, content: AnyView(MacTimerDetailView()), width: 1100, state: "light timer, collapsed categories", theme: .light)
+        try capture("schedule-light.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskCategory: "产品")), width: 1100, height: 1000, state: "light schedule, collapsed categories", theme: .light)
+        try capture("analytics-light.png", section: .analytics, content: AnyView(MacAnalyticsDetailView()), width: 1100, height: 1400, state: "light analytics", theme: .light)
+        try capture("settings-light.png", section: .settings, content: AnyView(MacSettingsDetailView()), width: 1100, height: 1100, state: "light settings, theme control", theme: .light)
+
+        store.settings.appThemeMode = .light
+        let miniLightURL = outputDirectory.appendingPathComponent("mini-light.png")
+        let miniLight = MacMiniTimerView(openDetails: { _ in })
+            .environmentObject(store)
+            .environmentObject(engine)
+            .environmentObject(notifications)
+            .environmentObject(premium)
+            .environment(\.macSnapshotRendering, true)
+            .environment(\.macSnapshotShowsQuickPanel, true)
+        try render(miniLight, to: miniLightURL, theme: .light)
+        try assertNonBlankImage(at: miniLightURL)
+        try assertForegroundContent(at: miniLightURL, minimumXRatio: 0, theme: .light)
+        try assertBackgroundTheme(at: miniLightURL, theme: .light)
+        try assertNoMissingControlPlaceholders(at: miniLightURL)
+        let miniMetadata = try metadata(for: miniLightURL)
+        guard miniMetadata.width == 1120, miniMetadata.height == 1000 else { throw SnapshotError("Light popover dimensions changed") }
+        fixtures.append(UIFixtureMetadata(image: miniMetadata, windowWidth: 560, windowHeight: 500,
+                                          sidebarWidth: 0, contentWidth: 560, state: "light popover and quick panel",
+                                          dynamicType: "large", theme: "light", categoriesExpanded: false))
 
         guard let longTask = store.addTask(title: "整理跨团队产品体验评审中的问题，完成下一阶段的可访问性与发布准备", category: "跨团队产品体验与设计系统", dueDate: nil, estimatedRounds: 2, accentHex: "#3DE8C5") else {
             throw SnapshotError("Could not create long title fixture")
@@ -422,11 +462,18 @@ struct MacSnapshotRenderer {
     }
 
     @MainActor
-    private static func render<V: View>(_ view: V, to url: URL) throws {
-        let renderer = ImageRenderer(content: view.preferredColorScheme(.dark))
-        renderer.scale = 2
-
-        guard let image = renderer.nsImage else {
+    private static func render<V: View>(_ view: V, to url: URL, theme: AppThemeMode = .dark) throws {
+        let scheme: ColorScheme = theme == .dark ? .dark : .light
+        guard let appearance = NSAppearance(named: theme == .dark ? .darkAqua : .aqua) else {
+            throw SnapshotError("Could not resolve the requested appearance")
+        }
+        var renderedImage: NSImage?
+        appearance.performAsCurrentDrawingAppearance {
+            let renderer = ImageRenderer(content: view.environment(\.colorScheme, scheme).preferredColorScheme(scheme))
+            renderer.scale = 2
+            renderedImage = renderer.nsImage
+        }
+        guard let image = renderedImage else {
             throw SnapshotError("ImageRenderer produced no NSImage for \(url.lastPathComponent)")
         }
         guard
@@ -469,7 +516,7 @@ struct MacSnapshotRenderer {
         }
     }
 
-    private static func assertForegroundContent(at url: URL, minimumXRatio: Double) throws {
+    private static func assertForegroundContent(at url: URL, minimumXRatio: Double, theme: AppThemeMode = .dark) throws {
         guard
             let image = NSImage(contentsOf: url),
             let tiffData = image.tiffRepresentation,
@@ -491,7 +538,8 @@ struct MacSnapshotRenderer {
                 guard let color = bitmap.colorAt(x: x, y: y) else { continue }
                 let brightness = max(color.redComponent, color.greenComponent, color.blueComponent)
                 let saturation = brightness - min(color.redComponent, color.greenComponent, color.blueComponent)
-                if brightness > 0.42 || saturation > 0.18 {
+                let hasTextContrast = theme == .dark ? brightness > 0.42 : brightness < 0.62
+                if hasTextContrast || saturation > 0.18 {
                     foregroundSamples += 1
                 }
             }
@@ -499,6 +547,18 @@ struct MacSnapshotRenderer {
 
         if foregroundSamples < 12 {
             throw SnapshotError("Rendered detail content appears empty: \(url.path)")
+        }
+    }
+
+    private static func assertBackgroundTheme(at url: URL, theme: AppThemeMode) throws {
+        guard let image = NSImage(contentsOf: url), let data = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: data),
+              let color = bitmap.colorAt(x: bitmap.pixelsWide - 4, y: bitmap.pixelsHigh - 4) else {
+            throw SnapshotError("Could not read the theme background")
+        }
+        let brightness = max(color.redComponent, color.greenComponent, color.blueComponent)
+        guard theme == .light ? brightness > 0.75 : brightness < 0.40 else {
+            throw SnapshotError("Rendered background does not match \(theme.rawValue): \(url.lastPathComponent)")
         }
     }
 
@@ -621,6 +681,8 @@ private struct UIFixtureMetadata: Codable {
     let contentWidth: Int
     let state: String
     let dynamicType: String
+    let theme: String
+    let categoriesExpanded: Bool
 }
 
 struct SnapshotError: Error, CustomStringConvertible {
@@ -632,6 +694,7 @@ struct SnapshotError: Error, CustomStringConvertible {
 }
 
 private struct SnapshotDetailView: View {
+    @EnvironmentObject private var store: FocusStore
     let selectedSection: SnapshotDetailSection
     let content: AnyView
     let contentHeight: CGFloat
@@ -662,7 +725,7 @@ private struct SnapshotDetailView: View {
                         .padding(.vertical, 8)
                         .padding(.horizontal, 10)
                         .background(
-                            section == selectedSection ? Color.white.opacity(0.12) : Color.clear,
+                            section == selectedSection ? MacTheme.track : Color.clear,
                             in: RoundedRectangle(cornerRadius: 8)
                         )
                 }
@@ -672,7 +735,7 @@ private struct SnapshotDetailView: View {
             .foregroundStyle(MacTheme.primaryText)
             .padding(18)
             .frame(width: 190, alignment: .topLeading)
-            .background(Color.black.opacity(0.18))
+            .background(MacTheme.sidebar)
 
             content
                 .frame(width: windowWidth - 190, height: contentHeight, alignment: .topLeading)
@@ -680,7 +743,7 @@ private struct SnapshotDetailView: View {
             .clipped()
         }
         .background(MacTheme.background)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(store.settings.appThemeMode == .dark ? .dark : .light)
     }
 }
 
