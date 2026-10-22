@@ -82,6 +82,8 @@ Agent A 写给 Agent B 的提示词必须明确：
 
 ## 当前实现轮次
 
+- v1.4.9：`md/prompt/v1（持续优化）/v1.4.9（可搜索分类筛选）.md`，前置 v1.4.8 已于 2026-10-22 在 `8e1dea3` 完成 push success 与 controlled-failure 双 profile 独立云端验收。当前实现分类栏搜索与选中项保留，等待本轮新 SHA 的构建、core、快照和 artifact 验收；v1.5 信息层级提示词保留为后续轮次。
+
 - v1.4.8：`md/prompt/v1（持续优化）/v1.4.8（自定义分类代表色统一）.md`。
 - 范围：统一预设/首个任务/session-only/fallback 代表色与分类规范化比较，增加共享对比文字色和活动快照色规则，覆盖 iOS/macOS 筛选、日期格、摘要、空态、任务/计划/计时/统计入口；CI 结果包额外绑定 `bootstrap`/`createManifest`，修复 fallback 摘要日志、成功 required index 和 prepare 日志 allowlist，并在 finalizer 失败时恢复一致 fallback 包；追加 required 缺失、recovery 核心证据、branch slug、阶段摘要和 skipped-only 负向合同。
 - 状态：2026-09-08 退回修复已落盘，待整合 push 和云端验收，尚未通过，不另开版本。最新已知 main commit `5df94397d3609dc891903274cf587f4000e3737b`，源 run `32653761542` / attempt `1` / `push/main` 为 failure：旧 semantic 合同失败、MacMini 非法 frame 引发 Mac 编译超时，iOS build success。artifact `9496921830`（`chronofocus-ci-v0.10-main-5df9439-run32653761542-attempt1`）已过期，下载 410；证据目录 `/private/tmp/chronofocus-c-review-32653761542-bXNQQQMj`，完整 size/digest 见 `update_log.md`。无法完成正式第四模式，不能以旧缓存替代。

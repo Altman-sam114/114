@@ -1532,6 +1532,10 @@ end
 check(checks, "verify_project existing category search contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Existing category search contracts verified.")
 end
+check(checks, "verify_project category filter search contracts") do
+  log = File.read(verify_log_path, encoding: "UTF-8")
+  log.include?("Category filter search contracts verified.") && log.include?("Category filter search behavior passed.")
+end
 check(checks, "verify_project schedule to timer handoff contracts") do
   File.read(verify_log_path, encoding: "UTF-8").include?("Schedule to timer handoff contracts verified.")
 end

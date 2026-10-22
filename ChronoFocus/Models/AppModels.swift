@@ -152,6 +152,7 @@ struct TaskCategoryPreset: Identifiable, Hashable {
     var id: String { title }
 
     static let fallbackAccentHex = "#3DE8C5"
+    static let searchThreshold = 6
 
     let title: String
     let accentHex: String
@@ -180,6 +181,13 @@ struct TaskCategoryPreset: Identifiable, Hashable {
 
     static func categoriesMatch(_ lhs: String, _ rhs: String) -> Bool {
         categoryComparisonKey(for: lhs) == categoryComparisonKey(for: rhs)
+    }
+
+    static func searchKey(for query: String) -> String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines).folding(
+            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
     }
 
     static func accentHex(for category: String, preferred: String? = nil) -> String {
@@ -256,6 +264,29 @@ struct TaskCategoryPreset: Identifiable, Hashable {
                 return left.index < right.index
             }
             .map(\.option)
+    }
+}
+
+struct TaskCategorySearchResult {
+    let showsSearch: Bool
+    let totalCount: Int
+    let matches: [TaskCategoryFilterOption]
+    let pinnedSelection: TaskCategoryFilterOption?
+
+    init(options: [TaskCategoryFilterOption], query: String, selectedCategory: String?) {
+        showsSearch = options.count >= TaskCategoryPreset.searchThreshold
+        totalCount = options.count
+        let key = showsSearch ? TaskCategoryPreset.searchKey(for: query) : ""
+        let filtered = key.isEmpty ? options : options.filter {
+            TaskCategoryPreset.categoryComparisonKey(for: $0.category).contains(key)
+        }
+        matches = filtered
+        if let selectedCategory,
+           !filtered.contains(where: { TaskCategoryPreset.categoriesMatch($0.category, selectedCategory) }) {
+            pinnedSelection = options.first { TaskCategoryPreset.categoriesMatch($0.category, selectedCategory) }
+        } else {
+            pinnedSelection = nil
+        }
     }
 }
 

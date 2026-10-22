@@ -12,6 +12,8 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 
 ## 1. 当前核心数据流
 
+分类筛选先由 `prioritizedFilterOptions` 生成原顺序/计数/颜色，再由 `TaskCategorySearchResult` 按共享 query key 过滤。至少 6 类显示搜索；少于 6 类忽略隐藏 query。匹配数不包含单独的 `pinnedSelection`；未匹配但仍存在的选中分类显示为“当前已选”，选中分类不存在时仍可由“全部”或已有摘要清除。query 仅由各 View 持有，不写 Store、不改变选择/任务/计划。iOS 两个筛选栏共用输入控件，Mac 两页共用自适应网格；快照环境只提供查询初始值，过滤逻辑一致。
+
 ```text
 用户操作 / 系统日历 / App 恢复
   -> SwiftUI View 或平台入口

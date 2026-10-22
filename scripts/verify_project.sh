@@ -1298,7 +1298,7 @@ raise "iOS preset exclusion must use normalized preset keys" unless ios_existing
 raise "Mac preset exclusion must use normalized preset keys" unless mac_existing_category_source.include?("let presetKeys = Set(TaskCategoryPreset.defaults.map { macCategoryComparisonKey($0.title) })") && mac_existing_category_source.include?("!presetKeys.contains(comparisonKey)")
 folding_options = "options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive]"
 raise "iOS category comparison must use POSIX folding" unless ios_existing_category_source.include?(folding_options) && ios_existing_category_source.include?("Locale(identifier: \"en_US_POSIX\")")
-raise "Mac category comparison must use POSIX folding" unless mac_existing_category_source.include?(folding_options) && mac_existing_category_source.include?("Locale(identifier: \"en_US_POSIX\")")
+raise "Mac category comparison must delegate to shared POSIX folding" unless mac_existing_category_source.include?("TaskCategoryPreset.categoryComparisonKey(for: category)") && preset_source.include?(folding_options) && preset_source.include?("Locale(identifier: \"en_US_POSIX\")")
 raise "iOS existing categories must preserve stable first occurrence order" unless ios_existing_category_source.include?("return store.taskCategories.compactMap") && ios_existing_category_source.include?("seenKeys.insert(comparisonKey).inserted")
 raise "Mac existing categories must preserve stable first occurrence order" unless mac_existing_category_source.include?("for category in categories") && mac_existing_category_source.include?("seenKeys.insert(comparisonKey).inserted") && mac_existing_category_source.include?("options.append(")
 raise "iOS representative color must use the shared store query" unless ios_existing_category_source.include?("private func existingCategoryTint(for option: ExistingCategoryOption)") && ios_existing_category_source.include?("store.representativeAccentHex(for: option.name)")
@@ -1358,8 +1358,9 @@ puts "Existing category usage context contracts verified."
 
 raise "iOS existing category search state missing" unless ios_existing_category_source.include?("@State private var existingCategorySearch = \"\"")
 raise "Mac existing category search state missing" unless mac_existing_category_source.include?("@State private var existingCategorySearchQuery: String") && mac_existing_category_source.include?("initialExistingCategorySearchQuery: String = \"\"")
-raise "iOS existing category search threshold must be six" unless ios_existing_category_source.include?("private let existingCategorySearchThreshold = 6") && ios_existing_category_source.include?("existingCategoryOptions.count >= existingCategorySearchThreshold")
-raise "Mac existing category search threshold must be six" unless File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift").include?("private let macExistingCategorySearchThreshold = 6") && mac_existing_category_source.include?("existingCategoryOptions.count >= macExistingCategorySearchThreshold")
+raise "Shared category search threshold must be six" unless preset_source.include?("static let searchThreshold = 6")
+raise "iOS existing category search threshold must be shared" unless ios_existing_category_source.include?("private let existingCategorySearchThreshold = TaskCategoryPreset.searchThreshold") && ios_existing_category_source.include?("existingCategoryOptions.count >= existingCategorySearchThreshold")
+raise "Mac existing category search threshold must be shared" unless File.read("ChronoFocusMac/Views/MacScheduleDetailView.swift").include?("private let macExistingCategorySearchThreshold = TaskCategoryPreset.searchThreshold") && mac_existing_category_source.include?("existingCategoryOptions.count >= macExistingCategorySearchThreshold")
 
 ios_existing_category_search_key_source = segment_slice(
   ios_existing_category_source,
@@ -1373,13 +1374,11 @@ mac_existing_category_search_key_source = segment_slice(
   "private func macExistingCategoryOptions",
   "Mac existing category search key source missing"
 )
-for source, platform in [[ios_existing_category_search_key_source, "iOS"], [mac_existing_category_search_key_source, "Mac"]]
-  raise "#{platform} existing category search must trim query whitespace" unless source.include?("trimmingCharacters(in: .whitespacesAndNewlines)")
-  raise "#{platform} existing category search must use width-insensitive folding" unless source.include?(folding_options)
-  raise "#{platform} existing category search must preserve an empty query" if source.include?("未分类")
+shared_search_key = function_slices_matching(preset_source, "searchKey").first
+raise "Shared search must trim and fold with POSIX while preserving empty queries" unless shared_search_key && shared_search_key.include?("trimmingCharacters(in: .whitespacesAndNewlines)") && shared_search_key.include?(folding_options) && shared_search_key.include?("Locale(identifier: \"en_US_POSIX\")") && !shared_search_key.include?("未分类")
+for source, platform, argument in [[ios_existing_category_search_key_source, "iOS", "rawQuery"], [mac_existing_category_search_key_source, "Mac", "query"]]
+  raise "#{platform} existing search must delegate only to shared query normalization" unless source.match?(/\{\s*TaskCategoryPreset\.searchKey\(for: #{argument}\)\s*\}\s*\z/)
 end
-raise "iOS existing category search must use POSIX locale" unless ios_existing_category_search_key_source.include?("locale: categoryComparisonLocale") && ios_existing_category_source.include?("categoryComparisonLocale = Locale(identifier: \"en_US_POSIX\")")
-raise "Mac existing category search must use POSIX locale" unless mac_existing_category_search_key_source.include?("Locale(identifier: \"en_US_POSIX\")")
 
 ios_filtered_existing_category_source = segment_slice(
   ios_existing_category_source,
@@ -1477,6 +1476,28 @@ snapshot_literal_categories = (
 raise "Mac schedule snapshot must seed at least six non-preset existing categories" unless snapshot_literal_categories.length >= 6
 raise "Mac schedule snapshot must use a nonempty existing category search query" unless mac_snapshot_source.match?(/MacScheduleDetailView\([\s\S]{0,500}?(?:initialExistingCategorySearchQuery|existingCategorySearchQuery):\s*\"[^\"]+\"/)
 puts "Existing category search contracts verified."
+
+[
+  ["ChronoFocus/Views/ScheduleView.swift", "private struct TaskCategoryFilterBar", "struct CategoryFilterSearchField"],
+  ["ChronoFocus/Views/TimerView.swift", "private struct TimerTaskCategoryFilterBar", "private struct TimerTaskCategoryFilterChip"],
+  ["ChronoFocusMac/Views/MacScheduleDetailView.swift", "struct MacCategoryFilterBar", "private struct MacCategoryFilterChip"]
+].each do |path, first, last|
+  bar = source_slice(path, first, last, "#{path} category search bar missing")
+  ["@State private var searchQuery", "TaskCategorySearchResult(options: categoryOptions", "selectedCategory: selectedCategory)", "searchResult.showsSearch", "ForEach(searchResult.matches)", "searchResult.pinnedSelection", "当前已选", "countProvider(nil)", "selectedCategory = nil", "toggleCategory(option.category)"].each do |token|
+    raise "#{path} missing filter search connection: #{token}" unless bar.include?(token)
+  end
+end
+ios_filter_search = source_slice("ChronoFocus/Views/ScheduleView.swift", "struct CategoryFilterSearchField", "private struct TaskCategoryFilterChip", "iOS shared search field missing")
+mac_filter_search = source_slice("ChronoFocusMac/Views/MacScheduleDetailView.swift", "struct MacCategoryFilterBar", "private struct MacCategoryFilterChip", "Mac search field missing")
+for source, platform in [[ios_filter_search, "iOS"], [mac_filter_search, "Mac"]]
+  ["TextField(\"搜索分类\"", "没有匹配的分类", "清除分类搜索", ".frame(minWidth: 44, minHeight: 44)", ".accessibilityHint", ".accessibilityInputLabels", ".fixedSize(horizontal: false, vertical: true)"].each do |token|
+    raise "#{platform} missing search control semantics: #{token}" unless source.include?(token)
+  end
+end
+raise "Mac snapshot search must use the same result derivation" unless mac_filter_search.include?("query: isSnapshotRendering ? snapshotSearchQuery : searchQuery") && mac_filter_search.include?("Text(snapshotSearchQuery.isEmpty ? \"搜索分类\" : snapshotSearchQuery)")
+raise "Mac search snapshot fixture missing" unless mac_snapshot_source.include?(".environment(\\.macSnapshotCategorySearch, \"产品\")")
+raise "Mac timer queue search connection missing" unless File.read("ChronoFocusMac/Views/MacTimerDetailView.swift").include?("MacCategoryFilterBar(")
+puts "Category filter search contracts verified."
 
 dashboard_source = File.read("ChronoFocus/Views/DashboardView.swift")
 ios_schedule_handoff_source = File.read("ChronoFocus/Views/ScheduleView.swift")
@@ -2443,6 +2464,7 @@ verify_log = verify_log.replace(
     "Category appearance contracts verified.\n",
     "Category appearance contracts verified.\nCategory breakdown normalization contracts verified.\n",
 )
+verify_log += "Category filter search contracts verified.\nCategory filter search behavior passed.\n"
 verify_log_path.write_text(verify_log, encoding="utf-8")
 
 stage_outcomes = {
@@ -5285,6 +5307,40 @@ if [[ "$(grep -c '^FAIL ' "$negative_existing_category_search_marker_output")" -
 fi
 rm -rf "$negative_existing_category_search_marker_fixture"
 rm -f "$negative_existing_category_search_marker_output"
+
+negative_category_filter_search_marker_fixture="$(mktemp -d)"
+negative_category_filter_search_marker_output="$(mktemp)"
+cp -R "$artifact_fixture"/. "$negative_category_filter_search_marker_fixture"/
+python3 - "$negative_category_filter_search_marker_fixture" <<'PY'
+import sys
+from pathlib import Path
+path = Path(sys.argv[1]) / "verify_project.log"
+marker = "Category filter search contracts verified.\n"
+source = path.read_text(encoding="utf-8")
+if source.count(marker) != 1:
+    raise SystemExit("Expected one filter search marker")
+path.write_text(source.replace(marker, ""), encoding="utf-8")
+PY
+stabilize_artifact_fixture_index "$negative_category_filter_search_marker_fixture"
+filter_search_archive="$artifact_archive_fixture_dir/negative-filter-search.zip"
+filter_search_metadata="$artifact_archive_fixture_dir/negative-filter-search-artifacts-api.json"
+bind_fixture_archive "$negative_category_filter_search_marker_fixture" "$filter_search_archive" "$filter_search_metadata" filter_search_size filter_search_digest
+if ruby scripts/validate_ci_artifact.rb "$negative_category_filter_search_marker_fixture" \
+  --commit fixture-sha --run-id 12345 --attempt 1 \
+  --archive "$filter_search_archive" --archive-size "$filter_search_size" --archive-digest "$filter_search_digest" \
+  --artifact-metadata "$filter_search_metadata" --run-metadata "$run_metadata_fixture" \
+  >"$negative_category_filter_search_marker_output" 2>&1; then
+  echo "Expected missing filter search marker to fail" >&2
+  exit 1
+fi
+grep -q "FAIL verify_project category filter search contracts" "$negative_category_filter_search_marker_output"
+assert_archive_passes "$negative_category_filter_search_marker_output"
+assert_artifact_metadata_passes "$negative_category_filter_search_marker_output"
+assert_run_metadata_passes_except "$negative_category_filter_search_marker_output"
+if [[ "$(grep -c '^FAIL ' "$negative_category_filter_search_marker_output")" -ne 1 ]]; then
+  cat "$negative_category_filter_search_marker_output" >&2
+  exit 1
+fi
 
 negative_schedule_timer_handoff_marker_fixture="$(mktemp -d)"
 negative_schedule_timer_handoff_marker_output="$(mktemp)"

@@ -162,10 +162,37 @@ struct MacCoreTests {
         )
         assert(coloredOptions.map(\.accentHex) == ["#FFB84D", "#3DE8C5", TaskCategoryPreset.fallbackAccentHex], "Expected filter options to reuse representative accents")
 
+        runCategoryFilterSearchTests()
         await runStartableTaskTests(store: store)
         await runTimerEngineBoundaryTests(store: store)
 
         print("Mac core tests passed.")
+    }
+
+    private static func runCategoryFilterSearchTests() {
+        let options = TaskCategoryPreset.prioritizedFilterOptions(
+            categories: ["Café", "产品", "生活", "ＣＡＦＥ设计", "归档", "阅读"],
+            countProvider: { ["产品": 4, "ＣＡＦＥ设计": 2][ $0 ] ?? 0 },
+            accentProvider: { _ in "#123456" }
+        )
+        let all = TaskCategorySearchResult(options: options, query: " \n ", selectedCategory: nil)
+        assert(all.showsSearch && all.totalCount == 6 && all.matches == options, "Empty search must preserve all option values and stable ordering")
+        let folded = TaskCategorySearchResult(options: options, query: " ＣＡＦé ", selectedCategory: "产品")
+        assert(folded.matches.map(\.category) == ["ＣＡＦＥ设计", "Café"], "Search must fold case, accents and width while retaining count priority")
+        assert(folded.totalCount == 6 && folded.matches.count == 2, "Pinned selection is not a matched result")
+        assert(folded.pinnedSelection == options[0], "A hidden selection must remain available with its original count and color")
+        let selectedMatch = TaskCategorySearchResult(options: options, query: "CAFE", selectedCategory: " café ")
+        assert(selectedMatch.pinnedSelection == nil, "Matching selected category must not be duplicated")
+        let empty = TaskCategorySearchResult(options: options, query: "不存在", selectedCategory: "产品")
+        assert(empty.matches.isEmpty && empty.pinnedSelection?.category == "产品", "No results must preserve a clearable selection")
+        let removed = TaskCategorySearchResult(options: options, query: "不存在", selectedCategory: "已删除")
+        assert(removed.matches.isEmpty && removed.pinnedSelection == nil, "Removed selection must not fabricate a counted option")
+        let shortOptions = Array(options.prefix(5))
+        let short = TaskCategorySearchResult(options: shortOptions, query: "不存在", selectedCategory: "产品")
+        assert(!short.showsSearch && short.matches == shortOptions && short.pinnedSelection == nil, "Dropping below six must disable hidden query filtering")
+        assert(TaskCategoryPreset.searchKey(for: " \n ").isEmpty, "Empty query must not become the uncategorized name")
+        assert(TaskCategorySearchResult(options: [], query: "x", selectedCategory: nil).totalCount == 0, "Empty categories must remain empty")
+        print("Category filter search behavior passed.")
     }
 
     @MainActor

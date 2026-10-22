@@ -93,6 +93,15 @@ struct MacSnapshotRenderer {
             throw SnapshotError("Mac calendar range overflow fixture requires more than four tasks")
         }
 
+        let searchFixture = TaskCategorySearchResult(
+            options: TaskCategoryPreset.prioritizedFilterOptions(categories: store.taskCategories, countProvider: { _ in 0 }),
+            query: "产品",
+            selectedCategory: "产品"
+        )
+        guard searchFixture.showsSearch, searchFixture.matches.map(\.category) == ["产品"] else {
+            throw SnapshotError("Category filter search fixture requires six categories and one visible product match")
+        }
+
         let detailPages: [(fileName: String, section: SnapshotDetailSection, content: AnyView)] = [
             (
                 "detail-timer.png",
@@ -128,6 +137,7 @@ struct MacSnapshotRenderer {
             .environmentObject(premium)
             .environmentObject(calendarSync)
             .environment(\.macSnapshotRendering, true)
+            .environment(\.macSnapshotCategorySearch, "产品")
             .frame(
                 width: 1100,
                 height: detailContentHeight

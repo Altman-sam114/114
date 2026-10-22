@@ -1,6 +1,6 @@
 import SwiftUI
 
-private let macExistingCategorySearchThreshold = 6
+private let macExistingCategorySearchThreshold = TaskCategoryPreset.searchThreshold
 
 struct MacScheduleDetailView: View {
     @EnvironmentObject private var store: FocusStore
@@ -322,10 +322,7 @@ private func macCategoryComparisonKey(_ category: String) -> String {
 }
 
 private func macExistingCategorySearchKey(_ query: String) -> String {
-    query.trimmingCharacters(in: .whitespacesAndNewlines).folding(
-        options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
-        locale: Locale(identifier: "en_US_POSIX")
-    )
+    TaskCategoryPreset.searchKey(for: query)
 }
 
 private func macExistingCategoryOptions(
@@ -1985,6 +1982,9 @@ private struct MacCategoryPresetPicker: View {
 
 struct MacCategoryFilterBar: View {
     @EnvironmentObject private var store: FocusStore
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
+    @Environment(\.macSnapshotCategorySearch) private var snapshotSearchQuery
+    @State private var searchQuery = ""
 
     let categories: [String]
     @Binding var selectedCategory: String?
@@ -1998,9 +1998,21 @@ struct MacCategoryFilterBar: View {
         )
     }
 
+    private var searchResult: TaskCategorySearchResult {
+        TaskCategorySearchResult(options: categoryOptions, query: isSnapshotRendering ? snapshotSearchQuery : searchQuery, selectedCategory: selectedCategory)
+    }
+
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
+            if searchResult.showsSearch {
+                searchField
+                Text(searchResult.matches.isEmpty ? "没有匹配的分类" : "分类 \(searchResult.matches.count)/\(searchResult.totalCount)")
+                    .font(.caption)
+                    .foregroundStyle(MacTheme.secondaryText)
+                    .accessibilityLabel(searchResult.matches.isEmpty ? "没有匹配的分类，共 \(searchResult.totalCount) 个分类" : "匹配 \(searchResult.matches.count) 个分类，共 \(searchResult.totalCount) 个")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), alignment: .leading)], alignment: .leading, spacing: 8) {
                 MacCategoryFilterChip(
                     title: "全部",
                     symbolName: "tray.full.fill",
@@ -2011,7 +2023,7 @@ struct MacCategoryFilterBar: View {
                     selectedCategory = nil
                 }
 
-                ForEach(categoryOptions) { option in
+                ForEach(searchResult.matches) { option in
                     MacCategoryFilterChip(
                         title: option.category,
                         symbolName: option.symbolName,
@@ -2024,7 +2036,46 @@ struct MacCategoryFilterBar: View {
                 }
             }
             .padding(.vertical, 1)
+            if let option = searchResult.pinnedSelection {
+                Text("当前已选")
+                    .font(.caption)
+                    .foregroundStyle(MacTheme.secondaryText)
+                MacCategoryFilterChip(title: option.category, symbolName: option.symbolName, count: option.count, isSelected: true, tintHex: option.accentHex) {
+                    toggleCategory(option.category)
+                }
+            }
         }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .accessibilityHidden(true)
+            if isSnapshotRendering {
+                Text(snapshotSearchQuery.isEmpty ? "搜索分类" : snapshotSearchQuery)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                TextField("搜索分类", text: $searchQuery)
+                    .textFieldStyle(.plain)
+                    .accessibilityLabel("搜索分类")
+                    .accessibilityHint("按名称查找分类，不改变当前筛选")
+                    .accessibilityInputLabels([Text("搜索分类")])
+            }
+            if !(isSnapshotRendering ? snapshotSearchQuery : searchQuery).isEmpty {
+                Button { searchQuery = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("清除分类搜索")
+                .accessibilityHint("显示全部分类，保留当前筛选")
+                .accessibilityInputLabels([Text("清除分类搜索"), Text("清除搜索")])
+            }
+        }
+        .frame(minHeight: 44)
+        .padding(.horizontal, 10)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func toggleCategory(_ category: String) {

@@ -26,7 +26,16 @@ private struct MacSnapshotShowsQuickPanelKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct MacSnapshotCategorySearchKey: EnvironmentKey {
+    static let defaultValue = ""
+}
+
 extension EnvironmentValues {
+    var macSnapshotCategorySearch: String {
+        get { self[MacSnapshotCategorySearchKey.self] }
+        set { self[MacSnapshotCategorySearchKey.self] = newValue }
+    }
+
     var macSnapshotRendering: Bool {
         get { self[MacSnapshotRenderingKey.self] }
         set { self[MacSnapshotRenderingKey.self] = newValue }

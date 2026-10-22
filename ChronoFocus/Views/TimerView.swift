@@ -641,6 +641,7 @@ private struct TaskRow: View {
 
 private struct TimerTaskCategoryFilterBar: View {
     @EnvironmentObject private var store: FocusStore
+    @State private var searchQuery = ""
 
     let categories: [String]
     @Binding var selectedCategory: String?
@@ -654,7 +655,28 @@ private struct TimerTaskCategoryFilterBar: View {
         )
     }
 
+    private var searchResult: TaskCategorySearchResult {
+        TaskCategorySearchResult(options: categoryOptions, query: searchQuery, selectedCategory: selectedCategory)
+    }
+
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if searchResult.showsSearch {
+                CategoryFilterSearchField(query: $searchQuery, matchedCount: searchResult.matches.count, totalCount: searchResult.totalCount)
+            }
+            categoryStrip
+            if let option = searchResult.pinnedSelection {
+                Text("当前已选")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryText)
+                TimerTaskCategoryFilterChip(title: option.category, symbolName: option.symbolName, count: option.count, isSelected: true, tintHex: option.accentHex) {
+                    toggleCategory(option.category)
+                }
+            }
+        }
+    }
+
+    private var categoryStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 TimerTaskCategoryFilterChip(
@@ -667,7 +689,7 @@ private struct TimerTaskCategoryFilterBar: View {
                     selectedCategory = nil
                 }
 
-                ForEach(categoryOptions) { option in
+                ForEach(searchResult.matches) { option in
                     TimerTaskCategoryFilterChip(
                         title: option.category,
                         symbolName: option.symbolName,

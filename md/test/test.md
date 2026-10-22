@@ -4,6 +4,8 @@
 
 ## 默认验证策略
 
+v1.4.9：云端 core 实际执行搜索空查询、大小写/变音/宽度 folding、排序/计数/颜色保留、未匹配选中项单独保留、不重复选中项、已删除分类、空结果和 6 -> 5 阈值回退。verifier 核对三个组件到四个页面的接线及无结果/44pt/辅助功能；validator 同时要求静态 marker 与 core 行为通过日志，缺静态 marker 的第四模式负例仅允许该项失败。正式 Mac 五图的详情页使用“产品”查询以检查可见结果；iOS 仍只有云端编译与共享 core 证据，不能称为已完成 iOS UI 交互测试。
+
 - 默认路径：静态审阅 -> commit 到 `main` -> `git push origin main` -> GitHub Actions 上传未加密 CI 结果包 -> 独立 Actions 正式第四模式 -> Agent C 用 `gh` 取证并审阅结论。
 - 当前硬性约束不允许本地项目测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；即使是文档-only 修改，也不把本地命令作为验收证据。
 - 云端 workflow 是唯一测试入口；本地终端输出不得替代最新 `origin/main` run、原始 API JSON、原始 ZIP 和 Agent C 复判。

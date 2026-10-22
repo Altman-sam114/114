@@ -825,6 +825,7 @@ private struct CalendarDayButton: View {
 
 private struct TaskCategoryFilterBar: View {
     @EnvironmentObject private var store: FocusStore
+    @State private var searchQuery = ""
 
     let categories: [String]
     @Binding var selectedCategory: String?
@@ -838,7 +839,28 @@ private struct TaskCategoryFilterBar: View {
         )
     }
 
+    private var searchResult: TaskCategorySearchResult {
+        TaskCategorySearchResult(options: categoryOptions, query: searchQuery, selectedCategory: selectedCategory)
+    }
+
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if searchResult.showsSearch {
+                CategoryFilterSearchField(query: $searchQuery, matchedCount: searchResult.matches.count, totalCount: searchResult.totalCount)
+            }
+            categoryStrip
+            if let option = searchResult.pinnedSelection {
+                Text("当前已选")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryText)
+                TaskCategoryFilterChip(title: option.category, symbolName: option.symbolName, count: option.count, isSelected: true, tintHex: option.accentHex) {
+                    toggleCategory(option.category)
+                }
+            }
+        }
+    }
+
+    private var categoryStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 TaskCategoryFilterChip(
@@ -851,7 +873,7 @@ private struct TaskCategoryFilterBar: View {
                     selectedCategory = nil
                 }
 
-                ForEach(categoryOptions) { option in
+                ForEach(searchResult.matches) { option in
                     TaskCategoryFilterChip(
                         title: option.category,
                         symbolName: option.symbolName,
@@ -869,6 +891,46 @@ private struct TaskCategoryFilterBar: View {
 
     private func toggleCategory(_ category: String) {
         selectedCategory = selectedCategory.map { store.categoryMatches($0, category) ? nil : category } ?? category
+    }
+}
+
+struct CategoryFilterSearchField: View {
+    @Binding var query: String
+    let matchedCount: Int
+    let totalCount: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .accessibilityHidden(true)
+                TextField("搜索分类", text: $query)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityLabel("搜索分类")
+                    .accessibilityHint("按名称查找分类，不改变当前筛选")
+                    .accessibilityInputLabels([Text("搜索分类")])
+                if !query.isEmpty {
+                    Button { query = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("清除分类搜索")
+                    .accessibilityHint("显示全部分类，保留当前筛选")
+                    .accessibilityInputLabels([Text("清除分类搜索"), Text("清除搜索")])
+                }
+            }
+            .frame(minHeight: 44)
+            .padding(.horizontal, 12)
+            .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
+            Text(matchedCount == 0 ? "没有匹配的分类" : "分类 \(matchedCount)/\(totalCount)")
+                .font(.caption)
+                .foregroundStyle(AppTheme.secondaryText)
+                .accessibilityLabel(matchedCount == 0 ? "没有匹配的分类，共 \(totalCount) 个分类" : "匹配 \(matchedCount) 个分类，共 \(totalCount) 个")
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
@@ -1183,7 +1245,7 @@ struct TaskEditorView: View {
     private let task: FocusTask?
     private let colors = ["#3DE8C5", "#A78BFA", "#FFB84D", "#FF6B6B", "#54A0FF"]
     private let categoryComparisonLocale = Locale(identifier: "en_US_POSIX")
-    private let existingCategorySearchThreshold = 6
+    private let existingCategorySearchThreshold = TaskCategoryPreset.searchThreshold
 
     private var existingCategoryOptions: [ExistingCategoryOption] {
         let presetKeys = Set(TaskCategoryPreset.defaults.map { categoryComparisonKey(for: $0.title) })
@@ -1543,12 +1605,7 @@ struct TaskEditorView: View {
     }
 
     private func existingCategorySearchKey(for rawQuery: String) -> String {
-        rawQuery
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .folding(
-                options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
-                locale: categoryComparisonLocale
-            )
+        TaskCategoryPreset.searchKey(for: rawQuery)
     }
 
     private func existingCategoryTint(for option: ExistingCategoryOption) -> Color {
