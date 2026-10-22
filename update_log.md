@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.5 CI资源修复：采样修复`5ca689d`的源`39814830962`持续queued、runner_name为空，GitHub注解提示macOS ARM容量限制；查阅actions/runner-images官方镜像目录确认GA `macos-26-intel`可用，将生产和UI workflow固定该标准标签。原ARM队列若被新SHA替代则取消以释放资源，不以取消或旧success冒充当前验收。全部云端测试和artifact判据保留，待新run执行。
+
 - 2026-10-23 v1.5 首轮C退回：`d62c4c0` / source `39812832551` 与 review `39813410900`均success，第四模式148 PASS / 0 FAIL、21项review fixtures、5项UI gate回归、真实主控core和双端build通过。独立UI run `39813410487`在`timer-920-full.png`触发旧28×28采样误报；C下载artifact `12439959148`至`/private/tmp/chronofocus-c-review-39812832551-zzg7mCSb`，实际长图完整呈现文字主控、队列和统计，无空白布局。改为96×96采样，保留亮度/饱和度阈值与至少12个前景点，并新增同尺寸空白图必须被拒绝的云端负例。全部9图与独立UI成功仍需新SHA验证；未放行本轮，未运行本机测试。
 
 - 2026-10-23 v1.5 实现待云端验收：iOS计时主控增加开始专注/开始休息/暂停/继续文字，提醒默认折叠，任务队列前置，辅助字体使用线性计时摘要；日程把任务置于计划和同步前。Mac共享自适应列布局处理920pt整窗，真实和快照任务顺序一致、暂停标题统一为“继续”，两位数分类数量不再折行。新增独立UI Evidence workflow、来源gate回归、9张辅助状态图与身份manifest，生产和辅助共用renderer编译脚本；新增真实主控core行为回归。关键文件：四个Timer/Schedule View、MacGlassPanel、core/renderer/verifier、ui-evidence.yml与对应A提示词；本机只静态审阅，未执行测试、编译、validator或配置解析。仍缺iOS运行交互、完整主题适配、正式签名/Bundle ID/商品和系统服务发行验证，不宣称发布。

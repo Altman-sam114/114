@@ -34,7 +34,7 @@ env:
 jobs:
   ci-results:
     name: Build, verify, and package results
-    runs-on: macos-latest
+    runs-on: macos-26-intel
     timeout-minutes: 45
 
     steps:

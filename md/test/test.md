@@ -133,6 +133,8 @@ Agent X 只负责主控调度，不改变每轮验证责任。每一个由 Agent
 
 ## 固定前缀 / 环境要求
 
+2026-10-23起生产与辅助UI使用官方GA `macos-26-intel` runner；GitHub的`macos-latest`当前指向ARM容量池，曾导致源run`39814830962`长时间未分配runner。仅固定云端资源与架构，不改变generic destination、实际Swift/core/快照或两端build判据。独立review继续Ubuntu只读第四模式。
+
 2026-09-26 起，云端 Static checks 在 fixture 前先执行 `for script in scripts/*.rb; do ruby -c "$script"; done` 和 `bash -n scripts/verify_project.sh`，避免 validator 语法错误延迟到正式复判。队列收起合同对应当前实现：iOS 观察筛选后的任务 ID，macOS 观察完整筛选任务内容，可覆盖数量未变但成员替换的情况；本机不执行这些检查。
 
 以下测试、YAML/配置解析、构建、simulator destination 和 validator 命令全部仅供 Actions runner 执行，不授权 C 或 B 在本机运行；本机只做读码、diff 审阅及 `gh` 取证。
