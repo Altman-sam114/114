@@ -649,6 +649,13 @@ class ReviewFixtures(unittest.TestCase):
         log.write_text("only ordinary output\n")
         self.assertEqual(excerpts("failure", log), ["tail: only ordinary output"])
         self.assertEqual(excerpts("success", log), [])
+        swift_log = self.directory / "swift-assertion.log"
+        swift_log.write_text("test_mac_core.swift:200: Assertion failed: corrupt input overwritten\n"
+                             "test.swift:18: Precondition failed: unexpected state\n" + "ordinary tail\n" * 20)
+        result = excerpts("failure", swift_log)
+        self.assertEqual(len(result), 2)
+        self.assertIn("corrupt input overwritten", result[0])
+        self.assertIn("unexpected state", result[1])
 
     def test_real_failure_fourth_mode_and_directory_binding_negative(self):
         fixture = self.directory / "package"

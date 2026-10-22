@@ -24,6 +24,7 @@ final class FocusStore: ObservableObject {
     }
 
     private let defaults: UserDefaults
+    private var isRestoring = true
     private let calendar = Calendar.current
 
     private enum Keys {
@@ -41,6 +42,7 @@ final class FocusStore: ObservableObject {
         sessions = Self.load([FocusSession].self, key: Keys.sessions, defaults: defaults) ?? []
         pomodoroPlan = Self.load([PomodoroPlanItem].self, key: Keys.pomodoroPlan, defaults: defaults) ?? []
         activeTimer = Self.load(ActiveTimerSnapshot.self, key: Keys.activeTimer, defaults: defaults)
+        isRestoring = false
 
         if settings.autoGeneratePomodoroPlan && pomodoroPlan.isEmpty {
             generatePomodoroPlanFromSchedule()
@@ -564,6 +566,7 @@ final class FocusStore: ObservableObject {
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {
+        guard !isRestoring else { return }
         do {
             let data = try JSONEncoder().encode(value)
             defaults.set(data, forKey: key)

@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.6首轮C退回：`c66403b` / source `39835523991`的Static checks和双端build成功，Project verification的真实core断言发现损坏JSON原文被覆盖。根因是`@Published`包装属性在初始化赋值时进入保存入口；新增仅限初始化的`isRestoring`保护，加载结束后恢复原有自动保存，保留原损坏数据断言。CI失败摘要额外识别Swift的Assertion failed/Precondition failed，既有excerpt fixture增加真实格式回归。UI矩阵因生产失败未获得可接受运行证据；未放行、未在本机复跑，待追加commit云端验证。
+
 - 2026-10-23 v1.6 实现待云端：新增`ChronoFocusUITests`原生target和scheme接线，Debug显式隔离fixture、真实按钮identifier、大字体计时排版；独立UI workflow扩为Mac/ios-390/ios-375矩阵，各平台包绑定同源身份，iOS保存xcresult、原始摘要和原生附件，要求每设备4/0/0与至少12图。FocusStore不再在空数据启动时添加演示任务，旧数据保留；core新增空数据重启和损坏JSON保留回归。关键文件为App/Timer/Schedule、FocusStore、project/scheme、UITests、两个iOS证据脚本与UI workflow。未运行任何本机测试/解析/编译；等待本次main push。真实购买/系统权限、完整Mac浅色、正式身份/签名与隐私发行材料仍未完成。
 
 - 2026-10-23 C完成v1.5：main `76c115fe8b6881d83269143a1c0d3d54eb98dbd1`，source `39825824608`、review `39827335267`、UI `39827335221`均success/attempt1。生产artifact `12447116681`（16362860 bytes，SHA-256 `e90d8f2ed8c9f8cde034eb96d6afe149456247db202fa7a2f594af3156cc6f78`），review evidence `12447377316`，UI `12447661946`（30813960 bytes，SHA-256 `966b016cfe35781e42ace4c452290be4deae8c0def5107ad8b545f220c1f49e5`），保留于`/private/tmp/chronofocus-c-review-39825824608-1PwmJMCt`。第四模式148 PASS / 0 FAIL、JUnit4/0/0、core和双端build成功；9图/fixture/实际checkout一致，1100pt日程无原覆盖，分类完整换行且当前产品分类预填正确，上传及最终freshness成功。C只gh取证读码/读图，无本机复跑；总目标继续v1.6。
