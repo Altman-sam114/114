@@ -325,10 +325,11 @@ struct CategoryOptionPresentation<Option: Identifiable> {
     init(matches: [Option], selectedOption: Option?, hasQuery: Bool, isExpanded: Bool, limit: Int) {
         let collapsedLimit = max(1, limit)
         canToggle = !hasQuery && matches.count > collapsedLimit
-        visibleOptions = hasQuery || isExpanded ? matches : Array(matches.prefix(collapsedLimit))
-        hiddenCount = matches.count - visibleOptions.count
+        let visible = hasQuery || isExpanded ? matches : Array(matches.prefix(collapsedLimit))
+        visibleOptions = visible
+        hiddenCount = matches.count - visible.count
         pinnedSelection = selectedOption.flatMap { selected in
-            visibleOptions.contains(where: { $0.id == selected.id }) ? nil : selected
+            visible.contains(where: { $0.id == selected.id }) ? nil : selected
         }
     }
 }

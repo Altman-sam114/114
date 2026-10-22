@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.7首轮C退回：`9b1d43f` / source`39856495737`最终failure，review`39857212135`拒绝失败push，UI`39857212254`正确skipped。Static checks通过，core及双端编译共同报`AppModels.swift:330 constant self.pinnedSelection captured by a closure before being initialized`；修复为先生成局部visible数组，再赋值所有存储属性，闭包不捕获未初始化self。原测试和门禁不变，禁止把continue-on-error的API步骤success当作业务成功；取证目录`/private/tmp/chronofocus-c-review-39856495737-dxNV64F9`，待追加commit云端验证。
+
 - 2026-10-23 v1.7实现待云端：Mac详情、设置和popover沿用appThemeMode，增加自适应背景/正文/轨道及浅色强调文字；分类筛选6项、快速新增已有分类4项，保留完整搜索、独立匹配数和前缀/搜索外当前选择，不新增持久化。共享core新增实际展示派生回归，源码合同增加有边界的单点破坏；Mac独立UI扩至15图（5浅色与分类展开），增加亮暗背景及浅色空白负例；iPhone增加主题切页测试，每设备5/0/0、至少15原生图。关键文件为AppModels、MacTheme/四页/Mini、UITests、renderer、verifier与UI workflow。仅静态读码/diff，未运行本机测试/解析/编译；正式身份、签名与真实系统服务仍待后续。
 
 - 2026-10-23 C完成v1.6：main`9f50b47673ca58dbabeb3a990db524aeabaff92e`，source`39848949801`、review`39849631678`、UI`39849632075`均success/attempt1。生产artifact`12457031592`（16361938 bytes，SHA-256 `271a227e39394d60fc90e8df7e4f2d1d5be7fc097a3a299b3e761637e362fbfc`），review evidence`12457330912`，UI Mac/390/375分别`12457675011`/`12456269351`/`12456039621`。证据位于`/private/tmp/chronofocus-c-review-39848949801-dlcyNacG`。第四模式148/0、JUnit4/0/0、共享core与双端build成功；两种iPhone各实际4 passed/0 failed/0 skipped、12张原生PNG和xcresult，Mac9图；上传及final freshness均通过。C读图确认SE默认主控完整露出、分类预填保存与大字体可达性，未运行本机测试。继续v1.7主题与分类密度，真实系统服务与发行身份仍待完成。
