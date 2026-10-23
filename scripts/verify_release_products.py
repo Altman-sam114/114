@@ -22,6 +22,25 @@ def validate_privacy_manifest(value, uses_defaults):
     require(value["NSPrivacyAccessedAPITypes"] == expected, "Required reason API declaration differs from actual use")
 
 
+def inspect_mac_icon(content, info):
+    name = info.get("CFBundleIconFile")
+    require(isinstance(name, str) and name and Path(name).name == name, "Missing Mac app icon identity")
+    path = content / "Resources" / (name if name.endswith(".icns") else name + ".icns")
+    require(path.is_file() and not path.is_symlink(), "Missing Mac app icon resource")
+    data = path.read_bytes()
+    require(16 < len(data) <= 20971520 and data[:4] == b"icns" and int.from_bytes(data[4:8], "big") == len(data), "Invalid Mac app icon container")
+    offset = 8
+    types = []
+    while offset < len(data):
+        require(offset + 8 <= len(data), "Truncated Mac icon entry")
+        size = int.from_bytes(data[offset + 4:offset + 8], "big")
+        require(size > 8 and offset + size <= len(data), "Invalid Mac icon entry size")
+        types.append(data[offset:offset + 4])
+        offset += size
+    require(b"ic10" in types, "Mac app icon must include its 1024px representation")
+    return {"fileName": path.name, "byteCount": len(data), "sha256": hashlib.sha256(data).hexdigest(), "contains1024pxRepresentation": True}
+
+
 def inspect_bundle(bundle, label, platform, uses_defaults, output):
     content = bundle / "Contents" if platform == "macosx" else bundle
     info = plistlib.loads((content / "Info.plist").read_bytes())
@@ -42,7 +61,7 @@ def inspect_bundle(bundle, label, platform, uses_defaults, output):
     require(privacy == plistlib.loads(source.read_bytes()), "Built privacy manifest differs from source")
     with (output / f"privacy-{label}.xcprivacy").open("xb") as privacy_copy:
         privacy_copy.write(privacy_path.read_bytes())
-    return {
+    report = {
         "name": label, "bundleIdentifier": info["CFBundleIdentifier"], "platform": platform,
         "minimumSystemVersion": minimum, "version": info["CFBundleShortVersionString"],
         "buildNumber": info["CFBundleVersion"], "architectures": sorted(architectures),
@@ -50,6 +69,9 @@ def inspect_bundle(bundle, label, platform, uses_defaults, output):
         "debugUIEntrypointsAbsent": True, "privacyManifest": privacy,
         "extensionPoint": info.get("NSExtension", {}).get("NSExtensionPointIdentifier"),
     }
+    if platform == "macosx":
+        report["appIcon"] = inspect_mac_icon(content, info)
+    return report
 
 
 def main():

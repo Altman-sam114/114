@@ -4,6 +4,12 @@
 
 ## 默认验证策略
 
+v1.9待云端：原生矩阵每设备6 passed/0 failed/0 skipped和24个具名场景；新增大字体长标题/长分类、三个44pt动作、实际编辑取消与只选择不启动的日程接力。主题测试保存暗色日程动作，C检查填色文字对比。`verify_ios_ui_evidence.py`从xcresulttool原始summary和附件manifest核对六个精确测试身份、24个场景归属/唯一性、同一UDID、完整物理宽高及PNG文件摘要，拒绝缺场景靠其他图补数、重复、错测试/设备、不安全路径、symlink和未绑定图片。Static checks执行`python3 scripts/test_ios_ui_evidence.py`的7项执行回归；现有来源gate回归增加生产github.sha固定接线。
+
+云端原生命令为`bash scripts/prepare_ios_ui_simulator.sh`和`bash scripts/run_ios_ui_tests.sh`：准备只发起boot，后者让300秒有界bootstatus与arm64 generic simulator `xcodebuild ... build-for-testing`重叠，两者均成功才`xcodebuild ... test-without-building`，仍禁用并行测试和自动重跑。保存boot/build/test完整命令与独立日志、ios-build.xcresult、ios.xcresult、原始summary/tests/attachments以及具名ios-evidence。Release检查真实Mac ICNS的资源身份、容器边界和1024px条目；单个源图同时声明iOS和Mac用途。本机不执行任何测试、配置解析或构建，等待新SHA所有链路和C实际读图，不能预称提速或发布通过。
+
+前置v1.8已于c8d23ac完成source39886732055/review39887444304/UI39887444200，148/0、JUnit4/0/0、Mac15图、两种iPhone各5/0/0与18图、Release通过。以下退回记录是历史定位依据，不能作为v1.9证据。
+
 v1.8原生返回761965d：source39883738694/review39884200139为success、148/0；UI39884200142的390pt为5/0/0，375pt为4/1/0。375pt仅在保存后寻找新任务时因单向滚动失败；通知普通浅色/大字体暗色动作均通过且C读图完整。reveal助手改按frame双向寻找，并对空frame有界遍历两方向，失败保留截图；不放宽isHittable、尺寸、边界、5/0/0或18图要求。等待追加修复SHA的完整云端验收。
 
 v1.8 C读原生图退回052fcb9：授权按钮在状态文字旁被挤成空白窄条，5/0/0与16图不足以证明动作可见。设置改纵排完整宽度按钮，主题测试验证浅色授权完整标签、可达性、至少120pt宽/44pt高与TabBar边界；辅助大字体测试在暗色设置覆盖同一入口，保存两张新增截图，每设备下限提高至18。原5个实际测试、全部生产/review/Release判据不变，C须看两种设备的普通浅色及大字体暗色授权附件；仍只接受追加修复SHA的云端证据。

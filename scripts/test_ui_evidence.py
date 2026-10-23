@@ -80,6 +80,8 @@ class UISourceGateTests(unittest.TestCase):
         self.assertNotIn("path: ci-results", WORKFLOW)
         production = Path(".github/workflows/ci-results.yml").read_text()
         self.assertEqual(production.count("uses: actions/upload-artifact@v6"), 1)
+        self.assertIn("|| github.sha }}", production)
+        self.assertNotIn("|| github.ref }}", production)
 
 
 if __name__ == "__main__":

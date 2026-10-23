@@ -164,6 +164,21 @@ enum AppTheme {
         })
     }
 
+    static func textOnReadableTint(_ tint: Color) -> Color {
+        let fill = UIColor(readableTint(tint))
+        return Color(UIColor { traits in
+            var red: CGFloat = 0
+            var green: CGFloat = 0
+            var blue: CGFloat = 0
+            var alpha: CGFloat = 0
+            guard fill.resolvedColor(with: traits).getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+                return .label
+            }
+            let hex = String(format: "#%02X%02X%02X", Int((red * 255).rounded()), Int((green * 255).rounded()), Int((blue * 255).rounded()))
+            return UIColor(Color(hex: TaskCategoryPreset.contrastTextHex(on: hex)))
+        })
+    }
+
     private static func dynamicColor(dark: UIColor, light: UIColor) -> Color {
         Color(UIColor { traitCollection in
             traitCollection.userInterfaceStyle == .dark ? dark : light

@@ -1,25 +1,106 @@
-"""Actions-only verification of actual xcresulttool results and native attachments."""
+"""Actions-only verification of xcresult summaries and named native attachments."""
 import hashlib
 import json
 import os
 from pathlib import Path
+import re
+import stat
 import struct
 
-root = Path(os.environ["UI_DIR"])
-summary = json.loads((root / "ios-summary.json").read_bytes())
-assert summary["totalTestCount"] == 5 and summary["passedTests"] == 5, "Expected five executed, passed UI tests"
-assert summary["failedTests"] == 0 and summary["skippedTests"] == 0, "Failed or skipped UI tests cannot pass"
-device = json.loads((root / "device.json").read_bytes())
-screenshots = []
-for image in sorted((root / "attachments").rglob("*.png")):
-    with image.open("rb") as source:
-        header = source.read(24)
-    assert header[:8] == b"\x89PNG\r\n\x1a\n", "Invalid screenshot PNG"
-    width, height = struct.unpack(">II", header[16:24])
-    assert width == device["pointWidth"] * device["scale"] and height > width, "Screenshot does not match the declared portrait device"
-    screenshots.append({"path": str(image.relative_to(root)), "width": width, "height": height,
-                        "byteCount": image.stat().st_size, "sha256": hashlib.sha256(image.read_bytes()).hexdigest()})
-assert len(screenshots) >= 18, "Missing native screenshot attachments"
-with (root / "ios-evidence.json").open("x") as output:
-    json.dump({"device": device, "summary": summary, "screenshots": screenshots}, output, indent=2)
-print(f"Native iOS UI evidence verified: 5 passed, 0 failed, 0 skipped; {len(screenshots)} screenshots")
+
+SCENES = {
+    "testFreeFocusLifecycle": ("timer-idle", "timer-running", "timer-paused", "timer-resumed", "timer-stopped"),
+    "testReminderDisclosure": ("reminders-expanded", "reminders-collapsed"),
+    "testThemeSwitchAcrossTabs": ("timer-light", "schedule-light", "settings-notifications-light", "settings-privacy-light", "timer-dark-restored", "schedule-actions-dark"),
+    "testScheduleCategoryPrefillAndSave": ("schedule-filtered", "task-editor-prefilled", "schedule-saved"),
+    "testAccessibilityTextWithLongTask": ("large-text-idle", "large-text-running", "large-text-notifications"),
+    "testScheduleAccessibilityAndActions": ("schedule-long-title", "schedule-long-category", "schedule-long-actions", "schedule-long-editor", "schedule-long-handoff"),
+}
+DEVICES = {
+    "com.apple.CoreSimulator.SimDeviceType.iPhone-13": (390, 844, 3),
+    "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation": (375, 667, 2),
+}
+
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
+def regular_file(path, limit):
+    info = path.lstat()
+    require(stat.S_ISREG(info.st_mode) and 0 < info.st_size <= limit, f"Invalid evidence file: {path.name}")
+    return path.read_bytes()
+
+
+def read_json(path):
+    return json.loads(regular_file(path, 1048576))
+
+
+def verify_evidence(root):
+    require((root / "attachments").is_dir() and not (root / "attachments").is_symlink(), "Invalid attachment directory")
+    summary = read_json(root / "ios-summary.json")
+    counts = {"totalTestCount": len(SCENES), "passedTests": len(SCENES), "failedTests": 0, "skippedTests": 0, "expectedFailures": 0}
+    for key, expected in counts.items():
+        require(type(summary.get(key)) is int and summary[key] == expected, f"Unexpected native test count: {key}")
+    require(summary.get("result") == "Passed" and summary.get("testFailures") == [], "Native tests did not pass cleanly")
+    device = read_json(root / "device.json")
+    expected_dimensions = DEVICES.get(device.get("deviceType"))
+    require(expected_dimensions is not None, "Unexpected native device type")
+    require(tuple(device.get(key) for key in ("pointWidth", "pointHeight", "scale")) == expected_dimensions, "Declared device dimensions differ")
+    configurations = summary.get("devicesAndConfigurations")
+    require(isinstance(configurations, list) and len(configurations) == 1, "Expected one native test device")
+    configuration = configurations[0]
+    require(configuration.get("device", {}).get("deviceId") == device.get("udid") and bool(device.get("udid")), "Test results belong to a different simulator")
+    require(configuration["device"].get("platform") == "iOS Simulator", "Expected simulator results")
+    for key in ("passedTests", "failedTests", "skippedTests", "expectedFailures"):
+        require(type(configuration.get(key)) is int and configuration[key] == counts[key], "Per-device test counts differ")
+
+    manifest = read_json(root / "attachments/manifest.json")
+    require(isinstance(manifest, list), "Missing native attachment manifest")
+    expected_tests = {f"ChronoFocusUITests/{name}()": scenes for name, scenes in SCENES.items()}
+    seen_tests = set()
+    seen_files = set()
+    screenshots = []
+    for group in manifest:
+        identifier = group.get("testIdentifier")
+        require(identifier in expected_tests and identifier not in seen_tests, "Unexpected or duplicate native test identity")
+        seen_tests.add(identifier)
+        seen_scenes = set()
+        for item in group["attachments"]:
+            filename = item.get("exportedFileName", "")
+            require(isinstance(filename, str) and filename not in ("", ".", "..") and Path(filename).name == filename and "\\" not in filename, "Unsafe attachment path")
+            if not filename.endswith(".png"):
+                continue
+            require(filename not in seen_files, "Duplicate screenshot file")
+            seen_files.add(filename)
+            name = item.get("suggestedHumanReadableName", "")
+            scene = next((scene for scene in expected_tests[identifier]
+                          if re.fullmatch(re.escape(scene) + r"_\d+_[0-9A-Fa-f-]{36}\.png", name)), None)
+            require(scene is not None and scene not in seen_scenes, "Unexpected or duplicate screenshot scene for this test")
+            seen_scenes.add(scene)
+            require(item.get("deviceId") == device["udid"], "Screenshot belongs to a different simulator")
+            data = regular_file(root / "attachments" / filename, 20971520)
+            require(len(data) >= 24 and data[:8] == b"\x89PNG\r\n\x1a\n" and data[12:16] == b"IHDR", "Invalid screenshot PNG")
+            width, height = struct.unpack(">II", data[16:24])
+            point_width, point_height, scale = expected_dimensions
+            require((width, height) == (point_width * scale, point_height * scale), "Screenshot does not match the declared portrait device")
+            screenshots.append({"testIdentifier": identifier, "scene": scene, "path": "attachments/" + filename,
+                                "width": width, "height": height, "byteCount": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+        require(seen_scenes == set(expected_tests[identifier]), f"Missing required screenshot scene: {identifier}")
+    require(seen_tests == set(expected_tests), "Missing required native test identity")
+    require({path.relative_to(root / "attachments").as_posix() for path in (root / "attachments").rglob("*.png")} == seen_files, "Unbound screenshot attachments")
+    return {"device": device, "summary": summary, "screenshots": screenshots}
+
+
+def main():
+    require(os.environ.get("GITHUB_ACTIONS") == "true", "Native evidence verification is Actions-only")
+    root = Path(os.environ["UI_DIR"])
+    evidence = verify_evidence(root)
+    with (root / "ios-evidence.json").open("x") as output:
+        json.dump(evidence, output, indent=2)
+    print(f"Native iOS UI evidence verified: {len(SCENES)} passed, 0 failed, 0 skipped; {len(evidence['screenshots'])} named screenshots")
+
+
+if __name__ == "__main__":
+    main()

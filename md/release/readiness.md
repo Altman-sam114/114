@@ -5,8 +5,8 @@
 ## 工程验证范围
 
 - 生产：静态检查、共享core执行回归、Mac/iOS Debug generic build、五张正式Mac图、JUnit阶段摘要、独立只读第四模式复判与原始ZIP/API证据。
-- UI：Mac15张布局图含亮暗主题、窄窗、长文本、分类展开、暂停/空态/只设开始；两种iPhone各5条原生测试，至少18张原生图，包含浅色设置数据说明及普通浅色/大字体暗色通知授权动作。
-- Release：云端执行Mac通用二进制（arm64+x86_64）与iOS arm64构建，读取三个真实bundle的身份/版本/最低系统/架构/二进制摘要；核对嵌入Live Activity版本和隐私资源，并拒绝主App中出现Debug UI测试入口。
+- UI：Mac15张布局图含亮暗主题、窄窗、长文本、分类展开、暂停/空态/只设开始；两种iPhone各6条原生测试、24个具名原生场景，包含通知动作、主题、大字体长任务/分类、编辑取消和日程到计时的只选择接力。测试身份、场景归属、UDID与完整尺寸均绑定，不能以其他图片补足数量。
+- Release：云端执行Mac通用二进制（arm64+x86_64）与iOS arm64构建，读取三个真实bundle的身份/版本/最低系统/架构/二进制摘要；核对Mac真实ICNS图标、嵌入Live Activity版本和隐私资源，并拒绝主App中出现Debug UI测试入口。
 - 系统边界：共享core验证日历完整读取权限的申请/拒绝/只写升级/await后复查/错误，以及Live Activity的未来、恰好到点、过期区间。系统真实授权和真机行为仍需独立实测。
 
 所有命令仅由GitHub Actions执行。生产入口为`bash scripts/verify_project.sh`，Release入口为`bash scripts/run_release_readiness.sh`，完整xcodebuild参数保存在对应artifact的`release-command.txt`。Release证据与UI在独立矩阵中上传，绑定源SHA/run/attempt和证据run/attempt，上传前后复查main；不加入生产结果包，也不上传DerivedData或完整未签名App。

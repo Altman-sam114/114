@@ -167,6 +167,7 @@ struct AnalyticsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.readableTint(.cyan))
+                    .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
                     .disabled(premium.isLoading)
 
                     Button {

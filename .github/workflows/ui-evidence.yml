@@ -125,7 +125,7 @@ jobs:
                         "uiWorkflow": "ChronoFocus UI Evidence", "uiWorkflowPath": ".github/workflows/ui-evidence.yml",
                         "uiWorkflowHeadSha": os.environ["GITHUB_SHA"], "platform": os.environ["UI_PLATFORM"], "phase": phase, "conclusion": "source verified"}
               if phase == "initial":
-                  artifact = f"chronofocus-ui-v1.8-{os.environ['UI_PLATFORM']}-{run['head_sha']}-source{run['id']}-attempt{run['run_attempt']}-ui{os.environ['GITHUB_RUN_ID']}-attempt{os.environ['GITHUB_RUN_ATTEMPT']}"
+                  artifact = f"chronofocus-ui-v1.9-{os.environ['UI_PLATFORM']}-{run['head_sha']}-source{run['id']}-attempt{run['run_attempt']}-ui{os.environ['GITHUB_RUN_ID']}-attempt{os.environ['GITHUB_RUN_ATTEMPT']}"
                   with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                       output.write(f"sha={run['head_sha']}\nartifact={artifact}\n")
               else:
@@ -144,7 +144,7 @@ jobs:
                           require(result["releaseEvidence"]["commitSha"] == run["head_sha"], "Release products are from a different source")
                       else:
                           result["nativeUIEvidence"] = load(ROOT / "ios-evidence.json")
-                          require(result["nativeUIEvidence"]["summary"]["passedTests"] == 5, "Missing native UI test results")
+                          require(result["nativeUIEvidence"]["summary"]["passedTests"] == 6, "Missing native UI test results")
                       with (ROOT / "ui-manifest.json").open("x") as output:
                           json.dump(result, output, indent=2)
               with (ROOT / (phase + "-gate-result.json")).open("x") as output:

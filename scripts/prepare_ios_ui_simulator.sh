@@ -25,11 +25,11 @@ device = subprocess.check_output(["xcrun", "simctl", "create", "ChronoFocus-" + 
                                   identifier, runtime["identifier"]], text=True, timeout=60).strip()
 (root / "simulator-udid.txt").write_text(device + "\n")
 metadata = {"udid": device, "deviceType": identifier, "runtime": runtime["identifier"],
-            "pointWidth": 390 if platform == "ios-390" else 375, "scale": 3 if platform == "ios-390" else 2}
+            "pointWidth": 390 if platform == "ios-390" else 375, "pointHeight": 844 if platform == "ios-390" else 667,
+            "scale": 3 if platform == "ios-390" else 2}
 with (root / "device.json").open("x") as output:
     json.dump(metadata, output, indent=2)
 with (root / "simulator-boot.log").open("x") as log:
     subprocess.run(["xcrun", "simctl", "boot", device], stdout=log, stderr=subprocess.STDOUT, check=True, timeout=60)
-    subprocess.run(["xcrun", "simctl", "bootstatus", device, "-b"], stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
-print(f"Simulator ready: {identifier}, runtime={runtime['identifier']}, udid={device}")
+print(f"Simulator boot requested: {identifier}, runtime={runtime['identifier']}, udid={device}")
 PY

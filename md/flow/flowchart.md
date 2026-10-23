@@ -1,5 +1,22 @@
 # 项目流程图
 
+读图说明：v1.9把待办内容和动作分开，改变展示不改变任务或计时真源；云端启动和构建可重叠，运行测试前必须同时成功，结果再按真实场景绑定。
+
+```mermaid
+flowchart LR
+  TASK[FocusTask与原Store入口] --> CONTENT[完整标题 / 可换行分类与时间]
+  CONTENT --> ACTION[带文字的专注 / 编辑 / 启停]
+  ACTION --> SIZE{字体较大}
+  SIZE -->|是| COLUMN[动作纵排 / 44pt及可达性]
+  SIZE -->|否| ROW[动作横排]
+  BOOT[云端设备boot请求] --> READY[bootstatus / 最多300秒]
+  BUILD[同源build-for-testing] --> BOTH{两个前置都成功}
+  READY --> BOTH
+  BOTH --> RUN[test-without-building / 6条实际测试]
+  RUN --> BIND[summary与manifest / 24具名场景 / UDID与尺寸]
+  BIND --> REVIEW[C核对新SHA并读原生图]
+```
+
 读图说明：v1.8把读取权限和过期倒计时的边界前置处理；Release工程检查复用既有来源门禁，但不把未签名构建等同于正式发行。
 
 ```mermaid

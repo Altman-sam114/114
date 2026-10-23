@@ -46,7 +46,7 @@ final class MacPremiumAccessService: ObservableObject {
         do {
             products = try await Product.products(for: [Self.proProductID])
             if products.isEmpty {
-                statusText = "未找到 Pro 商品。请确认 App Store Connect 或 StoreKit 配置。"
+                statusText = "暂时无法提供 Pro 购买，请稍后重试。"
             }
         } catch {
             statusText = "暂时无法载入 Pro 商品。"

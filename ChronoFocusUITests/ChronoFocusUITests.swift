@@ -81,6 +81,9 @@ final class ChronoFocusUITests: XCTestCase {
         expectation(for: NSPredicate(format: "value == %@", "暗色"), evaluatedWith: theme)
         waitForExpectations(timeout: 5)
         capture("timer-dark-restored")
+        app.tabBars.buttons["日程"].tap()
+        reveal(app.buttons["schedule.plan.generate"])
+        capture("schedule-actions-dark")
     }
 
     func testScheduleCategoryPrefillAndSave() {
@@ -130,6 +133,67 @@ final class ChronoFocusUITests: XCTestCase {
         app.tabBars.buttons["设置"].tap()
         revealNotificationAction()
         capture("large-text-notifications")
+    }
+
+    func testScheduleAccessibilityAndActions() {
+        launch(fixture: "schedule-long", largeType: true)
+        app.tabBars.buttons["日程"].tap()
+        let title = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "schedule.task.title.")).firstMatch
+        revealInsideViewport(title)
+        XCTAssertEqual(title.label, "整理产品体验评审与下一阶段任务")
+        XCTAssertGreaterThan(title.frame.height, 80)
+        capture("schedule-long-title")
+        let category = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "schedule.task.category.")).firstMatch
+        revealInsideViewport(category)
+        XCTAssertTrue(category.label.contains("跨团队产品体验与可访问性改进"))
+        XCTAssertGreaterThan(category.frame.height, 40)
+        capture("schedule-long-category")
+        for name in ["focus", "edit", "enable"] {
+            let action = taskAction(name)
+            revealInsideViewport(action)
+            XCTAssertTrue(action.isHittable)
+            XCTAssertGreaterThanOrEqual(action.frame.height, 44)
+        }
+        capture("schedule-long-actions")
+        let edit = taskAction("edit")
+        revealInsideViewport(edit)
+        edit.tap()
+        let field = app.textFields["task.editor.category"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertEqual(field.value as? String, "跨团队产品体验与可访问性改进")
+        capture("schedule-long-editor")
+        app.buttons["task.editor.cancel"].tap()
+        let focus = taskAction("focus")
+        revealInsideViewport(focus)
+        focus.tap()
+        let selectedTitle = app.staticTexts["timer.task-title"]
+        XCTAssertTrue(selectedTitle.waitForExistence(timeout: 5))
+        expectation(for: NSPredicate(format: "label == %@", "整理产品体验评审与下一阶段任务"), evaluatedWith: selectedTitle)
+        waitForExpectations(timeout: 5)
+        XCTAssertEqual(selectedTitle.label, "整理产品体验评审与下一阶段任务")
+        XCTAssertTrue(app.buttons["timer.primary"].label.hasPrefix("开始"), "Schedule handoff must select the task without starting it")
+        capture("schedule-long-handoff")
+    }
+
+    private func taskAction(_ name: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "schedule.task.\(name).")).firstMatch
+    }
+
+    private func revealInsideViewport(_ element: XCUIElement) {
+        reveal(element)
+        let top = app.navigationBars.firstMatch.frame.maxY + 6
+        let bottom = app.tabBars.firstMatch.frame.minY - 6
+        for _ in 0..<6 {
+            let frame = element.frame
+            if frame.minY >= top && frame.maxY <= bottom { break }
+            let distance: CGFloat = frame.minY < top ? -120 : 120
+            let center = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: app.frame.midX, dy: (top + bottom) / 2))
+            center.withOffset(CGVector(dx: 0, dy: distance / 2)).press(forDuration: 0.1, thenDragTo: center.withOffset(CGVector(dx: 0, dy: -distance / 2)), withVelocity: .slow, thenHoldForDuration: 0.1)
+        }
+        XCTAssertGreaterThanOrEqual(element.frame.minY, top)
+        XCTAssertLessThanOrEqual(element.frame.maxY, bottom)
+        XCTAssertGreaterThanOrEqual(element.frame.minX, app.frame.minX)
+        XCTAssertLessThanOrEqual(element.frame.maxX, app.frame.maxX)
     }
 
     private func launch(fixture: String, largeType: Bool = false) {

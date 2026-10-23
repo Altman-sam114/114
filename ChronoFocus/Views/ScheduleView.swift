@@ -172,6 +172,7 @@ struct ScheduleView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.readableTint(.cyan))
+                    .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
                     .frame(minHeight: 44)
 
                     Spacer()
@@ -220,6 +221,7 @@ struct ScheduleView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.readableTint(.cyan))
+                    .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
                     .disabled(calendarSync.isSyncing)
 
                     Text(calendarSync.statusText)
@@ -234,6 +236,7 @@ struct ScheduleView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.readableTint(.cyan))
+                    .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
                 }
             }
         }
@@ -261,6 +264,8 @@ struct ScheduleView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.readableTint(.cyan))
+                    .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
+                    .accessibilityIdentifier("schedule.plan.generate")
                     .accessibilityLabel("按日程生成番茄钟计划，当前\(remainingPlanCount)轮未完成")
                     .accessibilityInputLabels([
                         Text("按日程生成"),
@@ -1007,6 +1012,7 @@ private struct TaskCategoryFilterChip: View {
 
 private struct ScheduleTaskCell: View {
     @EnvironmentObject private var store: FocusStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let task: FocusTask
     let isTimerRunning: Bool
@@ -1127,100 +1133,119 @@ private struct ScheduleTaskCell: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button(action: onToggle) {
-                Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(AppTheme.readableTint(task.isDone ? .mint : categoryTint))
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .disabled(isActiveTask)
-            .accessibilityLabel(completionAccessibilityLabel)
-            .accessibilityInputLabels(completionInputLabels)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Button(action: onToggle) {
+                    Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(AppTheme.readableTint(task.isDone ? .mint : categoryTint))
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .disabled(isActiveTask)
+                .accessibilityLabel(completionAccessibilityLabel)
+                .accessibilityInputLabels(completionInputLabels)
 
-            VStack(alignment: .leading, spacing: 7) {
-                HStack {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(task.title)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(task.isDone ? AppTheme.secondaryText : AppTheme.primaryText)
-                        .lineLimit(1)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("schedule.task.title.\(task.id)")
                     Text(task.startMode.title)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(AppTheme.readableTint(categoryTint))
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
+            if task.startMode == .plannedRounds {
                 ProgressView(value: task.progress)
                     .tint(categoryTint)
-
-                HStack(spacing: 8) {
-                    Label(task.category, systemImage: categorySymbolName)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(AppTheme.readableTint(categoryTint))
-                        .lineLimit(1)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(categoryTint.opacity(0.14), in: Capsule())
-                        .accessibilityLabel("\(task.category)分类")
-                        .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
-                    if let dueDate = task.dueDate {
-                        Text(dueDate.scheduleTimeText)
-                    }
-                    if task.recurrence != .none {
-                        Text(task.recurrence.title)
-                    }
-                    if task.autoStartPomodoro {
-                        Text("自动开始")
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(AppTheme.secondaryText)
-                .lineLimit(1)
+                    .accessibilityLabel("已完成\(task.completedRounds)轮，共\(task.estimatedRounds)轮")
             }
 
-            VStack(spacing: 8) {
-                Button(action: onTimerHandoff) {
-                    Image(systemName: "timer")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(task.isEnabled && !task.isDone ? AppTheme.readableTint(categoryTint) : AppTheme.secondaryText)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .disabled(task.isDone || !task.isEnabled)
-                .accessibilityLabel(timerHandoffAccessibilityLabel)
-                .accessibilityHint(timerHandoffAccessibilityHint)
-                .accessibilityInputLabels(timerHandoffInputLabels)
+            Label(task.category, systemImage: categorySymbolName)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(AppTheme.readableTint(categoryTint))
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(categoryTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityLabel("\(task.category)分类")
+                .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
+                .accessibilityIdentifier("schedule.task.category.\(task.id)")
 
-                Button(action: onEnable) {
-                    Image(systemName: task.isEnabled ? "bolt.circle.fill" : "bolt.slash.circle")
-                        .font(.system(size: 19, weight: .semibold))
-                        .foregroundStyle(task.isEnabled ? AppTheme.readableTint(.cyan) : AppTheme.secondaryText)
+            VStack(alignment: .leading, spacing: 4) {
+                if let dueDate = task.dueDate {
+                    Label(dueDate.scheduleTimeText, systemImage: "calendar.badge.clock")
                 }
-                .buttonStyle(.plain)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-                .disabled(isActiveTask)
-                .accessibilityLabel(enableAccessibilityLabel)
-                .accessibilityInputLabels(enableInputLabels)
-
-                Button(action: onEdit) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(AppTheme.secondaryText)
+                if task.recurrence != .none {
+                    Label(task.recurrence.title, systemImage: "repeat")
                 }
-                .buttonStyle(.plain)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-                .disabled(isActiveTask)
-                .accessibilityLabel(editAccessibilityLabel)
-                .accessibilityInputLabels(editInputLabels)
+                if task.autoStartPomodoro {
+                    Label("自动开始", systemImage: "play.circle")
+                }
             }
-            .frame(width: 44)
+            .font(.caption)
+            .foregroundStyle(AppTheme.secondaryText)
+            .fixedSize(horizontal: false, vertical: true)
+
+            actionLayout {
+                focusButton
+                editButton
+                enableButton
+            }
+            .font(.subheadline.weight(.semibold))
         }
         .padding(12)
         .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var actionLayout: AnyLayout {
+        dynamicTypeSize >= .xxLarge ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+    }
+
+    private var focusButton: some View {
+        Button(action: onTimerHandoff) {
+            Label(isTimerRunning ? "查看" : "专注", systemImage: "timer")
+                .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(AppTheme.readableTint(categoryTint))
+        .foregroundStyle(AppTheme.textOnReadableTint(categoryTint))
+        .disabled(task.isDone || !task.isEnabled)
+        .accessibilityLabel(timerHandoffAccessibilityLabel)
+        .accessibilityHint(timerHandoffAccessibilityHint)
+        .accessibilityInputLabels(timerHandoffInputLabels)
+        .accessibilityIdentifier("schedule.task.focus.\(task.id)")
+    }
+
+    private var editButton: some View {
+        Button(action: onEdit) {
+            Label("编辑", systemImage: "pencil")
+                .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.bordered)
+        .tint(AppTheme.readableTint(.cyan))
+        .disabled(isActiveTask)
+        .accessibilityLabel(editAccessibilityLabel)
+        .accessibilityInputLabels(editInputLabels)
+        .accessibilityIdentifier("schedule.task.edit.\(task.id)")
+    }
+
+    private var enableButton: some View {
+        Button(action: onEnable) {
+            Label(task.isEnabled ? "停用" : "启用", systemImage: task.isEnabled ? "bolt.slash" : "bolt")
+                .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.bordered)
+        .tint(AppTheme.readableTint(.cyan))
+        .disabled(isActiveTask)
+        .accessibilityLabel(enableAccessibilityLabel)
+        .accessibilityInputLabels(enableInputLabels)
+        .accessibilityIdentifier("schedule.task.enable.\(task.id)")
     }
 }
 
@@ -1820,6 +1845,7 @@ private struct PomodoroPlanRow: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(AppTheme.readableTint(categoryTint))
+            .foregroundStyle(AppTheme.textOnReadableTint(categoryTint))
             .contentShape(Rectangle())
             .disabled(item.isCompleted || isRunning)
             .accessibilityLabel("开始\(item.taskTitle)计划番茄钟，\(item.timeRangeText)，第 \(item.roundNumber) 轮，\(item.category)分类")

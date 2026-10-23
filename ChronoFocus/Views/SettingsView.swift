@@ -11,10 +11,10 @@ struct SettingsView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
                     durationPanel
-                    automationPanel
-                    premiumPanel
-                    soundPanel
                     systemPanel
+                    automationPanel
+                    soundPanel
+                    premiumPanel
                     privacyPanel
                 }
                 .padding(18)
@@ -200,6 +200,7 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(AppTheme.readableTint(.cyan))
+                        .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .disabled(premium.isLoading)
                     }
@@ -236,6 +237,7 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.readableTint(.cyan))
+                    .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .disabled(premium.isLoading || premium.isProUnlocked)
 

@@ -12,6 +12,10 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 
 ## 1. 当前核心数据流
 
+v1.9展示与证据：iOS日程待办的标题/分类/时间和动作分层，标题与分类完整换行，三个带文字动作在较大字体下纵排，仍由原闭包调用Store或发出一次性handoff；不增加状态机或持久化。设置按时间、后台提醒、自动化、声音、Pro、隐私排序。原生实心按钮从实际主题填色调用共享对比色算法，分类原始色和已有badge规则保留。
+
+原生云端准备创建指定测试设备并发起boot；测试脚本并行等待有界bootstatus与build-for-testing，两者均成功才test-without-building。六个实际测试的summary与附件manifest按测试身份、24个场景、UDID和完整像素尺寸绑定，不接受只靠总数的证明。完整测试树及构建/启动/测试日志独立保留。生产checkout固定触发github.sha；Release实际读取Mac ICNS图标资源，独立证据结构与来源门禁保持。
+
 v1.8平台边界：两日历服务先拒绝并发同步，再经共享`CalendarReadAccessGate`读取真实授权。fullAccess允许读取，notDetermined/writeOnly请求完整访问后同时核对返回值和刷新状态，denied/restricted/unknown拒绝；异常也刷新平台状态。只有允许后才查询EventKit并通过既有Store导入。Live Activity锁屏/灵动岛共用`ActivityCountdownText`，暂停显示非负快照值，运行中只对未来日期构造`futureCountdownRange`，到点/过期显示00:00而不创建倒置区间。
 
 iOS设置通知卡片把状态说明与授权动作纵排，动作占满卡片内容宽度，避免说明文字挤空按钮；实际授权/系统设置跳转仍委托NotificationService。普通浅色与辅助大字体暗色原生测试覆盖同一入口，每设备18张附件供C读图。
@@ -311,7 +315,7 @@ Agent X 禁止跳过 Agent C artifact 验收，禁止把旧 run、旧 artifact �
 
 ## 8. 已确认的铁律
 
-辅助UI证据独立于生产唯一artifact：`ui-evidence.yml`仅响应成功生产push，各矩阵job经精确run/workflow/main和事件授权gate后才checkout源SHA。Mac共用`build_mac_snapshot_renderer.sh`生成15图；ios-390/ios-375由`run_ios_ui_tests.sh`执行原生UITest、保存xcresult、结构化摘要和附件，由`verify_ios_ui_evidence.py`核对每设备5/0/0及至少18张原生截图。release矩阵项执行双端未签名Release构建与真实产品检查，明确保留distributionReady=false。每包manifest区分source SHA/run/attempt、UI自身head SHA/run/attempt、平台和实际checkout。上传前后复查main/attempt；stale、测试跳过或上传失败不接受。不改变生产index、第四模式或唯一包判据，C分别取证读图与读取Release证据。
+辅助UI证据独立于生产唯一artifact：`ui-evidence.yml`仅响应成功生产push，各矩阵job经精确run/workflow/main和事件授权gate后才checkout源SHA。Mac共用`build_mac_snapshot_renderer.sh`生成15图；ios-390/ios-375由`run_ios_ui_tests.sh`执行原生UITest、保存构建/测试xcresult、结构化摘要、测试树和附件，由`verify_ios_ui_evidence.py`核对每设备6/0/0及24个具名截图场景。release矩阵项执行双端未签名Release构建与真实产品检查，明确保留distributionReady=false。每包manifest区分source SHA/run/attempt、UI自身head SHA/run/attempt、平台和实际checkout。上传前后复查main/attempt；stale、测试跳过或上传失败不接受。不改变生产index、第四模式或唯一包判据，C分别取证读图与读取Release证据。
 
 - Mac 版复用现有核心逻辑，不重写业务层。
 - `TimerEngine` 是唯一计时状态机。
