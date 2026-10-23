@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.8视觉C退回并追加修复：052fcb9的source39873185545/review39873985634/UI39873985773均success/attempt1，第四模式148/0、JUnit阶段4/0/0、权限/倒计时core、两端Debug及Release产品检查通过；Mac15图、两种iPhone各5/0/0与16图。但两份原生设置图中通知授权按钮被状态文字挤成空白窄条，不能放行。证据/private/tmp/chronofocus-c-review-39873185545-pigGWrDL，生产artifact12466873381、review12467870792、UI Mac/375/390/Release为12467378202/12468012292/12467957310/12467781722。修复将状态与动作纵排、明确按钮文字对比；主题和大字体原生测试增加完整标签、可达性、120pt宽/44pt高及TabBar边界并保存18图每设备。关键文件SettingsView、UITests、原生证据脚本及相关文档；本机仅静态审阅，未执行测试/解析/编译，待新main云端复验；发行身份和系统实测仍待人工。
+
 - 2026-10-23 v1.8实现待云端：日历两服务共享CalendarReadAccessGate，writeOnly先升级完整访问并在await后复查，拒绝并发同步；Live Activity共用安全倒计时组件，未来/到点/过期与暂停值不会构造倒置区间。新增实际core回归及平台接线单点破坏。三个bundle加入符合实际使用的隐私manifest，设置补数据说明和Mac购买反馈；iOS浅色强调文字/原生动作加深，mini合成后只施加外阴影，主题UI测试增设置数据说明截图（5/0/0、至少16图）。独立矩阵新增Release双端构建与真实资源/架构/最低系统/版本/Debug入口检查，明确未签名、distributionReady=false；生产唯一包/五图/第四模式不变。关键文件为Shared权限与Date helper、两日历服务、Live Activity、两端Views、pbx/resources、新Release脚本和md/release/readiness.md。仅静态审阅，无本机测试/解析/编译；真实发行资料与系统服务实测仍待人工。
 
 - 2026-10-23 C完成v1.7：main`66920580007a9f1cfdbd8cde12b3e8dae709bff2`，source`39862235024`、review`39863488160`、UI`39863487992`均success/attempt1；生产artifact`12462109578`（16413558 bytes，SHA-256 `ff432b673746c097f24fbdbe7d0ca47d3a59202c3b6eb4cc73edcbf8c544bce0`），review evidence`12463066701`，UI Mac/375/390为`12463670164`/`12463118105`/`12462868391`，证据`/private/tmp/chronofocus-c-review-39862235024-1mdagOgP`。第四模式148/0、JUnit4/0/0、分类展示core与双端build通过；15张Mac图含5浅色，mini亮暗面板内容可见且局部空白负例被拒绝；两种iPhone各5/0/0与15原生图、上传/freshness成功。C只读码/gh/读图无本机复跑。残余浅色iOS强调文字与mini重影列入v1.8发布UI收口，日历权限、Live Activity过期区间、Release和隐私发行准备继续。

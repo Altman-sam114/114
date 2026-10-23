@@ -63,7 +63,7 @@ flowchart LR
   GATE --> MAC[Mac同源renderer / 15图与亮暗空白负例]
   GATE --> PHONE1[iPhone13 / 390pt / 5个原生UI测试]
   GATE --> PHONE2[iPhoneSE3 / 375pt / 5个原生UI测试]
-  PHONE1 --> XC[xcresult与原始摘要 / 至少16张截图每设备]
+  PHONE1 --> XC[xcresult与原始摘要 / 至少18张截图每设备 / 通知动作亮暗及大字体]
   PHONE2 --> XC
   XC --> VERIFY[摘要5通过0失败0跳过 / 截图物理尺寸核对]
   MAC --> FRESH[上传前后复查main与attempt]

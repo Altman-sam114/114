@@ -64,6 +64,8 @@ final class ChronoFocusUITests: XCTestCase {
         XCTAssertTrue(app.buttons["schedule.add"].waitForExistence(timeout: 5))
         capture("schedule-light")
         app.tabBars.buttons["设置"].tap()
+        revealNotificationAction()
+        capture("settings-notifications-light")
         let privacy = app.descendants(matching: .any)["settings.privacy"].firstMatch
         reveal(privacy)
         let notice = app.staticTexts["settings.privacy.notice"]
@@ -125,6 +127,9 @@ final class ChronoFocusUITests: XCTestCase {
         primary.tap()
         waitForLabel(primary, prefix: "暂停")
         capture("large-text-running")
+        app.tabBars.buttons["设置"].tap()
+        revealNotificationAction()
+        capture("large-text-notifications")
     }
 
     private func launch(fixture: String, largeType: Bool = false) {
@@ -140,6 +145,18 @@ final class ChronoFocusUITests: XCTestCase {
         dimensions.name = "fixture-dimensions"
         dimensions.lifetime = .keepAlways
         add(dimensions)
+    }
+
+    private func revealNotificationAction() {
+        let action = app.buttons["settings.notifications.authorize"]
+        reveal(action)
+        if action.frame.maxY > app.tabBars.firstMatch.frame.minY { app.swipeUp() }
+        XCTAssertEqual(action.label, "授权")
+        XCTAssertTrue(action.isHittable)
+        XCTAssertGreaterThanOrEqual(action.frame.width, 120, "The notification action must not collapse beside the status message")
+        XCTAssertGreaterThanOrEqual(action.frame.height, 44)
+        XCTAssertLessThanOrEqual(action.frame.maxX, app.frame.maxX)
+        XCTAssertLessThanOrEqual(action.frame.maxY, app.tabBars.firstMatch.frame.minY)
     }
 
     private func reveal(_ element: XCUIElement) {

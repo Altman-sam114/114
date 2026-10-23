@@ -118,23 +118,28 @@ struct SettingsView: View {
                     Label("通知栏实时显示", systemImage: "livephoto")
                 }
 
-                HStack(spacing: 12) {
-                    Image(systemName: notificationStatusIcon)
-                        .foregroundStyle(AppTheme.readableTint(notificationStatusColor))
-                    Text(notificationStatusText)
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.secondaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .layoutPriority(1)
-                    Spacer()
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        Image(systemName: notificationStatusIcon)
+                            .foregroundStyle(AppTheme.readableTint(notificationStatusColor))
+                        Text(notificationStatusText)
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     if notifications.shouldShowAuthorizationAction {
-                        Button(notifications.authorizationActionTitle) {
+                        Button {
                             handleNotificationAuthorizationAction()
+                        } label: {
+                            Text(notifications.authorizationActionTitle)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color(uiColor: .systemBackground))
+                                .frame(maxWidth: .infinity, minHeight: 44)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(AppTheme.readableTint(.cyan))
-                        .frame(minHeight: 44)
+                        .accessibilityIdentifier("settings.notifications.authorize")
                     }
                 }
                 .padding(12)
