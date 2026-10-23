@@ -16,6 +16,8 @@ v1.8平台边界：两日历服务先拒绝并发同步，再经共享`CalendarR
 
 iOS设置通知卡片把状态说明与授权动作纵排，动作占满卡片内容宽度，避免说明文字挤空按钮；实际授权/系统设置跳转仍委托NotificationService。普通浅色与辅助大字体暗色原生测试覆盖同一入口，每设备18张附件供C读图。
 
+原生UITest控件寻找按实际frame选择滚动方向，空frame采用有界双向搜索；保存后任务位于当前视口上方也必须重新变为可点击，不能仅以元素存在替代实际可达性。寻找失败保存原生截图供退回定位。
+
 发布证据扩展为同一UI workflow的release矩阵项：验证源身份后checkout当前源SHA，双端Release构建后从真实App/appex核对隐私资源、身份/版本/最低系统/架构和Debug入口缺失，再绑定source/UI两套身份与freshness上传独立包。该工程检查没有签名发行能力，报告保留distributionReady=false；生产结果包与第四模式结构不变。
 
 v1.7展示派生：Mac详情与popover读取同一`store.settings.appThemeMode`；MacTheme按原生appearance提供背景、面板、正文、次要文字、边框和轨道，浅色强调文字单独加深，选中填色保留原分类色和共享对比文字。Mac筛选和快速新增从完整搜索结果再经`CategoryOptionPresentation`派生默认6/4项；非空查询显示全部匹配，当前选择从完整来源查找并在前缀/匹配之外单独保留，匹配计数不使用可见前缀。展开仅为View状态，查询/分类/选项身份变化恢复收起，iOS保留原横向栏。

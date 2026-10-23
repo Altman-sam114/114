@@ -161,10 +161,17 @@ final class ChronoFocusUITests: XCTestCase {
 
     private func reveal(_ element: XCUIElement) {
         XCTAssertTrue(element.waitForExistence(timeout: 5))
-        for _ in 0..<10 {
+        for attempt in 0..<16 {
             if element.isHittable { return }
-            app.swipeUp()
+            let frame = element.frame
+            let isAboveViewport = !frame.isEmpty && frame.maxY < app.frame.midY
+            if isAboveViewport || (frame.isEmpty && attempt >= 8) {
+                app.swipeDown(velocity: .slow)
+            } else {
+                app.swipeUp(velocity: .slow)
+            }
         }
+        capture("unreachable-control")
         XCTFail("Control could not be reached by scrolling: \(element.identifier)")
     }
 

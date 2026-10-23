@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-23 v1.8原生C再次退回：761965d的source39883738694/review39884200139均success/attempt1，148/0、JUnit4/0/0；UI39884200142的Mac15图及Release通过，390pt为5/0/0与18图，375pt为4/1/0。失败是testScheduleCategoryPrefillAndSave保存后新任务存在但单向reveal滚动无法找回；375pt通知普通浅色/大字体暗色测试均通过且C读图按钮完整。原始证据/private/tmp/chronofocus-c-review-39883738694-ucir9c_1，生产artifact12471587095（16384900 bytes，sha256:31986fcd9fafe4fa6c084ac048cda115d57b8b557f22c0a7afd40014d8581b51）、review12471732518、Mac12472330671、Release12471459481、390pt12471994126、375pt12472581343。仅修正UITest双向有界滚动并保存失败图，原断言与门禁不变；关键文件UITests及A/test/flow文档，无本机测试/解析/编译，待追加提交和最新main复验。v1.9提示词暂只设计，不提前实现。
+
 - 2026-10-23 v1.8视觉C退回并追加修复：052fcb9的source39873185545/review39873985634/UI39873985773均success/attempt1，第四模式148/0、JUnit阶段4/0/0、权限/倒计时core、两端Debug及Release产品检查通过；Mac15图、两种iPhone各5/0/0与16图。但两份原生设置图中通知授权按钮被状态文字挤成空白窄条，不能放行。证据/private/tmp/chronofocus-c-review-39873185545-pigGWrDL，生产artifact12466873381、review12467870792、UI Mac/375/390/Release为12467378202/12468012292/12467957310/12467781722。修复将状态与动作纵排、明确按钮文字对比；主题和大字体原生测试增加完整标签、可达性、120pt宽/44pt高及TabBar边界并保存18图每设备。关键文件SettingsView、UITests、原生证据脚本及相关文档；本机仅静态审阅，未执行测试/解析/编译，待新main云端复验；发行身份和系统实测仍待人工。
 
 - 2026-10-23 v1.8实现待云端：日历两服务共享CalendarReadAccessGate，writeOnly先升级完整访问并在await后复查，拒绝并发同步；Live Activity共用安全倒计时组件，未来/到点/过期与暂停值不会构造倒置区间。新增实际core回归及平台接线单点破坏。三个bundle加入符合实际使用的隐私manifest，设置补数据说明和Mac购买反馈；iOS浅色强调文字/原生动作加深，mini合成后只施加外阴影，主题UI测试增设置数据说明截图（5/0/0、至少16图）。独立矩阵新增Release双端构建与真实资源/架构/最低系统/版本/Debug入口检查，明确未签名、distributionReady=false；生产唯一包/五图/第四模式不变。关键文件为Shared权限与Date helper、两日历服务、Live Activity、两端Views、pbx/resources、新Release脚本和md/release/readiness.md。仅静态审阅，无本机测试/解析/编译；真实发行资料与系统服务实测仍待人工。
