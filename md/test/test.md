@@ -4,6 +4,8 @@
 
 ## 默认验证策略
 
+2026-10-25 v1.9退回：source39892148644/review39892757259通过148/0，但UI39892757283的375pt通知可达性失败、Release图标检查失败。通知助手改小步视口纠正，维持原断言；云端Release额外保存真实mac-app-icon.icns和mac-icon-entries.json后执行原1024px门禁。没有诊断证据前不猜测ICNS布局，也不宣布图标已修复。每设备6/0/0和24场景以及全部来源/上传/freshness要求保持。
+
 v1.9待云端：原生矩阵每设备6 passed/0 failed/0 skipped和24个具名场景；新增大字体长标题/长分类、三个44pt动作、实际编辑取消与只选择不启动的日程接力。主题测试保存暗色日程动作，C检查填色文字对比。`verify_ios_ui_evidence.py`从xcresulttool原始summary和附件manifest核对六个精确测试身份、24个场景归属/唯一性、同一UDID、完整物理宽高及PNG文件摘要，拒绝缺场景靠其他图补数、重复、错测试/设备、不安全路径、symlink和未绑定图片。Static checks执行`python3 scripts/test_ios_ui_evidence.py`的7项执行回归；现有来源gate回归增加生产github.sha固定接线。
 
 云端原生命令为`bash scripts/prepare_ios_ui_simulator.sh`和`bash scripts/run_ios_ui_tests.sh`：准备只发起boot，后者让300秒有界bootstatus与arm64 generic simulator `xcodebuild ... build-for-testing`重叠，两者均成功才`xcodebuild ... test-without-building`，仍禁用并行测试和自动重跑。保存boot/build/test完整命令与独立日志、ios-build.xcresult、ios.xcresult、原始summary/tests/attachments以及具名ios-evidence。Release检查真实Mac ICNS的资源身份、容器边界和1024px条目；单个源图同时声明iOS和Mac用途。本机不执行任何测试、配置解析或构建，等待新SHA所有链路和C实际读图，不能预称提速或发布通过。

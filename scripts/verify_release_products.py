@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import struct
 import subprocess
 
 
@@ -22,23 +23,33 @@ def validate_privacy_manifest(value, uses_defaults):
     require(value["NSPrivacyAccessedAPITypes"] == expected, "Required reason API declaration differs from actual use")
 
 
-def inspect_mac_icon(content, info):
+def inspect_mac_icon(content, info, output):
     name = info.get("CFBundleIconFile")
     require(isinstance(name, str) and name and Path(name).name == name, "Missing Mac app icon identity")
     path = content / "Resources" / (name if name.endswith(".icns") else name + ".icns")
     require(path.is_file() and not path.is_symlink(), "Missing Mac app icon resource")
     data = path.read_bytes()
+    with (output / "mac-app-icon.icns").open("xb") as icon_copy:
+        icon_copy.write(data)
     require(16 < len(data) <= 20971520 and data[:4] == b"icns" and int.from_bytes(data[4:8], "big") == len(data), "Invalid Mac app icon container")
     offset = 8
-    types = []
+    entries = []
     while offset < len(data):
         require(offset + 8 <= len(data), "Truncated Mac icon entry")
         size = int.from_bytes(data[offset + 4:offset + 8], "big")
         require(size > 8 and offset + size <= len(data), "Invalid Mac icon entry size")
-        types.append(data[offset:offset + 4])
+        payload = data[offset + 8:offset + size]
+        entry = {"type": data[offset:offset + 4].decode("ascii", errors="replace"), "byteCount": size}
+        if len(payload) >= 24 and payload[:8] == b"\x89PNG\r\n\x1a\n" and payload[12:16] == b"IHDR":
+            entry["pixelWidth"], entry["pixelHeight"] = struct.unpack(">II", payload[16:24])
+        entries.append(entry)
         offset += size
-    require(b"ic10" in types, "Mac app icon must include its 1024px representation")
-    return {"fileName": path.name, "byteCount": len(data), "sha256": hashlib.sha256(data).hexdigest(), "contains1024pxRepresentation": True}
+    with (output / "mac-icon-entries.json").open("x") as destination:
+        json.dump(entries, destination, indent=2)
+    print("Built Mac icon representations:", entries, flush=True)
+    require(any(item["type"] == "ic10" for item in entries), "Mac app icon must include its 1024px representation")
+    return {"fileName": path.name, "byteCount": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+            "contains1024pxRepresentation": True, "representations": entries}
 
 
 def inspect_bundle(bundle, label, platform, uses_defaults, output):
@@ -70,7 +81,7 @@ def inspect_bundle(bundle, label, platform, uses_defaults, output):
         "extensionPoint": info.get("NSExtension", {}).get("NSExtensionPointIdentifier"),
     }
     if platform == "macosx":
-        report["appIcon"] = inspect_mac_icon(content, info)
+        report["appIcon"] = inspect_mac_icon(content, info, output)
     return report
 
 

@@ -213,8 +213,7 @@ final class ChronoFocusUITests: XCTestCase {
 
     private func revealNotificationAction() {
         let action = app.buttons["settings.notifications.authorize"]
-        reveal(action)
-        if action.frame.maxY > app.tabBars.firstMatch.frame.minY { app.swipeUp() }
+        revealInsideViewport(action)
         XCTAssertEqual(action.label, "授权")
         XCTAssertTrue(action.isHittable)
         XCTAssertGreaterThanOrEqual(action.frame.width, 120, "The notification action must not collapse beside the status message")

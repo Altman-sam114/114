@@ -12,6 +12,8 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 
 ## 1. 当前核心数据流
 
+原生通知动作通过与日程动作相同的小步有界revealInsideViewport纠正到导航栏与TabBar之间，避免大字体整屏swipe越过目标；仍检查真实可达性和尺寸。独立Release在1024px门禁前保存真实ICNS和逐entry诊断，失败时也可取证，不能以构建成功代替资源验证。
+
 v1.9展示与证据：iOS日程待办的标题/分类/时间和动作分层，标题与分类完整换行，三个带文字动作在较大字体下纵排，仍由原闭包调用Store或发出一次性handoff；不增加状态机或持久化。设置按时间、后台提醒、自动化、声音、Pro、隐私排序。原生实心按钮从实际主题填色调用共享对比色算法，分类原始色和已有badge规则保留。
 
 原生云端准备创建指定测试设备并发起boot；测试脚本并行等待有界bootstatus与build-for-testing，两者均成功才test-without-building。六个实际测试的summary与附件manifest按测试身份、24个场景、UDID和完整像素尺寸绑定，不接受只靠总数的证明。完整测试树及构建/启动/测试日志独立保留。生产checkout固定触发github.sha；Release实际读取Mac ICNS图标资源，独立证据结构与来源门禁保持。
