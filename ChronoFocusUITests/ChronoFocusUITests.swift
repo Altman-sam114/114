@@ -255,8 +255,10 @@ final class ChronoFocusUITests: XCTestCase {
         let top = app.navigationBars.firstMatch.frame.maxY + 6
         let bottom = app.tabBars.firstMatch.frame.minY - 6
         let limit = min(maximumStep, (bottom - top) * 0.6)
-        let distance = max(-limit, min(limit, overflow))
+        let magnitude = min(limit, max(32, abs(overflow)))
+        let distance = overflow < 0 ? -magnitude : magnitude
         // The outer gutter avoids nested pickers and horizontal category scrollers.
+        // Tiny corrections must still cross the scroll recognizer's movement threshold.
         let center = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 10, dy: (top + bottom) / 2))
         center.withOffset(CGVector(dx: 0, dy: distance / 2)).press(forDuration: 0.1, thenDragTo: center.withOffset(CGVector(dx: 0, dy: -distance / 2)), withVelocity: .slow, thenHoldForDuration: 0.1)
     }

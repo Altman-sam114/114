@@ -22,7 +22,7 @@ flowchart LR
 ```mermaid
 flowchart LR
   TYPE[辅助字体] --> LAYOUT[日历标题与范围纵排 / 今天一行]
-  SEEK[原生寻找与视口纠正] --> DRAG[外层10pt留白 / 按溢出限幅]
+  SEEK[原生寻找与视口纠正] --> DRAG[外层10pt留白 / 最少32pt / 按视口和溢出限幅]
   DRAG --> BOUNDS[可达性与实时导航栏/TabBar边界]
   ICNS[真实ICNS原文] --> DECODE[系统sips解码兼容图]
   CAR[真实Assets.car] --> ASSET[assetutil原文 / 同名1024px图标]

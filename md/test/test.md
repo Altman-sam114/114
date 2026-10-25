@@ -4,13 +4,17 @@
 
 ## 默认验证策略
 
+当前v1.9门禁：两种iPhone各6 passed/0 failed/0 skipped、25个具名原生场景；包括大字体日历标题高度、长任务/分类、44pt操作、编辑取消和只选择不启动。全部frame边界保持严格；外层留白拖动最小32pt以跨过识别阈值，仍按视口/最大步长限幅和有界次数执行。38eca4e的375pt与Release已通过，但390pt微小拖动失败，修复SHA仍需全链复验。Release必须同时有ICNS原生解码及Assets.car同名1024×1024编译图，不能用源PNG代替；Static checks执行7项原生证据和8项隐私/图标回归。本机不执行任何测试/解析/编译/validator。
+
+### v1.9修复依据（历史）
+
 2026-10-25第二次退回：778f6f6的通知测试通过，但375pt日程中心拖动被Picker截获。寻找和精细对齐统一从外层留白发起并按视口限幅，保留实际frame上下左右与isHittable断言；日历标题/范围按辅助字体纵排，新增schedule-large-calendar和高度断言，当前每设备6/0/0、25必需场景。Release同时验证真实ICNS的原生解码和Assets.car同名1024×1024编译图，保留ICNS/解码PNG及日志/entry诊断/assetutil原文，静态阶段隐私3项加图标5项执行回归。不得用源PNG、其他名称的图、512px或错误尺寸类型替代。原ic10类型假设已由真实产物反证，不降低1024px编译资源要求。
 
 2026-10-25 v1.9退回：source39892148644/review39892757259通过148/0，但UI39892757283的375pt通知可达性失败、Release图标检查失败。通知助手改小步视口纠正，维持原断言；云端Release额外保存真实mac-app-icon.icns和mac-icon-entries.json后执行原1024px门禁。没有诊断证据前不猜测ICNS布局，也不宣布图标已修复。每设备6/0/0和24场景以及全部来源/上传/freshness要求保持。
 
-v1.9待云端：原生矩阵每设备6 passed/0 failed/0 skipped和24个具名场景；新增大字体长标题/长分类、三个44pt动作、实际编辑取消与只选择不启动的日程接力。主题测试保存暗色日程动作，C检查填色文字对比。`verify_ios_ui_evidence.py`从xcresulttool原始summary和附件manifest核对六个精确测试身份、24个场景归属/唯一性、同一UDID、完整物理宽高及PNG文件摘要，拒绝缺场景靠其他图补数、重复、错测试/设备、不安全路径、symlink和未绑定图片。Static checks执行`python3 scripts/test_ios_ui_evidence.py`的7项执行回归；现有来源gate回归增加生产github.sha固定接线。
+v1.9初始设计为每设备6 passed/0 failed/0 skipped和24个具名场景，现已提升为25场景；新增大字体长标题/长分类、三个44pt动作、实际编辑取消与只选择不启动的日程接力。主题测试保存暗色日程动作，C检查填色文字对比。`verify_ios_ui_evidence.py`从xcresulttool原始summary和附件manifest核对六个精确测试身份、场景归属/唯一性、同一UDID、完整物理宽高及PNG文件摘要，拒绝缺场景靠其他图补数、重复、错测试/设备、不安全路径、symlink和未绑定图片。Static checks执行`python3 scripts/test_ios_ui_evidence.py`的7项执行回归；现有来源gate回归增加生产github.sha固定接线。
 
-云端原生命令为`bash scripts/prepare_ios_ui_simulator.sh`和`bash scripts/run_ios_ui_tests.sh`：准备只发起boot，后者让300秒有界bootstatus与arm64 generic simulator `xcodebuild ... build-for-testing`重叠，两者均成功才`xcodebuild ... test-without-building`，仍禁用并行测试和自动重跑。保存boot/build/test完整命令与独立日志、ios-build.xcresult、ios.xcresult、原始summary/tests/attachments以及具名ios-evidence。Release检查真实Mac ICNS的资源身份、容器边界和1024px条目；单个源图同时声明iOS和Mac用途。本机不执行任何测试、配置解析或构建，等待新SHA所有链路和C实际读图，不能预称提速或发布通过。
+云端原生命令为`bash scripts/prepare_ios_ui_simulator.sh`和`bash scripts/run_ios_ui_tests.sh`：准备只发起boot，后者让300秒有界bootstatus与arm64 generic simulator `xcodebuild ... build-for-testing`重叠，两者均成功才`xcodebuild ... test-without-building`，仍禁用并行测试和自动重跑。保存boot/build/test完整命令与独立日志、ios-build.xcresult、ios.xcresult、原始summary/tests/attachments以及具名ios-evidence。Release检查真实Mac ICNS的资源身份/容器边界/原生解码和编译Assets.car同名1024px图标；单个源图同时声明iOS和Mac用途。本机不执行任何测试、配置解析或构建，等待新SHA所有链路和C实际读图，不能预称提速或发布通过。
 
 前置v1.8已于c8d23ac完成source39886732055/review39887444304/UI39887444200，148/0、JUnit4/0/0、Mac15图、两种iPhone各5/0/0与18图、Release通过。以下退回记录是历史定位依据，不能作为v1.9证据。
 
