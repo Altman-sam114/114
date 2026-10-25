@@ -4,6 +4,8 @@
 
 ## 默认验证策略
 
+2026-10-25第二次退回：778f6f6的通知测试通过，但375pt日程中心拖动被Picker截获。寻找和精细对齐统一从外层留白发起并按视口限幅，保留实际frame上下左右与isHittable断言；日历标题/范围按辅助字体纵排，新增schedule-large-calendar和高度断言，当前每设备6/0/0、25必需场景。Release同时验证真实ICNS的原生解码和Assets.car同名1024×1024编译图，保留ICNS/解码PNG及日志/entry诊断/assetutil原文，静态阶段隐私3项加图标5项执行回归。不得用源PNG、其他名称的图、512px或错误尺寸类型替代。原ic10类型假设已由真实产物反证，不降低1024px编译资源要求。
+
 2026-10-25 v1.9退回：source39892148644/review39892757259通过148/0，但UI39892757283的375pt通知可达性失败、Release图标检查失败。通知助手改小步视口纠正，维持原断言；云端Release额外保存真实mac-app-icon.icns和mac-icon-entries.json后执行原1024px门禁。没有诊断证据前不猜测ICNS布局，也不宣布图标已修复。每设备6/0/0和24场景以及全部来源/上传/freshness要求保持。
 
 v1.9待云端：原生矩阵每设备6 passed/0 failed/0 skipped和24个具名场景；新增大字体长标题/长分类、三个44pt动作、实际编辑取消与只选择不启动的日程接力。主题测试保存暗色日程动作，C检查填色文字对比。`verify_ios_ui_evidence.py`从xcresulttool原始summary和附件manifest核对六个精确测试身份、24个场景归属/唯一性、同一UDID、完整物理宽高及PNG文件摘要，拒绝缺场景靠其他图补数、重复、错测试/设备、不安全路径、symlink和未绑定图片。Static checks执行`python3 scripts/test_ios_ui_evidence.py`的7项执行回归；现有来源gate回归增加生产github.sha固定接线。

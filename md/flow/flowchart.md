@@ -13,8 +13,21 @@ flowchart LR
   BUILD[同源build-for-testing] --> BOTH{两个前置都成功}
   READY --> BOTH
   BOTH --> RUN[test-without-building / 6条实际测试]
-  RUN --> BIND[summary与manifest / 24具名场景 / UDID与尺寸]
+  RUN --> BIND[summary与manifest / 25具名场景 / UDID与尺寸]
   BIND --> REVIEW[C核对新SHA并读原生图]
+```
+
+读图说明：大字体日历先让标题和范围各占一行，寻找动作时在外层留白滚动；Mac图标同时核对可解码兼容图和真实编译资源，不把特定ICNS类型当成唯一存储位置。
+
+```mermaid
+flowchart LR
+  TYPE[辅助字体] --> LAYOUT[日历标题与范围纵排 / 今天一行]
+  SEEK[原生寻找与视口纠正] --> DRAG[外层10pt留白 / 按溢出限幅]
+  DRAG --> BOUNDS[可达性与实时导航栏/TabBar边界]
+  ICNS[真实ICNS原文] --> DECODE[系统sips解码兼容图]
+  CAR[真实Assets.car] --> ASSET[assetutil原文 / 同名1024px图标]
+  DECODE --> BOTH[两项均满足才通过Release图标检查]
+  ASSET --> BOTH
 ```
 
 读图说明：v1.8把读取权限和过期倒计时的边界前置处理；Release工程检查复用既有来源门禁，但不把未签名构建等同于正式发行。

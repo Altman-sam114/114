@@ -138,6 +138,14 @@ final class ChronoFocusUITests: XCTestCase {
     func testScheduleAccessibilityAndActions() {
         launch(fixture: "schedule-long", largeType: true)
         app.tabBars.buttons["日程"].tap()
+        let heading = app.descendants(matching: .any)["schedule.calendar.heading"].firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: 5))
+        XCTAssertLessThan(heading.frame.height, 160, "The calendar heading must not collapse into a column of individual characters")
+        let today = app.buttons["schedule.today"]
+        revealInsideViewport(today)
+        XCTAssertTrue(today.isHittable)
+        XCTAssertGreaterThanOrEqual(today.frame.height, 44)
+        capture("schedule-large-calendar")
         let title = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "schedule.task.title.")).firstMatch
         revealInsideViewport(title)
         XCTAssertEqual(title.label, "整理产品体验评审与下一阶段任务")
@@ -181,17 +189,22 @@ final class ChronoFocusUITests: XCTestCase {
 
     private func revealInsideViewport(_ element: XCUIElement) {
         reveal(element)
-        let top = app.navigationBars.firstMatch.frame.maxY + 6
-        let bottom = app.tabBars.firstMatch.frame.minY - 6
-        for _ in 0..<6 {
+        for _ in 0..<12 {
+            let top = app.navigationBars.firstMatch.frame.maxY + 6
+            let bottom = app.tabBars.firstMatch.frame.minY - 6
             let frame = element.frame
             if frame.minY >= top && frame.maxY <= bottom { break }
-            let distance: CGFloat = frame.minY < top ? -120 : 120
-            let center = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: app.frame.midX, dy: (top + bottom) / 2))
-            center.withOffset(CGVector(dx: 0, dy: distance / 2)).press(forDuration: 0.1, thenDragTo: center.withOffset(CGVector(dx: 0, dy: -distance / 2)), withVelocity: .slow, thenHoldForDuration: 0.1)
+            let overflow = frame.minY < top ? frame.minY - top : frame.maxY - bottom
+            scrollVertically(by: overflow, maximumStep: 160)
         }
-        XCTAssertGreaterThanOrEqual(element.frame.minY, top)
-        XCTAssertLessThanOrEqual(element.frame.maxY, bottom)
+        let frame = element.frame
+        let top = app.navigationBars.firstMatch.frame.maxY + 6
+        let bottom = app.tabBars.firstMatch.frame.minY - 6
+        if frame.minY < top || frame.maxY > bottom {
+            capture("viewport-alignment-failure")
+        }
+        XCTAssertGreaterThanOrEqual(frame.minY, top)
+        XCTAssertLessThanOrEqual(frame.maxY, bottom)
         XCTAssertGreaterThanOrEqual(element.frame.minX, app.frame.minX)
         XCTAssertLessThanOrEqual(element.frame.maxX, app.frame.maxX)
     }
@@ -229,13 +242,23 @@ final class ChronoFocusUITests: XCTestCase {
             let frame = element.frame
             let isAboveViewport = !frame.isEmpty && frame.maxY < app.frame.midY
             if isAboveViewport || (frame.isEmpty && attempt >= 8) {
-                app.swipeDown(velocity: .slow)
+                scrollVertically(by: -240)
             } else {
-                app.swipeUp(velocity: .slow)
+                scrollVertically(by: 240)
             }
         }
         capture("unreachable-control")
         XCTFail("Control could not be reached by scrolling: \(element.identifier)")
+    }
+
+    private func scrollVertically(by overflow: CGFloat, maximumStep: CGFloat = 240) {
+        let top = app.navigationBars.firstMatch.frame.maxY + 6
+        let bottom = app.tabBars.firstMatch.frame.minY - 6
+        let limit = min(maximumStep, (bottom - top) * 0.6)
+        let distance = max(-limit, min(limit, overflow))
+        // The outer gutter avoids nested pickers and horizontal category scrollers.
+        let center = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 10, dy: (top + bottom) / 2))
+        center.withOffset(CGVector(dx: 0, dy: distance / 2)).press(forDuration: 0.1, thenDragTo: center.withOffset(CGVector(dx: 0, dy: -distance / 2)), withVelocity: .slow, thenHoldForDuration: 0.1)
     }
 
     private func waitForLabel(_ element: XCUIElement, prefix: String) {

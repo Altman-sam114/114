@@ -14,7 +14,7 @@ SCENES = {
     "testThemeSwitchAcrossTabs": ("timer-light", "schedule-light", "settings-notifications-light", "settings-privacy-light", "timer-dark-restored", "schedule-actions-dark"),
     "testScheduleCategoryPrefillAndSave": ("schedule-filtered", "task-editor-prefilled", "schedule-saved"),
     "testAccessibilityTextWithLongTask": ("large-text-idle", "large-text-running", "large-text-notifications"),
-    "testScheduleAccessibilityAndActions": ("schedule-long-title", "schedule-long-category", "schedule-long-actions", "schedule-long-editor", "schedule-long-handoff"),
+    "testScheduleAccessibilityAndActions": ("schedule-large-calendar", "schedule-long-title", "schedule-long-category", "schedule-long-actions", "schedule-long-editor", "schedule-long-handoff"),
 }
 DEVICES = {
     "com.apple.CoreSimulator.SimDeviceType.iPhone-13": (390, 844, 3),

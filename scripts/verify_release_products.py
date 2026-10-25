@@ -23,6 +23,16 @@ def validate_privacy_manifest(value, uses_defaults):
     require(value["NSPrivacyAccessedAPITypes"] == expected, "Required reason API declaration differs from actual use")
 
 
+def validate_icon_catalog(value, name):
+    require(isinstance(value, list), "Invalid compiled icon catalog report")
+    matches = [item for item in value if isinstance(item, dict) and item.get("Name") == name
+               and item.get("AssetType") in ("Icon Image", "Image", "MultiSized Image")
+               and type(item.get("PixelWidth")) is int and type(item.get("PixelHeight")) is int
+               and (item["PixelWidth"], item["PixelHeight"]) == (1024, 1024)]
+    require(bool(matches), "Compiled Mac app icon must include its named 1024px representation")
+    return matches
+
+
 def inspect_mac_icon(content, info, output):
     name = info.get("CFBundleIconFile")
     require(isinstance(name, str) and name and Path(name).name == name, "Missing Mac app icon identity")
@@ -47,9 +57,31 @@ def inspect_mac_icon(content, info, output):
     with (output / "mac-icon-entries.json").open("x") as destination:
         json.dump(entries, destination, indent=2)
     print("Built Mac icon representations:", entries, flush=True)
-    require(any(item["type"] == "ic10" for item in entries), "Mac app icon must include its 1024px representation")
+
+    # Modern actool keeps the full-resolution icon in Assets.car, not the compatibility ICNS.
+    decoded_path = output / "mac-app-icon.png"
+    require(not decoded_path.exists(), "Mac icon decode destination already exists")
+    with (output / "mac-icon-decode.log").open("xb") as log:
+        subprocess.run(["/usr/bin/sips", "-s", "format", "png", str(path), "--out", str(decoded_path)],
+                       stdout=log, stderr=subprocess.STDOUT, check=True, timeout=30)
+    decoded = decoded_path.read_bytes()
+    require(len(decoded) >= 24 and decoded[:8] == b"\x89PNG\r\n\x1a\n" and decoded[12:16] == b"IHDR", "Mac icon cannot be decoded as a native image")
+    width, height = struct.unpack(">II", decoded[16:24])
+    require(width == height and width >= 128, "Mac compatibility icon is too small")
+
+    catalog_path = content / "Resources" / "Assets.car"
+    require(catalog_path.is_file() and not catalog_path.is_symlink(), "Missing compiled Mac asset catalog")
+    raw_catalog = subprocess.check_output(["/usr/bin/assetutil", "--info", str(catalog_path)], timeout=30)
+    with (output / "mac-icon-assetutil.json").open("xb") as destination:
+        destination.write(raw_catalog)
+    icon_name = info.get("CFBundleIconName", Path(name).stem)
+    require(isinstance(icon_name, str) and icon_name and Path(icon_name).name == icon_name, "Invalid compiled app icon name")
+    high_resolution = validate_icon_catalog(json.loads(raw_catalog), icon_name)
     return {"fileName": path.name, "byteCount": len(data), "sha256": hashlib.sha256(data).hexdigest(),
-            "contains1024pxRepresentation": True, "representations": entries}
+            "decodedPixelWidth": width, "decodedPixelHeight": height, "representations": entries,
+            "contains1024pxRepresentation": True, "highResolutionStorage": "Assets.car",
+            "assetCatalogSHA256": hashlib.sha256(catalog_path.read_bytes()).hexdigest(),
+            "assetCatalogName": icon_name, "highResolutionRenditions": high_resolution}
 
 
 def inspect_bundle(bundle, label, platform, uses_defaults, output):

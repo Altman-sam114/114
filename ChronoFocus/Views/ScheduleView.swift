@@ -6,6 +6,7 @@ struct ScheduleView: View {
     @EnvironmentObject private var notifications: NotificationService
     @EnvironmentObject private var premium: PremiumAccessService
     @EnvironmentObject private var calendarSync: CalendarSyncService
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var selectedDate = Date()
     @State private var calendarMode: CalendarDisplayMode = .week
     @State private var selectedCategory: String?
@@ -142,18 +143,20 @@ struct ScheduleView: View {
     private var calendarPanel: some View {
         GlassPanel {
             VStack(spacing: 14) {
-                HStack {
+                calendarHeaderLayout {
                     Label(calendarTitle, systemImage: "calendar")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
-                    Spacer()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("schedule.calendar.heading")
                     Picker("范围", selection: $calendarMode) {
                         ForEach(CalendarDisplayMode.allCases) { mode in
                             Text(mode.title).tag(mode)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 150)
+                    .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 150)
                 }
 
                 HStack {
@@ -174,6 +177,9 @@ struct ScheduleView: View {
                     .tint(AppTheme.readableTint(.cyan))
                     .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
                     .frame(minHeight: 44)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .accessibilityIdentifier("schedule.today")
 
                     Spacer()
 
@@ -193,6 +199,12 @@ struct ScheduleView: View {
                 }
             }
         }
+    }
+
+    private var calendarHeaderLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 12))
     }
 
     private var calendarSyncPanel: some View {

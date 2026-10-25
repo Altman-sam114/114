@@ -51,10 +51,10 @@ class NativeEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, message):
             verify_evidence(self.root)
 
-    def test_current_six_tests_and_twenty_four_bound_scenes(self):
+    def test_current_six_tests_and_twenty_five_bound_scenes(self):
         result = verify_evidence(self.root)
-        self.assertEqual(len(result["screenshots"]), 24)
-        self.assertEqual(len({item["scene"] for item in result["screenshots"]}), 24)
+        self.assertEqual(len(result["screenshots"]), 25)
+        self.assertEqual(len({item["scene"] for item in result["screenshots"]}), 25)
 
     def test_missing_scene_cannot_be_replaced_by_other_test(self):
         self.manifest[0]["attachments"][0], self.manifest[1]["attachments"][0] = self.manifest[1]["attachments"][0], self.manifest[0]["attachments"][0]

@@ -1,6 +1,6 @@
 # ChronoFocus
 
-当前迭代 v1.9：iOS待办标题和分类完整换行，专注/编辑/启停有文字动作，大字体纵排；常用通知设置前置，实心按钮按主题填色选择文字对比色。云端原生测试扩为每设备6条与24个具名场景，模拟器启动与测试构建重叠，生产checkout固定触发SHA，Release增加真实Mac图标资源检查。等待本轮新main云端验收；正式签名/身份、购买/权限/真机验证和发行资料见`md/release/readiness.md`。
+当前迭代 v1.9：iOS待办标题和分类完整换行，专注/编辑/启停有文字动作，大字体纵排；日历标题/范围在辅助字体纵排，常用通知设置前置，实心按钮按主题填色选择文字对比色。云端原生测试扩为每设备6条与25个具名场景，模拟器启动与测试构建重叠，生产checkout固定触发SHA，Release核对真实Mac兼容图解码与同名1024px编译资源。等待本轮新main云端验收；正式签名/身份、购买/权限/真机验证和发行资料见`md/release/readiness.md`。
 
 前置v1.8已在`c8d23ac`完成source`39886732055`、review`39887444304`、UI`39887444200`验收：148/0、两端Debug/Release、Mac15图、两种iPhone各5/0/0与18图。日历读取权限、Live Activity过期区间、隐私资源、设置数据说明及通知动作已收口；小屏保存任务的双向可达性也已通过。该结果仅适用于该SHA。
 
@@ -71,7 +71,7 @@ Pro 权益使用 StoreKit 2，iOS 和 macOS 共用商品 ID `com.example.ChronoF
 
 ## 云端验证（唯一测试路径）
 
-v1.9独立证据矩阵包含Mac、两种iPhone和Release：Mac15图，两种iPhone各6/0/0与24个按测试名、场景名及设备绑定的原生截图，Release检查Mac通用架构、ICNS图标与iOS/Live Activity真实产物和隐私资源。原生脚本先在云端并行等待bootstatus与build-for-testing，两个前置都成功才test-without-building，不自动重跑失败；完整命令、日志、两份xcresult和原始摘要/测试树/附件保留。生产唯一结果包和正式五图不变。Release使用CODE_SIGNING_ALLOWED=NO，报告明确distributionReady=false，不代表已完成签名、真实商品或发行审核。
+v1.9独立证据矩阵包含Mac、两种iPhone和Release：Mac15图，两种iPhone各6/0/0与25个按测试名、场景名及设备绑定的原生截图，Release检查Mac通用架构、ICNS原生解码与Assets.car同名1024px图标，以及iOS/Live Activity真实产物和隐私资源。原生脚本先在云端并行等待bootstatus与build-for-testing，两个前置都成功才test-without-building，不自动重跑失败；完整命令、日志、两份xcresult和原始摘要/测试树/附件保留。生产唯一结果包和正式五图不变。Release使用CODE_SIGNING_ALLOWED=NO，报告明确distributionReady=false，不代表已完成签名、真实商品或发行审核。
 
 生产 `ci-results.yml` 保留唯一结果包和独立第四模式复判；最新实现仍必须重新push、编译和验收。`ui-evidence.yml`仅响应授权当前main的成功push，矩阵执行Mac15图、iPhone13（390pt）、iPhoneSE3（375pt）原生UI测试和独立Release检查；每个job上传带平台及source/UI两套身份的独立证据，生产run仍精确一个artifact。上传前后复查来源与main，证据漂移、测试跳过/失败、附件缺失或上传失败均不能通过。iOS测试只覆盖已列出的App内路径，真实购买、系统授权与真机后台仍须独立验证。
 
