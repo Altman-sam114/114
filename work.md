@@ -16,8 +16,8 @@
 
 1. [完成] 静态审阅实际 UI、组件、原生测试、最近云端失败和发行边界，确定可独立验收的范围。
 2. [完成] 实现统一视觉/辅助功能组件，重构计时展示与任务行，保持平台和业务边界。
-3. [进行中] 静态审查 diff、更新必要行为文档，聚焦提交并推送 main。
-4. [ ] 跟进本轮云端生产/review/UI/Release，读取受影响截图与真实失败；必要修复追加提交，不自动重跑掩盖失败。
+3. [完成] 静态审查 diff、更新必要行为文档，聚焦提交并推送 main。
+4. [进行中] 跟进本轮云端生产/review/UI/Release，读取受影响截图与真实失败；必要修复追加提交，不自动重跑掩盖失败。
 5. [ ] 收口更新日志、明确未签名/真实服务边界，清空当前工作台并交付。
 
 ## 验证选择
@@ -36,4 +36,18 @@
 - 历史失败日志已读取并保存在 `/tmp/chronofocus-ui-baseline-Uifec3Dw/ios-375-failure.log`：375pt在保存受保护草稿、分类输入和任务搜索的AX snapshot查询超时，最终xcresult不完整；不是已证明的布局失败。键盘焦点改进尚不能宣称已解决该故障，须本轮原生复验。
 - `git diff --check` 第一遍发现Dashboard抽取后的EOF空行，已修复；第二遍通过。这仅是补丁格式检查，不是产品验证。
 - 已提交 `6a4181c`（18个本轮文件）；首次 `git push origin main` 因 `Error in the HTTP2 framing layer` 失败，GitHub main仍为基线，尚未触发本轮云端验证。追加静态检查发现：180分钟等更宽倒计时在小表盘需明确单行缩放，已补上，未运行本机测试。
-- 下一步：提交数字布局补丁，以命令级HTTP/1.1重试推送（不改全局配置），跟进精确SHA的完整云端链并读图。
+- 数字布局补丁已提交 `3f3bc56`；第二次命令级HTTP/1.1推送仍因45秒低速超时失败，没有修改全局配置。本轮产品验证仍未执行，不记通过。
+- 两次只读 `ls-remote` 成功后，第三次有界HTTP/1.1推送成功，`main`已到 `3f3bc5647dfc395b4fa757380ea05b205d02cac1`（两条本轮提交，无用户文件）。连接诊断保存在 `/tmp/chronofocus-git-connect-S4AhKuQ8`、`/tmp/chronofocus-git-push-gpNl88rO`，未改全局Git配置。
+- 云端生产 run `40694264906` / attempt 1 / SHA `3f3bc56` 已success（10m21s）：静态/项目验证、Mac与iOS Debug构建及结果包均成功。包 `12819396676`，16293486 bytes，`sha256:6dc795081ed1f0cdf75c4906b97874b2e0860862b236157927233f6f990b5970`；来源API已核对push/main/授权账号/固定workflow。
+- 独立review `40695848730` / attempt 1 已success，待下载正式第四模式结论；UI/Release `40695848801` 已queued，尚不能宣称原生UI或Release通过。
+- UI `40695848801` 的Mac与Release jobs已success（Mac 3m21s），两台iPhone已完成测试构建/启动并进入原生测试；仍等待完整UI结果及实际读图。
+- 首次 `gh run download` 超过6分钟没有落盘，已终止本会话的下载进程，保留空证据目录 `/tmp/chronofocus-release-ui-3f3bc56-HJPlpgbB`；改用Go HTTP/1传输在全新 `/tmp/chronofocus-evidence-http1-ZRtoVmZr` 下载独立review（其包已包含原生产ZIP，避免重复下载）。这不改变远端测试结果，也不在本机执行验证器。
+- 已读取独立review实际日志：正式第四模式 `validator_exit=0`、148 pass / 0 fail、source `40694264906/1/3f3bc56`、`product acceptance passed`。review artifact `12819666296`，32611611 bytes。
+- `gh run download` 两次无文件落盘，已终止自己的进程并保留目录；改成精确artifact ID的 `gh api .../zip` 可持续下载，无需改产品/CI或运行本机validator。新目录：review `/tmp/chronofocus-review-api-YofNGOVo`（下载中）、Mac `/tmp/chronofocus-mac-ui-api-c6VnCcNA`（下载中）；Release `/tmp/chronofocus-release-download-6Ktuygcx/release.zip` 已下载并仅读取报告。
+- Release实际报告同源，`engineeringChecksPassed=true`、`signed=false`、`distributionReady=false`；Mac arm64+x86_64、iOS/Live Activity arm64，隐私/版本/图标/Debug入口缺失检查均通过。正式身份、签名、支持/隐私URL和真实服务/真机仍待。
+- 最新状态：390pt原生测试步骤failure，收集也failure，正在上传失败现场；375pt仍在原生测试。不能以其他job成功宣称本轮UI通过，不自动重跑。
+- UI `40695848801` 最终failure：两设备均8 pass / 1 fail；真实job日志证明仅本轮新增的AX5队列“整张卡片须完整装入视口”断言失败（390pt底边855.83>755，375pt底边946>578），其余原8条全部通过，历史AX查询超时未复现。该断言不适用于可滚动完整长卡片，旧有主操作/通知/日程边界断言均保留。
+- 最小修正：新增队列检查改为真实可达+完整标签+展开高度+横向边界，并保留具名原图；补齐本轮统计单列的实际原生几何断言和截图。仍为9测试，场景从38增至40，严格场景归属及缺失拒绝fixture同步；分摊到原两条大字体测试，不增加超时、不重跑旧失败run。
+- 失败原生日志 `/tmp/chronofocus-ios390-failure-WxL5v22k`；390 artifact `12821145692`（352061946 bytes，sha256:3a9398bc8493b5eb0a5e27bfee3b8234b2473e3f5d603737c01bde825d991233），375 artifact `12821540053`（220023356 bytes，sha256:e9009d2efaf3f47ca610f46911670be2a9c3d961b823750e72d1bdc78e35b77b）。
+- 大ZIP传输确实极慢，保留32/62MB下载残留后改用精确artifact的HTTP Range仅读原始条目，保留原始206响应、central directory、选定summary/manifest/原PNG，不执行任何包内代码；这是静态取证，不在本机重跑产品或validator，也不声称部分下载通过完整ZIP验收。临时读取器在 `/tmp/chronofocus_read_artifact_entry.py`，不加入项目。正式完整包第四模式仍以Actions结论为准。
+- 下一步：静态审查最小修正并追加提交/推送新SHA；新SHA完整云端链期间完成必要原图读取，保留全部失败记录。

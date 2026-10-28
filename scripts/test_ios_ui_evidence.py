@@ -55,10 +55,10 @@ class NativeEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, message):
             verify_evidence(self.root)
 
-    def test_current_nine_tests_and_thirty_eight_bound_scenes(self):
+    def test_current_nine_tests_and_forty_bound_scenes(self):
         result = verify_evidence(self.root)
-        self.assertEqual(len(result["screenshots"]), 38)
-        self.assertEqual(len({item["scene"] for item in result["screenshots"]}), 38)
+        self.assertEqual(len(result["screenshots"]), 40)
+        self.assertEqual(len({item["scene"] for item in result["screenshots"]}), 40)
         self.assertEqual(len(result["executedTests"]), 9)
 
     def test_tree_missing_duplicate_wrong_identity_and_result_are_rejected(self):
@@ -108,6 +108,17 @@ class NativeEvidenceTests(unittest.TestCase):
         self.rejected("Missing required screenshot")
         self.manifest = original[1:]
         self.rejected("Missing required native test")
+
+    def test_accessibility_queue_and_metrics_scenes_are_required(self):
+        original = copy.deepcopy(self.manifest)
+        for scene in ("large-text-queue", "analytics-large-summary"):
+            self.manifest = copy.deepcopy(original)
+            group = next(group for group in self.manifest if any(
+                item["suggestedHumanReadableName"].startswith(scene + "_") for item in group["attachments"]
+            ))
+            group["attachments"] = [item for item in group["attachments"]
+                                    if not item["suggestedHumanReadableName"].startswith(scene + "_")]
+            self.rejected("Missing required screenshot")
 
     def test_duplicate_test_file_and_scene_are_rejected(self):
         original = copy.deepcopy(self.manifest)

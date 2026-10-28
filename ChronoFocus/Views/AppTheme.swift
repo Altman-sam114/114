@@ -83,6 +83,7 @@ struct GlassPanel<Content: View>: View {
 }
 
 struct MetricTile: View {
+    let identifier: String
     let title: String
     let value: String
     let symbol: String
@@ -113,5 +114,6 @@ struct MetricTile: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
         .accessibilityValue(value)
+        .accessibilityIdentifier(identifier)
     }
 }

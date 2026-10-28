@@ -139,9 +139,13 @@ final class ChronoFocusUITests: XCTestCase {
         waitForLabel(primary, prefix: "暂停")
         capture("large-text-running")
         let queueTask = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "timer.queue.task.")).firstMatch
-        revealInsideViewport(queueTask)
+        // AX5 cards may exceed the viewport; their content still scrolls and their hit area must be reachable.
+        reveal(queueTask)
         XCTAssertTrue(queueTask.label.contains("整理跨团队产品体验评审中的问题，完成下一阶段的可访问性与发布准备"))
         XCTAssertGreaterThan(queueTask.frame.height, 160, "The accessibility task row must expand instead of truncating the title")
+        XCTAssertGreaterThanOrEqual(queueTask.frame.minX, app.frame.minX)
+        XCTAssertLessThanOrEqual(queueTask.frame.maxX, app.frame.maxX)
+        capture("large-text-queue")
         app.tabBars.buttons["设置"].tap()
         revealNotificationAction()
         capture("large-text-notifications")
@@ -193,6 +197,15 @@ final class ChronoFocusUITests: XCTestCase {
         XCTAssertEqual(selectedTitle.label, "整理产品体验评审与下一阶段任务")
         XCTAssertTrue(app.buttons["timer.primary"].label.hasPrefix("开始"), "Schedule handoff must select the task without starting it")
         capture("schedule-long-handoff")
+        app.tabBars.buttons["分析"].tap()
+        let todayMetric = app.descendants(matching: .any)["analytics.summary.today"].firstMatch
+        let weekMetric = app.descendants(matching: .any)["analytics.summary.week"].firstMatch
+        revealInsideViewport(todayMetric)
+        XCTAssertTrue(weekMetric.exists)
+        XCTAssertGreaterThanOrEqual(weekMetric.frame.minY, todayMetric.frame.maxY, "Accessibility metrics must form a single column")
+        XCTAssertEqual(todayMetric.frame.minX, weekMetric.frame.minX, accuracy: 1)
+        XCTAssertGreaterThan(todayMetric.frame.width, app.frame.width - 70)
+        capture("analytics-large-summary")
     }
 
     func testTaskSearchAndCompletionFilters() {

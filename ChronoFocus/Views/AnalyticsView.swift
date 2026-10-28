@@ -89,10 +89,10 @@ struct AnalyticsView: View {
     private var summaryGrid: some View {
         let columns = Array(repeating: GridItem(.flexible(), alignment: .top), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2)
         return LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
-            MetricTile(title: "今日专注", value: store.todayFocusSeconds.hourMinuteText, symbol: "sun.max.fill", tint: .cyan)
-            MetricTile(title: "本周专注", value: store.weekFocusSeconds.hourMinuteText, symbol: "calendar", tint: .mint)
-            MetricTile(title: "累计轮数", value: "\(store.completedFocusRounds)", symbol: "number.circle.fill", tint: .orange)
-            MetricTile(title: premium.isProUnlocked ? "压力等级" : "Pro 统计", value: premium.isProUnlocked ? analysis.pressureLevel : "体验", symbol: premium.isProUnlocked ? "gauge.medium" : "lock.fill", tint: .purple)
+            MetricTile(identifier: "analytics.summary.today", title: "今日专注", value: store.todayFocusSeconds.hourMinuteText, symbol: "sun.max.fill", tint: .cyan)
+            MetricTile(identifier: "analytics.summary.week", title: "本周专注", value: store.weekFocusSeconds.hourMinuteText, symbol: "calendar", tint: .mint)
+            MetricTile(identifier: "analytics.summary.rounds", title: "累计轮数", value: "\(store.completedFocusRounds)", symbol: "number.circle.fill", tint: .orange)
+            MetricTile(identifier: "analytics.summary.insight", title: premium.isProUnlocked ? "压力等级" : "Pro 统计", value: premium.isProUnlocked ? analysis.pressureLevel : "体验", symbol: premium.isProUnlocked ? "gauge.medium" : "lock.fill", tint: .purple)
         }
     }
 
