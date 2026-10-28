@@ -646,7 +646,7 @@ struct ScheduleView: View {
     }
 
     private func deleteTask(_ task: FocusTask) {
-        guard !store.isActiveTask(task.id), store.task(for: task.id) != nil else { return }
+        guard store.activeTimer?.taskID != task.id, store.task(for: task.id) != nil else { return }
         store.deleteTasks(ids: [task.id])
         guard store.task(for: task.id) == nil else { return }
         notifications.cancelTaskReminder(taskID: task.id)

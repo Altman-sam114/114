@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-28 v1.10首轮C退回：97c433a的source40619890104失败，Static checks、共享core和Mac构建通过；iOS编译报告ScheduleView.swift:649调用private FocusStore.isActiveTask。review40620404944拒绝失败push，UI40620404911正确skipped。证据/private/tmp/chronofocus-c-review-40619890104-mjh61aqj，生产artifact12786543165（16360417 bytes，sha256:f14cb85220cfed59950ad7e0a1109ce49e2a9a7331c6f88b9c25ee82d5b604a0）。B将界面预检改读公开activeTimer.taskID，Store最终保护保持；不扩大私有接口、不放宽任何测试。本机仅读码/gh取证，待追加提交的完整云端复验。
+
 - 2026-10-28 v1.10实现待云端：共享TaskListStatus/TaskListFilter为非持久化状态、分类与规范化多词查询，两端提供未完成/已完成/全部计数、任务查找和完成恢复入口；iOS新增卡片更多菜单，两端删除先确认并复查活动身份，成功删除后才取消提醒，历史会话保留。原生新增搜索/完成恢复与删除确认/取消/活动保护两条测试，每设备8/0/0、34场景；证据核对真实tests树/设备/逐项结果与耗时，失败诊断单独保存并输出Actions Summary。Mac独立图增为16，新增已完成任务检索场景，生产五图/唯一包/第四模式不变。关键文件为AppModels、两端Schedule、App/UITests、core/renderer/原生证据脚本、UI workflow及A/README/test/flow/readiness。仅静态读码/diff，无本机测试、配置解析、编译、模拟器、浏览器或validator；等待本次main提交和全链C验收。发行身份、签名、商品/权限/真机实测仍待人工。
 
 - 2026-10-28 C完成v1.9：main49433bbec619ae861ca8c92094de89aded364664，source40171435650/review40171840812/UI40171840835均success/attempt1；第四模式148/0、JUnit4/0/0、共享core、双端Debug/Release检查通过。生产artifact12590526924（16386777 bytes，sha256:18568fd23c6a97cc4a410a9ad0ba5a63ecd304874383c0f202dfd2f6535d8340），review12590711788，UI Mac/375/390/Release分别12590611921/12590738052/12590224070/12590167982。两设备各6/0/0与25具名场景，Mac15图；C读取两种长任务动作、小屏日历/通知/浅色日程和计时，原滚动问题通过。原始证据/private/tmp/chronofocus-c-review-40171435650-h0t144w4；先前旧CLI不支持新下载flag的空part目录单独保留，不覆盖证据。只gh取证/读码/读图，无本机复跑；工程通过，distributionReady=false。
