@@ -1,5 +1,22 @@
 # 项目流程图
 
+读图说明：v1.10把完成状态、任务查询和分类作为独立的界面筛选；完成任务仍可找回。删除先确认并复查活动身份，原生证据则按真实执行的测试身份核对，不以总数替代。
+
+```mermaid
+flowchart LR
+  BASE[日期范围任务 / Mac全部任务] --> FILTER[共享TaskListFilter / 状态与分类 / 标题分类多词查询]
+  FILTER --> VIEW[计数与任务列表 / 未完成 / 已完成 / 全部]
+  VIEW --> RESTORE[原Store完成或恢复入口]
+  VIEW --> MORE[iOS更多 / Mac删除]
+  MORE --> CONFIRM{确认且当前非活动任务}
+  CONFIRM -->|是| DELETE[FocusStore删除任务与计划 / 保留会话]
+  DELETE --> REMINDER[确认删除成功后取消提醒]
+  CONFIRM -->|取消| KEEP[保持数据]
+  TREE[真实tests树 / 8个唯一Passed测试与设备耗时] --> EVIDENCE[关联summary与34具名场景]
+  EVIDENCE --> C[最新main云端C验收 / Mac16图 / Release]
+  TREE --> DIAG[成功或失败的逐测试诊断 / 不替代验收]
+```
+
 读图说明：v1.9把待办内容和动作分开，改变展示不改变任务或计时真源；云端启动和构建可重叠，运行测试前必须同时成功，结果再按真实场景绑定。
 
 ```mermaid

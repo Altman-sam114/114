@@ -4,7 +4,9 @@
 
 ## 默认验证策略
 
-当前v1.9门禁：两种iPhone各6 passed/0 failed/0 skipped、25个具名原生场景；包括大字体日历标题高度、长任务/分类、44pt操作、编辑取消和只选择不启动。全部frame边界保持严格；外层留白拖动最小32pt以跨过识别阈值，仍按视口/最大步长限幅和有界次数执行。38eca4e的375pt与Release已通过，但390pt微小拖动失败，修复SHA仍需全链复验。Release必须同时有ICNS原生解码及Assets.car同名1024×1024编译图，不能用源PNG代替；Static checks执行7项原生证据和8项隐私/图标回归。本机不执行任何测试/解析/编译/validator。
+当前v1.10门禁：两种iPhone各8 passed/0 failed/0 skipped、34个具名原生场景；旧25场景全部保留，新增任务搜索/空结果/完成找回/恢复，以及删除确认/取消/活动保护/成功删除。Mac独立16图，包含已完成任务检索；生产正式五图不变。共享core实际执行`Task list query behavior passed.`，覆盖状态/分类/多词查询组合、规范化、停用任务、恢复、空输入和顺序身份。`verify_ios_ui_evidence.py`核对原始tests树的精确8测试集合、逐项Passed、有限非负耗时和唯一设备，再关联summary与34场景附件。Static checks执行10项原生证据回归（包含测试树缺失/重复/错身份/跳过/失败/设备/耗时与失败诊断），保留8项隐私/图标回归。失败后仍通过`python3 scripts/verify_ios_ui_evidence.py --summary-only`保存诊断到独立证据和Actions Summary；诊断不能替代验收或改变失败结论。仅Actions执行，等待本轮新SHA云端结果。
+
+v1.9已在49433bb完成source40171435650/review40171840812/UI40171840835验收，148/0、两设备各6/0/0与25场景、Mac15图和Release通过；C读原生图确认32pt微小纠正有效。全部frame、可达性和尺寸边界保持严格，云端启动/构建并行、禁止失败重跑；Release仍须ICNS原生解码及Assets.car同名1024×1024编译图。本机不执行任何测试/解析/编译/validator。
 
 ### v1.9修复依据（历史）
 

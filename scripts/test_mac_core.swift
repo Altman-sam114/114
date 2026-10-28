@@ -164,6 +164,7 @@ struct MacCoreTests {
 
         runCategoryFilterSearchTests()
         runCategoryPresentationTests()
+        runTaskListFilterTests()
         await runStartableTaskTests(store: store)
         await runTimerEngineBoundaryTests(store: store)
         runPrimaryTimerActionTests()
@@ -172,6 +173,30 @@ struct MacCoreTests {
         runCountdownRangeTests()
 
         print("Mac core tests passed.")
+    }
+
+    @MainActor
+    private static func runTaskListFilterTests() {
+        let first = FocusTask(title: "Café RELEASE", category: "产品", dueDate: nil, estimatedRounds: 2, accentHex: "#3DE8C5")
+        var completed = FocusTask(title: "发布资料", category: "产品", dueDate: nil, estimatedRounds: 1, accentHex: "#3DE8C5")
+        completed.isDone = true
+        var disabled = FocusTask(title: "检查 ＣＡＦＥ 版本", category: "工程", dueDate: nil, estimatedRounds: 1, accentHex: "#54A0FF")
+        disabled.isEnabled = false
+        let tasks = [first, completed, disabled]
+        assert(TaskListFilter().apply(to: tasks).map(\.id) == [first.id, disabled.id], "Pending management must keep disabled tasks available")
+        assert(TaskListFilter(status: .completed).apply(to: tasks).map(\.id) == [completed.id], "Completed tasks must remain discoverable")
+        assert(TaskListFilter(status: .all).apply(to: tasks).map(\.id) == tasks.map(\.id), "All tasks must preserve order and identity")
+        assert(TaskListFilter(query: " cafe  产品 ").apply(to: tasks).map(\.id) == [first.id], "All query terms must match across title and category with normalized text")
+        assert(TaskListFilter(query: "ＣＡＦＥ").apply(to: tasks).map(\.id) == [first.id, disabled.id], "Search must fold width, case and diacritics")
+        assert(TaskListFilter(status: .all, query: "发布", category: " 产品 ").apply(to: tasks).map(\.id) == [completed.id], "Status, query and category must compose")
+        assert(TaskListFilter(status: .completed, query: "cafe").apply(to: tasks).isEmpty, "Search must not leak another status")
+        assert(TaskListFilter(query: "missing").apply(to: tasks).isEmpty, "Unmatched terms must return no results")
+        assert(TaskListFilter(query: " \n\t ").apply(to: tasks).map(\.id) == [first.id, disabled.id], "Whitespace search must preserve the current status")
+        var restored = tasks
+        restored[1].isDone = false
+        assert(TaskListFilter().apply(to: restored).map(\.id) == tasks.map(\.id), "Restored tasks must return to the pending list")
+        assert(TaskListFilter(status: .all).apply(to: []).isEmpty, "Empty input must stay empty")
+        print("Task list query behavior passed.")
     }
 
     @MainActor

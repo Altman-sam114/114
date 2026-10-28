@@ -8,7 +8,7 @@ import unittest
 import uuid
 import zlib
 
-from verify_ios_ui_evidence import SCENES, verify_evidence
+from verify_ios_ui_evidence import SCENES, verify_evidence, write_test_summary
 
 
 def png(width, height):
@@ -26,10 +26,14 @@ class NativeEvidenceTests(unittest.TestCase):
         (self.root / "attachments").mkdir()
         self.device = {"udid": "fixture-device", "deviceType": "com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation",
                        "pointWidth": 375, "pointHeight": 667, "scale": 2}
-        self.summary = {"totalTestCount": 6, "passedTests": 6, "failedTests": 0, "skippedTests": 0,
+        self.summary = {"totalTestCount": len(SCENES), "passedTests": len(SCENES), "failedTests": 0, "skippedTests": 0,
                         "expectedFailures": 0, "testFailures": [], "result": "Passed",
                         "devicesAndConfigurations": [{"device": {"deviceId": "fixture-device", "platform": "iOS Simulator"},
-                                                      "passedTests": 6, "failedTests": 0, "skippedTests": 0, "expectedFailures": 0}]}
+                                                      "passedTests": len(SCENES), "failedTests": 0, "skippedTests": 0, "expectedFailures": 0}]}
+        self.tree = {"devices": [{"deviceId": "fixture-device", "platform": "iOS Simulator"}],
+                     "testNodes": [{"nodeType": "Test Suite", "children": [
+                         {"nodeType": "Test Case", "nodeIdentifier": "ChronoFocusUITests/" + name + "()",
+                          "result": "Passed", "durationInSeconds": 1.0} for name in SCENES]}]}
         self.manifest = []
         image = png(750, 1334)
         for name, scenes in SCENES.items():
@@ -43,7 +47,7 @@ class NativeEvidenceTests(unittest.TestCase):
         self.save()
 
     def save(self):
-        for path, value in (("ios-summary.json", self.summary), ("device.json", self.device), ("attachments/manifest.json", self.manifest)):
+        for path, value in (("ios-summary.json", self.summary), ("ios-tests.json", self.tree), ("device.json", self.device), ("attachments/manifest.json", self.manifest)):
             (self.root / path).write_text(json.dumps(value))
 
     def rejected(self, message):
@@ -51,10 +55,48 @@ class NativeEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, message):
             verify_evidence(self.root)
 
-    def test_current_six_tests_and_twenty_five_bound_scenes(self):
+    def test_current_eight_tests_and_thirty_four_bound_scenes(self):
         result = verify_evidence(self.root)
-        self.assertEqual(len(result["screenshots"]), 25)
-        self.assertEqual(len({item["scene"] for item in result["screenshots"]}), 25)
+        self.assertEqual(len(result["screenshots"]), 34)
+        self.assertEqual(len({item["scene"] for item in result["screenshots"]}), 34)
+        self.assertEqual(len(result["executedTests"]), 8)
+
+    def test_tree_missing_duplicate_wrong_identity_and_result_are_rejected(self):
+        original = copy.deepcopy(self.tree)
+        self.tree["testNodes"][0]["children"].pop()
+        self.rejected("Missing executed native test")
+        self.tree = copy.deepcopy(original)
+        self.tree["testNodes"][0]["children"].append(copy.deepcopy(self.tree["testNodes"][0]["children"][0]))
+        self.rejected("duplicate executed test")
+        self.tree = copy.deepcopy(original)
+        self.tree["testNodes"][0]["children"][0]["nodeIdentifier"] = "ChronoFocusUITests/unrelated()"
+        self.rejected("executed test identity")
+        for result in ("Skipped", "Failed", "Expected Failure"):
+            self.tree = copy.deepcopy(original)
+            self.tree["testNodes"][0]["children"][0]["result"] = result
+            self.rejected("did not pass")
+
+    def test_tree_device_and_duration_are_bound(self):
+        original = copy.deepcopy(self.tree)
+        self.tree["devices"][0]["deviceId"] = "another-device"
+        self.rejected("tree belongs to a different simulator")
+        for duration in (True, -1, float("nan"), "1"):
+            self.tree = copy.deepcopy(original)
+            self.tree["testNodes"][0]["children"][0]["durationInSeconds"] = duration
+            self.rejected("Invalid native test duration")
+
+    def test_failed_test_diagnostics_do_not_claim_acceptance(self):
+        case = self.tree["testNodes"][0]["children"][0]
+        case["result"] = "Failed"
+        self.summary.update(result="Failed", passedTests=len(SCENES) - 1, failedTests=1)
+        self.save()
+        write_test_summary(self.root)
+        text = (self.root / "ios-test-summary.md").read_text()
+        self.assertIn(case["nodeIdentifier"], text)
+        self.assertIn("Failed", text)
+        self.assertIn("does not replace evidence verification", text)
+        with self.assertRaises(RuntimeError):
+            verify_evidence(self.root)
 
     def test_missing_scene_cannot_be_replaced_by_other_test(self):
         self.manifest[0]["attachments"][0], self.manifest[1]["attachments"][0] = self.manifest[1]["attachments"][0], self.manifest[0]["attachments"][0]

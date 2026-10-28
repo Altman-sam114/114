@@ -19,6 +19,8 @@ struct MacScheduleDetailView: View {
     @State private var selectedCategory: String?
     @State private var existingCategorySearchQuery: String
     @State private var isExistingCategoryExpanded = false
+    @State private var taskStatus: TaskListStatus
+    @State private var taskSearchQuery: String
     @FocusState private var isTaskTitleFocused: Bool
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
     @Environment(\.macSnapshotCategoriesExpanded) private var snapshotCategoriesExpanded
@@ -27,6 +29,8 @@ struct MacScheduleDetailView: View {
         quickAddRequest: MacQuickAddRequest? = nil,
         initialTaskCategory: String? = nil,
         initialExistingCategorySearchQuery: String = "",
+        initialTaskStatus: TaskListStatus = .pending,
+        initialTaskSearchQuery: String = "",
         onConsumeQuickAddRequest: @escaping (UUID) -> Void = { _ in },
         onTimerHandoff: @escaping (String, UUID?) -> Void = { _, _ in }
     ) {
@@ -37,6 +41,8 @@ struct MacScheduleDetailView: View {
         _category = State(initialValue: initialTaskCategory ?? "工作")
         _accentHex = State(initialValue: TaskCategoryPreset.accentHex(for: initialTaskCategory ?? "工作"))
         _existingCategorySearchQuery = State(initialValue: initialExistingCategorySearchQuery)
+        _taskStatus = State(initialValue: initialTaskStatus)
+        _taskSearchQuery = State(initialValue: initialTaskSearchQuery)
     }
 
     private var quickAddCategoryName: String {
@@ -254,6 +260,8 @@ struct MacScheduleDetailView: View {
     private var taskListPanel: some View {
         MacTaskListPanelView(
             selectedCategory: $selectedCategory,
+            taskStatus: $taskStatus,
+            taskSearchQuery: $taskSearchQuery,
             onAddTaskInCategory: prepareQuickAdd,
             onTimerHandoff: onTimerHandoff
         )
@@ -1476,25 +1484,32 @@ private struct MacTaskListPanelView: View {
     @EnvironmentObject private var engine: TimerEngine
     @EnvironmentObject private var notifications: MacNotificationService
     @Binding var selectedCategory: String?
+    @Binding var taskStatus: TaskListStatus
+    @Binding var taskSearchQuery: String
+    @State private var isTaskSearchPresented = false
+    @State private var pendingDeletion: FocusTask?
     let onAddTaskInCategory: (String) -> Void
     let onTimerHandoff: (String, UUID?) -> Void
     @Environment(\.macSnapshotRendering) private var isSnapshotRendering
 
     private var visibleTasks: [FocusTask] {
-        let tasks = store.upcomingTasks()
-        guard let selectedCategory else { return tasks }
-        return tasks.filter { macCategoryComparisonKey($0.category) == macCategoryComparisonKey(selectedCategory) }
+        TaskListFilter(status: taskStatus, query: taskSearchQuery, category: selectedCategory).apply(to: store.tasks)
+            .sorted {
+                switch ($0.dueDate, $1.dueDate) {
+                case let (left?, right?): return left < right
+                case (_?, nil): return true
+                case (nil, _?): return false
+                case (nil, nil): return $0.createdAt > $1.createdAt
+                }
+            }
     }
 
     private var taskListCountText: String {
-        let totalCount = store.upcomingTasks().count
+        let totalCount = store.tasks.count
         guard totalCount > 0 else {
-            return "0 项未完成"
+            return "0 项"
         }
-        guard selectedCategory != nil else {
-            return "\(totalCount) 项未完成"
-        }
-        return "\(visibleTasks.count)/\(totalCount) 项未完成"
+        return "\(taskStatus.title) \(visibleTasks.count)/\(totalCount) 项"
     }
 
     var body: some View {
@@ -1511,6 +1526,8 @@ private struct MacTaskListPanelView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
                 }
+
+                taskListControls
 
                 MacCategoryFilterBar(
                     categories: store.taskCategories,
@@ -1536,7 +1553,14 @@ private struct MacTaskListPanelView: View {
                 }
 
                 if visibleTasks.isEmpty {
-                    if let selectedCategoryName = selectedCategory {
+                    if !TaskCategoryPreset.searchKey(for: taskSearchQuery).isEmpty {
+                        Text("没有匹配的待办。试试更短的标题或分类名，或切换完成状态。")
+                            .font(.caption)
+                            .foregroundStyle(MacTheme.secondaryText)
+                    } else if let selectedCategoryName = selectedCategory {
+                        Text("正在查看：\(taskStatus.title)")
+                            .font(.caption)
+                            .foregroundStyle(MacTheme.secondaryText)
                         MacScheduleCategoryEmptyStateView(
                             category: selectedCategoryName,
                             isSnapshotRendering: isSnapshotRendering,
@@ -1589,7 +1613,7 @@ private struct MacTaskListPanelView: View {
                             MacStaticScheduleActionChipView(
                                 title: "将\(task.title)设为当前计时待办，\(task.category)分类",
                                 symbolName: "timer",
-                                tint: task.isEnabled ? .cyan : MacTheme.secondaryText,
+                                tint: task.isEnabled && !task.isDone ? .cyan : MacTheme.secondaryText,
                                 isProminent: false,
                                 iconOnly: true
                             )
@@ -1602,7 +1626,7 @@ private struct MacTaskListPanelView: View {
                             .labelStyle(.iconOnly)
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
-                            .disabled(!task.isEnabled)
+                            .disabled(task.isDone || !task.isEnabled)
                             .accessibilityLabel(timerHandoffLabel(for: task))
                             .accessibilityHint(timerHandoffHint(for: task))
                             .accessibilityInputLabels(timerHandoffInputLabels(for: task))
@@ -1625,7 +1649,7 @@ private struct MacTaskListPanelView: View {
                             ])
 
                             Button("删除", systemImage: "trash") {
-                                deleteTask(task)
+                                pendingDeletion = task
                             }
                             .labelStyle(.iconOnly)
                             .frame(width: 44, height: 44)
@@ -1644,18 +1668,83 @@ private struct MacTaskListPanelView: View {
                 }
             }
         }
+        .confirmationDialog("删除待办？", isPresented: Binding(
+            get: { pendingDeletion != nil },
+            set: { if !$0 { pendingDeletion = nil } }
+        ), titleVisibility: .visible, presenting: pendingDeletion) { task in
+            Button("删除待办", role: .destructive) { deleteTask(task) }
+            Button("取消", role: .cancel) {}
+        } message: { task in
+            Text("将删除「\(task.title)」和关联计划，已记录的专注统计会保留。")
+        }
+    }
+
+    private var taskListControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                ForEach(TaskListStatus.allCases) { status in
+                    let count = TaskListFilter(status: status, query: taskSearchQuery, category: selectedCategory).apply(to: store.tasks).count
+                    Group {
+                        if isSnapshotRendering {
+                            Text("\(status.title) \(count)")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        } else {
+                            Button { taskStatus = status } label: {
+                                Text("\(status.title) \(count)")
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(status.title)，\(count)项")
+                            .accessibilityAddTraits(taskStatus == status ? .isSelected : [])
+                        }
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(taskStatus == status ? MacTheme.primaryText : MacTheme.secondaryText)
+                    .background(taskStatus == status ? MacTheme.inset : .clear, in: RoundedRectangle(cornerRadius: 10))
+                }
+            }
+
+            if isTaskSearchPresented || !taskSearchQuery.isEmpty {
+                if isSnapshotRendering {
+                    MacStaticInputRowView(title: "查找待办", value: taskSearchQuery.isEmpty ? "标题或分类" : taskSearchQuery)
+                } else {
+                    HStack(spacing: 8) {
+                        TextField("搜索待办标题或分类", text: $taskSearchQuery)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityLabel("搜索待办标题或分类")
+                        Button {
+                            taskSearchQuery = ""
+                            isTaskSearchPresented = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill").frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("关闭并清除待办搜索")
+                    }
+                }
+            } else if isSnapshotRendering {
+                MacStaticScheduleActionChipView(title: "查找待办", symbolName: "magnifyingglass", tint: MacTheme.readableTint(.cyan), isProminent: false)
+            } else {
+                Button("查找待办", systemImage: "magnifyingglass") { isTaskSearchPresented = true }
+                    .buttonStyle(.plain)
+                    .frame(minHeight: 44)
+                    .foregroundStyle(MacTheme.readableTint(.cyan))
+            }
+        }
     }
 
     private func taskCount(in category: String?) -> Int {
-        guard let category else { return store.upcomingTasks().count }
-        return store.upcomingTasks().filter { macCategoryComparisonKey($0.category) == macCategoryComparisonKey(category) }.count
+        TaskListFilter(status: taskStatus, query: taskSearchQuery, category: category).apply(to: store.tasks).count
     }
 
     private var emptyText: String {
         if let selectedCategory {
             return "当前没有「\(selectedCategory)」分类的未完成待办。可清除筛选查看全部，或在左侧快速新增该分类待办。"
         }
-        return "当前没有未完成待办。"
+        return taskStatus == .completed
+            ? "还没有已完成待办。完成任务后，可在这里找回或标记未完成。"
+            : "当前没有\(taskStatus.title)待办。可切换状态查看，或使用快速新增。"
     }
 
     private func isActiveTask(_ task: FocusTask) -> Bool {
@@ -1681,13 +1770,14 @@ private struct MacTaskListPanelView: View {
     }
 
     private func deleteTask(_ task: FocusTask) {
-        guard store.task(for: task.id) != nil else { return }
+        guard !isActiveTask(task), store.task(for: task.id) != nil else { return }
         store.deleteTasks(ids: [task.id])
         guard store.task(for: task.id) == nil else { return }
         notifications.cancelTaskReminder(taskID: task.id)
     }
 
     private func timerHandoffHint(for task: FocusTask) -> String {
+        guard !task.isDone else { return "已完成待办不可设为当前计时待办" }
         guard task.isEnabled else { return "请先启用此待办" }
         if engine.isRunning {
             return "转到计时页并查看此分类；计时运行中不可切换当前待办"

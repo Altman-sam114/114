@@ -183,6 +183,116 @@ final class ChronoFocusUITests: XCTestCase {
         capture("schedule-long-handoff")
     }
 
+    func testTaskSearchAndCompletionFilters() {
+        launch(fixture: "management")
+        app.tabBars.buttons["日程"].tap()
+        let identifier = taskIdentifier(title: "准备发布检查")
+        capture("tasks-pending")
+
+        openTaskSearch("准备 产品")
+        XCTAssertTrue(app.staticTexts["准备发布检查"].exists)
+        XCTAssertFalse(app.staticTexts["保留的日常安排"].exists)
+        capture("tasks-search")
+        let closeSearch = app.buttons["schedule.task.search.close"]
+        revealInsideViewport(closeSearch)
+        closeSearch.tap()
+
+        let complete = app.buttons["schedule.task.complete.\(identifier)"]
+        revealInsideViewport(complete)
+        complete.tap()
+        waitForDisappearance(app.staticTexts["准备发布检查"])
+        let completed = app.buttons["schedule.status.completed"]
+        revealInsideViewport(completed)
+        completed.tap()
+        let restoredTitle = app.staticTexts["准备发布检查"].firstMatch
+        revealInsideViewport(restoredTitle)
+        capture("tasks-completed")
+        revealInsideViewport(complete)
+        complete.tap()
+        waitForDisappearance(restoredTitle)
+        let pending = app.buttons["schedule.status.pending"]
+        revealInsideViewport(pending)
+        pending.tap()
+        revealInsideViewport(restoredTitle)
+        capture("tasks-restored")
+
+        openTaskSearch("不存在的待办")
+        let empty = app.staticTexts["没有匹配的待办"]
+        revealInsideViewport(empty)
+        XCTAssertFalse(restoredTitle.exists)
+        capture("tasks-search-empty")
+    }
+
+    func testTaskDeletionRequiresConfirmation() {
+        launch(fixture: "management")
+        app.tabBars.buttons["日程"].tap()
+        let identifier = taskIdentifier(title: "准备发布检查")
+        let more = app.buttons["schedule.task.more.\(identifier)"]
+        requestDeletion(more)
+        capture("deletion-confirmation")
+        app.buttons["取消"].tap()
+        let title = app.staticTexts["准备发布检查"].firstMatch
+        revealInsideViewport(title)
+        capture("deletion-cancelled")
+
+        let focus = app.buttons["schedule.task.focus.\(identifier)"]
+        revealInsideViewport(focus)
+        focus.tap()
+        let primary = app.buttons["timer.primary"]
+        reveal(primary)
+        primary.tap()
+        waitForLabel(primary, prefix: "暂停")
+        app.tabBars.buttons["日程"].tap()
+        revealInsideViewport(title)
+        XCTAssertFalse(more.isEnabled, "An active task must not offer deletion")
+        capture("deletion-protected")
+        app.tabBars.buttons["计时"].tap()
+        let stop = app.buttons["timer.stop"]
+        reveal(stop)
+        stop.tap()
+        waitForLabel(primary, prefix: "开始")
+        app.tabBars.buttons["日程"].tap()
+        requestDeletion(more)
+        app.buttons["删除待办"].tap()
+        waitForDisappearance(title)
+        let survivor = app.staticTexts["保留的日常安排"].firstMatch
+        revealInsideViewport(survivor)
+        capture("deletion-completed")
+    }
+
+    private func taskIdentifier(title: String) -> String {
+        let element = app.staticTexts[title].firstMatch
+        revealInsideViewport(element)
+        let prefix = "schedule.task.title."
+        XCTAssertTrue(element.identifier.hasPrefix(prefix))
+        return String(element.identifier.dropFirst(prefix.count))
+    }
+
+    private func openTaskSearch(_ query: String) {
+        let open = app.buttons["schedule.task.search.open"]
+        revealInsideViewport(open)
+        open.tap()
+        let field = app.textFields["schedule.task.search"]
+        reveal(field)
+        field.tap()
+        field.typeText(query + "\n")
+    }
+
+    private func requestDeletion(_ more: XCUIElement) {
+        revealInsideViewport(more)
+        XCTAssertTrue(more.isEnabled)
+        more.tap()
+        let menuAction = app.buttons["删除准备发布检查待办，产品分类"]
+        XCTAssertTrue(menuAction.waitForExistence(timeout: 5))
+        menuAction.tap()
+        XCTAssertTrue(app.buttons["删除待办"].waitForExistence(timeout: 5))
+    }
+
+    private func waitForDisappearance(_ element: XCUIElement) {
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: element)
+        waitForExpectations(timeout: 5)
+    }
+
     private func taskAction(_ name: String) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "schedule.task.\(name).")).firstMatch
     }

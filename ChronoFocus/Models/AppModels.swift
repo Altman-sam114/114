@@ -78,6 +78,47 @@ enum CalendarDisplayMode: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+enum TaskListStatus: String, CaseIterable, Identifiable {
+    case pending
+    case completed
+    case all
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .pending: return "未完成"
+        case .completed: return "已完成"
+        case .all: return "全部"
+        }
+    }
+
+    func includes(_ task: FocusTask) -> Bool {
+        switch self {
+        case .pending: return !task.isDone
+        case .completed: return task.isDone
+        case .all: return true
+        }
+    }
+}
+
+struct TaskListFilter {
+    var status: TaskListStatus = .pending
+    var query = ""
+    var category: String?
+
+    func apply(to tasks: [FocusTask]) -> [FocusTask] {
+        let terms = TaskCategoryPreset.searchKey(for: query).split(whereSeparator: \.isWhitespace)
+        return tasks.filter { task in
+            guard status.includes(task) else { return false }
+            if let category, !TaskCategoryPreset.categoriesMatch(task.category, category) { return false }
+            guard !terms.isEmpty else { return true }
+            let content = TaskCategoryPreset.searchKey(for: task.title + "\n" + task.category)
+            return terms.allSatisfy { content.contains($0) }
+        }
+    }
+}
+
 enum ReportRange: String, CaseIterable, Codable, Identifiable {
     case day
     case week

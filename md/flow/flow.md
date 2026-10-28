@@ -12,6 +12,10 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 
 ## 1. 当前核心数据流
 
+v1.10待办管理：两端View持有TaskListStatus、查询与删除确认瞬态；共享TaskListFilter先按完成状态和可选分类筛选，再用固定POSIX规范化的多个词匹配标题/分类，保留输入身份和顺序，不写Store。iOS先取当前日期范围，Mac待办面板取全部任务；分类计数反映当前状态和任务查询，日历格仍仅按原日期/分类统计。完成/恢复仍调用toggleTaskDone；iOS卡片更多与两端确认最终调用Store删除，确认时复查活动身份，删除实际成功后才取消提醒，不删除FocusSession。
+
+原生当前每设备8条、34具名场景。证据同时核对xcresulttool测试树的唯一8测试及逐项Passed/设备/耗时、summary和附件场景；失败也保存逐测试诊断表到独立证据和Actions Summary，不能用诊断代替接受条件。Mac独立16图含完成检索，生产唯一包与正式五图不变。v1.9的49433bb已完成全链C验收，后续SHA仍须重新验证。
+
 原生寻找和对齐均从外层10pt留白发起限幅垂直拖动，避免嵌套Picker/横向分类条截获手势；每次至少32pt以跨过滚动识别阈值，最大幅度仍按视口和阶段限幅。revealInsideViewport把目标纠正到实时导航栏与TabBar之间，仍检查真实可达性和尺寸。日历标题/范围在辅助字体纵排，今天保持一行，新增原生标题高度和日历场景。独立Release保存真实ICNS并用系统sips解码兼容图，再通过Assets.car的assetutil原文绑定同CFBundleIconName的1024×1024编译图；失败保留诊断，不能以源PNG或构建成功代替资源验证。
 
 v1.9展示与证据：iOS日程待办的标题/分类/时间和动作分层，标题与分类完整换行，三个带文字动作在较大字体下纵排，仍由原闭包调用Store或发出一次性handoff；不增加状态机或持久化。设置按时间、后台提醒、自动化、声音、Pro、隐私排序。原生实心按钮从实际主题填色调用共享对比色算法，分类原始色和已有badge规则保留。
@@ -317,7 +321,7 @@ Agent X 禁止跳过 Agent C artifact 验收，禁止把旧 run、旧 artifact �
 
 ## 8. 已确认的铁律
 
-辅助UI证据独立于生产唯一artifact：`ui-evidence.yml`仅响应成功生产push，各矩阵job经精确run/workflow/main和事件授权gate后才checkout源SHA。Mac共用`build_mac_snapshot_renderer.sh`生成15图；ios-390/ios-375由`run_ios_ui_tests.sh`执行原生UITest、保存构建/测试xcresult、结构化摘要、测试树和附件，由`verify_ios_ui_evidence.py`核对每设备6/0/0及25个具名截图场景。release矩阵项执行双端未签名Release构建与真实产品检查，明确保留distributionReady=false。每包manifest区分source SHA/run/attempt、UI自身head SHA/run/attempt、平台和实际checkout。上传前后复查main/attempt；stale、测试跳过或上传失败不接受。不改变生产index、第四模式或唯一包判据，C分别取证读图与读取Release证据。
+辅助UI证据独立于生产唯一artifact：`ui-evidence.yml`仅响应成功生产push，各矩阵job经精确run/workflow/main和事件授权gate后才checkout源SHA。Mac共用`build_mac_snapshot_renderer.sh`生成16图；ios-390/ios-375由`run_ios_ui_tests.sh`执行原生UITest、保存构建/测试xcresult、结构化摘要、测试树和附件，由`verify_ios_ui_evidence.py`核对每设备8/0/0及34个具名场景，并绑定真实测试树的身份/结果/设备/耗时。release矩阵项执行双端未签名Release构建与真实产品检查，明确保留distributionReady=false。每包manifest区分source SHA/run/attempt、UI自身head SHA/run/attempt、平台和实际checkout。上传前后复查main/attempt；stale、测试跳过或上传失败不接受。不改变生产index、第四模式或唯一包判据，C分别取证读图与读取Release证据。
 
 - Mac 版复用现有核心逻辑，不重写业务层。
 - `TimerEngine` 是唯一计时状态机。

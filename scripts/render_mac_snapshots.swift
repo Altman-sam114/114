@@ -352,6 +352,13 @@ struct MacSnapshotRenderer {
         try capture("analytics-light.png", section: .analytics, content: AnyView(MacAnalyticsDetailView()), width: 1100, height: 1400, state: "light analytics", theme: .light)
         try capture("settings-light.png", section: .settings, content: AnyView(MacSettingsDetailView()), width: 1100, height: 1100, state: "light settings, theme control", theme: .light)
 
+        guard let completedTask = store.addTask(title: "完成发布资料整理", category: "产品", dueDate: Date(), estimatedRounds: 1, accentHex: "#3DE8C5") else {
+            throw SnapshotError("Could not create completed task fixture")
+        }
+        _ = store.finishTask(completedTask.id)
+        try capture("schedule-completed-search.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskCategory: "产品", initialTaskStatus: .completed, initialTaskSearchQuery: "发布")), width: 1100, height: 1100, state: "completed task search, restore action available")
+        store.deleteTasks(ids: [completedTask.id])
+
         store.settings.appThemeMode = .light
         let miniLightURL = outputDirectory.appendingPathComponent("mini-light.png")
         let miniLight = MacMiniTimerView(openDetails: { _ in })

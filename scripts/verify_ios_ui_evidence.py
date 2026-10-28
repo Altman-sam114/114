@@ -1,11 +1,13 @@
 """Actions-only verification of xcresult summaries and named native attachments."""
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
 import stat
 import struct
+import sys
 
 
 SCENES = {
@@ -15,6 +17,8 @@ SCENES = {
     "testScheduleCategoryPrefillAndSave": ("schedule-filtered", "task-editor-prefilled", "schedule-saved"),
     "testAccessibilityTextWithLongTask": ("large-text-idle", "large-text-running", "large-text-notifications"),
     "testScheduleAccessibilityAndActions": ("schedule-large-calendar", "schedule-long-title", "schedule-long-category", "schedule-long-actions", "schedule-long-editor", "schedule-long-handoff"),
+    "testTaskSearchAndCompletionFilters": ("tasks-pending", "tasks-search", "tasks-completed", "tasks-restored", "tasks-search-empty"),
+    "testTaskDeletionRequiresConfirmation": ("deletion-confirmation", "deletion-cancelled", "deletion-protected", "deletion-completed"),
 }
 DEVICES = {
     "com.apple.CoreSimulator.SimDeviceType.iPhone-13": (390, 844, 3),
@@ -37,6 +41,17 @@ def read_json(path):
     return json.loads(regular_file(path, 1048576))
 
 
+def test_cases(nodes):
+    require(isinstance(nodes, list), "Invalid native test tree")
+    cases = []
+    for node in nodes:
+        require(isinstance(node, dict), "Invalid native test node")
+        if node.get("nodeType") == "Test Case":
+            cases.append(node)
+        cases.extend(test_cases(node.get("children", [])))
+    return cases
+
+
 def verify_evidence(root):
     require((root / "attachments").is_dir() and not (root / "attachments").is_symlink(), "Invalid attachment directory")
     summary = read_json(root / "ios-summary.json")
@@ -56,9 +71,26 @@ def verify_evidence(root):
     for key in ("passedTests", "failedTests", "skippedTests", "expectedFailures"):
         require(type(configuration.get(key)) is int and configuration[key] == counts[key], "Per-device test counts differ")
 
+    tree = read_json(root / "ios-tests.json")
+    tree_devices = tree.get("devices")
+    require(isinstance(tree_devices, list) and len(tree_devices) == 1
+            and tree_devices[0].get("deviceId") == device["udid"]
+            and tree_devices[0].get("platform") == "iOS Simulator", "Native test tree belongs to a different simulator")
+    expected_tests = {f"ChronoFocusUITests/{name}()": scenes for name, scenes in SCENES.items()}
+    executed = []
+    seen_cases = set()
+    for case in test_cases(tree.get("testNodes")):
+        identifier = case.get("nodeIdentifier")
+        require(identifier in expected_tests and identifier not in seen_cases, "Unexpected or duplicate executed test identity")
+        require(case.get("result") == "Passed", "Executed native test did not pass")
+        seconds = case.get("durationInSeconds")
+        require(type(seconds) in (int, float) and math.isfinite(seconds) and seconds >= 0, "Invalid native test duration")
+        seen_cases.add(identifier)
+        executed.append({"testIdentifier": identifier, "result": case["result"], "durationInSeconds": seconds})
+    require(seen_cases == set(expected_tests), "Missing executed native test identity")
+
     manifest = read_json(root / "attachments/manifest.json")
     require(isinstance(manifest, list), "Missing native attachment manifest")
-    expected_tests = {f"ChronoFocusUITests/{name}()": scenes for name, scenes in SCENES.items()}
     seen_tests = set()
     seen_files = set()
     screenshots = []
@@ -90,12 +122,37 @@ def verify_evidence(root):
         require(seen_scenes == set(expected_tests[identifier]), f"Missing required screenshot scene: {identifier}")
     require(seen_tests == set(expected_tests), "Missing required native test identity")
     require({path.relative_to(root / "attachments").as_posix() for path in (root / "attachments").rglob("*.png")} == seen_files, "Unbound screenshot attachments")
-    return {"device": device, "summary": summary, "screenshots": screenshots}
+    return {"device": device, "summary": summary, "executedTests": executed, "screenshots": screenshots}
+
+
+def write_test_summary(root, step_summary=None):
+    lines = ["## Native iOS UI diagnostics", "", "This diagnostic summary does not replace evidence verification.", ""]
+    if (root / "ios-summary.json").is_file():
+        summary = read_json(root / "ios-summary.json")
+        lines += [f"Result: {summary.get('result')}; passed: {summary.get('passedTests')}; failed: {summary.get('failedTests')}; skipped: {summary.get('skippedTests')}", ""]
+    else:
+        lines += ["Native test results are unavailable. Inspect the build and simulator boot logs.", ""]
+    if (root / "ios-tests.json").is_file():
+        cases = test_cases(read_json(root / "ios-tests.json").get("testNodes"))
+        lines += ["| Test | Result | Seconds |", "| --- | --- | ---: |"]
+        for case in sorted(cases, key=lambda item: item.get("durationInSeconds", 0), reverse=True):
+            identifier = str(case.get("nodeIdentifier", "unknown")).replace("|", "\\|")
+            lines.append(f"| {identifier} | {case.get('result')} | {case.get('durationInSeconds', 'unknown')} |")
+    text = "\n".join(lines) + "\n"
+    with (root / "ios-test-summary.md").open("x") as output:
+        output.write(text)
+    if step_summary:
+        with Path(step_summary).open("a") as output:
+            output.write(text)
 
 
 def main():
     require(os.environ.get("GITHUB_ACTIONS") == "true", "Native evidence verification is Actions-only")
     root = Path(os.environ["UI_DIR"])
+    if sys.argv[1:] == ["--summary-only"]:
+        write_test_summary(root, os.environ.get("GITHUB_STEP_SUMMARY"))
+        return
+    require(not sys.argv[1:], "Unexpected native evidence arguments")
     evidence = verify_evidence(root)
     with (root / "ios-evidence.json").open("x") as output:
         json.dump(evidence, output, indent=2)

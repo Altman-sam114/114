@@ -12,6 +12,11 @@ struct ScheduleView: View {
     @State private var selectedCategory: String?
     @State private var showingEditor = false
     @State private var editingTask: FocusTask?
+    @State private var pendingDeletion: FocusTask?
+    @State private var taskStatus: TaskListStatus = .pending
+    @State private var taskSearchQuery = ""
+    @State private var isTaskSearchPresented = false
+    @FocusState private var isTaskSearchFocused: Bool
     let onTimerHandoff: (TimerHandoffRequest) -> Void
 
     private let calendar = Calendar.current
@@ -20,11 +25,12 @@ struct ScheduleView: View {
         self.onTimerHandoff = onTimerHandoff
     }
 
+    private var rangeTasks: [FocusTask] {
+        store.tasks.filter(isTaskInSelectedRange)
+    }
+
     private var visibleTasks: [FocusTask] {
-        store.tasks
-            .filter { task in
-                isTaskInSelectedRange(task) && matchesSelectedCategory(task)
-            }
+        TaskListFilter(status: taskStatus, query: taskSearchQuery, category: selectedCategory).apply(to: rangeTasks)
             .sorted {
                 switch ($0.dueDate, $1.dueDate) {
                 case let (left?, right?): return left < right
@@ -35,13 +41,14 @@ struct ScheduleView: View {
             }
     }
 
+    private var hasTaskQuery: Bool {
+        !TaskCategoryPreset.searchKey(for: taskSearchQuery).isEmpty
+    }
+
     private var taskListCountText: String {
-        let totalCount = taskCount(in: nil)
+        let totalCount = rangeTasks.count
         guard totalCount > 0 else {
             return "0 项"
-        }
-        guard selectedCategory != nil else {
-            return "\(totalCount) 项"
         }
         return "\(visibleTasks.count)/\(totalCount) 项"
     }
@@ -130,6 +137,15 @@ struct ScheduleView: View {
                     .environmentObject(store)
                     .environmentObject(notifications)
                     .presentationDetents([.medium, .large])
+            }
+            .confirmationDialog("删除待办？", isPresented: Binding(
+                get: { pendingDeletion != nil },
+                set: { if !$0 { pendingDeletion = nil } }
+            ), titleVisibility: .visible, presenting: pendingDeletion) { task in
+                Button("删除待办", role: .destructive) { deleteTask(task) }
+                Button("取消", role: .cancel) {}
+            } message: { task in
+                Text("将删除「\(task.title)」和关联计划，已记录的专注统计会保留。")
             }
         }
     }
@@ -319,17 +335,18 @@ struct ScheduleView: View {
     private var taskList: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
+                calendarHeaderLayout {
                     Label("待办事项", systemImage: "checklist")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
-                    Spacer()
                     Text(taskListCountText)
                         .font(.caption)
                         .foregroundStyle(AppTheme.secondaryText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
                 }
+
+                taskListControls
 
                 TaskCategoryFilterBar(
                     categories: store.taskCategories,
@@ -355,7 +372,21 @@ struct ScheduleView: View {
                 }
 
                 if visibleTasks.isEmpty {
-                    if let selectedCategory {
+                    if hasTaskQuery {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label("没有匹配的待办", systemImage: "magnifyingglass")
+                                .font(.subheadline.weight(.semibold))
+                            Text("试试更短的标题或分类名，或切换完成状态。")
+                                .font(.caption)
+                            Button("清除待办搜索") { taskSearchQuery = "" }
+                                .frame(minHeight: 44)
+                        }
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .accessibilityIdentifier("schedule.search.empty")
+                    } else if let selectedCategory {
+                        Text("正在查看：\(taskStatus.title)")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.secondaryText)
                         ScheduleCategoryEmptyStateView(
                             category: selectedCategory,
                             onAddTask: {
@@ -391,6 +422,8 @@ struct ScheduleView: View {
                                         preferredTaskID: task.id
                                     )
                                 )
+                            } onDelete: {
+                                pendingDeletion = task
                             }
                             .swipeActions {
                                 Button {
@@ -408,8 +441,7 @@ struct ScheduleView: View {
                                 .disabled(activeTimerSnapshot?.taskID == task.id)
 
                                 Button(role: .destructive) {
-                                    notifications.cancelTaskReminder(taskID: task.id)
-                                    store.deleteTasks(ids: [task.id])
+                                    pendingDeletion = task
                                 } label: {
                                     Label("删除", systemImage: "trash")
                                 }
@@ -426,6 +458,70 @@ struct ScheduleView: View {
                 }
             }
         }
+    }
+
+    private var taskListControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            calendarHeaderLayout {
+                ForEach(TaskListStatus.allCases) { status in
+                    Button { taskStatus = status } label: {
+                        Text("\(status.title) \(statusCount(status))")
+                            .font(.caption.weight(.semibold))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(taskStatus == status ? AppTheme.panelStrong : .clear, in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(taskStatus == status ? AppTheme.primaryText : AppTheme.secondaryText)
+                    .accessibilityLabel("\(status.title)，\(statusCount(status))项")
+                    .accessibilityAddTraits(taskStatus == status ? .isSelected : [])
+                    .accessibilityIdentifier("schedule.status.\(status.rawValue)")
+                }
+            }
+            .padding(4)
+            .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
+
+            if isTaskSearchPresented {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").accessibilityHidden(true)
+                    TextField("搜索待办标题或分类", text: $taskSearchQuery)
+                        .focused($isTaskSearchFocused)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.search)
+                        .onSubmit { isTaskSearchFocused = false }
+                        .accessibilityIdentifier("schedule.task.search")
+                        .accessibilityLabel("搜索待办标题或分类")
+                    Button {
+                        taskSearchQuery = ""
+                        isTaskSearchPresented = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("关闭并清除待办搜索")
+                    .accessibilityIdentifier("schedule.task.search.close")
+                }
+                .foregroundStyle(AppTheme.primaryText)
+                .padding(.leading, 12)
+                .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
+            } else {
+                Button { isTaskSearchPresented = true } label: {
+                    Label("查找待办", systemImage: "magnifyingglass")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(AppTheme.readableTint(.cyan))
+                .accessibilityIdentifier("schedule.task.search.open")
+            }
+        }
+    }
+
+    private func statusCount(_ status: TaskListStatus) -> Int {
+        TaskListFilter(status: status, query: taskSearchQuery, category: selectedCategory).apply(to: rangeTasks).count
     }
 
     private var calendarTitle: String {
@@ -496,12 +592,7 @@ struct ScheduleView: View {
     }
 
     private func taskCount(in category: String?) -> Int {
-        guard let category else {
-            return store.tasks.filter(isTaskInSelectedRange).count
-        }
-        return store.tasks.filter { task in
-            isTaskInSelectedRange(task) && store.categoryMatches(task.category, category)
-        }.count
+        TaskListFilter(status: taskStatus, query: taskSearchQuery, category: category).apply(to: rangeTasks).count
     }
 
     private func isTaskInSelectedRange(_ task: FocusTask) -> Bool {
@@ -527,7 +618,9 @@ struct ScheduleView: View {
         if let selectedCategory {
             return "当前时间范围没有「\(selectedCategory)」分类待办。可清除筛选查看全部，或点击新增此分类创建待办。"
         }
-        return "这个时间范围还没有待办。点击右上角添加，或用 Pro 同步 iPhone 日历。"
+        return taskStatus == .completed
+            ? "这个时间范围还没有已完成待办。完成任务后，可在这里找回或恢复。"
+            : "这个时间范围没有\(taskStatus.title)待办。可切换状态查看，或点击右上角新增。"
     }
 
     private func moveSelection(by value: Int) {
@@ -550,6 +643,13 @@ struct ScheduleView: View {
         if let updatedTask = store.setTaskEnabled(task, enabled: enabled) {
             syncTaskReminder(for: updatedTask, store: store, notifications: notifications)
         }
+    }
+
+    private func deleteTask(_ task: FocusTask) {
+        guard !store.isActiveTask(task.id), store.task(for: task.id) != nil else { return }
+        store.deleteTasks(ids: [task.id])
+        guard store.task(for: task.id) == nil else { return }
+        notifications.cancelTaskReminder(taskID: task.id)
     }
 }
 
@@ -1033,6 +1133,7 @@ private struct ScheduleTaskCell: View {
     let onEnable: () -> Void
     let onEdit: () -> Void
     let onTimerHandoff: () -> Void
+    let onDelete: () -> Void
 
     private var categoryPreset: TaskCategoryPreset? {
         TaskCategoryPreset.matching(task.category)
@@ -1158,6 +1259,7 @@ private struct ScheduleTaskCell: View {
                 .disabled(isActiveTask)
                 .accessibilityLabel(completionAccessibilityLabel)
                 .accessibilityInputLabels(completionInputLabels)
+                .accessibilityIdentifier("schedule.task.complete.\(task.id)")
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(task.title)
@@ -1170,6 +1272,20 @@ private struct ScheduleTaskCell: View {
                         .foregroundStyle(AppTheme.readableTint(categoryTint))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                Menu {
+                    Button("删除待办", systemImage: "trash", role: .destructive, action: onDelete)
+                        .accessibilityLabel("删除\(semanticTitle)待办，\(semanticCategory)分类")
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .foregroundStyle(AppTheme.secondaryText)
+                .disabled(isActiveTask)
+                .accessibilityLabel("更多\(semanticTitle)待办操作")
+                .accessibilityHint(isActiveTask ? "计时中不可删除此待办" : "可删除待办，删除前会再次确认")
+                .accessibilityIdentifier("schedule.task.more.\(task.id)")
             }
 
             if task.startMode == .plannedRounds {

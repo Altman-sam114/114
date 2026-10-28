@@ -48,7 +48,14 @@ struct ChronoFocusApp: App {
             store.settings.autoStartFocus = false
             store.settings.autoStartBreaks = false
             store.settings.autoGeneratePomodoroPlan = false
-            if arguments.contains("--ui-fixture=schedule-long") {
+            if arguments.contains("--ui-fixture=management") {
+                let dueDate = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date())
+                _ = store.addTask(title: "准备发布检查", category: "产品", dueDate: dueDate, estimatedRounds: 2, accentHex: "#3DE8C5")
+                _ = store.addTask(title: "保留的日常安排", category: "生活", dueDate: dueDate, estimatedRounds: 1, accentHex: "#FF6B6B")
+                if let task = store.addTask(title: "已完成的界面评审", category: "产品", dueDate: dueDate, estimatedRounds: 1, accentHex: "#3DE8C5") {
+                    _ = store.finishTask(task.id)
+                }
+            } else if arguments.contains("--ui-fixture=schedule-long") {
                 let dueDate = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date())
                 _ = store.addTask(title: "整理产品体验评审与下一阶段任务", category: "跨团队产品体验与可访问性改进", dueDate: dueDate, estimatedRounds: 2, accentHex: "#3DE8C5")
             } else if arguments.contains("--ui-fixture=tasks") || arguments.contains("--ui-fixture=long") {
