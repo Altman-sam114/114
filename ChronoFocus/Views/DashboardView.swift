@@ -14,12 +14,14 @@ struct TimerHandoffRequest: Identifiable, Equatable {
 
 struct DashboardView: View {
     @EnvironmentObject private var store: FocusStore
-    @EnvironmentObject private var engine: TimerEngine
     @EnvironmentObject private var notifications: NotificationService
     @EnvironmentObject private var premium: PremiumAccessService
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: AppTab = .timer
     @State private var timerHandoffRequest: TimerHandoffRequest?
+
+    // The tab shell issues lifecycle commands but does not render the engine's 1 Hz output.
+    let engine: TimerEngine
 
     var body: some View {
         TabView(selection: $selectedTab) {

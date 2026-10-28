@@ -50,4 +50,19 @@
 - 最小修正：新增队列检查改为真实可达+完整标签+展开高度+横向边界，并保留具名原图；补齐本轮统计单列的实际原生几何断言和截图。仍为9测试，场景从38增至40，严格场景归属及缺失拒绝fixture同步；分摊到原两条大字体测试，不增加超时、不重跑旧失败run。
 - 失败原生日志 `/tmp/chronofocus-ios390-failure-WxL5v22k`；390 artifact `12821145692`（352061946 bytes，sha256:3a9398bc8493b5eb0a5e27bfee3b8234b2473e3f5d603737c01bde825d991233），375 artifact `12821540053`（220023356 bytes，sha256:e9009d2efaf3f47ca610f46911670be2a9c3d961b823750e72d1bdc78e35b77b）。
 - 大ZIP传输确实极慢，保留32/62MB下载残留后改用精确artifact的HTTP Range仅读原始条目，保留原始206响应、central directory、选定summary/manifest/原PNG，不执行任何包内代码；这是静态取证，不在本机重跑产品或validator，也不声称部分下载通过完整ZIP验收。临时读取器在 `/tmp/chronofocus_read_artifact_entry.py`，不加入项目。正式完整包第四模式仍以Actions结论为准。
-- 下一步：静态审查最小修正并追加提交/推送新SHA；新SHA完整云端链期间完成必要原图读取，保留全部失败记录。
+- 最小修正已提交/推送 `80fac050d6e431ef500aabca6e9f542fd67fede0`，生产 `40700336601/1` 已success（9m14s），双端Debug构建/项目验证成功；包 `12822221214`，16293498 bytes，`sha256:f16ea75bf560d57998c1f39a9f384b572da3abccb1d4d9e277fa9ce0cc6b3fc7`。来源push/main/授权actor/固定workflow已复查。独立review `40701821636/1` 已success，UI/Release `40701821565/1` queued。静态 `git diff --check` 通过，本轮其他用户文件仍未提交。新SHA UI结果未完成，不使用旧3f3bc56证据替代。
+- 已实际读图：390pt原失败PNG `/tmp/chronofocus-ios390-image-40695848801/3DB13F11-8179-4F2A-84ED-854DE61C2932.png`，确认完整大字号标题自然占满多行、可滚动卡片高于视口，而不是主按钮遮挡；Mac原图 `/tmp/chronofocus-mac-dark-40695848801/timer-1100.png` 确认双列、主操作、薄环、面板与换行队列清晰。这些是首轮视觉诊断，新SHA仍须验收。
+- 新review实际日志已读取：`40701821636/1` 正式第四模式148 pass / 0 fail、exit0、product acceptance passed，source为 `40700336601/1/80fac05`。新证据根目录 `/tmp/chronofocus-final-80fac05-ZajiWC7G` 保存source/review原始API与日志。
+- 新UI `40701821565` 的Mac job已success，artifact `12822212400`（62589056 bytes，sha256:f3d43d3848491ab05dc22cf2c074256a281fbb8f4ee462b274273b36d973aa26）；新原图/manifest仅读下载中。两设备处于原生测试，Release仍构建检查中。
+- 新SHA实际Mac亮色双列和920pt暗色紧凑原图已读取：`.../mac-selected/timer-light.png`、`timer-920.png`；主操作清晰可见，亮暗文字/圆角/表盘与单列回退正常。manifest绑定source `40700336601/1/80fac05` 和UI `40701821565/1`。
+- 新Release已success并读取真实报告：artifact `12822991054`，278795 bytes，sha256:69988f40d35bcdbf01d857f1afdee98d2b109b873ee403219d4e120654e9ec51；目录 `/tmp/chronofocus-final-release-80fac05-jMjk0XvO`。报告同源、工程true，Mac双架构/iOS与appex arm64、Debug入口缺失；仍signed=false/distributionReady=false。
+- 新375pt已上传成功证据 `12824240106`（63578906 bytes，sha256:e70ab59d327da259b14cd88d5cb3ebc671763d09e01944b7c36df8b0526e8402），summary/场景仅读下载中；390pt仍在原生测试。
+- 375pt已读取真实summary与证据：9/0/0、40场景；大字号队列/统计测试均通过，单条76.97s/82.69s。关键原PNG仅读下载中。
+- 新UI总结果仍failure：390pt仅大字号测试超过120秒，其余8条通过。真实日志显示新队列检查已完成、已切到设置；失败发生于寻找通知授权按钮时反复滚动直到单测时限，不是统计单列或原卡片整屏断言。终止诊断随后也失败，需读取原生失败附件核对滚动/命中现场；不增加时限、不自动重跑。390 artifact `12822394203`，231765685 bytes，sha256:8c5e2d140e6ec1b3f19454aa3f6aaf9c0de560dbc22ca27c444c362dca862634。
+- 已读取390pt原生AX快照与7.7MB诊断spindump（仅读原始运行证据，不在本机运行产品/校验配置），目录 `.../ios390-ax-diagnostics`。长任务/队列已耗时约90秒，再进入设置后因重复查找/拖动到达120秒；采样在XCTest查询与日志写出路径，不足以宣称App自身死锁或给出CPU/FPS改进数值。
+- 最小后续方案：把原长字号测试拆为长任务/队列和“同一长任务运行中的通知设置”两个独立用例，各自从真实fixture启动；保留原所有40场景、全部按钮边界/可达断言及120/180秒限制。实际执行集合从9增至10，verifier/fixture/workflow门禁同步要求10个Passed，不通过减少检查或增加等待绕过。
+- 同时静态发现Dashboard根导航与Debug编辑保护容器只发Engine生命周期命令却通过EnvironmentObject订阅每秒发布，改为由App传入同一Engine引用；计时页面仍观察原EnvironmentObject，核心状态机和持久化不变。这是减少无用根失效传播的结构优化，尚待新SHA验证，不声称已测得性能指标或已消除全部AX问题。
+- 通知权限状态/授权入口拆成纯展示组件并前置到“后台与提醒”节标题之后、四个开关之前；保留原NotificationService动作和44pt/全宽按钮，减少大字号用户寻找授权入口的滚动成本，也收窄Settings的ViewBuilder复杂度。
+- 新增编辑：`ChronoFocusApp.swift`、`DashboardView.swift`、`SettingsView.swift`、UITests、两个原生证据脚本、UI workflow（仅10测试门禁）、README/flow/readiness/work/update_log。其余用户文件保留。
+- 新SHA前静态diff发现workflow嵌入Python的一行缩进错误，立即修复，未执行本机YAML/配置校验；云端继续承担真正解析/fixture验证。
+- 下一步：审查并提交此最小优化，跟进新SHA的10测试/40场景完整云端链。不重跑80fac05，不提前收口；保留所有成功/失败证据。

@@ -90,15 +90,15 @@ struct ChronoFocusApp: App {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing"),
            ProcessInfo.processInfo.arguments.contains("--ui-fixture=editor-active") {
-            EditingProtectionUITestView()
+            EditingProtectionUITestView(engine: engine)
         } else if ProcessInfo.processInfo.arguments.contains("--ui-testing"),
            ProcessInfo.processInfo.arguments.contains("--ui-large-type") {
-            DashboardView().dynamicTypeSize(.accessibility5)
+            DashboardView(engine: engine).dynamicTypeSize(.accessibility5)
         } else {
-            DashboardView()
+            DashboardView(engine: engine)
         }
         #else
-        DashboardView()
+        DashboardView(engine: engine)
         #endif
     }
 }
@@ -106,11 +106,11 @@ struct ChronoFocusApp: App {
 #if DEBUG
 private struct EditingProtectionUITestView: View {
     @EnvironmentObject private var store: FocusStore
-    @EnvironmentObject private var engine: TimerEngine
     @State private var showsEditor = true
+    let engine: TimerEngine
 
     var body: some View {
-        DashboardView()
+        DashboardView(engine: engine)
             .sheet(isPresented: $showsEditor) {
                 if let task = store.tasks.first {
                     TaskEditorView(task: task, initialDueDate: task.dueDate ?? Date())

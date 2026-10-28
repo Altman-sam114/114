@@ -102,6 +102,14 @@ struct SettingsView: View {
                     .foregroundStyle(AppTheme.primaryText)
                     .accessibilityAddTraits(.isHeader)
 
+                NotificationAuthorizationCard(
+                    status: notificationStatusText,
+                    symbol: notificationStatusIcon,
+                    tint: notificationStatusColor,
+                    actionTitle: notifications.shouldShowAuthorizationAction ? notifications.authorizationActionTitle : nil,
+                    onAuthorize: handleNotificationAuthorizationAction
+                )
+
                 Toggle(isOn: $store.settings.notificationsEnabled) {
                     Label("到点通知", systemImage: "bell.badge.fill")
                 }
@@ -117,33 +125,6 @@ struct SettingsView: View {
                 Toggle(isOn: $store.settings.liveActivityEnabled) {
                     Label("通知栏实时显示", systemImage: "livephoto")
                 }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 12) {
-                        Image(systemName: notificationStatusIcon)
-                            .foregroundStyle(AppTheme.readableTint(notificationStatusColor))
-                        Text(notificationStatusText)
-                            .font(.subheadline)
-                            .foregroundStyle(AppTheme.secondaryText)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    if notifications.shouldShowAuthorizationAction {
-                        Button {
-                            handleNotificationAuthorizationAction()
-                        } label: {
-                            Text(notifications.authorizationActionTitle)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.readableTint(.cyan))
-                        .accessibilityIdentifier("settings.notifications.authorize")
-                    }
-                }
-                .padding(12)
-                .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .toggleStyle(SwitchToggleStyle(tint: .cyan))
             .foregroundStyle(AppTheme.primaryText)
@@ -310,6 +291,42 @@ struct SettingsView: View {
             vibrationEnabled: false,
             completionSound: store.settings.completionSound
         )
+    }
+}
+
+private struct NotificationAuthorizationCard: View {
+    let status: String
+    let symbol: String
+    let tint: Color
+    let actionTitle: String?
+    let onAuthorize: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: symbol)
+                    .foregroundStyle(AppTheme.readableTint(tint))
+                    .accessibilityHidden(true)
+                Text(status)
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let actionTitle {
+                Button(action: onAuthorize) {
+                    Text(actionTitle)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.readableTint(.cyan))
+                .accessibilityIdentifier("settings.notifications.authorize")
+            }
+        }
+        .padding(12)
+        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
     }
 }
 

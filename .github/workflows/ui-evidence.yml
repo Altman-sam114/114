@@ -144,7 +144,7 @@ jobs:
                           require(result["releaseEvidence"]["commitSha"] == run["head_sha"], "Release products are from a different source")
                       else:
                           result["nativeUIEvidence"] = load(ROOT / "ios-evidence.json")
-                          require(result["nativeUIEvidence"]["summary"]["passedTests"] == 9, "Missing native UI test results")
+                          require(result["nativeUIEvidence"]["summary"]["passedTests"] == 10, "Missing native UI test results")
                       with (ROOT / "ui-manifest.json").open("x") as output:
                           json.dump(result, output, indent=2)
               with (ROOT / (phase + "-gate-result.json")).open("x") as output:

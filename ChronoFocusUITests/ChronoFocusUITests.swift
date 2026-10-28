@@ -146,6 +146,14 @@ final class ChronoFocusUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(queueTask.frame.minX, app.frame.minX)
         XCTAssertLessThanOrEqual(queueTask.frame.maxX, app.frame.maxX)
         capture("large-text-queue")
+    }
+
+    func testNotificationAccessibilityWhileRunning() {
+        launch(fixture: "long", largeType: true)
+        let primary = app.buttons["timer.primary"]
+        reveal(primary)
+        primary.tap()
+        waitForLabel(primary, prefix: "暂停")
         app.tabBars.buttons["设置"].tap()
         revealNotificationAction()
         capture("large-text-notifications")
