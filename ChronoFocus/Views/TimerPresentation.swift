@@ -113,6 +113,8 @@ struct TimerCountdownView: View {
                   ? .system(.title, design: .rounded).bold()
                   : .system(size: timerFontSize, weight: .semibold, design: .rounded))
             .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
             .foregroundStyle(AppTheme.primaryText)
             .contentTransition(reduceMotion ? .identity : .numericText(countsDown: true))
             .accessibilityLabel("剩余时间")
