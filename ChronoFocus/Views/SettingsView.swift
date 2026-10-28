@@ -134,7 +134,7 @@ struct SettingsView: View {
                         } label: {
                             Text(notifications.authorizationActionTitle)
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Color(uiColor: .systemBackground))
+                                .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
                                 .frame(maxWidth: .infinity, minHeight: 44)
                         }
                         .buttonStyle(.borderedProminent)

@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct MacGlassPanel<Content: View>: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
     private let content: Content
 
     init(@ViewBuilder content: () -> Content) {
@@ -10,10 +13,13 @@ struct MacGlassPanel<Content: View>: View {
     var body: some View {
         content
             .padding(18)
-            .background(MacTheme.panelStrong, in: RoundedRectangle(cornerRadius: 8))
+            .background(
+                reduceTransparency ? MacTheme.opaquePanel : MacTheme.panelStrong,
+                in: RoundedRectangle(cornerRadius: MacTheme.panelRadius, style: .continuous)
+            )
             .overlay {
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(MacTheme.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: MacTheme.panelRadius, style: .continuous)
+                    .stroke(contrast == .increased ? MacTheme.secondaryText : MacTheme.border, lineWidth: 1)
             }
     }
 }

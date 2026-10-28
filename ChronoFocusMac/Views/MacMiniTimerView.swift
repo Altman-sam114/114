@@ -6,6 +6,7 @@ struct MacMiniTimerView: View {
     @EnvironmentObject private var premium: MacPremiumAccessService
     @EnvironmentObject private var notifications: MacNotificationService
     @Environment(\.macSnapshotShowsQuickPanel) private var snapshotShowsQuickPanel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isShowingQuickPanel = false
 
     let openDetails: (MacDetailSection) -> Void
@@ -59,7 +60,7 @@ struct MacMiniTimerView: View {
         .frame(width: shouldShowQuickPanel ? 560 : 430, height: 500)
         .background(MacTheme.background)
         .preferredColorScheme(store.settings.appThemeMode == .dark ? .dark : .light)
-        .animation(.smooth(duration: 0.22), value: shouldShowQuickPanel)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: shouldShowQuickPanel)
         .onChange(of: isShowingQuickPanel) { _, isShowing in
             onQuickPanelChange(isShowing)
         }
@@ -94,6 +95,7 @@ private struct MacMiniHeaderView: View {
                     .font(.subheadline)
                     .foregroundStyle(MacTheme.secondaryText)
                     .lineLimit(1)
+                    .help(displayedTaskTitle)
             }
 
             Spacer()
@@ -149,6 +151,8 @@ private struct MacMiniClockView: View {
 }
 
 private struct MacMiniFlowProgressView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let progress: Double
     let tint: Color
 
@@ -180,7 +184,7 @@ private struct MacMiniFlowProgressView: View {
                 }
             }
             .frame(width: 170, height: 10)
-            .animation(.smooth(duration: 0.35), value: clampedProgress)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: clampedProgress)
 
             HStack(spacing: 6) {
                 ForEach(0..<4, id: \.self) { index in
@@ -757,6 +761,9 @@ private struct MacMiniPillButtonStyle: ButtonStyle {
 }
 
 private struct MacIconButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let tint: Color
     let filled: Bool
     var foreground: Color? = nil
@@ -775,7 +782,8 @@ private struct MacIconButtonStyle: ButtonStyle {
                 Circle()
                     .stroke(tint.opacity(filled ? 0 : 0.35), lineWidth: 1)
             }
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.smooth(duration: 0.12), value: configuration.isPressed)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
+            .opacity(isEnabled ? 1 : 0.4)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.12), value: configuration.isPressed)
     }
 }

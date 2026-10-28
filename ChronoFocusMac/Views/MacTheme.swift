@@ -2,6 +2,9 @@ import AppKit
 import SwiftUI
 
 enum MacTheme {
+    static let panelRadius: CGFloat = 18
+    static let controlRadius: CGFloat = 12
+
     static let background = LinearGradient(
         colors: [
             adaptive(dark: NSColor(srgbRed: 0.08, green: 0.10, blue: 0.14, alpha: 1), light: NSColor(srgbRed: 0.96, green: 0.98, blue: 0.97, alpha: 1)),
@@ -14,6 +17,7 @@ enum MacTheme {
 
     static let panel = adaptive(dark: .white.withAlphaComponent(0.08), light: .black.withAlphaComponent(0.04))
     static let panelStrong = adaptive(dark: .white.withAlphaComponent(0.13), light: .white.withAlphaComponent(0.82))
+    static let opaquePanel = adaptive(dark: NSColor(srgbRed: 0.12, green: 0.17, blue: 0.21, alpha: 1), light: .white)
     static let inset = adaptive(dark: .white.withAlphaComponent(0.06), light: .black.withAlphaComponent(0.04))
     static let border = adaptive(dark: .white.withAlphaComponent(0.12), light: .black.withAlphaComponent(0.14))
     static let track = adaptive(dark: .white.withAlphaComponent(0.12), light: .black.withAlphaComponent(0.14))

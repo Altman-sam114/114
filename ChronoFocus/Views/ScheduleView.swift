@@ -1444,6 +1444,12 @@ private struct ScheduleTaskCell: View {
 }
 
 struct TaskEditorView: View {
+    private enum InputField: Hashable {
+        case title
+        case category
+        case categorySearch
+    }
+
     private struct ExistingCategoryOption: Identifiable {
         let name: String
         let comparisonKey: String
@@ -1455,6 +1461,7 @@ struct TaskEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var notifications: NotificationService
+    @FocusState private var focusedField: InputField?
     @State private var title = ""
     @State private var category = "工作"
     @State private var dueDate: Date
@@ -1614,8 +1621,14 @@ struct TaskEditorView: View {
             Form {
                 Section("待办") {
                     TextField("标题", text: $title)
+                        .focused($focusedField, equals: .title)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .category }
                         .accessibilityIdentifier("task.editor.title")
                     TextField("分类", text: $category)
+                        .focused($focusedField, equals: .category)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
                         .accessibilityIdentifier("task.editor.category")
                         .accessibilityLabel(categoryInputAccessibilityLabel)
                         .accessibilityHint("可输入自定义分类，或选择常用分类")
@@ -1678,6 +1691,7 @@ struct TaskEditorView: View {
                     }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(task == nil ? "新增待办" : "编辑待办")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1689,6 +1703,7 @@ struct TaskEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
+                        focusedField = nil
                         if save() {
                             dismiss()
                         }
@@ -1752,6 +1767,9 @@ struct TaskEditorView: View {
     private var existingCategorySearchField: some View {
         HStack(spacing: 4) {
             TextField("搜索已有分类", text: $existingCategorySearch)
+                .focused($focusedField, equals: .categorySearch)
+                .submitLabel(.done)
+                .onSubmit { focusedField = nil }
                 .textFieldStyle(.roundedBorder)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()

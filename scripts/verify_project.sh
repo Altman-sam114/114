@@ -239,6 +239,8 @@ required_files=(
   "ChronoFocus/Services/PremiumAccessService.swift"
   "ChronoFocus/Services/CalendarSyncService.swift"
   "ChronoFocus/Views/DashboardView.swift"
+  "ChronoFocus/Views/AppTheme.swift"
+  "ChronoFocus/Views/TimerPresentation.swift"
   "ChronoFocus/Views/TimerView.swift"
   "ChronoFocus/Views/ScheduleView.swift"
   "ChronoFocus/Views/AnalyticsView.swift"
@@ -289,7 +291,7 @@ for basename in \
   MacLiveActivityService.swift MacPremiumAccessService.swift MacCalendarSyncService.swift \
   MacLinearProgressView.swift MacMiniTimerView.swift MacDetailView.swift MacTimerDetailView.swift \
   MacScheduleDetailView.swift MacAnalyticsDetailView.swift MacSettingsDetailView.swift \
-  TimerView.swift ScheduleView.swift AnalyticsView.swift SettingsView.swift \
+  AppTheme.swift TimerPresentation.swift TimerView.swift ScheduleView.swift AnalyticsView.swift SettingsView.swift \
   PomodoroActivityAttributes.swift SharedExtensions.swift \
   ChronoFocusLiveActivityBundle.swift ChronoFocusLiveActivity.swift Assets.xcassets; do
   grep -q "$basename" "$project"

@@ -3,6 +3,7 @@ import SwiftUI
 struct AnalyticsView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var premium: PremiumAccessService
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var reportRange: ReportRange = .week
 
     private let calendar = Calendar.current
@@ -86,7 +87,8 @@ struct AnalyticsView: View {
     }
 
     private var summaryGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+        let columns = Array(repeating: GridItem(.flexible(), alignment: .top), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2)
+        return LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
             MetricTile(title: "今日专注", value: store.todayFocusSeconds.hourMinuteText, symbol: "sun.max.fill", tint: .cyan)
             MetricTile(title: "本周专注", value: store.weekFocusSeconds.hourMinuteText, symbol: "calendar", tint: .mint)
             MetricTile(title: "累计轮数", value: "\(store.completedFocusRounds)", symbol: "number.circle.fill", tint: .orange)

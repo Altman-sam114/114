@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-28 / 发布导向UI与组件重构（云端验证中）：iOS将主题/基础面板从Dashboard拆到AppTheme，将计时上下文与表盘拆到纯值输入的TimerPresentation；保持Engine/Store单入口，未改持久化。统一两端圆角与计时视觉，去除iOS重复面板blur和表盘光晕，计时队列标题/分类/时间完整换行、轮次单列分层，Mac详情队列复用完整换行组件。面板支持减少透明度/增强对比度，计时及Mac小窗按钮支持减少动态效果，停用按钮明确反馈；iOS统计辅助字号单列、修正通知按钮对比色、编辑器提交收起键盘。关键文件为两新增展示文件、两端Timer/Theme/Panel/Mini、iOS Schedule/Analytics/Settings、工程接线与原生测试；原9测试/38场景保留，追加大字体真实队列可达和高度断言。静态diff已审阅，未运行本机编译/测试/validator；生产/review/UI/Release须等本轮精确SHA实际结果。历史375pt AX查询超时不能用旧绿色记录替代，正式身份/签名/商品与真实服务/真机实测仍未完成。
+
 - 2026-10-28 / 自主迭代流程简化：当前会话直接按目标规划、实现、自查与交付，取消角色召唤、交接和强制版本提示词；根目录`work.md`保存未完成任务的计划、编辑范围、进度、验证选择和下一步，完成后清空任务正文。保留`main`直推和默认云端编译测试，测试按本轮改动选择必要基线/直接行为/关联回归，纯Markdown不触发无关产品CI。现有workflow和测试实现未改，仍为固定完整链，不宣称已支持定向profile。具体改动与验证见下方同名维护记录；历史角色称谓仅保留为当时语境，不再生效。
 
 - 2026-10-28 v1.10长分类视觉C退回：cbfc9194ceb1ada25195e355faaadbb6aaacd71b的source40635444950/review40636057979/UI40636058089均success/attempt1，第四模式148/0、JUnit4/0/0，共享core与21/8/10/8项静态回归成功；两iPhone各9/0/0与38场景（375pt515.455秒、390pt574.146秒），短生命周期均首先执行，独立收集/上传成功，Mac17图和Release工程检查通过。生产12793950148为16295455 bytes/sha256:5f16c00147a4915959a6f9de9dc85e8f402ffaee74dd2083710d60a4a0113429；review12792999267、Mac12793812146、Release12793113441、375pt12793094926、390pt12794257518。证据/private/tmp/chronofocus-c-review-40635444950-o_3wlhlp；C未额外下载本轮手机大包，读取精确原始job日志/API确认9/38。实际Mac长文本图中分类筛选胶囊撑至约9行，仍退回B；仅将筛选名称限两行尾截断、加完整help，已有分类补help，任务正文完整换行和44pt/AX/计数不变，复用原17图与8项UI接线回归。关键文件为MacScheduleDetailView、test_ui_evidence及A/README/test/flow/readiness；本机只静态/gh取证/读图，无测试解析编译或validator。本次补丁待新main完整云端及C验收，distributionReady仍为false。

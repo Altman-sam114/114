@@ -5,7 +5,6 @@ struct TimerView: View {
     @EnvironmentObject private var engine: TimerEngine
     @EnvironmentObject private var notifications: NotificationService
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize = 58
     @State private var selectedTaskCategory: String?
     @State private var showingCategoryEditor = false
     @State private var isTaskQueueExpanded = false
@@ -188,6 +187,8 @@ struct TimerView: View {
                 }
                 .padding(18)
                 .padding(.bottom, 24)
+                .frame(maxWidth: 680)
+                .frame(maxWidth: .infinity)
             }
             .onGeometryChange(for: CGFloat.self) { proxy in
                 proxy.size.height
@@ -258,39 +259,15 @@ struct TimerView: View {
     }
 
     private var header: some View {
-        let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
-            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
-        return layout {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(engine.isRunning ? "当前专注" : "准备好，专注当下")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.readableTint(currentTint))
-                Text(timerActionTitle)
-                    .font(.system(.title2, design: .rounded).bold())
-                    .foregroundStyle(AppTheme.primaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("timer.task-title")
-                if let category = timerActionCategory {
-                    Label(category, systemImage: "tag.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppTheme.readableTint(currentTint))
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            VStack(alignment: .trailing, spacing: 6) {
-                Text("第 \(store.completedFocusRounds + 1) 轮")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.primaryText)
-                Text(engine.isRunning ? (engine.isPaused ? "已暂停" : "运行中") : "待启动")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.secondaryText)
-            }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        }
+        TimerContextHeader(
+            title: timerActionTitle,
+            category: timerActionCategory,
+            mode: engine.mode,
+            isRunning: engine.isRunning,
+            isPaused: engine.isPaused,
+            round: store.completedFocusRounds + 1,
+            tint: currentTint
+        )
     }
 
     private var modePicker: some View {
@@ -307,65 +284,15 @@ struct TimerView: View {
     }
 
     private var timerDial: some View {
-        GlassPanel {
-            if dynamicTypeSize.isAccessibilitySize {
-                VStack(spacing: 12) {
-                    countdownText
-                    ProgressView(value: engine.progress)
-                        .tint(currentTint)
-                    timerPhaseCaption
-                }
-            } else {
-                ZStack {
-                    Circle()
-                        .stroke(AppTheme.border, lineWidth: 12)
-                    Circle()
-                        .trim(from: 0, to: engine.progress)
-                        .stroke(
-                            currentTint,
-                            style: StrokeStyle(lineWidth: 12, lineCap: .round)
-                        )
-                        .rotationEffect(.degrees(-90))
-                        .shadow(color: currentTint.opacity(0.22), radius: 12)
-
-                    VStack(spacing: 8) {
-                        Image(systemName: engine.mode.symbolName)
-                            .font(.system(size: 26, weight: .semibold))
-                            .foregroundStyle(AppTheme.readableTint(currentTint))
-                        countdownText
-                        timerPhaseCaption
-                    }
-                    .padding(18)
-                }
-                .frame(maxWidth: viewportHeight < 560 ? 210 : 280)
-                .aspectRatio(1, contentMode: .fit)
-                .frame(maxWidth: .infinity)
-            }
-        }
-    }
-
-    private var countdownText: some View {
-        Text(engine.formattedRemaining)
-            .font(dynamicTypeSize.isAccessibilitySize
-                  ? .system(.title, design: .rounded).bold()
-                  : .system(size: timerFontSize, weight: .bold, design: .rounded))
-            .monospacedDigit()
-            .foregroundStyle(AppTheme.primaryText)
-            .contentTransition(.numericText(countsDown: true))
-            .accessibilityLabel("剩余时间")
-            .accessibilityValue(engine.formattedRemaining)
-            .accessibilityIdentifier("timer.remaining")
-    }
-
-    private var timerPhaseCaption: some View {
-        VStack(spacing: 6) {
-            Text("\(engine.mode.title) · \(engine.plannedSeconds.hourMinuteText)")
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.secondaryText)
-            Text("下一步 \(engine.nextModeHint)")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(AppTheme.readableTint(currentTint))
-        }
+        TimerCountdownView(
+            remaining: engine.formattedRemaining,
+            progress: engine.progress,
+            mode: engine.mode,
+            plannedSeconds: engine.plannedSeconds,
+            nextModeHint: engine.nextModeHint,
+            tint: currentTint,
+            compact: viewportHeight < 560
+        )
     }
 
     private var actionBar: some View {
@@ -560,6 +487,7 @@ struct TimerView: View {
                             }
                             .buttonStyle(.plain)
                             .disabled(engine.isRunning)
+                            .accessibilityIdentifier("timer.queue.task.\(task.id.uuidString)")
                         }
 
                         if filteredUpcomingTasks.count > collapsedTaskLimit {
@@ -666,48 +594,55 @@ private struct TaskRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(categoryTint)
-                .frame(width: 10, height: 10)
-
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
                 Text(task.title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.primaryText)
-                    .lineLimit(1)
-                if showsCategoryBadge || task.dueDate != nil {
-                    HStack(spacing: 6) {
-                        if showsCategoryBadge {
-                            TimerTaskCategoryBadge(task: task)
-                        }
-                        if let dueDate = task.dueDate {
-                            Text(dueDate.scheduleTimeText)
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.secondaryText)
-                                .lineLimit(1)
-                        }
-                    }
-                }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(isSelected ? AppTheme.readableTint(categoryTint) : AppTheme.secondaryText)
+                    .accessibilityHidden(true)
             }
 
-            Spacer()
+            if showsCategoryBadge {
+                TimerTaskCategoryBadge(task: task)
+            }
+            if let dueDate = task.dueDate {
+                Text(dueDate.scheduleTimeText)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
-            ProgressView(value: task.progress)
-                .tint(categoryTint)
-                .frame(width: 58)
-
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(isSelected ? AppTheme.readableTint(categoryTint) : AppTheme.secondaryText)
+            if task.startMode == .plannedRounds {
+                HStack(spacing: 12) {
+                    ProgressView(value: task.progress)
+                        .tint(categoryTint)
+                        .accessibilityHidden(true)
+                    Text("\(task.completedRounds)/\(task.estimatedRounds) 轮")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .fixedSize()
+                }
+            } else {
+                Text("手动结束")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryText)
+            }
         }
         .padding(12)
-        .background(isSelected ? categoryTint.opacity(0.13) : AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .background(isSelected ? categoryTint.opacity(0.13) : AppTheme.panel, in: RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous)
                 .stroke(isSelected ? categoryTint.opacity(0.7) : AppTheme.border, lineWidth: 1)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText)")
+        .accessibilityValue(task.startMode == .plannedRounds ? "已完成 \(task.completedRounds) 轮，共 \(task.estimatedRounds) 轮" : "手动结束")
         .accessibilityHint(selectionHintText)
         .accessibilityInputLabels(selectionInputLabels)
         .accessibilityAddTraits(selectionAccessibilityTraits)
@@ -1150,18 +1085,21 @@ private struct TimerTaskCategoryBadge: View {
 
     var body: some View {
         Label(task.category, systemImage: categorySymbolName)
-            .lineLimit(1)
             .font(.caption.weight(.bold))
+            .fixedSize(horizontal: false, vertical: true)
             .foregroundStyle(AppTheme.readableTint(tint))
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(tint.opacity(0.14), in: Capsule())
+            .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .accessibilityLabel("\(task.category)分类")
             .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
     }
 }
 
 private struct IconActionButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let tint: Color
     let filled: Bool
     let tintHex: String?
@@ -1184,12 +1122,12 @@ private struct IconActionButtonStyle: ButtonStyle {
             .padding(.vertical, 12)
             .frame(minHeight: 48)
             .contentShape(Rectangle())
-            .background(filled ? tint : tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(filled ? tint : tint.opacity(0.12), in: RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: AppTheme.controlRadius, style: .continuous)
                     .stroke(tint.opacity(0.52), lineWidth: 1)
             }
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .opacity(configuration.isPressed ? 0.85 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
+            .opacity(!isEnabled ? 0.4 : configuration.isPressed ? 0.85 : 1)
     }
 }

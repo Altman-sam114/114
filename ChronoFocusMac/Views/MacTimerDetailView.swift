@@ -140,23 +140,27 @@ private struct MacTimerDialView: View {
             }
             ZStack {
                 Circle()
-                    .stroke(MacTheme.track, lineWidth: 18)
+                    .stroke(MacTheme.track, lineWidth: 10)
+                    .accessibilityHidden(true)
                 Circle()
                     .trim(from: 0, to: engine.progress)
-                    .stroke(currentTint, style: StrokeStyle(lineWidth: 18, lineCap: .round))
+                    .stroke(currentTint, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .shadow(color: currentTint.opacity(0.35), radius: 18)
+                    .accessibilityHidden(true)
 
                 VStack(spacing: 10) {
                     Image(systemName: displayedMode.symbolName)
                         .font(.title2)
                         .foregroundStyle(MacTheme.readableTint(currentTint))
+                        .accessibilityHidden(true)
                     Text(engine.formattedRemaining)
-                        .font(.system(size: 72, weight: .bold, design: .rounded))
+                        .font(.system(size: 72, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(MacTheme.primaryText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.65)
+                        .accessibilityLabel("剩余时间")
+                        .accessibilityValue(engine.formattedRemaining)
                     Text(displayedMode.title)
                         .font(.headline)
                         .foregroundStyle(MacTheme.secondaryText)
@@ -636,7 +640,8 @@ private struct MacTaskQueueView: View {
                                 task: task,
                                 isSelected: engine.selectedTaskID == task.id,
                                 isTimerRunning: engine.isRunning,
-                                showsCategoryBadge: selectedCategory == nil
+                                showsCategoryBadge: selectedCategory == nil,
+                                allowsTextWrapping: true
                             )
                         }
                         .buttonStyle(.plain)
@@ -1118,7 +1123,7 @@ struct MacTaskRowView: View {
                 .frame(width: 74)
         }
         .padding(10)
-        .background(isSelected ? categoryTint.opacity(0.16) : MacTheme.inset, in: RoundedRectangle(cornerRadius: 8))
+        .background(isSelected ? categoryTint.opacity(0.16) : MacTheme.inset, in: RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(task.title)，\(task.category)分类，\(selectionStateText)")
         .accessibilityHint(selectionHintText)
@@ -1164,14 +1169,18 @@ struct MacPageHeaderView: View {
                 .font(.title2)
                 .foregroundStyle(MacTheme.readableTint(.cyan))
                 .frame(width: 44, height: 44)
-                .background(Color.cyan.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
+                .background(Color.cyan.opacity(0.14), in: RoundedRectangle(cornerRadius: MacTheme.controlRadius, style: .continuous))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.largeTitle.bold())
+                    .font(.system(.largeTitle, design: .rounded).bold())
                     .foregroundStyle(MacTheme.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
                 Text(subtitle)
                     .font(.subheadline)
                     .foregroundStyle(MacTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
         }

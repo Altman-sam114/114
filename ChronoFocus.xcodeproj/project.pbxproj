@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		400000000000000000000001 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000101 /* AppTheme.swift */; };
+		400000000000000000000002 /* TimerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400000000000000000000102 /* TimerPresentation.swift */; };
         100000000000000000000017 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000119 /* PrivacyInfo.xcprivacy */; };
         100000000000000000000018 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000011A /* PrivacyInfo.xcprivacy */; };
         100000000000000000000019 /* CalendarReadAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000118 /* CalendarReadAccess.swift */; };
@@ -90,6 +92,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		400000000000000000000101 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		400000000000000000000102 /* TimerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerPresentation.swift; sourceTree = "<group>"; };
         100000000000000000000118 /* CalendarReadAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarReadAccess.swift; sourceTree = "<group>"; };
         100000000000000000000119 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
         10000000000000000000011A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -204,6 +208,8 @@
 		100000000000000000000803 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				400000000000000000000101 /* AppTheme.swift */,
+				400000000000000000000102 /* TimerPresentation.swift */,
 				100000000000000000000102 /* DashboardView.swift */,
 				100000000000000000000103 /* TimerView.swift */,
 				100000000000000000000104 /* ScheduleView.swift */,
@@ -479,6 +485,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				400000000000000000000001 /* AppTheme.swift in Sources */,
+				400000000000000000000002 /* TimerPresentation.swift in Sources */,
 				100000000000000000000001 /* ChronoFocusApp.swift in Sources */,
 				100000000000000000000002 /* DashboardView.swift in Sources */,
 				100000000000000000000003 /* TimerView.swift in Sources */,

@@ -138,6 +138,10 @@ final class ChronoFocusUITests: XCTestCase {
         primary.tap()
         waitForLabel(primary, prefix: "暂停")
         capture("large-text-running")
+        let queueTask = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "timer.queue.task.")).firstMatch
+        revealInsideViewport(queueTask)
+        XCTAssertTrue(queueTask.label.contains("整理跨团队产品体验评审中的问题，完成下一阶段的可访问性与发布准备"))
+        XCTAssertGreaterThan(queueTask.frame.height, 160, "The accessibility task row must expand instead of truncating the title")
         app.tabBars.buttons["设置"].tap()
         revealNotificationAction()
         capture("large-text-notifications")
