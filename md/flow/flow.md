@@ -2,13 +2,9 @@
 
 ## 0. 一句话总览
 
-原始日志和 ZIP 下载由 gh 显式允许转义字节并写入独占 `.part` 文件，避免新版 CLI 的终端保护阻断原始证据；不打印、不清洗这些字节。JSON 下载维持默认保护，下载大小、重试、ZIP 摘要校验、原子晋升及注入输出时间窗口核对保持不变。
+ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作番茄钟/日程 -> `FocusStore` 保存设置、任务、计划、会话和活跃快照 -> `TimerEngine` 按真实系统时间驱动计时 -> 平台服务负责通知、Live Activity/占位、日历和 Pro -> SwiftUI 渲染。
 
-独立 review 区分 workflow 静态身份与 run 动态名称：包外 workflow API 的 ID `306720987`、静态名称 `ChronoFocus CI Results`、精确 path 与 active 状态须匹配，run API 的 `name` 只允许静态名称或严格登记的 `display_title`。preflight、下载前、最终复查保留独立 workflow API 原文，仍只从已核对 SHA 执行 validator；所有原始 API 与 ZIP 都位于 `extracted/` 之外，不增加生产结果包文件或放宽第四模式。
-
-ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作番茄钟/日程 -> `FocusStore` 保存设置、任务、计划、会话和活跃计时快照 -> `TimerEngine` 按真实系统时间驱动计时状态 -> 平台服务负责通知、Live Activity/占位、日历同步和 Pro 权益 -> SwiftUI 视图渲染当前状态。
-
-协作验证主链路是：Agent A 写版本化提示词 -> Agent B 只做静态审阅并在最新 `origin/main` 上实现、commit、push -> GitHub Actions 运行 `ci-results.yml` -> 上传未加密 CI 结果包 -> Agent C 下载并核对 manifest、artifact index、run context 精确键集、artifact 名称、七个业务阶段与 `bootstrap`/`createManifest` 包阶段、日志和产物，由独立 Actions 执行 `scripts/validate_ci_artifact.rb` 正式第四模式，C 本机仅以 `gh` 取证及读码。成功包 required 路径缺失时 finalizer 必须失败；若正常 finalizer 失败，workflow 先由 `scripts/recover_ci_result_package.py` 按 branch slug 重建一致的 fallback 包，恢复包缺少六项核心证据或恢复失败则不上传陈旧目录；阶段摘要必须逐项绑定 outcome，skipped-only 包由 failure validator 拒绝。失败时退回 Agent B 在 `main` 追加修复 commit。Agent X 可围绕人工总目标主控多轮 A/B/C 闭环，但每轮仍必须经过 Agent A 提示词、Agent B push 和 Agent C artifact 验收；本轮禁止本地项目测试、构建和 validator。
+开发链路是：用户目标 -> 当前会话在 [work.md](../../work.md) 规划 -> 小步实现与自查 -> 按改动选择必要云端验证 -> 自行核对真实结果 -> 交付并清空当前任务记录。默认禁止本机编译和测试；纯文档不触发产品 CI，历史提示词不再是前置条件。
 
 ## 1. 当前核心数据流
 
@@ -20,7 +16,7 @@ iOS日程使用inline导航，任务搜索从待办标题旁展开，分类查�
 
 TimerEngine自然到点经incrementActiveTaskRound、手动结束经finishActiveTask完成原任务；只有Store成功返回已完成任务时才取消其到期提醒。循环生成后的返回对象按原ID查找，不能用已漂移的数组index。自由专注没有任务ID，不取消其他任务提醒；计时完成通知仍由原cancelNotification处理。
 
-保存成功才清除旧任务查询并显示保存后的状态；iOS同时对齐所选分类和日期，无日期任务回到创建日的日范围，取消不触发此回调。Store拒绝保存时编辑器保持草稿并显示原因，不触发提醒或父级定位。Mac快速新增成功后回到未完成状态，日程任务正文/管理动作分层，标题和分类允许完整换行。循环完成创建下一期后，三个Store完成入口按原ID返回任务，提醒取消和TimerEngine完成处理不会拿到新一期。原生当前每设备9条、38具名场景。Debug根fixture仅在显式测试分支呈现真实编辑器并经Engine使该任务变活动；自动开始时钟本身另由共享core验证。证据同时核对xcresulttool测试树的唯一9测试及逐项Passed/设备/耗时、summary和附件场景；失败也保存逐测试诊断表到独立证据和Actions Summary，不能用诊断代替接受条件。Mac独立17图含完成检索与1100pt双列长文本，生产唯一包与正式五图不变。initial gate失败的fallback包名也包含平台，保留独立失败现场。v1.9的49433bb已完成全链C验收，后续SHA仍须重新验证。
+保存成功才清除旧任务查询并显示保存后的状态；iOS同时对齐所选分类和日期，无日期任务回到创建日的日范围，取消不触发此回调。Store拒绝保存时编辑器保持草稿并显示原因，不触发提醒或父级定位。Mac快速新增成功后回到未完成状态，日程任务正文/管理动作分层，标题和分类允许完整换行。循环完成创建下一期后，三个Store完成入口按原ID返回任务，提醒取消和TimerEngine完成处理不会拿到新一期。原生当前每设备9条、38具名场景。Debug根fixture仅在显式测试分支呈现真实编辑器并经Engine使该任务变活动；自动开始时钟本身另由共享core验证。证据同时核对xcresulttool测试树的唯一9测试及逐项Passed/设备/耗时、summary和附件场景；失败也保存逐测试诊断表到独立证据和Actions Summary，不能用诊断代替接受条件。Mac独立17图含完成检索与1100pt双列长文本，生产唯一包与正式五图不变。initial gate失败的fallback包名也包含平台，保留独立失败现场。这些证据仅在执行对应验证时采集，不能代替新提交的必要验证。
 
 原生寻找和对齐均从外层10pt留白发起限幅垂直拖动，避免嵌套Picker/横向分类条截获手势；每次至少32pt以跨过滚动识别阈值，最大幅度仍按视口和阶段限幅。revealInsideViewport把目标纠正到实时导航栏与TabBar之间，仍检查真实可达性和尺寸。日历标题/范围在辅助字体纵排，今天保持一行，新增原生标题高度和日历场景。独立Release保存真实ICNS并用系统sips解码兼容图，再通过Assets.car的assetutil原文绑定同CFBundleIconName的1024×1024编译图；失败保留诊断，不能以源PNG或构建成功代替资源验证。
 
@@ -30,7 +26,7 @@ v1.9展示与证据：iOS日程待办的标题/分类/时间和动作分层，�
 
 v1.8平台边界：两日历服务先拒绝并发同步，再经共享`CalendarReadAccessGate`读取真实授权。fullAccess允许读取，notDetermined/writeOnly请求完整访问后同时核对返回值和刷新状态，denied/restricted/unknown拒绝；异常也刷新平台状态。只有允许后才查询EventKit并通过既有Store导入。Live Activity锁屏/灵动岛共用`ActivityCountdownText`，暂停显示非负快照值，运行中只对未来日期构造`futureCountdownRange`，到点/过期显示00:00而不创建倒置区间。
 
-iOS设置通知卡片把状态说明与授权动作纵排，动作占满卡片内容宽度，避免说明文字挤空按钮；实际授权/系统设置跳转仍委托NotificationService。普通浅色与辅助大字体暗色原生测试覆盖同一入口，每设备18张附件供C读图。
+iOS设置通知卡片把状态说明与授权动作纵排，动作占满卡片内容宽度，避免说明文字挤空按钮；实际授权/系统设置跳转仍委托NotificationService。普通浅色与辅助大字体暗色原生测试覆盖同一入口，保留具名原生附件供实际读图核对。
 
 原生UITest控件寻找按实际frame选择滚动方向，空frame采用有界双向搜索；保存后任务位于当前视口上方也必须重新变为可点击，不能仅以元素存在替代实际可达性。寻找失败保存原生截图供退回定位。
 
@@ -51,7 +47,7 @@ v1.5展示层：iOS计时依次呈现当前任务、模式/倒计时、主控、
   -> TimerNotificationServicing / TimerLiveActivityServicing
   -> UserDefaults JSON 持久化、通知、Live Activity、Mac 状态栏、SwiftUI 渲染
   -> scripts/test_mac_core.swift 和 scripts/render_mac_snapshots.swift 由 GitHub Actions 验证核心逻辑与 UI 快照
-  -> GitHub Actions ci-results.yml 上传 Agent C 可复判结果包
+  -> GitHub Actions ci-results.yml 上传可追溯结果包，由当前会话读取云端独立 review 的结论
 ```
 
 核心数据对象：
@@ -215,142 +211,72 @@ macOS：
 - 详细窗口：计时、日程、计划、统计和设置；快速新增保留自由文本、5 个预设和分类预填，并从 `store.taskCategories` 显示与 iOS 相同算法的“已有分类”。长列表搜索与 snapshot rendering 共享过滤 option，外部分类预填先清除旧查询；选择已有分类只更新快速新增草稿并复用首个同分类任务代表色。提交仍走现有 `addTask()`，连续新增、筛选摘要、任务操作和计时语义保持不变。
 - 日历范围列表：完整当前分类结果继续用于范围计数、日期格和空态，默认显示前 4 项；超过 4 项时提供带剩余数量的展开/收起按钮，分类、日期、日/周/月范围或结果变化会恢复收起，按钮和快照静态路径保持至少 44pt 及辅助功能语义。
 
-## 6. 前端 / 数据层 / 模型层 / 测试层关系
+## 6. 前端、业务、模型与验证的关系
 
-- SwiftUI Views 只发起用户意图。
-- `TimerEngine` 把计时意图转成状态变化和平台服务调用。
-- `FocusStore` 管理数据读写、统计和计划。
-- `AppModels.swift` 定义跨端模型契约、非持久化分类预设和分类筛选排序 option。
-- v0.78 起，统计最近记录的分类 badge 和整行可访问语义由 `scripts/verify_project.sh` 输出 `Analytics recent session category contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project analytics recent session category contracts`。
-- v0.79 起，当前任务选择行的 selected trait、运行中不可切换提示、任务名和分类名 Voice Control input labels 由 `scripts/verify_project.sh` 输出 `Current task selection accessibility contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project current task selection accessibility contracts`。
-- v0.80 起，分类筛选 chip 再次点击已选分类清除筛选由 `scripts/verify_project.sh` 输出 `Category filter toggle contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project category filter toggle contracts`。
-- v0.81 起，iOS 统计页日程计划回顾分类 badge、整行分类语义和 Voice Control input labels 由 `scripts/verify_project.sh` 输出 `Analytics plan review category accessibility contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project analytics plan review category accessibility contracts`。
-- v0.82 起，iOS 待办新增/编辑保存按钮的任务、分类、预计轮次或只设开始语义由 `scripts/verify_project.sh` 输出 `Task editor save category accessibility contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project task editor save category accessibility contracts`。
-- v0.83 起，iOS 待办新增/编辑取消按钮的取消新增/取消编辑动作、任务和分类语义由 `scripts/verify_project.sh` 输出 `Task editor cancel category accessibility contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project task editor cancel category accessibility contracts`。
-- v0.84 起，iOS/macOS 统计页分类投入的专注次数上下文由 `scripts/verify_project.sh` 输出 `Analytics category share session count contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project analytics category share session count contracts`。
-- v0.85 起，iOS/macOS 统计页分类投入的排行位置语义由 `scripts/verify_project.sh` 输出 `Analytics category share ranking contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project analytics category share ranking contracts`。
-- v0.86 起，iOS/macOS 统计页分类投入的排序依据语义由 `scripts/verify_project.sh` 输出 `Analytics category share sort context contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project analytics category share sort context contracts`。
-- v0.87 起，iOS/macOS 统计页分类投入的空态语义由 `scripts/verify_project.sh` 输出 `Analytics category share empty state contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project analytics category share empty state contracts`。
-- v0.88 起，iOS/macOS 统计页分类投入的元信息可读性由 `scripts/verify_project.sh` 输出 `Analytics category share metadata readability contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project analytics category share metadata readability contracts`。
-- v0.89 起，iOS/macOS 统计页分类投入的占比可读性由 `scripts/verify_project.sh` 输出 `Analytics category share percent readability contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project analytics category share percent readability contracts`。
-- v0.90 起，macOS 日程快速新增任务名称输入框的当前分类上下文由 `scripts/verify_project.sh` 输出 `Mac quick add title field category context contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project mac quick add title field category context contracts`。
-- v0.91 起，iOS 日程分类筛选无结果空态的新增/清除动作由 `scripts/verify_project.sh` 输出 `Schedule category empty state action contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project schedule category empty state action contracts`。
-- v0.92 起，macOS 日程分类筛选无结果空态的新增/清除动作由 `scripts/verify_project.sh` 输出 `Mac schedule category empty state action contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project mac schedule category empty state action contracts`。
-- v0.93 起，macOS 日历范围空态按当前选中日期准备快速新增、保留时分并聚焦标题的接线由 `scripts/verify_project.sh` 输出 `Mac calendar range empty state quick add contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project mac calendar range empty state quick add contracts`。
-- v0.94 起，iOS 计时页分类筛选无可启动待办时的新增/清除动作、宽度自适应横排/纵排操作区，以及预填分类打开待办编辑 sheet 的接线，由 `scripts/verify_project.sh` 输出 `Timer category empty state action contracts verified.`，并由 `scripts/validate_ci_artifact.rb` 在云端 artifact 中复判 `verify_project timer category empty state action contracts`。
-- v0.95 起，macOS 计时待办队列的分类筛选、筛选数/总数、分类空态新增/清除、一次性跨页预填请求和快照兼容接线，由 `scripts/verify_project.sh` 输出 `Mac timer category queue contracts verified.`；通用 accessibility 源码切片 helper 与调用边界去除访问级别耦合后输出 `Declaration boundary resilience contracts verified.`。`scripts/validate_ci_artifact.rb` 在云端 artifact 中复判两个对应 contract。
-- v0.96 起，macOS 计时非空分类筛选上下文条、自适应新增/清除动作、筛选态视觉 badge 隐藏与完整整行可访问语义分离，以及正常/220pt 快照接线继续纳入 `Mac timer category queue contracts verified.`。CI workflow 精确使用 `actions/checkout@v5` 和 `actions/upload-artifact@v6`，`scripts/verify_project.sh` 输出 `CI action Node.js 24 contracts verified.`，`scripts/validate_ci_artifact.rb` 复判 `verify_project ci action Node.js 24 contracts`；两个旧 Action 负向 fixture 和 marker 缺失 fixture 防止版本回退或缺少证明。
-- v0.97 起，iOS 计时非空分类摘要/分类空态互斥、筛选数/总数、双操作、分类预填和筛选保持，以及视觉 badge/整行可访问语义分离继续纳入 `Timer category empty state action contracts verified.`。归档验证输出 `CI artifact archive integrity contracts verified.`，validator 复判对应 PASS；部分参数、等长篡改、截断、匹配摘要非 ZIP 和 marker 缺失路径分别拒绝错误输入。
-- v0.98 起，iOS/macOS 日程待办列表仅在分类筛选结果非空时显示分类摘要；分类筛选结果为空时只显示原有双操作分类空态，新增仍预填当前分类，清除仍恢复全部分类。两端互斥条件继续由既有日程分类空态 marker/PASS 覆盖。
-- v0.98 起，`Final CI status` 在四阶段 outcome 判断前读取既有 `ci-failure-summary.md`，通过 `tee` 同时写入步骤 stdout 与 Step Summary，不增加 artifact 副本或清单项。`scripts/verify_project.sh` 输出 `CI failure summary output contracts verified.`，以 `ci_failure_summary_cat_workflow_fixture` 拒绝退回仅写 Step Summary 的 `cat` 实现；validator 复判 `PASS verify_project ci failure summary output contracts`，marker 缺失 fixture 锁定结果包拒绝路径。实现 commit `9f26f865ab84c7874763bb3eef59a6a5c513a7c4` 的 run `30189412591` 与原始 artifact 已由 Agent C 完整验收，validator 为 `99 PASS / 0 FAIL`，`Final CI status` stdout 实际包含 failure summary 标题和四阶段 success。
-- v0.99 起，iOS 计时待办队列默认显示筛选结果前 4 项；超过 4 项时可展开全部或收起，分类变化与筛选结果数量变化会重置为收起。该状态只属于 `TimerView`，运行中仍可浏览，但任务行继续禁用；44pt 点击区、动态可访问语义和两态输入标签由 `Timer task queue expansion contracts verified.` 与对应 validator PASS 覆盖。
-- v0.99 起，Agent C 将 run artifacts API 原始响应先写入 `artifacts-api.json.part`，成功且非空后无覆盖原子改名。Validator 的 `--artifact-metadata` 只允许与完整 archive 三参数共同使用，拒绝空文件、超过 1 MiB、非普通文件和 symlink，并结构化核对响应形状、唯一 artifact、id、name、size、digest、expired 和 workflow run 八项 PASS；`CI artifact API metadata contracts verified.`、参数/字段负向 fixtures 和 marker 缺失 fixture 锁定该链路。API 不含 `run_attempt`，attempt 仍由最新 workflow run、参数、artifact 名称与 manifest/index/run context 共同关联。
-- v1.0 起，validator 第四种 archive + artifact metadata + run metadata 模式复用 1 MiB、普通文件、非 symlink 和非空限制，并输出 response shape、id、run attempt、head SHA、head branch、name、path、status、conclusion、repository 十项检查；v1.2 再增加 push event、actor、triggering actor 和 head repository 四项授权来源复判。API JSON 始终是 artifact 外部证据，不能由包内 manifest 自证。
-- v1.3 起，iOS `DashboardView` 与 macOS `MacDetailSelection` 持有带 UUID、分类和可选任务 id 的一次性日程到计时接力请求。计时页消费时先恢复分类，再从 `FocusStore.startableTasks()` 重新验证目标；分类摘要选择首个当前可启动任务，精确任务失效时清除旧选择，运行中只浏览分类。所有非运行态选择统一调用 `TimerEngine.selectTask(_:)`，接力路径不调用开始且不持久化。
-- v1.4 起，`FocusStore.upcomingTasks()` 与 `startableTasks()` 明确分离日程展示和计时消费语义；`TimerEngine` 在空闲任务变化、停止和完成后集中 reconcile 失效选择，运行中/暂停中保留快照。完整 artifact 复判把原始 ZIP 与 validator 自建临时解包树逐路径绑定，比较类型、大小和 SHA-256，并拒绝 traversal、重复路径、前缀冲突、symlink 与特殊文件。
-- v1.4.4 起，macOS `MacTaskQueueView` 从完整 `filteredTasks` 派生 `visibleTasks`；计数、分类上下文和空态不受折叠前缀影响，默认阈值为 7。超过阈值时的展开/收起是 View 瞬态，分类变化、完整筛选结果数量变化和 handoff 都重置为收起；运行中 toggle 仍可浏览但任务行继续禁用。既有 Mac queue marker 继续覆盖源码合同，快照只用临时 overflow fixture，正式五张 PNG 清单不变。
-- 平台服务负责系统能力，不持有核心业务规则。
-- `scripts/test_mac_core.swift` 锁定共享模型、Store、计划、统计、分类清洗、分类筛选排序和分类元数据等核心逻辑。
-- `scripts/render_mac_snapshots.swift` 锁定 Mac 关键页面渲染，并生成快照 manifest 供 Actions 项目验证和 artifact 复核。
-- `scripts/verify_project.sh` 是结构、标记、计时页/日程页分类筛选摘要、iOS/Mac 日程日期格可访问语义、iOS/Mac 日程摘要按钮分类语义、Mac 日程摘要按钮点击区、计时页分类摘要清除入口、计时页分类空态清除入口、计时页分类 badge 可访问标签、iOS/Mac 当前任务选择 selected trait、提示、运行中不可切换提示与 Voice Control 输入标签、iOS/Mac 计时主控按钮任务名和分类语义、分类 chip 点击切换、分类输入上下文、待办保存/取消按钮分类语义、分类预设按钮可访问语义、可访问提示、selected trait 和 Voice Control input labels、统计分类投入占比/次数/排行/排序依据/空态/元信息和占比可读性语义、统计最近记录分类上下文、统计计划回顾分类语义、摘要动作可访问提示、iOS 日程筛选计数、iOS 日程 toolbar 新增入口分类语义、iOS/Mac 日程分类空态操作、iOS 日程任务行分类 badge 与 Voice Control 输入标签、iOS/Mac 日程任务行操作按钮任务名和分类语义、iOS/Mac 计划项开始按钮任务名/时间段/轮次语义、iOS/Mac 计划项分类 badge、iOS/Mac 计划面板生成/清空操作当前轮数语义、Mac 快速新增任务名称输入框分类上下文、提交按钮分类/轮次语义、Mac 小窗快捷面板按钮语义、Mac 计划项分类上下文、Mac 待办筛选计数、Mac 任务行和小窗分类 badge 预设色兜底与 Voice Control 输入标签、Mac 分类摘要快捷新增、Mac 连续快速新增保留分类、分类摘要插入点/动作接线、分类快捷新增/预填提示、validator 正向、manifest artifactName/overallOutcome 复判、index artifactName 复判、分类摘要 marker 缺失负向、日程任务操作 marker 缺失负向、计时主控 marker 缺失负向、计划开始 marker 缺失负向、计划分类 badge marker 缺失负向、Mac 计划分类 marker 缺失负向、计划面板操作 marker 缺失负向、日程 toolbar 新增 marker 缺失负向、日程分类空态操作 marker 缺失负向、Mac 日程分类空态操作 marker 缺失负向、Mac 快速新增 marker 缺失负向、Mac 快速新增标题分类上下文 marker 缺失负向、分类输入上下文 marker 缺失负向、待办保存 marker 缺失负向、待办取消 marker 缺失负向、Mac 小窗快捷面板 marker 缺失负向、统计分类占比 marker 缺失负向、统计分类投入次数 marker 缺失负向、统计分类投入排行 marker 缺失负向、统计分类投入排序依据 marker 缺失负向、统计分类投入空态 marker 缺失负向、统计分类投入元信息可读性 marker 缺失负向、统计分类投入占比可读性 marker 缺失负向、统计最近记录分类 marker 缺失负向、统计计划回顾分类 marker 缺失负向、JUnit 元数据负向、JUnit errors 负向、JUnit outcome 负向、JUnit failure/error 元素负向、artifactName mismatch 负向、manifest artifactName/overallOutcome 负向、index artifactName 负向、manifest 元数据负向、artifact index 身份错包负向、artifact index totals 篡改负向、artifact index 未预期 entry 负向、额外 artifact 文件负向、本地文件大小篡改负向、本地缺失产物负向 fixture、快照 manifest generatedAt 无效负向 fixture、分类摘要动作、分类 chip 可访问、日程任务操作、计时主控、计划开始、计划分类 badge、Mac 计划分类、计划面板操作、日程 toolbar 新增、iOS/Mac 日程分类空态操作、Mac 快速新增和标题分类上下文、分类输入上下文、待办保存、待办取消、Mac 小窗快捷面板、统计分类占比/投入次数/排行/排序依据/空态/元信息和占比可读性、统计最近记录分类和统计计划回顾分类 contract 日志 marker、核心测试和快照的项目专属验证入口，仅由 Actions 执行。
-- `scripts/validate_ci_artifact.rb` 是仅在 Actions 执行的结构化复判脚本，Agent C 本机不调用。它保留四种 success 模式：目录-only、archive-only、archive + artifact metadata、archive + artifact metadata + run metadata；显式 `--failure-mode` 只接受完整第四模式，并通过 `--expected-event` 默认严格要求 `push`，受控 `workflow_dispatch` 只能显式 opt-in。run metadata 必须同时具备完整 archive 参数和 artifact metadata，v1.2 的十四项 run API 检查与八项 artifact metadata、三项 ZIP 检查并行输出，v1.4 再输出 archive-to-directory binding PASS 并逐路径绑定原始 ZIP 与自建临时解包树。Validator 不联网，所有 API JSON 都是 artifact 外部输入。
-- `.github/workflows/ci-results.yml` 是默认云端重验证入口，使用 `actions/checkout@v5` 和 `actions/upload-artifact@v6`，负责在 `main` push 和手动触发时运行七个业务阶段，并在 manifest/index/stage 中绑定 `bootstrap`、`createManifest`、`ensureResultPackage` 和 `recoveryOutcome` 包阶段；它生成带 artifact index、`ci-stage-outcomes.json`、manifest `overallOutcome` 的未加密 CI 结果包。失败时 `ci-failure-summary.md` 会按阶段附带有限关键错误摘录，artifact 上传发生在 `Final CI status` 之前；正常 finalizer 失败时先由 recovery 脚本重建一致 fallback 包，恢复失败则不上传陈旧目录，受控 dispatch 失败仍以非零结论结束。Agent C 还需检查最新完整 job 日志不含 Node.js 20、`DEP0040`/`punycode` 或 `DEP0169`/`url.parse` 弃用项。
+- SwiftUI View 只收集意图、展示 Store/Engine 投影，持有分类、查询、展开和编辑草稿等瞬态；不绕过 Store 写持久化，不制造第二套计时状态。
+- `FocusStore` 负责模型清洗、任务/计划/会话和活跃快照保存，并为日期格、任务列表、计时队列和统计提供一致的派生数据。
+- `TimerEngine` 消费可启动任务，维护恢复、暂停、完成和自动流转，调用平台协议并把结果写回 Store。
+- 共享模型和辅助策略不依赖 AppKit/UIKit/EventKit 平台类型；平台服务只实现对应能力。
+- `scripts/test_mac_core.swift` 验证共享行为，`scripts/render_mac_snapshots.swift` 生成 Mac 渲染证据，原生 UITests 负责真实交互；源码 marker 只作为结构合同，不代替行为或视觉结论。
+- `scripts/verify_project.sh` 是包含 core、渲染和结果包合同的组合入口，不是每轮必跑的轻检查。测试范围按 [测试规范](../test/test.md) 选择。
+- 当前生产 workflow 是固定完整链，包含七个业务阶段和包阶段；manifest/index/stage/JUnit/outcome/required 产物互相绑定。finalizer 失败由恢复脚本重建一致 fallback 包，恢复失败不上传陈旧目录。
+- 完整包由独立 Actions 执行 validator 第四模式，使用包外原始 run/artifact API、ZIP 与目录绑定；validator 不联网且不在本机运行。安全合同统一在测试规范维护，避免入口重复堆叠逐版 PASS 清单。
 
-## 7. 协作与云端验证流
+## 7. 目标驱动迭代与云端验证
 
-### 7.1 角色入口
+### 7.1 开始与接续
 
-- `agenta`、`a:` 或 `A:` 召唤 Agent A，负责目标分析和写 `md/prompt/` 版本化提示词。
-- `agentb`、`b:` 或 `B:` 召唤 Agent B，负责在 `main` 上实现、静态审阅、提交并 push。
-- `agentc`、`c:` 或 `C:` 召唤 Agent C，负责下载云端结果包并验收最新 `origin/main`。
-- `agentx`、`x:` 或 `X:` 召唤 Agent X，负责接收总目标、拆分轮次并调度 A/B/C 多轮闭环。
-- 没有角色前缀时，按普通 Codex 任务处理；若任务天然需要 A/B/C/X 边界，需要先说明本轮采用的身份。
+1. 读取 `AGENTS.md`、`work.md`、Git 状态和最近提交，按任务读取源码、flow/test 及相关 workflow；不通读整个历史 prompt 栈。
+2. 保留已有改动，安全同步 `origin/main`；在 `work.md` 写目标、非目标、验收、分步计划、本轮文件范围和验证选择。
+3. 当前会话自行规划、实现和复查，不设置角色召唤、阶段交接或强制版本提示词，默认不启动子智能体。
+4. 完成步骤、调整方案、发现失败或准备压缩上下文时更新工作台；恢复后核对源码、Git 和云端状态，不只依赖勾选项。
 
-### 7.2 main 直推闭环
+### 7.2 按范围验证和修复
 
-1. Agent B 每轮开始前同步 `origin/main`，确认当前分支是 `main`，并检查没有无关 diff。
-2. Agent B 小步实现并做静态审阅；当前硬性约束下不运行本地项目测试、validator 或构建。
-3. Agent B 只提交本轮相关文件，提交信息使用 `vX.Y: 简要说明本版本做了什么`。
-4. Agent B `git push origin main` 触发 GitHub Actions。
-5. `.github/workflows/ci-results.yml` 在云端运行静态检查、`scripts/verify_project.sh`、`ChronoFocusMac` build 和 `ChronoFocus` iOS generic build。
-6. workflow 上传未加密结果包，包含 `ci-artifact-manifest.json`、`ci-artifact-index.json`、`ci-run-context.txt`、带失败错误摘录的 `ci-failure-summary.md`、`junit.xml`、Mac/iOS build 日志、`verify_project.log`、Mac/iOS `.xcresult`、Mac 快照和 Mac 快照 manifest；manifest 会记录 artifactName、short SHA、workflow/project/scheme/destination、createdAt 和 project reports，artifact index 会记录 artifactName、version、createdAt 与本地元数据。
-7. 独立 review 先执行 7.3 节的 checkout 前来源/profile 门禁；正式下载链在 Actions 中使用只读 `GH_TOKEN`，从精确源 run endpoint 和 run artifacts endpoint 获取原始响应，在全新唯一目录分别写 `run-api.json.part`、`artifacts-api.json.part`，成功且非空后无覆盖原子改名；从 artifacts JSON 结构化选择唯一 artifact id。
-8. Actions 用同一 id 下载到 `.zip.part` 并有限重试；原始 ZIP 的实际 size、SHA-256 和 ZIP 结构全部通过后，才在同一文件系统无覆盖原子改名并解包，失败时保留两份 JSON、`.part` 和全部证据。
-9. 独立 Actions 以解包目录、原始 ZIP、两份原始 API JSON、API size/digest 和 commit/run/attempt 完整调用 validator，核对十四项 run metadata、八项 artifact metadata、三项 archive、结果包结构、marker、build 和项目专属产物；较弱模式仅保留向后兼容，不能替代最新云端验收。
-10. Agent C 本机只用 `gh` 取证并读取独立 review 的日志/结论，不运行 validator；只验收 manifest 与 run context 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新状态一致，并且 run context 无重复/无额外字段的结果包。
-11. 如果云端失败或结果包不一致，Agent C 不回滚；退回 Agent B 在 `main` 上追加修复 commit 后重新 push。
-12. 如果 Agent C 需要补齐核心文档，也必须用 `main` 追加 commit/push，并验收新的最新 run。
+1. 本机只静态阅读、diff/路径核对及 Git/gh 操作；编译、测试、配置解析和 validator 默认仅云端执行。用户明确授权本机时，iOS 仅使用现有 `FAC4325D` 前缀的唯一模拟器，云端不受此限制。
+2. 按本轮实际编辑与依赖选择 `baseline + direct + optional`，解释每项关联，不因历史清单或其他会话改动扩大测试。
+3. 纯 Markdown 且不影响可执行配置/fixture 时，不触发产品构建、UI、Release 或 validator；仅此类推送使用 `[skip ci]`。必要代码验证不能借此跳过。
+4. 当前 `ci-results.yml` 仍是固定完整产品链，成功 push 还自动触发独立 review 和四项 UI/Release 矩阵；没有已实现的按任务 profile。入口过宽时先记录缺口并补充相关定向入口或取得扩大范围的明确决定，不默认运行无关 CI。
+5. 需要云端验证时，仅提交本轮相关改动并 push `origin/main`，跟进相关源 run、独立 review 和必要专属证据，核对最新 SHA/run/attempt 与实际执行结果。
+6. 失败先读日志和证据，区分代码、合同或环境原因，保持失败结论，在 `main` 追加相关修复；不回滚、不自动重跑掩盖失败、不降级 profile 冒充成功。
 
-本轮不把现存 `smalldata_test` 分支、PR 合并流、AITRANS 的漫画探针、GGUF、模型 Release、`test/1.png` 等项目特例写入 ChronoFocus 默认流程。
+### 7.3 完整包的独立 review
 
-### 7.3 独立 Actions 正式第四模式
+完整生产结果包的安全链保持现有接线，不再依赖额外人工角色：
 
-`.github/workflows/ci-artifact-review.yml` 和 `scripts/review_ci_artifact.py` 已在v1.4.8完成success/controlled-failure双profile云端闭环，v1.4.9的`3c8ca51`再次完成产品验收；后续每个SHA仍须重新执行。
+- `ci-artifact-review.yml` 只响应生产 completed 事件，checkout 前核对源 workflow/run/event、授权账号与仓库、当前 main 和 profile，再 checkout 已核对的 SHA；仅 `contents: read`、`actions: read`，不持久化凭证或执行解包代码。
+- `scripts/review_ci_artifact.py` 在全新目录保存原始 API 与 ZIP，以 `.part` 无覆盖下载、size/digest/安全结构校验和原子晋升建立包外证据，`extracted/` 与原文隔离。
+- 仅在 Actions 传完整 archive、artifact metadata、run metadata 和目录执行正式第四模式，下载前和结论前再核对 main/源 attempt，漂移即 stale。
+- 产品成功与显式受控失败证据链通过分开，失败 push 不降级；受控注入只用于该安全链的相关任务，不是每轮前置条件。
+- 独立 review evidence 绑定 source/review 两套身份，上传失败或缺证据不能通过。当前会话通过 gh 读取结论并核对实际实现、必要截图和日志，本机不复跑 validator。
 
-1. `ChronoFocus Artifact Review` 在 Ubuntu runner 上仅响应生产 `ChronoFocus CI Results` 的 completed 事件。checkout 前的内联 preflight 以 `gh api` 保存源 run、当前 main 和原始事件，核对源 workflow/path、两套仓库、两个授权 actor、main SHA、attempt、状态及 profile；只 checkout 核对后的源 SHA，关闭持久凭证，不执行 artifact 中的代码。
-2. `GITHUB_TOKEN` 仅 `contents: read`、`actions: read`，通过 `GH_TOKEN` 调用 API；不需要交互登录，不提升写权限。授权人由源 API 核对为 `Altman-sam114`，不把 bot token 当作人工身份。
-3. success 只接受授权 `push/completed/success`，源 run title 必须登记 `failure_mode=none`。controlled-failure 只接受授权 `workflow_dispatch/completed/failure`，登记阶段为 `checkout`、`prepareMetadata`、`selectXcode`、`projectVerification`、`macBuild` 或 `iosBuild`；实际源码将 `run-name` 与 dispatch 输入绑定，精确 attempt jobs API 必须确认 job 本身 completed/failure，并按名称定位唯一 completed 目标步骤；步骤 conclusion 因 continue-on-error 可为 success 或 failure，不要求 API step failure。注入失败由包内目标 stage outcome=failure 与 API 原始日志中的实际注入输出共同证明。失败 push、未登记失败、dispatch success、取消/超时都拒绝，不自动降级。
-4. 脚本在下载前、validator 结束后分别重新获取 main SHA 和精确源 run，任一身份或 attempt 改变即 stale。API 原文存为 `run-api.json`、`artifacts-api.json` 等包外输入，拒绝超过 1 MiB、symlink、空文件、重复 JSON key 或无法证明唯一性的分页结果；不使用 `--jq` 重建正式原文。
-5. 根据源 SHA/run/attempt 和已核对 workflow process version 派生唯一 artifact 名称；正常名使用短 SHA，受控失败还允许既有完整 SHA fallback。原始 ZIP 下载到同盘 `.part`，每次有限重试使用独立残留文件；校验 API size/SHA-256、CRC 和安全条目后无覆盖原子改名，解包到全新 `extracted/`。拒绝过期、加密、穿越、重复/前缀冲突、symlink/特殊条目及超限 ZIP。
-6. 仅在 Actions 从已核对 checkout 执行 validator 完整第四模式；success 使用 `--expected-event push`，受控失败显式增加 `--failure-mode --expected-event workflow_dispatch`。所有参数来自包外验证，不以目录-only、自报 manifest 或不同 run 的缓存代替。
-7. 源 JSON/ZIP、原始事件、下载残留、`validator-command.json`、`validator.log`、`review-result.json`、`review-summary.md` 位于独立 review 目录，原始证据不放进 `extracted/`、生产 `ci-results/` 或其 index。独立 evidence artifact 的名称同时绑定 source SHA/run/attempt 和 review run/attempt；上传失败非零退出。
-8. C 本地只用 `gh` 取得两套 run、必要证据和日志，再静态核对实现；产品通过、受控 failure 证据链通过（产品未通过）、拒绝/退回/stale 分开报告。v1.4.8 必须同一当前 main 的 success 与至少一次明确受控 failure 均完成云端第四模式及 C 核对，追加文档 commit 改变 SHA 后也须重新闭环。
+完整参数、安全约束和系统服务边界见 [测试规范](../test/test.md)，不在此复制逐版历史结果。
 
-生产 `Static checks` 还解析全部 workflow YAML，编译两个 review Python 脚本并执行 `scripts/test_review_ci_artifact.py`；fixture 覆盖实际 preflight/权限/输入登记、原始下载与安全边界、stale、failure 第四模式真实 Ruby 调用和目录绑定单失败，以及 failure excerpt 的有限诊断保留。fixture mock 不替代真实源 API/ZIP；所有命令及当前未验证状态见 `md/test/test.md`。
+### 7.4 收口与停止
 
-### 7.4 Agent X 主控循环
+- 目标及必要验证都满足才交付完成；长期结论写 `update_log.md`，最终回复说明提交、真实验证、未执行项和风险，然后清空 `work.md` 的任务正文并保留文件。
+- 只改受影响的稳定文档，不为了写入自身 SHA/run 制造文档提交和完整 CI 的递归循环；文档不把旧结果当新结果。
+- 未完成、CI 待结束或用户暂时中断时保留工作台；权限、密钥、付费选择、归属不明冲突或同一阻塞连续三次无新进展时停止重复尝试并报告下一步。
 
-人工要求不启动子智能体时，同一会话顺序承担 A 设计、B 实现、C 取证阶段并记录各自产物，X 负责范围与停止判断；不会创建额外 agent 或聊天，云端结果包验收要求不变。
+## 8. 稳定约束
 
-Agent X 是可选的调度层，不直接替代 Agent A、Agent B 或 Agent C。人工用 `agentx:`、`x:` 或 `X:` 给出总目标后，Agent X 负责把总目标拆成一组小轮次，并在每轮结束后根据 Agent C 的验收结论判断下一步。
-
-每轮真实流程：
-
-1. Agent X 明确本轮小目标、非目标、验收边界和预期版本。
-2. Agent X 调用 Agent A 产出版本化提示词，提示词必须写入 `md/prompt/` 并包含本轮目标、验证、CI、artifact 和 Agent C 复判要求。
-3. Agent B 基于 Agent A 提示词在 `main` 上实现、静态审阅、提交并 push 到 `origin/main`。
-4. GitHub Actions 运行 `.github/workflows/ci-results.yml` 并上传最新未加密 CI 结果包。
-5. Agent C 下载最新 run 对应 artifact，核对 manifest、artifact index、run context、artifact 名称、JUnit、failure summary、主日志、`.xcresult` 和项目专属产物。
-6. Agent X 只基于 Agent C 对最新 `origin/main` artifact 的结论判断：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
-
-Agent X 停止条件：
-
-- 总目标已完成，且最后一轮 Agent C 已确认最新云端结果包通过。
-- 连续 3 轮遇到同一阻塞。
-- 连续 2 轮没有产生有效 diff。
-- CI 连续失败且原因相同。
-- 需要账号、权限、密钥、付费服务或人工决策。
-- 当前工作区存在无法判断归属的冲突。
-- 用户要求停止或改变方向。
-
-Agent X 禁止跳过 Agent C artifact 验收，禁止把旧 run、旧 artifact 或本地输出冒充最新云端结果，禁止为了推进循环扩大无关改动范围。
-
-## 8. 已确认的铁律
-
-辅助UI证据独立于生产唯一artifact：`ui-evidence.yml`仅响应成功生产push，各矩阵job经精确run/workflow/main和事件授权gate后才checkout源SHA。Mac共用`build_mac_snapshot_renderer.sh`生成16图；ios-390/ios-375由`run_ios_ui_tests.sh`执行原生UITest、保存构建/测试xcresult、结构化摘要、测试树和附件，由`verify_ios_ui_evidence.py`核对每设备8/0/0及35个具名场景，并绑定真实测试树的身份/结果/设备/耗时。release矩阵项执行双端未签名Release构建与真实产品检查，明确保留distributionReady=false。每包manifest区分source SHA/run/attempt、UI自身head SHA/run/attempt、平台和实际checkout。上传前后复查main/attempt；stale、测试跳过或上传失败不接受。不改变生产index、第四模式或唯一包判据，C分别取证读图与读取Release证据。
-
-- Mac 版复用现有核心逻辑，不重写业务层。
-- `TimerEngine` 是唯一计时状态机。
-- `FocusStore` 是唯一核心数据仓库。
-- 新共享字段必须向后兼容。
-- Pro 商品 ID 语义在 iOS/macOS 保持一致。
-- Mac 快照不能出现黄色缺失控件占位。
-- README、测试规范、核心流程和更新日志必须随重要变更同步。
-- 默认验证以 `main` push 后的云端结果包为 Agent C 复判依据；本机禁止测试、validator、YAML/配置解析及 Xcode 构建，定位问题不构成例外；仅人工明确改变本机测试授权后才另行处理。
+- Mac 复用共享业务，`TimerEngine` 是唯一计时状态机，`FocusStore` 是唯一核心仓库，新字段向后兼容。
+- iOS/macOS 的 Pro 商品 ID 语义一致，系统能力通过平台服务边界实现。
+- Mac 快照无黄色缺失控件或内容区域空白；截图数量、非空或构建成功不能替代实际视觉审阅。
+- 本轮未跑的真实服务、真机和发行验证如实说明，不把 `distributionReady=false` 写成正式发布通过。
+- 当前代码与配置决定实际行为，历史 prompt 和单次验证记录不覆盖当前规则；文档只在对应职责变化时更新。
 
 ## 9. 未来扩展点
 
-- StoreKit/EventKit 已有本地配置和人工验证说明；后续如需自动化覆盖，可在平台服务边界补测试替身。
-- 继续观察云端 iOS generic build 稳定性，必要时再补充本机模拟器构建基线。
-- Mac 快捷面板入口支持打开详细窗口指定 tab。
-- 在功能稳定后拆分过长 SwiftUI View 文件。
+- 在平台服务边界补充真实系统服务失败路径的测试替身，不伪造购买或授权结果。
+- 根据真实任务增加必要的定向云端验证入口，避免完整链成为所有小改动的默认测试。
+- 功能稳定且任务确有需要时，再按职责拆分过长 SwiftUI View；不顺手大重构。
 
 ## 10. 不允许破坏的行为
 
-- 活跃计时必须能通过 `ActiveTimerSnapshot` 跨重启/前后台恢复。
-- 完成专注必须记录会话、更新任务轮次、更新计划项。
-- 自动计划必须基于未完成且启用的任务生成。
-- 日历同步任务必须进入 `FocusStore`，参与计划和统计。
-- 通知、声音、振动必须受 `TimerSettings` 控制。
-- Mac App 必须保持状态栏应用形态，不显示 Dock 图标。
-- `scripts/verify_project.sh` 必须持续作为可靠 Smoke 验证入口。
+- 活跃计时通过 `ActiveTimerSnapshot` 跨重启与前后台恢复。
+- 完成专注记录会话、更新任务轮次和计划项，并只取消对应原任务提醒。
+- 自动计划基于未完成且启用的任务，日历导入仍通过 Store 参与计划和统计。
+- 通知、声音、振动受 `TimerSettings` 控制。
+- Mac 保持状态栏应用形态，不显示 Dock 图标。
+- 现有组合验证和结果包安全合同继续有效，但是否执行及执行范围由本轮改动和必要依赖决定。

@@ -1,245 +1,93 @@
 # AGENTS.md
 
-本文是 ChronoFocus 项目的入口记忆、总览、基本规则和多 Agent 迭代工作流。后续 Codex/Agent 开始任务前必须先读本文件，再按任务范围读取相关文档和源码。
+ChronoFocus 的长期开发入口。当前会话直接理解目标、规划、实现、自查和交付，不再设置角色召唤、角色交接或强制版本提示词；除非用户明确要求，不启动子智能体或额外聊天。
 
-## 1. 项目一句话总览
+## 1. 项目事实与架构边界
 
-ChronoFocus 是一个 SwiftUI 番茄钟 App 原型，包含 iOS 主 App、iOS Live Activity 扩展和 macOS 状态栏 App；核心模型、计时状态机、计划生成、统计和持久化逻辑共享，平台能力通过 iOS/macOS 专用服务隔离。
+- ChronoFocus 是 SwiftUI 番茄钟原型，包含 iOS 主 App、Live Activity 扩展和 macOS 状态栏 App。
+- 共享模型、计时状态机、计划生成、统计和持久化；平台能力通过 iOS/macOS 服务隔离，不复制一套业务逻辑。
+- `TimerEngine` 是唯一计时状态机。开始、暂停、恢复、跳过、完成、自动流转和恢复都从这里进入，View 不维护第二套计时状态。
+- `FocusStore` 是唯一核心仓库。任务、设置、会话、计划和活跃计时快照通过它保存为 `UserDefaults` JSON，不新增散落持久化。
+- 通知通过 `TimerNotificationServicing`，Live Activity/占位通过 `TimerLiveActivityServicing` 接入；平台服务不持有核心业务规则。
+- 新增共享模型字段使用 `decodeIfPresent` 加默认值等向后兼容解码，保留既有数据。
+- 使用 SwiftUI、Swift 并发和平台原生 API，未经用户要求不引入第三方依赖。
+- macOS target 不依赖 UIKit 或真实 ActivityKit UI；iOS target 不依赖 AppKit。
 
-## 2. 必读文件
+关键文件：
 
-按顺序阅读：
+- 共享层：`ChronoFocus/Models/AppModels.swift`、`ChronoFocus/Services/FocusStore.swift`、`ChronoFocus/Services/TimerEngine.swift`、`ChronoFocus/Services/TimerPlatformServices.swift`、`Shared/SharedExtensions.swift`、`Shared/CalendarReadAccess.swift`、`Shared/PomodoroActivityAttributes.swift`。
+- iOS 层：`ChronoFocus/ChronoFocusApp.swift`、`ChronoFocus/Views/`、通知/Live Activity/日历/Pro 服务及 `ChronoFocusLiveActivity/`。
+- macOS 层：`ChronoFocusMac/App/`、`ChronoFocusMac/Services/`、`ChronoFocusMac/Views/`。
 
-1. `AGENTS.md`：入口规则、协作流程、禁止项。
-2. `update_log.md`：版本记录、历史决策、遗留问题。
-3. `md/flow/flow.md`：当前真实架构、核心数据流、执行流。
-4. `md/flow/flowchart.md`：核心逻辑和 Agent 迭代流程图。
-5. `md/test/test.md`：测试分层、命令、触发条件、当前基线。
-6. `README.md`：用户视角功能、打开方式、云端验证。
-7. `md/prompt/README.md`：提示词目录、角色召唤和云端阶段要求。
-8. `.github/workflows/`：云端验证和结果包规则。
-9. 任务相关源码、脚本、最近 git 记录。
+## 2. 文档分工与阅读顺序
 
-## 3. 项目基本规则
+| 文档 | 唯一职责 | 何时阅读或更新 |
+| --- | --- | --- |
+| [AGENTS.md](AGENTS.md) | 长期规则、架构边界、开发流程 | 开始任务先读；仅稳定规则变化时更新 |
+| [work.md](work.md) | 当前任务计划、进度、证据和下一步 | 开始或恢复任务必读，推进时更新，完成后清空任务正文 |
+| [md/flow/flow.md](md/flow/flow.md) | 当前真实架构、数据流和执行流 | 按任务读取；架构或职责变化才更新 |
+| [md/flow/flowchart.md](md/flow/flowchart.md) | 当前核心流程图 | 流程变化时更新，每张图前保留中文读图说明 |
+| [md/test/test.md](md/test/test.md) | 测试选择、云端入口和证据要求 | 实现前选择本轮相关验证；测试制度或入口变化才更新 |
+| [README.md](README.md) | 用户功能和上手方式 | 用户可见行为或使用方式变化才更新 |
+| [update_log.md](update_log.md) | 版本、重要任务、验证结果和遗留事项 | 需要历史依据时按主题阅读；有意义的任务收口时追加 |
+| [md/prompt/README.md](md/prompt/README.md) | 历史提示词归档说明 | 仅追溯历史需求，不是当前指令或开发前置条件 |
 
-- 使用 SwiftUI 和 Swift 并发/平台原生 API；不要引入第三方依赖，除非用户明确要求。
-- 共享业务逻辑，平台层分离。不要为 Mac 版或 iOS 版复制一套核心模型、计时状态机、统计逻辑或计划生成逻辑。
-- `TimerEngine` 是唯一计时状态机；开始、暂停、恢复、跳过、完成、自动流转必须从这里进入。
-- `FocusStore` 是核心数据仓库；任务、设置、会话、计划和活跃计时快照都通过它持久化到 `UserDefaults` JSON。
-- 平台服务必须通过抽象边界接入：通知使用 `TimerNotificationServicing`，Live Activity/占位服务使用 `TimerLiveActivityServicing`。
-- 新增共享模型字段必须使用向后兼容解码，例如 `decodeIfPresent` 加默认值。
-- 不做无关重构，不回滚用户或其他 Agent 的改动，不伪造测试结果。
-- 手写文件修改使用 `apply_patch`；大规模格式化或构建产物生成可以使用项目脚本。
-- 默认协作分支是 `main`，也是唯一上传、提交、推送和云端验证分支；现存 `smalldata_test` 只记录现状，不纳入默认流程。
-- 当前总目标的硬性验证策略是云端唯一：不得在本机运行任何测试、`bash scripts/verify_project.sh`、validator、YAML/配置解析、Swift/Swift 编译器、Xcode、`xcodebuild`、`simctl`、Simulator 或浏览器；只允许做静态审阅后提交并由 `origin/main` 的 GitHub Actions 验证。
+开始时读取本文件、`work.md`、`git status --short --branch` 和最近提交，再按范围定位 flow、test、源码、脚本和必要 workflow。不要求每次通读整个更新日志或历史提示词。
 
-## 4. 核心架构边界
+源码与工程配置优先于当前流程/测试文档；当前用户目标与本文件优先于历史提示词。不要盲从旧方案，先核对实际实现。
 
-共享层：
+## 3. 目标驱动开发流程
 
-- `ChronoFocus/Models/AppModels.swift`
-- `ChronoFocus/Services/FocusStore.swift`
-- `ChronoFocus/Services/TimerEngine.swift`
-- `ChronoFocus/Services/TimerPlatformServices.swift`
-- `Shared/SharedExtensions.swift`
-- `Shared/CalendarReadAccess.swift`：日历完整读取权限的非持久化策略，不依赖 EventKit 类型。
-- `Shared/PomodoroActivityAttributes.swift`
+1. 确认目标、非目标、验收标准、风险和本轮文件范围；能合理判断就自主推进，只有需求冲突、权限或不可逆决策才询问用户。
+2. 在 `work.md` 写下可执行的小步骤和最小验证选择。先读相关实现再改，复杂任务拆成有独立验收点的小步，不要求另写版本提示词。
+3. 沿现有架构小步实现，维护本轮编辑记录；不顺手重构无关模块，不覆盖、回滚或混入用户已有改动。
+4. 每完成一个步骤、改变方案、遇到失败或准备上下文压缩时，立即更新 `work.md` 的进度、证据、未解决项和下一步。
+5. 按 [测试规范](md/test/test.md) 自查并选择本轮相关云端验证。失败先读真实日志，修复后追加提交；不因流程仪式扩大测试或开发范围。
+6. 同步真正受影响的文档，检查 diff、提交范围、未验证项和远端影响；只有目标及其必要验证完成才交付为完成。
+7. 将值得保留的结论写入 `update_log.md` 或最终交付，清空 `work.md` 当前任务正文，保留文件和“当前无进行中的任务”状态。
 
-iOS 平台层：
+出现用户要求停止、无法判断归属的冲突、缺少账号/密钥/付费决策，或同一阻塞连续三次仍无新证据时，停止重复尝试，保留 `work.md` 并说明需要什么。不得无限重跑、回滚掩盖失败或未完成先清空任务。
 
-- `ChronoFocus/ChronoFocusApp.swift`
-- `ChronoFocus/Views/*`
-- `ChronoFocus/Services/NotificationService.swift`
-- `ChronoFocus/Services/LiveActivityService.swift`
-- `ChronoFocus/Services/CalendarSyncService.swift`
-- `ChronoFocus/Services/PremiumAccessService.swift`
-- `ChronoFocusLiveActivity/*`
+## 4. work.md 接续约定
 
-macOS 平台层：
+`work.md` 是当前工作台，不是日志，也不替代实际源码、Git 状态或云端证据。每次任务至少记录：
 
-- `ChronoFocusMac/App/*`
-- `ChronoFocusMac/Services/*`
-- `ChronoFocusMac/Views/*`
+- 目标、非目标、验收标准、当前状态及必要上下文。
+- 分步计划和完成标记，当前正在做的步骤。
+- 本轮编辑文件、已有改动边界、分支和基线；有远端操作时记录 commit/push 状态。
+- 验证选择：`baseline + direct + optional`、关联理由、未执行项；已执行时记录真实命令、结论及必要的 SHA/run/attempt/artifact。
+- 失败原因、风险、阻塞和下一步可直接执行的动作。
 
-禁止跨边界直接依赖：macOS target 不直接依赖 UIKit 或真实 ActivityKit UI 行为；iOS target 不直接依赖 AppKit。
+恢复任务时先读本文件和 `work.md`，再核对 Git 与云端现状，不能只相信已勾选状态。任务未完成、必要 CI 未结束或用户暂时中断时保留记录；新目标到来时先区分替换、追加或暂停，不静默覆盖未完成任务。
 
-## 5. 标准迭代工作流
+完成后移走需要长期保存的结论，删除任务计划、临时上下文、勾选项和过期证据链接，只保留简短空闲状态；保留 `work.md` 文件。不要为了给文档写入自身提交号而制造无限的文档提交与 CI 循环。
 
-项目默认采用“人工目标 -> Agent A 设计提示词 -> Agent B 基于最新 `origin/main` 实现、静态审阅、commit 并 push 到 `origin/main` -> GitHub Actions 上传未加密 CI 结果包 -> Actions 执行正式第四模式、Agent C 取证验收 -> 有问题退回 Agent B 在 `main` 追加修复 commit -> 通过后人工复核 -> 下一轮”的循环。用户可用 Agent X 围绕一个总目标主控多轮 A/B/C 闭环，但 Agent X 不直接替代 A、B、C 的职责。
+## 5. 云端优先与相关测试
 
-### 角色召唤和身份标识
+- 默认禁止本机编译、运行和测试：包括项目测试、Swift/Swift 编译器、Xcode、`xcodebuild`、`simctl`、Simulator、validator、测试脚本及 YAML/JSON/Plist 等配置校验。定位问题和 CI 失败不构成本机测试授权。
+- 本机仅做静态阅读、`rg` 定位、Git diff/格式审阅、路径核对及 Git/`gh` 远端操作；`git diff --check` 只作补丁空白检查，不算产品验证。不启动浏览器代替云端验证。
+- 只有用户明确要求“本机测试”“本地 build”等，才在本轮授权范围内执行；不能沿用参考项目或历史提示词里的本机构建规则。
+- 经明确授权进行本机 iOS 编译或运行时，只能使用现有且 UDID 以 `FAC4325D` 开头的唯一模拟器。若不存在或不能唯一确认，停止并报告；严禁创建或选择其他设备。云端 runner 不受该本机设备限制。
+- 以本轮编辑记录和实际依赖选择 `baseline + direct + optional`；其他会话的文件、历史需求、累计旧测试清单不自动扩大范围。必要关联回归不能省，无关平台、UI、Release、失败注入和全量 CI 不默认运行。
+- 纯 Markdown 改动且不影响可执行配置/fixture 时，只静态检查内容、链接和 diff，不编译产品、不运行项目测试、validator 或整套 CI。
+- 代码及配置需要的自动化验证默认在 `origin/main` 的 GitHub Actions 执行。当前 workflow 是完整固定链，不存在按任务裁剪的 profile；需要较小云端入口时先核实并补齐入口及对应合同，不伪造开关、不私自放宽验收，也不把“只能跑全量”当成启动无关测试的理由。
+- 仅接受对应精确 SHA/run/attempt 的真实结果；未执行、失败、过时或缺少产物都必须说明，不能用旧结果、静态合同或文字承诺冒充本轮验证。
 
-- 用户消息以 `agenta`、`a:` 或 `A:` 开头，表示召唤 Agent A。
-- 用户消息以 `agentb`、`b:` 或 `B:` 开头，表示召唤 Agent B。
-- 用户消息以 `agentc`、`c:` 或 `C:` 开头，表示召唤 Agent C。
-- 用户消息以 `agentx`、`x:` 或 `X:` 开头，表示召唤 Agent X。
-- 没有这些前缀时，按普通 Codex 任务处理；若任务需要 A/B/C/X 边界，提醒用户指定角色或说明本轮按普通任务执行。
-- Agent A 最终回复第一行必须写：`我是 Agent A。`
-- Agent B 最终回复第一行必须写：`我是 Agent B。`
-- Agent C 最终回复第一行必须写：`我是 Agent C。`
-- Agent X 最终回复第一行必须写：`我是 Agent X。`
+## 6. Git 与交付
 
-### main 直推和云端验收
+- 保留本项目 `main` 直推约定；默认不创建分支、PR 或额外 worktree，不照搬参考项目的 `smalldata_test`/候选分支流程。
+- 开始时检查已有改动，再 `git fetch origin`、确认 `main` 并在不会影响已有工作时 `git pull --ff-only origin main`。分支错误、存在无法安全同步的改动或归属不明的冲突时先报告，不强制切换或覆盖。
+- 提交前按本轮编辑记录审查 diff，仅暂存本轮相关文件/片段，不使用无差别 `git add .`。已有无关改动保留且不提交；工作中发现新的非本轮变更时停止并与用户确认。
+- 有意义的任务在 `update_log.md` 记录任务名、日期、核心变更、关键文件、实际验证和遗留项。产品版本按用户指定或实际发布需要管理，文档/流程维护不强制增加产品版本或新增历史 prompt。
+- 提交说明简短聚焦；有产品版本时使用 `vX.Y: 简要说明`，纯维护可用 `docs:`/`chore:` 等。
+- 默认提交本轮相关改动并推送 `origin/main`。推送前再次核对分支、远端、授权账号 `Altman-sam114` 和待推送提交范围。
+- 只有待推送内容全部为无需运行验证的 Markdown 文档时，才可在提交说明使用 `[skip ci]`，避免现有 push workflow 触发无关产品链。含代码、工程、workflow、测试/fixture 或其他可执行配置时禁止这样跳过必要验证。
+- 需要云端验证的提交，跟进相关 run、日志和必要 artifact，自行核对身份与结论。完整结果包的只读独立 review、API/ZIP 安全链保持不变，详见测试规范；不再要求另一个角色验收。
+- 删除文件或目录默认使用 `trash <path>`；只有临时文件/构建产物且用户已确认才使用 `rm`。不删除历史提示词或证据，不提交凭证、DerivedData 或无关大文件。
 
-- 每轮默认从 `main` 开始，并先执行 `git fetch origin`、`git switch main`、`git pull --ff-only origin main`。
-- 推送前必须确认当前分支是 `main`、目标远端是 `origin/main`、工作区没有无关 diff。
-- 本轮不使用 `smalldata_test`、`develop`、`codeb/...` 或 PR 合并流；如后续人工要改流程，必须先更新本文件和 `md/flow/*`。
-- Agent B 完成后在本地提交，并直接 `git push origin main` 触发 GitHub Actions。
-- GitHub Actions 必须上传未加密 CI 结果包，至少包含 manifest、failure summary、JUnit 或等价摘要、主日志和项目专属验证产物。
-- `.github/workflows/ci-artifact-review.yml` 仅响应 `ChronoFocus CI Results` 的 `workflow_run: completed`，先核对精确源 run API、事件身份和当前 main，再 checkout 已核对的源 SHA，`persist-credentials: false`。下载前和最终结论前再次核对 main SHA/源 attempt；变化即 stale，不使用 review 自身 SHA/run/attempt 冒充源身份。
-- 独立 review 的 `GITHUB_TOKEN` 仅 `contents: read`、`actions: read`，其余权限为 none；不使用 PAT、额外 secrets、OIDC、写权限、自动提交/评论/check/status 或不可信缓存，不执行解包内容。源 actor、triggering actor 均须为 `Altman-sam114`，源仓库和 head repository 均为 `Altman-sam114/114`；token 的 bot 身份不替代该授权核对。
-- 受控 failure 必须由授权账号显式 dispatch 允许的 `failure_mode`，包外 run API 的 `display_title` 绑定该输入，并与源 workflow、精确 attempt jobs API、API 原始注入日志和包内 stage outcome 交叉核对：job 本身必须 completed/failure，按名称定位唯一 completed 目标步骤；步骤 conclusion 因 continue-on-error 可为 success 或 failure，不要求 API step failure。注入失败由包内目标 stage outcome=failure 与 API 原始日志中的实际注入输出共同证明。失败 push、未登记 dispatch、dispatch success 及取消/超时等不得放行或自动切换 profile。
-- 正式证据目录中的原始 API JSON、ZIP、下载残留及 validator 日志必须与 `extracted/` 解包树隔离；只可上传独立命名、绑定 source/review 两套身份的 review evidence artifact，不得加入生产 `ci-results/` 或其 index allowlist。证据上传失败也不能宣布验收通过。
-- Agent C 本机仅用 `gh auth login`/`gh auth status` 确认授权账号后取证并读码，不运行 validator、测试或配置解析。独立 Actions 使用只读 `GH_TOKEN`，无需交互登录；正式下载和结构化复判由 Actions 执行。通过精确 workflow run API 和 run artifacts API 获取 `origin/main` 最新 commit 对应 run 的两份原始 JSON。响应分别先写入全新目录中的 `run-api.json.part`、`artifacts-api.json.part`，成功且非空、最终文件不存在时再在同一文件系统无覆盖原子改名为 `run-api.json`、`artifacts-api.json`；禁止把两份 JSON 放入生产 artifact 或解包目录；独立 review evidence artifact 可保留这些包外原文。
-- `artifacts-api.json` 必须由仅在 Actions 执行的 validator 通过 `--artifact-metadata` 结构化解析，`run-api.json` 必须通过 `--run-metadata` 结构化解析。两者与完整 archive 三参数、最新 commit/run/attempt/branch 和预期 artifact 名称交叉核对 artifact 与 workflow run 身份；文件必须非空、不超过 1 MiB、是普通文件且不是 symlink。API size/digest 与 run status/attempt 等字段是包外信任输入，不能由包内字段自证。
-- C 本机每次取证使用全新的 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/`；Actions 在 runner 临时目录建立全新 review 目录。目录、目标 ZIP、`.part` 或解包目录已存在时默认停止并改用新的唯一目录，禁止覆盖、清空或删除已有证据。
-- Actions 中的原始 artifact 必须下载到同一文件系统内的 `<artifact-name>.zip.part`，使用失败即退出、跟随重定向和有限重试；先核对实际字节数、SHA-256 和 ZIP 结构，全部通过且最终 ZIP 不存在后再原子改名为 `<artifact-name>.zip`，随后解包到全新目录。
-- 正式复判必须在独立 Actions 中把解包目录、最新 commit/run/attempt、原始 ZIP、API size/digest、原始 `artifacts-api.json` 和原始 `run-api.json` 一并交给 validator。目录-only、archive 三参数、archive 三参数加 artifact metadata、再加 run metadata 四种模式保持兼容；artifact metadata 不得脱离完整 archive 参数组，run metadata 还必须同时具备 artifact metadata。下载或校验失败时保留 JSON、`.part`、ZIP 和相关证据，不自动删除，也不得用自动解包结果代替原始 ZIP 来源核对。
-- Run artifacts API 的 `workflow_run` 不提供 `run_attempt`；完整模式由精确 run API 结构化复判 `id/run_attempt/head_sha/head_branch/name/path/status/conclusion/repository.full_name/event/actor.login/triggering_actor.login/head_repository.full_name`，并与参数、artifacts API、artifact 名称和 manifest/index/run context 交叉关联。产品通过只接受授权账号向授权 head repository 的 `push + completed + success` run；受控失败只能显式选择授权的同一当前 main `workflow_dispatch + completed + failure` run 并传 `--failure-mode --expected-event workflow_dispatch`，通过仅代表失败证据链有效，不代表产品通过。失败 push 不得自动降级为受控 failure。
-- Agent C 只验收 manifest 中 `branch=main` 且 `commitSha`、run id、run attempt 与 `origin/main` 最新 commit 完全一致的结果包。
-- Agent C 下载 artifact 前只选择最新 run 对应的必要结果包，缓存使用上述全新唯一目录，不得下载历史 artifact、大体积测试数据、模型、DerivedData 或无关缓存。
-- push、CI 和 artifact 验收必须基于项目授权的 GitHub 账号 `Altman-sam114`，不得使用其他账号伪装完成。
-- 云端失败时不回滚；Agent C 写退回清单，Agent B 在 `main` 追加修复 commit 后继续 push。
-- Agent C 若必须补齐验收文档，也必须按 `main` 追加 commit/push/云端验收处理，不能只留本地改动。
+## 7. 文档与最终回复
 
-### Agent A：目标分析与提示词
-
-Agent A 默认不直接写代码，负责把人工目标转成可执行实现提示词。
-
-必须完成：
-
-- 阅读 `AGENTS.md`、`update_log.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md` 和任务相关源码。
-- 明确本轮目标、非目标、边界、依赖、风险和验收标准。
-- 设计实现步骤、涉及模块、数据流/状态流变化、测试要求和文档更新要求。
-- 确定版本号：人工指定则按人工指定；未指定则从现有 `md/prompt/` 和 `update_log.md` 自动递增。
-- 将提示词写入 `md/prompt/v0（简要标题）/v0.1（简要说明）.md` 这类版本目录。
-- 在提示词中写清本轮 `main` 同步、静态审阅、commit/push、CI workflow、artifact 下载和 Agent C 核对要求。
-
-提示词必须包含：版本号、版本分配依据、背景、目标、非目标、当前架构依据、实现步骤、关键文件、测试要求、文档更新要求、验收标准、风险和禁止项。
-
-### Agent B：实现与测试
-
-Agent B 按 Agent A 提示词小步实现。
-
-必须完成：
-
-- 阅读 Agent A 提示词和入口文档。
-- 同步最新 `origin/main`，确认在 `main` 上工作且没有无关 diff。
-- 阅读相关源码、脚本和测试。
-- 按现有架构实现，不扩大范围。
-- 当前硬性约束下不运行本地项目测试或检查；只做静态审阅，完成后提交并 push 到 `origin/main`，由 GitHub Actions 产生唯一测试证据。
-- 更新 `README.md`、`update_log.md`、`md/test/test.md`、`md/flow/*` 或脚本中受影响的部分。
-- 按版本号提交本轮相关文件，push 到 `origin/main` 触发 GitHub Actions。
-- 输出改动说明、关键文件、静态审阅范围及云端命令和结果、云端 run/artifact 信息、未跑测试原因、已知风险、后续建议。
-
-### Agent C：验收与核心逻辑更新
-
-Agent C 负责验收 Agent B 结果，并维护核心逻辑文档。
-
-必须完成：
-
-- 阅读 Agent B 输出、实际 diff、测试结果和入口文档。
-- 核对实现是否满足 Agent A 提示词和人工目标。
-- 检查架构边界、测试覆盖、文档同步和未说明风险。
-- 用 `gh` 确认 `Altman-sam114` 授权并取得最新 `origin/main` 源 run、独立 review run 和必要原始证据；validator 只在 Actions 执行，C 读取其日志及结论，不本地复跑。
-- 核对 manifest、JUnit 或等价摘要、主日志、failure summary 和项目专属产物。
-- 核对 manifest 的 `branch`、`commitSha`、run id、run attempt 与 `origin/main` 最新状态一致。
-- 基于当前真实实现检查 `md/flow/flow.md` 与 `md/flow/flowchart.md` 是否同步；缺失时退回 Agent B 或追加文档 commit 后重新 push 验证。
-- 形成正式版本或重要历史事项时，确认 `update_log.md` 已记录。
-- 如果验收不通过：不得提交；必须列出问题、原因、证据和建议修复路径，并退回 Agent B 继续实现。
-- 如果验收最终通过：确认 `main` 最新 run 通过且结果包核对无误。
-- 输出通过/不通过、问题清单、已更新文档、提交结果、建议下一步。
-
-### Agent X：主控调度与循环判断
-
-Agent X 是可选的主控调度角色，不直接替代 Agent A、Agent B 或 Agent C。
-
-人工明确要求不启动子智能体时，由同一会话按 A 设计、B 实现、C 取证三个阶段顺序执行并分别记录产物；X 仍负责范围和停止判断，不创建子智能体或额外会话。顺序执行不能省略版本提示词、云端测试或最新 artifact 验收。
-
-必须完成：
-
-- 接收人工给出的总目标 X，拆成多个可验收的小轮次目标。
-- 每轮按 Agent A -> Agent B -> Agent C 的顺序推进：Agent A 写版本化提示词，Agent B 实现、静态审阅、commit 并 push 到 `origin/main`，Agent C 下载最新云端 artifact 并复判。
-- 基于 Agent C 的结论判断下一步：继续下一轮、退回 Agent B 修复、暂停等待人工确认，或宣布总目标完成。
-- 每轮都记录当前轮次目标、版本号、Agent A 提示词路径、Agent B commit/push 状态、GitHub Actions run/artifact 信息、Agent C 验收结论和未解决风险。
-- 在总目标未完成、Agent C 未完成最新 artifact 验收、或失败原因未解释清楚时，不得宣布完成。
-
-停止条件：
-
-- 总目标已完成，并且最后一轮 Agent C 已确认最新 `origin/main` 云端结果包通过。
-- 连续 3 轮遇到同一阻塞，且无法在当前权限和信息内继续推进。
-- 连续 2 轮没有产生有效 diff，说明拆分目标或实现路径需要人工重定向。
-- CI 连续失败且原因相同，需要人工决策或环境修复。
-- 需要账号、权限、密钥、付费服务或其他人工决策。
-- 当前工作区存在无法判断归属的冲突或无关 diff。
-- 用户要求停止或改变方向。
-
-禁止项：
-
-- 禁止无条件无限循环。
-- 禁止跳过 Agent C 云端 artifact 验收。
-- 禁止把旧 run、旧 artifact、本地输出或文字汇报冒充最新云端结果。
-- 禁止在总目标未完成时宣布完成。
-- 禁止为了循环推进扩大无关改动范围。
-
-最终回复格式：
-
-- 第一行必须写：`我是 Agent X。`
-- 必须说明总目标状态：继续、退回、暂停、停止或完成。
-- 必须列出已完成轮次、当前轮次版本、对应 Agent A 提示词、Agent B commit/push 状态、GitHub Actions run/artifact 信息和 Agent C 验收结论。
-- 若未完成，必须说明下一步、阻塞条件、需要人工决策的事项或停止原因。
-
-### main 提交和推送规则
-
-- 提交前必须确认工作区 diff，只提交本轮相关改动，不把无关文件混入版本。
-- 提交前必须确认 `update_log.md` 已记录本轮版本/任务名、日期、核心变更、关键文件、验证结果、遗留事项。
-- 提交信息按版本号管理，格式为：`vX.Y: 简要说明本版本做了什么`。
-- 提交说明要短，聚焦工作内容，不写长篇过程。例如：`v0.2: 调整 Agent C 验收提交流程`。
-- 如需要提交正文，正文只概括核心变更、验证结果和遗留风险。
-- push 前必须确认当前分支是 `main` 且目标是 `origin/main`。
-- push 后必须记录 commit hash、run id、run attempt、artifact 名称和云端结论。
-- 验收不通过、测试失败、文档未同步、版本号不明确或存在无关 diff 时，不得把该版本宣称为通过。
-
-## 6. 测试规则
-
-- 每次实现前先读 `md/test/test.md`。
-- 当前总目标只接受 `origin/main` GitHub Actions 的测试与验收结果；本地仅可阅读源码、审查 diff 和准备提交，不得执行项目测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator。
-- 每次改动后必须 push 到 `origin/main`，等待对应 GitHub Actions 完成，并由 Agent C 复判最新原始 artifact；不得用本地命令结果替代云端证据。
-- 代码变更不得只说“已验证”，必须写出实际命令和结果。
-- 文档或代码改动都不在本机执行测试；静态结构只能人工审阅，最终仍以云端 workflow 和 artifact 为准。
-- 涉及 macOS UI、状态栏、小窗、详细窗口、共享模型、通知、StoreKit、EventKit 时，全部由云端 `ci-results.yml` 执行项目验证、Mac build 和 iOS generic build；本机不得运行对应命令。
-- 只有人工明确要求“本机测试”“本地 build”“本地 xcodebuild”时，才把完整本机构建作为默认路径。
-
-## 7. 文档规则
-
-- `AGENTS.md` 只放入口规则、架构边界和工作流，不写流水账。
-- `update_log.md` 记录版本更新、关键决策、完成事项和遗留问题。
-- `md/flow/flow.md` 只描述当前真实核心逻辑，不写历史废话。
-- `md/flow/flowchart.md` 用 Mermaid 图展示当前核心数据流、执行流和 Agent 迭代流，每张图前必须有中文读图说明。
-- `md/test/test.md` 记录测试分层、触发条件、命令和当前基线。
-- `md/prompt/` 保存每轮 Agent A 给 Agent B 的详细实现提示词，按版本号管理。
-- 改变架构、测试命令、核心流程、重要文件或完成状态时，必须同步更新相关文档。
-
-## 8. 交付格式
-
-最终回复必须包含：
-
-- 改了什么。
-- 关键文件。
-- 测试命令和结果。
-- 未跑测试及原因。
-- 已知风险或遗留事项。
-
-如果只是 Agent A 输出提示词，也要说明提示词版本、文件路径、覆盖范围和建议交给 Agent B 的下一步。
-
-## 9. 禁止项
-
-- 不读入口文档就改代码。
-- 不读相关源码就按猜测改实现。
-- 绕过 `TimerEngine` 直接在 View 中制造第二套计时状态。
-- 绕过 `FocusStore` 直接写散落持久化。
-- 让 iOS/macOS target 互相污染平台 API。
-- 删除旧实现、回滚他人改动或扩大任务范围，除非用户明确要求。
-- 用空泛模板替代项目真实文档。
-- 用“应该能过”“已验证”替代具体命令输出。
-- 忽略失败测试、编译错误、快照占位或 Xcode 构建错误。
+- 稳定入口不写逐版流水账；flow 只描述当前真实逻辑，test 只描述可复用制度，历史与单次证据放更新日志。
+- 仅更新受本轮影响的文档，不要求每次机械改全套 Markdown；修正活动链接，历史 prompt 的旧路径可以保留但不作为当前入口。
+- 最终回复使用中文，简要列出改动与关键文件、分支及提交/推送影响、实际验证命令与结果、未执行项及原因、已知风险或下一步；不需要角色身份开场。
+- 产品构建成功不等于真实购买、系统权限、真机后台或正式发行通过；这些边界必须明确保留。

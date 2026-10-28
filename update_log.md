@@ -8,9 +8,11 @@
 - 记录必须包含：版本/任务名、日期、核心变更、关键文件、验证结果、遗留事项。
 - 文档整理、目录迁移、回滚、打捞等不伪装成新产品版本，可写入“历史维护记录”。
 - 若核心逻辑、测试规范或项目行为变化，必须同步更新本日志。
-- 日期使用本地日期，格式为 `YYYY-MM-DD`。
+- 日期使用用户时区的日期，格式为 `YYYY-MM-DD`。
 
 ## 当前状态
+
+- 2026-10-28 / 自主迭代流程简化：当前会话直接按目标规划、实现、自查与交付，取消角色召唤、交接和强制版本提示词；根目录`work.md`保存未完成任务的计划、编辑范围、进度、验证选择和下一步，完成后清空任务正文。保留`main`直推和默认云端编译测试，测试按本轮改动选择必要基线/直接行为/关联回归，纯Markdown不触发无关产品CI。现有workflow和测试实现未改，仍为固定完整链，不宣称已支持定向profile。具体改动与验证见下方同名维护记录；历史角色称谓仅保留为当时语境，不再生效。
 
 - 2026-10-28 v1.10长分类视觉C退回：cbfc9194ceb1ada25195e355faaadbb6aaacd71b的source40635444950/review40636057979/UI40636058089均success/attempt1，第四模式148/0、JUnit4/0/0，共享core与21/8/10/8项静态回归成功；两iPhone各9/0/0与38场景（375pt515.455秒、390pt574.146秒），短生命周期均首先执行，独立收集/上传成功，Mac17图和Release工程检查通过。生产12793950148为16295455 bytes/sha256:5f16c00147a4915959a6f9de9dc85e8f402ffaee74dd2083710d60a4a0113429；review12792999267、Mac12793812146、Release12793113441、375pt12793094926、390pt12794257518。证据/private/tmp/chronofocus-c-review-40635444950-o_3wlhlp；C未额外下载本轮手机大包，读取精确原始job日志/API确认9/38。实际Mac长文本图中分类筛选胶囊撑至约9行，仍退回B；仅将筛选名称限两行尾截断、加完整help，已有分类补help，任务正文完整换行和44pt/AX/计数不变，复用原17图与8项UI接线回归。关键文件为MacScheduleDetailView、test_ui_evidence及A/README/test/flow/readiness；本机只静态/gh取证/读图，无测试解析编译或validator。本次补丁待新main完整云端及C验收，distributionReady仍为false。
 
@@ -120,7 +122,7 @@
 - v1.0 已让 iOS 待办新增/编辑与 macOS 快速新增接入非预设“已有分类”复用，分类只更新 View 草稿并按任务首次出现复用代表色，不新增持久化；artifact validator 已增加 `--run-metadata` 第四模式和十项 workflow run API 独立复判。实现 commit `7ccf408b82ce2ead457e5bce679f5cee1ac9ae33` 的 run `30192906663` 与原始 artifact 已由 Agent C 复判通过，validator 为 `121 PASS / 0 FAIL`。
 - v1.1 已让 iOS/macOS 已有分类按规范化 key 显示当前任务数量，session-only 分类显示“历史”；新增独立云端 marker/PASS 和负向 fixture，不新增持久化。修复 commit `46546e703668025a43ed467cafc46571916ad7eb` 的 run `30193805133` 与原始 artifact 已由 Agent C 复判为 `122 PASS / 0 FAIL`。
 - v1.2 已闭环：iOS/macOS 已有分类达到 6 项时提供规范化即时搜索、结果计数、清除和无结果反馈；Run API 完整模式增加 push/actor/triggering actor/head repository 四项授权来源复判。最终证据 commit、run、artifact 和 Agent C 结论见下方 v1.2 历史记录。
-- 当前默认协作体系要求后续按 Agent A/B/C 云端闭环迭代：Agent A 产出版本化实现提示词，Agent B 只做静态审阅后基于最新 `origin/main` 实现、commit 并 push 到 `origin/main`，GitHub Actions 生成未加密 CI 结果包，Agent C 下载 artifact 并核对 manifest、run context、artifact 名称、日志和产物；失败时退回 Agent B 在 `main` 追加修复 commit。可由 Agent X 围绕人工总目标拆分多轮并调度 A/B/C 闭环。本轮禁止本地项目测试、validator、Xcode、`xcodebuild`、`simctl` 和 Simulator。
+- 当前开发流程以`AGENTS.md`、`work.md`及任务相关flow/test为准：自行规划、小步实现、按范围选择必要云端验证、读取真实证据后交付。历史提示词不覆盖当前规则；本机默认不编译或测试，只有用户明确授权才按范围执行，本机iOS仅限现有FAC4325D前缀的唯一模拟器。
 - 当前云端 CI 结果包覆盖静态检查、项目验证、`ChronoFocusMac` build、`ChronoFocus` iOS generic build、manifest artifactName、manifest overallOutcome、manifest short SHA、固定 CI process version、workflow/project/scheme/destination 元数据、project reports、artifact index artifactName、artifact index version/createdAt、entry 精确清单、本地元数据复算、index totals 一致性、额外 artifact 文件拒绝、run context 精确键集、JUnit suite/classname 元数据、errors 计数、outcome 和 failure/error 元素拒绝、failure summary 身份/总结果/outcome、static-checks 日志 marker、Xcode 版本日志、分类摘要动作 contract marker、分类可访问 contract marker、日程任务操作 contract marker、计时主控 contract marker、计划开始 contract marker、计划分类 badge contract marker、Mac 计划分类上下文 contract marker、计划面板操作 contract marker、日程 toolbar 新增 contract marker、日程分类空态操作 contract marker、Mac 日程分类空态操作 contract marker、Mac 快速新增和标题分类上下文 contract marker、分类输入上下文 contract marker、待办保存分类 contract marker、待办取消分类 contract marker、Mac 小窗快捷面板 contract marker、统计分类占比 contract marker、统计分类投入次数 contract marker、统计分类投入排行 contract marker、统计分类投入排序依据 contract marker、统计分类投入空态 contract marker、统计分类投入元信息可读性 contract marker、统计分类投入占比可读性 contract marker、统计最近记录分类 contract marker、统计计划回顾分类 contract marker、Mac 快照 manifest generatedAt/byteCount 复判和失败阶段关键错误摘录。
 - v0.93 的当前云端覆盖还包括 `Mac calendar range empty state quick add contracts verified.` marker、`PASS verify_project mac calendar range empty state quick add contracts` 复判和 `negative_mac_calendar_range_empty_state_marker_fixture` 拒绝路径。
 
@@ -138,6 +140,16 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### 2026-10-28 / 自主迭代流程简化
+
+- 类型：开发与文档制度维护，不增加产品版本，不宣称产品质量或发行状态提升。
+- 核心变更：取消多角色召唤、身份开场、角色交接与每轮版本提示词；一个会话直接按目标拆解、实施、自查和核对云端结果。增加根目录`work.md`，在步骤推进、方案变化、失败和上下文压缩前更新，未完成保留，完成后移出长期结论并清空任务正文。
+- 文档分工：稳定入口不再堆单次CI结果；flow描述真实流程，test维护可复用测试选择制度，prompt入口改为历史归档，README保留用户功能和上手信息。只更新受影响文档，不机械全量改写。
+- 验证制度：保留main直推和默认云端编译/运行/测试；明确用户授权本机时的唯一FAC4325D模拟器约束。按本轮编辑与依赖选择baseline/direct/optional，纯Markdown且无需运行验证的推送使用`[skip ci]`，不运行无关build、UI、Release、validator或失败注入；代码/配置不能借此跳过必要验证。
+- 关键文件：`AGENTS.md`、`work.md`、`README.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`、`md/prompt/README.md`、`md/release/readiness.md`、`update_log.md`。
+- 验证：已静态阅读现有workflow、相关脚本及参考规范，执行Git同步与`gh auth status`确认main基线和授权账号；`git diff --check`通过，活动Markdown链接逐项定位并核对14个本地目标存在，`rg`确认活动入口无旧角色身份/召唤要求，人工审阅流程图与命令排版。业务源码、工程、测试实现及workflow均无本轮diff。本轮不运行本机测试/编译/配置解析/validator，不调度云端产品CI；只改Markdown，无相关产品运行验证需求，文档提交使用`[skip ci]`，提交/推送结果在最终交付报告，不为补写自身SHA再触发产品链。
+- 遗留：现有生产workflow仍固定完整链，成功push会触发完整review/UI/Release；没有已实现的定向profile，后续代码任务如需较小范围必须先补齐相关云端入口或明确扩大验证范围，不能仅凭新文档宣称自动裁剪。原有未提交提示词修改及两个未跟踪文档不改、不提交；历史提示词、日志和原始证据保留。
 
 ### v1.3 / 日程分类接力到计时
 

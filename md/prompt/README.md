@@ -1,157 +1,18 @@
-# Prompt 目录
+# 历史提示词归档
 
-本目录保存每轮 Agent A 写给 Agent B 的详细实现提示词。Agent A 负责把人工目标转成可执行方案，默认不直接改代码。
+本目录保留已经产生的版本化需求与实现方案，只用于追溯历史，不是当前开发流程的入口或前置条件。
 
-## 角色召唤
+## 当前任务怎么推进
 
-- 用户消息以 `agenta`、`a:` 或 `A:` 开头，表示召唤 Agent A。
-- 用户消息以 `agentb`、`b:` 或 `B:` 开头，表示召唤 Agent B。
-- 用户消息以 `agentc`、`c:` 或 `C:` 开头，表示召唤 Agent C。
-- 用户消息以 `agentx`、`x:` 或 `X:` 开头，表示召唤 Agent X。
-- 没有这些前缀时，按普通 Codex 任务处理；如果任务需要明确 A/B/C/X 边界，先说明本轮采用的身份或提醒人工指定角色。
-- Agent A 最终回复第一行必须写：`我是 Agent A。`
-- Agent B 最终回复第一行必须写：`我是 Agent B。`
-- Agent C 最终回复第一行必须写：`我是 Agent C。`
-- Agent X 最终回复第一行必须写：`我是 Agent X。`
+- 直接按用户目标和实际源码自主规划、开发、自查与交付，长期规则见 [AGENTS.md](../../AGENTS.md)。
+- 当前任务的目标、步骤、进度、验证选择、风险和下一步写入根目录 [work.md](../../work.md)；任务完成后清空当前任务正文。
+- 不再要求角色前缀、身份声明、角色交接，或每轮新增版本提示词；用户明确要求保存独立方案时再按主题新增。
+- 旧提示词中的角色、分支、本机验证、全量 CI 和逐版更新要求均为历史语境，不覆盖当前用户要求、入口规则或 [测试规范](../test/test.md)。
+- 不盲从旧方案，先核对当前架构与实现；产品构建和测试默认云端，不能从历史文本推导本机授权。
 
-## 命名建议
+## 归档边界
 
-- `md/prompt/v0（项目初始化）/v0.1（建立迭代文档）.md`
-- `md/prompt/v0（项目初始化）/v0.2（优化测试规范）.md`
-- `md/prompt/v1（核心功能）/v1.0（实现主流程）.md`
-- `md/prompt/v1（核心功能）/v1.1（修复主流程问题）.md`
-
-## 版本管理规则
-
-- Agent A 每次写提示词都必须写入版本号。
-- 人工指定版本时，以人工指定为准。
-- 人工未指定版本时，Agent A 自动判断版本，从 `v0.1` 开始。
-- 同一阶段的小任务、修复、优化递增小版本，例如 `v0.1` -> `v0.2` -> `v0.3`。
-- 大任务、架构阶段、核心功能阶段或重要里程碑新开大版本，例如 `v0.x` -> `v1.0`。
-- 同一大版本下的提示词放在同一个目录，例如 `md/prompt/v0（项目初始化）/`、`md/prompt/v1（核心功能）/`。
-- 文件名使用 `v0.1（简要说明）.md`，说明要短，能表达本轮目标。
-
-## Agent X 提示词管理规则
-
-- Agent X 可以围绕人工总目标拆分多个小轮次，但每个实现轮次仍必须要求 Agent A 生成版本化提示词。
-- Agent X 不得用自己的调度说明替代 Agent A 提示词；如果需要进入实现，必须先产出或引用对应 `md/prompt/` 文件。
-- 每轮提示词必须包含本轮目标、非目标、当前架构依据、实现步骤、关键文件、验证命令、CI workflow、artifact 下载、Agent C 验收要求、风险和禁止项。
-- Agent X 判断继续下一轮时，应引用上一轮 Agent C 结论，并为下一轮 Agent A 明确新增目标或修复目标。
-- 如果 Agent C 验收失败，Agent X 只能要求 Agent B 基于同一提示词或追加修复提示词继续，不得跳过 artifact 复判直接进入新功能轮。
-
-## 每份提示词必须包含
-
-- 版本号。
-- 版本分配依据：人工指定或 Agent A 自动判断。
-- 背景。
-- 目标。
-- 非目标。
-- 当前架构依据。
-- 实现步骤。
-- 关键文件。
-- 测试要求。
-- 文档更新要求。
-- 验收标准。
-- 风险和禁止项。
-- `main` 同步、提交和 push 要求。
-- GitHub Actions workflow、run id、artifact 下载和 Agent C 复判要求。
-
-## 云端阶段要求
-
-Agent A 写给 Agent B 的提示词必须明确：
-
-- 本轮固定使用 `main` 作为唯一上传、提交、推送和云端验证分支。
-- 开始前执行 `git fetch origin`、`git switch main`、`git pull --ff-only origin main`，并确认无无关 diff。
-- 当前硬性约束下不运行本地项目测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；只做静态审阅，最终测试和验收全部由 push 后的 GitHub Actions 提供。
-- 完成后按版本号提交本轮相关文件，并 `git push origin main` 触发 `.github/workflows/ci-results.yml`。
-- Agent B 输出必须说明未运行本地测试，包含静态审阅范围、commit SHA、push 状态、workflow run 信息和 artifact 名称。
-- Agent C 本机仅用 `gh auth login`/`gh auth status` 确认 `Altman-sam114` 授权后取证和读码，不运行 validator 或配置解析。正式下载链在 Actions 使用只读 `GH_TOKEN`（无需交互登录）查询最新 `origin/main` 对应精确 workflow run API 和 artifacts API。两份原始响应分别先写 `run-api.json.part`、`artifacts-api.json.part`，成功且非空后无覆盖原子改名；run JSON 结构化核对 attempt、workflow、状态、结论和仓库，artifacts JSON 结构化核对唯一 artifact 的 id、name、size、digest、expired 和 workflow run 身份。
-- Agent C 每次使用全新 `/private/tmp/chronofocus-c-review-<run_id>-<unique>/` 目录。原始 JSON 必须非空、不超过 1 MiB、为普通文件且不是 symlink；Actions 正式链的原始 ZIP 使用同一 JSON 中的唯一 id 下载到 `.zip.part` 并进行有限重试，size、SHA-256 和 ZIP 结构全部通过后，才在同一文件系统无覆盖原子改名并解包到全新目录。已有目录或目标文件存在时默认停止并更换唯一目录，禁止删除或覆盖。
-- 独立 Actions 必须将解包目录、原始 ZIP、两份原始 API JSON 和 API size/digest 一并交给 validator 第四模式；v1.2 起核对十四项 run metadata（默认含 push/actor/triggering actor/head repository 来源）、八项 artifact metadata、三项 archive、manifest、failure summary、JUnit、主日志、`.xcresult` 和项目专属快照。v1.4.7 的显式 failure profile 仍要求完整第四模式；受控 `workflow_dispatch` 只能额外传 `--expected-event workflow_dispatch`，不能伪装成 push。前三种较弱模式仅用于兼容，不能替代最新原始证据验收。
-- Agent C 发现失败或结果包不一致时，退回 Agent B 在 `main` 追加修复 commit，不做回滚式处理。
-- 本轮不引入 `smalldata_test`、`develop`、`codeb/...`、PR 合并流，也不照搬 AITRANS 的漫画探针、GGUF、模型 Release、`test/1.png` 等项目特例。
-
-## Agent A 最低工作要求
-
-1. 阅读 `AGENTS.md`、`update_log.md`、`md/flow/flow.md`、`md/flow/flowchart.md`、`md/test/test.md`。
-2. 阅读任务相关源码、脚本、测试和最近 git 记录。
-3. 明确本轮范围，不把未要求的重构塞进提示词。
-4. 写出能让 Agent B 直接执行的步骤和验收标准。
-5. 对每个测试要求给出触发原因和命令。
-6. 写清 `main` push 后的云端结果包验收标准。
-
-## 当前实现轮次
-
-- v1.10：`md/prompt/v1（持续优化）/v1.10（待办检索与安全管理）.md`。前置v1.9已在49433bb完成source40171435650/review40171840812/UI40171840835及C取证；本轮两端任务搜索/完成状态、安全删除确认、保存后可见与失败留草稿、循环完成身份修复、9条原生测试/38场景、Mac17图与真实测试树/耗时诊断。用户追加授权并行专项审阅和B修复，X统一提交/C取证；仅云端验证，待本次main验收。
-
-- v1.9：`md/prompt/v1（持续优化）/v1.9（待办可读性与场景证据）.md`。前置v1.8在c8d23ac完成source/review/UI/Release及C读图；本轮待办内容与文字动作分层、填色对比、常用设置前置、6条原生测试/25具名场景、启动与构建重叠、触发SHA固定和真实Mac图标检查。2026-10-25追加大字体日历纵排、外层留白滚动和ICNS原生解码/同名1024px编译图双证据，待最新main云端验收。
-
-- v1.8：`md/prompt/v1（持续优化）/v1.8（发布构建与日历权限边界）.md`。前置v1.7在6692058完成source/review/UI矩阵C验收；本轮权限和Live Activity过期边界、Release真实产物/隐私资源、设置数据说明及iOS浅色UI收口，仍须最新main云端验收。
-
-- v1.7：`md/prompt/v1（持续优化）/v1.7（Mac主题与分类密度收口）.md`。前置v1.6在`9f50b47`完成source/review/UI矩阵和C原始证据验收；本轮完整Mac亮暗主题、分类6/4项展示派生和iOS真实主题切页，待最新main云端验收。
-
-- v1.6：`md/prompt/v1（持续优化）/v1.6（iOS原生交互与空数据意愿）.md`。前置v1.5已在`76c115f`完成source/review/UI三链验收；本轮新增两种iPhone点宽原生UITest与空数据持久化回归，等待新SHA云端执行。
-
-- v1.5：`md/prompt/v1（持续优化）/v1.5（计时与日程信息层级）.md`，2026-10-23单会话A/B/C接续。前置v1.4.9于`3c8ca51` / source`39805823292` / review`39806603342`完成148 PASS / 0 FAIL。当前实现文字主控、折叠提醒、任务优先、自适应Mac布局和独立UI证据；待本轮新SHA云端验收。iOS运行测试、主题与发行身份仍为后续门槛。
-
-- v1.4.9：`md/prompt/v1（持续优化）/v1.4.9（可搜索分类筛选）.md`，前置 v1.4.8 已于 2026-10-22 在 `8e1dea3` 完成 push success 与 controlled-failure 双 profile 独立云端验收。当前实现分类栏搜索与选中项保留，等待本轮新 SHA 的构建、core、快照和 artifact 验收；v1.5 信息层级提示词保留为后续轮次。
-
-- v1.4.8：`md/prompt/v1（持续优化）/v1.4.8（自定义分类代表色统一）.md`。
-- 范围：统一预设/首个任务/session-only/fallback 代表色与分类规范化比较，增加共享对比文字色和活动快照色规则，覆盖 iOS/macOS 筛选、日期格、摘要、空态、任务/计划/计时/统计入口；CI 结果包额外绑定 `bootstrap`/`createManifest`，修复 fallback 摘要日志、成功 required index 和 prepare 日志 allowlist，并在 finalizer 失败时恢复一致 fallback 包；追加 required 缺失、recovery 核心证据、branch slug、阶段摘要和 skipped-only 负向合同。
-- 状态：2026-09-08 退回修复已落盘，待整合 push 和云端验收，尚未通过，不另开版本。最新已知 main commit `5df94397d3609dc891903274cf587f4000e3737b`，源 run `32653761542` / attempt `1` / `push/main` 为 failure：旧 semantic 合同失败、MacMini 非法 frame 引发 Mac 编译超时，iOS build success。artifact `9496921830`（`chronofocus-ci-v0.10-main-5df9439-run32653761542-attempt1`）已过期，下载 410；证据目录 `/private/tmp/chronofocus-c-review-32653761542-bXNQQQMj`，完整 size/digest 见 `update_log.md`。无法完成正式第四模式，不能以旧缓存替代。
-- 退回范围：按 A 同一提示词末尾补充要求修复真实 44pt/规范化/草稿/快照合同、MacMini frame、活动任务写入保护与停止后收敛、实际白色/`#111827` 对比度，并补齐独立 Actions 正式第四模式。validator 仅 Actions 执行，C 本地只用 `gh` 取证及读码；成功 push 产品验收与明确授权 dispatch failure 证据链验收分别记录，二者齐备且匹配最新 main 后才可闭环。当前文档 worker 不 stage/commit/push，不动 A 提示词和三个未跟踪文件。
-- 补充删除 no-op：无实际可删项直接返回，自动计划开启时的活动/空/unknown 请求须保持完整计划及快照不变；测试不得关自动计划冻结身份，mixed batch 合法删除仍可重生成计划。独立入口 `.github/workflows/ci-artifact-review.yml` / `scripts/review_ci_artifact.py` 已落盘待云端验证，来源门禁、只读 token、stale 复查与独立证据包的实际流程见 `md/flow/flow.md`。
-
-- v1.4.7：`md/prompt/v1（持续优化）/v1.4.7（CI失败结果包韧性）.md`。
-- 范围：CI 记录 checkout、metadata、Xcode selection、静态检查、项目验证、Mac build、iOS build 七阶段 outcome；失败时通过 fallback manifest/index/stage/summary/JUnit 生成可识别未加密 artifact；validator 增加显式 `--failure-mode` 和 `--expected-event`，成功 profile 保持严格完整包合同。
-- 状态：v1.4.7 实现已由 `a4c0612`、`745a734`、`58c00f0` 推送；run `32635787639`、`32636243203` 和 `32636815884` 均未通过，后者暴露 prepare fallback 静态合同误匹配，不能作为验收证据。当前追加 `$GITHUB_ENV` 精确匹配修复待推送，未运行任何本地测试、validator、Xcode、`xcodebuild`、`simctl` 或 Simulator；修复后仍需由 GitHub Actions 和 Agent C 复判正常 push 及受控 dispatch failure run。
-
-- v1.4：`md/prompt/v1（持续优化）/v1.4（可启动待办一致性与Archive目录绑定）.md`。
-- UI 范围：日程保留停用任务展示，计时队列、计划启动、日程接力和 TimerEngine 使用统一的 startable 查询；空闲选择失效时回到自由专注，运行中/暂停中保留快照。
-- CI 范围：完整 archive 模式把原始 ZIP 与 validator 自建临时解包树逐路径绑定，比较类型、大小和 SHA-256，并拒绝不安全 ZIP 条目；目标基线 `131 PASS / 0 FAIL`。
-- 状态：首次实现 commit `3779f26` 的 run `31291481389` 因提示词 EOF 空行和旧 iOS handoff contract 失败，Mac/iOS build 与 artifact 上传成功；已追加最小修复，等待新的 `origin/main` GitHub Actions 及 Agent C 最新 artifact 复判。未运行任何本地项目测试或检查。
-
-- v1.4.1：`md/prompt/v1（持续优化）/v1.4.1（CI fixture archive binding稳定性）.md`。
-- 范围：只修复 CI fixture 的 fixed-point index、冻结 run-metadata 目录/ZIP/metadata 同源绑定，以及 archive-backed marker 负向 fixture 的单失败隔离；不改 UI、Swift、validator 安全语义或 artifact 结构。
-- 状态：基于 commit `5067079` 的云端 run `31294009115` 项目验证失败结果包，当前修复待提交推送；未运行任何本地测试、validator、构建或模拟器，预期恢复 `131 PASS / 0 FAIL` 后由 Agent C 复判。
-
-- v1.4.2：`md/prompt/v1（持续优化）/v1.4.2（Mac core CI 编译接线）.md`。
-- 范围：只在 Mac core `swiftc` 源列表补入 `TimerEngine.swift` 和 `TimerPlatformServices.swift`，与 snapshot 编译顺序一致；不改 UI、产品 Swift、测试断言、validator 或 workflow。
-- 状态：针对 run `31295311282` 的 Mac core `TimerEngine` 缺失编译失败完成静态接线；未运行任何本地测试、validator、构建或模拟器，等待新 `origin/main` run 和 Agent C artifact 复判。
-
-- v1.4.3：`md/prompt/v1（持续优化）/v1.4.3（Mac core 计划失效断言）.md`。
-- 范围：仅调整停用任务触发自动计划重生成后的 Mac core 断言，接受计划项合法消失或开始时间保持不变；不改产品逻辑、UI、CI workflow、validator 或 artifact 结构。
-- 状态：commit `9efdec763716e722fd1985feb5551a1dc5da2850` 的 run `31296565259`（attempt `1`）已成功。Agent C 使用 `gh` 核对 artifact `chronofocus-ci-v0.10-main-9efdec7-run31296565259-attempt1`（id `9033169188`，size `14359355`，digest `sha256:f6b2eaab0e8428cf7e7e5142ec606b4464359c76a0f79d222201f1f182ee6481`，`expired=false`），原始 ZIP、manifest、index、run context、JUnit、日志、`.xcresult` 和 Mac 快照均匹配；未运行本地测试或 validator。
-
-- v1.4.4：`md/prompt/v1（持续优化）/v1.4.4（Mac计时队列展开与筛选重置）.md`。
-- 范围：macOS 计时队列从完整筛选结果派生默认前 7 项，超过阈值支持展开/收起；分类、完整筛选数量变化和 handoff 重置展开状态，运行中仍可浏览但任务行不可切换，并补齐两态 44pt、VoiceOver 和 Voice Control 语义。快照 fixture 只证明云端运行期 overflow，正式五张 manifest 清单不变；复用既有 Mac queue marker，不新增 validator contract。
-- 状态：实现 commit `a6726b3e2407d051f734171f386434ef7ada16c5` 的 run `31298401138`（attempt `1`）已成功；文档收尾 commit `9a1253a9e33122ef7c93ec24769d5ce8a95c3dcc` 的 run `31299100036`（attempt `1`）也已成功。Agent C 使用 `gh` 复判最新 artifact `chronofocus-ci-v0.10-main-9a1253a-run31299100036-attempt1`（id `9033963477`，size `14358537`，digest `sha256:30692dcbfc4b1fe0bd80baa0ffe30a001c57c69e2539e97d08abc6a78f75471a`，`expired=false`）为 `131 PASS / 0 FAIL`，JUnit `4/0/0`；正式五张快照、archive、artifact metadata、run metadata 和所有 contracts 均通过。该证据不得复用为后续版本结论，后续仍禁止本地项目测试、Xcode、`xcodebuild`、`simctl`、Simulator 和浏览器。
-
-- v1.4.5：`md/prompt/v1（持续优化）/v1.4.5（日程日期格分类计数一致性）.md`。
-- 范围：iOS/macOS 日程日期格、范围计数、列表和空态共享当前分类筛选；日期格只在有分类筛选时统计该分类，未筛选时保留全量 `dueDate` 自然日计数，日期格可访问标签与视觉计数使用同一上下文；快照 fixture 将任务固定到同一自然日，不改变正式五张 manifest 清单或 validator 安全语义。
-- 状态：实现 commit `574aca66297352337aaf25ff1cd74baf8d46f711` 已 push；对应 run `31301194613`（attempt `1`）和 artifact `chronofocus-ci-v0.10-main-574aca6-run31301194613-attempt1`（id `9034579834`，size `14366865`，digest `sha256:13d67bf9c213c32e6b5258a47f662dd7917712d57a8e4b5f3cf20a21c8421558`，`expired=false`）经 Agent C 使用 `gh` 和 validator 第四模式复判为 `132 PASS / 0 FAIL`，JUnit `4/0/0`；正式五张快照和日期计数视觉检查均通过。后续文档同步仍必须基于最新 `origin/main` 重新执行云端验收。禁止本地项目测试、validator、Xcode、`xcodebuild`、`simctl`、Simulator、浏览器及本地解析检查。
-
-- v0.98：`md/prompt/v0（持续优化）/v0.98（日程分类空态互斥与CI失败摘要直出）.md`。
-- UI 范围：iOS/macOS 日程分类筛选结果非空时显示摘要，结果为空时只显示现有双操作分类空态，保持新增预填、清除筛选与辅助功能接线。
-- CI 范围：`Final CI status` 通过 `tee` 将同一 failure summary 同时输出到步骤 stdout 与 Step Summary；新增 `CI failure summary output contracts verified.`、对应 validator PASS、`cat` 回退 fixture 和 marker 缺失 fixture，不改变 artifact 结构。
-- 状态：未运行任何本地测试或检查；实现 commit `9f26f865ab84c7874763bb3eef59a6a5c513a7c4` 的 GitHub Actions run `30189412591`（attempt `1`）已成功，job `89759759272` 全步骤成功且 annotations 为 `0`。Agent C 已复判 artifact `chronofocus-ci-v0.10-main-9f26f86-run30189412591-attempt1`（id `8628068160`，size `14382692`，digest `sha256:36b099026d830adb266034b9d70a776ee5dce696270d8288ceb1bb768d5de28f`，`expired=false`），validator 为 `99 PASS / 0 FAIL`；三个 archive、日程互斥、CI failure summary marker、manifest overall 和 Mac/iOS build 均 PASS，v0.98 云端验收完成。
-- v0.99：`md/prompt/v0（持续优化）/v0.99（iOS计时队列展开与Artifact API元数据复判）.md`。
-- UI 范围：iOS 计时待办默认显示前 4 项并支持展开/收起，在分类或筛选数量变化时重置；运行中仍可只读浏览，任务行继续禁用，并保留 44pt、动态字体、VoiceOver 与 Voice Control 语义。
-- CI 范围：validator 接收原始 artifacts API JSON，按 1 MiB/普通文件/非 symlink 和参数矩阵约束，输出八项 metadata PASS；新增 `Timer task queue expansion contracts verified.`、`CI artifact API metadata contracts verified.`、对应 PASS 及字段/marker 负向 fixtures，API 不直接证明 attempt。
-- 状态：未运行任何本地测试或检查；首次实现 commit `b54d11bf0dabf1d1c2a73308001867335f541c67` 的云端结果包内容虽为 `109 PASS / 0 FAIL`，但 Agent C 静态审查发现缺少独立 `total_count=0` fixture，因此退回。修复 commit `c65693fe49e0c6ade7ff9751c5dda00103a9c37b` 的 GitHub Actions run `30191096124`（attempt `1`）已成功，artifact `chronofocus-ci-v0.10-main-c65693f-run30191096124-attempt1`（id `8628621407`，size `14384904`，digest `sha256:b5a3386abc747ec2577dd85c3cd40e2f049bc664dc6324597ddc85971103a94b`，`expired=false`）经原始 API JSON/ZIP 与 validator 复判为 `109 PASS / 0 FAIL`，v0.99 实现验收通过；本证据记录提交仍须完成自身最新云端复判。
-- v1.0：`md/prompt/v1（持续优化）/v1.0（已有分类复用与Run API复判）.md`。
-- UI 范围：iOS 新增/编辑和 macOS 快速新增从 `store.taskCategories` 派生非预设已有分类，按固定 locale 规范化、首次出现去重和稳定顺序展示；点击只更新草稿并复用首个同分类任务代表色，session-only 分类保留当前颜色，不新增持久化。
-- CI 范围：validator 新增 archive + artifact metadata + run metadata 第四模式，并对精确 run API 输出 response shape、id、attempt、SHA、branch、name、path、status、conclusion、repository 十项独立结果；Agent C 使用 `run-api.json.part -> run-api.json`、artifacts JSON 和原始 ZIP 完成包外证据链。
-- 状态：未运行任何本地测试或检查；实现 commit `7ccf408b82ce2ead457e5bce679f5cee1ac9ae33` 的 run `30192906663` 已通过。最终证据 commit `a76d1dbb2926297cbb05578b6b9cf781e08a1285` 的 GitHub Actions run `30193171049`（attempt `1`）成功，Agent C 复判 artifact `chronofocus-ci-v0.10-main-a76d1db-run30193171049-attempt1`（id `8629271447`，size `14396212`，digest `sha256:e1baa096398e0016f708b6c86dcb8caf52d57a897c08c459dd2bee7e4f55760d`，`expired=false`）为 `121 PASS / 0 FAIL`；annotations 为 0，v1.0 已闭环。
-- v1.1：`md/prompt/v1（持续优化）/v1.1（已有分类使用量上下文）.md`。
-- UI 范围：iOS/macOS 已有分类按同一规范化 key 派生全部当前任务数量，有任务显示数量，session-only 显示“历史”；不持久化、不按数量排序，并保留 v1.0 的代表色、草稿和辅助功能边界。
-- CI 范围：新增 `Existing category usage context contracts verified.`、validator PASS 和 marker 缺失负向 fixture，继续由最新 run 的 Run API、Artifacts API 和 ZIP 第四模式复判。
-- 状态：主线程未运行本地测试或检查，但 CI 子 Agent 误运行过一次 `git diff --check`，其结果不作为验收证据。实现 commit `0666b4efae1822e978adf21f08df145e43a99aa8` 的 run `30193636728` 因旧 VoiceOver 契约失败；修复 commit `46546e703668025a43ed467cafc46571916ad7eb` 的 run `30193805133` 通过。最终证据 commit `db27324eb1a3ddf1fcf7672fdd66c1a326194946` 的 run `30194008859`（attempt `1`）成功，Agent C 复判 artifact `chronofocus-ci-v0.10-main-db27324-run30194008859-attempt1`（id `8629538360`，size `14392402`，digest `sha256:0b40f8edb49e7aff56761b1fef21d79449098af3666211df661b79311f18a16a`，`expired=false`）为 `122 PASS / 0 FAIL`，annotations 为 0，v1.1 闭环。
-- v1.2：`md/prompt/v1（持续优化）/v1.2（已有分类搜索与Run来源复判）.md`。
-- UI 范围：iOS/macOS 在至少 6 个非预设已有分类时提供规范化名称子串搜索、结果数/总数、清除和无结果反馈；搜索只过滤 View option，不修改分类草稿或持久化。
-- CI 范围：Run API 完整模式增加 `event`、`actor.login`、`triggering_actor.login`、`head_repository.full_name` 四项授权来源复判，并增加独立项目 marker/PASS 和负向 fixtures。
-- 状态：已闭环。未运行任何本地测试或检查。首次 run `30194825035` 虽为 `128 PASS / 0 FAIL`，但因云端快照缺少筛选结果 chip 被退回；返修 commit `0802d252056e99c704db8fe4bdaf8d26bb39a846` 的 run `30195201551` 通过实现验收。最终证据 commit `001875c842a2a2368346c043af59498c75a68788` 的 run `30195874234`（attempt `1`）成功，Agent C 复判 artifact `chronofocus-ci-v0.10-main-001875c-run30195874234-attempt1`（id `8630116575`，size `14377358`，digest `sha256:1ac0c627198c6d64cb77911a767c487a61d6c0604a383a6220f189e6aad4f007`，`expired=false`）为 `128 PASS / 0 FAIL`，annotations 为 0；`detail-schedule.png` 清晰显示“产品”结果 chip，无重叠、占位或截断。
-- v1.3：`md/prompt/v1（持续优化）/v1.3（日程分类接力到计时）.md`。
-- UI 范围：iOS/macOS 从日程分类摘要或任务行发出带唯一 id 的瞬态接力请求，切到计时并恢复分类/合法任务选择；运行中不替换任务，且绝不自动开始。
-- CI 范围：新增 `Schedule to timer handoff contracts verified.`、对应 validator PASS 和 marker 缺失负向 fixture；两张 Mac 快照覆盖接力入口与计时终态，预期基线 `129 PASS / 0 FAIL`。
-- 状态：实现验收通过，最终证据 commit 待云端复判。前两次 run `30322093934`、`30322395891` 分别暴露并修复两个旧源码切片边界；实现 commit `a5d5a85ac7095fe5718f45ba3c310c7252acb56d` 的 run `30322671653`（attempt `1`）成功，Agent C 在全新目录复判 artifact `8674620314` 为 `129 PASS / 0 FAIL`，JUnit `4/0/0`、annotations `0`，两端 build 与关键快照均通过。未运行本地项目测试或验证；主线程误执行的两次 `/dev/null` 空 `git diff --check --no-index` 均未读取项目文件且不作为证据。
+- [早期持续优化](v0（持续优化）/) 与 [后续持续优化](v1（持续优化）/) 保留原目录和文件名，不批量改写、删除或重新编号。
+- 历史路径可以保留；活动文档不再把历史 prompt 当作必读合同。
+- 当前真实流程见 [flow](../flow/flow.md) 和 [流程图](../flow/flowchart.md)，历史变更与验证证据见 [更新日志](../../update_log.md)。
+- 版本、commit、run、artifact 等历史证据只对对应状态有效，不代表当前目标或新提交已通过。

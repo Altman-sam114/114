@@ -20,7 +20,7 @@ flowchart LR
   SAVED -->|失败| DRAFT[保留草稿 / 说明计时保护 / 继续编辑]
   REPEAT[自然到点或手动完成 / 循环插入下一期] --> ID[Store成功完成 / 按原ID返回 / 取消原提醒]
   TREE[真实tests树 / 9个唯一Passed测试与设备耗时] --> EVIDENCE[关联summary与38具名场景]
-  EVIDENCE --> C[最新main云端C验收 / Mac17图 / Release / 长文本与草稿]
+  EVIDENCE --> REVIEW[执行相关云端验证时核对同源证据 / 长文本与草稿]
   TREE --> DIAG[成功或失败的逐测试诊断 / 不替代验收]
   BUILD[10分钟构建与启动 / 二者并行] --> READY[双成功记录实际UDID]
   READY --> RUN[14分钟测试步骤 / 复核UDID / 总job35分钟]
@@ -40,9 +40,9 @@ flowchart LR
   BOOT[云端设备boot请求] --> READY[bootstatus / 最多300秒]
   BUILD[同源build-for-testing] --> BOTH{两个前置都成功}
   READY --> BOTH
-  BOTH --> RUN[test-without-building / 6条实际测试]
-  RUN --> BIND[summary与manifest / 25具名场景 / UDID与尺寸]
-  BIND --> REVIEW[C核对新SHA并读原生图]
+  BOTH --> RUN[test-without-building / 当前登记测试集合]
+  RUN --> BIND[summary与manifest / 当前具名场景 / UDID与尺寸]
+  BIND --> REVIEW[当前会话核对新SHA并读原生图]
 ```
 
 读图说明：大字体日历先让标题和范围各占一行，寻找动作时在外层留白滚动；Mac图标同时核对可解码兼容图和真实编译资源，不把特定ICNS类型当成唯一存储位置。
@@ -107,10 +107,10 @@ flowchart LR
   WIDTH -->|否| ONE[单列：计时主区优先 / 日程待办优先]
   PUSH[授权main成功push] --> GATE[UI独立workflow来源gate]
   GATE --> SHA[仅checkout已核对SHA]
-  SHA --> RENDER[共用renderer编译入口 / 15张辅助状态PNG含5张浅色]
+  SHA --> RENDER[共用renderer编译入口 / 登记的辅助状态PNG / 亮暗主题]
   RENDER --> CHECK[上传前后复查main与源attempt]
   CHECK --> UIART[独立UI artifact与身份manifest]
-  UIART --> C[C分别核对生产review和UI证据并读图]
+  UIART --> REVIEW[核对生产review和相关UI证据并读图]
 ```
 
 读图说明：v1.6在同一个独立UI run里分别执行Mac静态布局与两种iPhone原生交互，三份平台证据不进入生产结果包。新安装与清空后的空数据不再触发演示任务。
@@ -118,12 +118,12 @@ flowchart LR
 ```mermaid
 flowchart LR
   SOURCE[授权当前main成功push] --> GATE[每个job先核对源身份再checkout]
-  GATE --> MAC[Mac同源renderer / 15图与亮暗空白负例]
-  GATE --> PHONE1[iPhone13 / 390pt / 5个原生UI测试]
-  GATE --> PHONE2[iPhoneSE3 / 375pt / 5个原生UI测试]
-  PHONE1 --> XC[xcresult与原始摘要 / 至少18张截图每设备 / 通知动作亮暗及大字体]
+  GATE --> MAC[Mac同源renderer / 登记布局图与亮暗空白负例]
+  GATE --> PHONE1[iPhone13 / 390pt / 当前登记原生UI测试]
+  GATE --> PHONE2[iPhoneSE3 / 375pt / 当前登记原生UI测试]
+  PHONE1 --> XC[xcresult与原始摘要 / 当前具名截图每设备 / 通知动作亮暗及大字体]
   PHONE2 --> XC
-  XC --> VERIFY[摘要5通过0失败0跳过 / 截图物理尺寸核对]
+  XC --> VERIFY[精确集合全通过 / 无失败或跳过 / 截图物理尺寸核对]
   MAC --> FRESH[上传前后复查main与attempt]
   VERIFY --> FRESH
   FRESH --> PACK[按平台独立artifact / 两套来源身份]
@@ -147,7 +147,7 @@ flowchart LR
   UI -->|清除搜索| C[仅清除query]
 ```
 
-本文用 Mermaid 图展示 ChronoFocus 当前真实核心逻辑和后续 Agent 迭代流程。每张图前都有通俗读图说明，方便人工快速复核。
+本文用 Mermaid 图展示 ChronoFocus 当前真实核心逻辑和目标驱动迭代流程。每张图前都有通俗读图说明，方便人工快速复核。
 
 ## 核心数据流
 
@@ -272,83 +272,65 @@ flowchart LR
   MAC -.禁止直接依赖.-> IOS
 ```
 
-## Agent 迭代与云端验收流程
+## 目标驱动迭代流程
 
-读图说明：生产 workflow 先完成并上传结果包，独立 `ci-artifact-review.yml` 再执行正式第四模式。Actions 在 checkout 前核对授权源 run 和当前 main，原始 API/ZIP 与解包树隔离，下载前与出结论前复查 SHA/attempt；C 本机仅用 gh 取证及读码，不运行 validator。success 产品通过与明确受控 failure 证据链通过分开记录；图描述当前落盘接线，不表示 v1.4.8 已获云端通过。
+读图说明：一个会话直接完成规划、开发、自查和结果核对，`work.md` 随步骤更新以便压缩后接续。纯文档只静态审阅；需要运行的验证默认在云端，并先按任务范围确认入口。现有完整 workflow 尚无按任务 profile，不能把计划选择误称为已实现自动裁剪。
 
 ```mermaid
 flowchart TD
-  H["人工提出目标<br/>功能、算法、禁止项、验收、性能、UI、测试"] --> A["Agent A<br/>阅读入口文档和源码<br/>分析目标并设计实现方案"]
-  A --> P["md/prompt/版本目录<br/>写给 Agent B 的详细实现提示词<br/>包含 main push、CI、artifact 要求"]
-  P --> B0["Agent B<br/>git fetch origin<br/>git switch main<br/>git pull --ff-only origin main"]
-  B0 --> B1["Agent B 实现<br/>按现有架构小步修改<br/>同步必要文档"]
-  B1 --> L["静态审阅<br/>本机不运行项目测试或构建"]
-  L --> G["main commit<br/>vX.Y: 简要说明本轮做了什么"]
-  G --> PUSH["git push origin main<br/>触发 GitHub Actions"]
-  PUSH --> CI["GitHub Actions<br/>checkout@v5 / upload-artifact@v6<br/>七个业务阶段：静态检查、verify_project、Mac/iOS build等"]
-  CI --> PKG["结果包阶段<br/>bootstrap / createManifest<br/>生成manifest、index、stage outcomes、JUnit、failure summary"]
-  PKG --> FINALIZER{"ensureResultPackage成功?"}
-  FINALIZER -->|是| ART["上传未加密 CI 结果包<br/>run context、日志与xcresult、快照和contract marker<br/>成功包 required完整，缺失即失败；失败包记录optional/missing"]
-  FINALIZER -->|否| RECOVER["recover_ci_result_package.py<br/>重建身份、stage、manifest、summary、JUnit、index一致的fallback包"]
-  RECOVER -->|成功| ART
-  RECOVER -->|失败| NOART["跳过上传<br/>保留失败摘要和云端失败状态<br/>不上传陈旧成功目录"]
-  ART --> SUM["Final CI status<br/>读取既有failure summary<br/>tee到stdout与Step Summary<br/>再判断七业务阶段、包阶段、finalizer/recovery和upload outcome"]
-  SUM --> RESULT{"七业务阶段、包阶段和上传是否全部成功?"}
-  RESULT -->|是| OK["run success"]
-  RESULT -->|否| FAIL["run failure<br/>步骤日志直接包含失败摘要"]
-  DISPATCH["workflow_dispatch<br/>failure_mode注入"] --> CI
-  DISPATCH -.包外登记.-> REG["源run-name绑定failure_mode输入<br/>API display_title与允许阶段一致<br/>jobs API确认job completed/failure及唯一completed目标步骤<br/>step conclusion可success/failure，不要求API step failure<br/>包内stage failure与API原始注入日志共同证明失败"]
-  OK --> REVIEW["独立ChronoFocus Artifact Review<br/>仅workflow_run: completed<br/>contents:read + actions:read<br/>其余权限none，不使用PAT/额外secret"]
-  FAIL --> REVIEW
-  REVIEW --> RUNAPI["checkout前精确源run API + 当前main + 事件<br/>run-api.json.part -> run-api.json<br/>成功非空后无覆盖原子改名"]
-  RUNAPI --> WFAPI["独立workflow-api.json<br/>固定ID 306720987、静态name、path、active<br/>run.name仅静态名或严格登记display_title<br/>下载前和最终再次核对workflow API"]
-  WFAPI --> GATE{"来源与profile通过?<br/>授权actor/triggering actor/仓库<br/>源SHA等于当前main且attempt匹配"}
-  GATE -->|否| BACK
-  GATE -->|是| CHECKOUT["只checkout核对后的源SHA<br/>persist-credentials:false<br/>不执行解包代码、不恢复不可信缓存"]
-  CHECKOUT --> FRESH["下载前重查main SHA与源attempt<br/>变化即stale停止"]
-  FRESH --> API["artifacts API原始JSON<br/>artifacts-api.json.part -> artifacts-api.json<br/>结构化取得唯一未过期artifact"]
-  API --> META["包外metadata安全与身份<br/>不超过1MiB、普通文件、非symlink<br/>run十四项 + artifact八项<br/>attempt与授权触发来源复判"]
-  META --> DL["用同一artifact id下载<br/>写入.zip.part并有限重试<br/>默认拒绝覆盖或删除"]
-  DL --> ZIP["Actions校验size、SHA-256、ZIP CRC与安全条目<br/>全部通过后同文件系统无覆盖原子改名<br/>解包到全新extracted目录<br/>原始API/ZIP与该树隔离"]
-  ZIP --> CLOUD["仅Actions运行validator第四模式<br/>push success不带failure-mode<br/>登记dispatch failure显式failure-mode与expected-event<br/>完整archive/两份metadata/目录绑定<br/>失败push不得自动降级"]
-  REG -.受控failure附加门禁.-> CLOUD
-  CLOUD --> FINALCHECK["最终重查当前main SHA及源run/attempt<br/>漂移即stale，不接受过时绿色"]
-  FINALCHECK --> EVIDENCE["独立review evidence artifact<br/>原始API/ZIP/残留、validator日志、review-result与summary<br/>绑定source/review两套SHA/run/attempt<br/>不混入生产ci-results或index<br/>证据上传失败不接受"]
-  EVIDENCE --> C["Agent C本机仅gh取证及读码<br/>核对两套run、profile、artifact与云端validator结论<br/>不运行测试、validator或配置解析"]
-  C --> V["分别记录<br/>push success产品验收<br/>受控failure证据链通过但产品未通过<br/>拒绝/退回/stale"]
-  V --> PASS{"同一最新main两种证据齐备?"}
-  PASS -->|不通过| BACK["退回 Agent B<br/>问题、证据、修复路径"]
-  BACK --> FIX["main 追加修复 commit<br/>不回滚旧提交"]
-  FIX --> PUSH
-  PASS -->|通过| DOC{"核心文档已同步?"}
-  DOC -->|否| D["补齐 md/flow、md/test、update_log<br/>作为 main 追加文档 commit"]
-  D --> PUSH
-  DOC -->|是| J["人工复核<br/>进入下一轮"]
-  J -->|继续下一轮| H
-  J -->|发现新目标| A
+  GOAL[用户目标与约束] --> READ[读取AGENTS和work / 核对Git与相关源码]
+  READ --> PLAN[work记录目标 / 非目标 / 验收 / 小步骤 / 文件范围]
+  PLAN --> EDIT[当前会话小步实现与静态自查]
+  EDIT --> TRACK[即时更新work进度 / 决策 / 风险 / 下一步]
+  TRACK --> SELECT[按本轮编辑及依赖选择baseline和direct / 按需optional]
+  SELECT --> DOCS{仅无需运行验证的Markdown}
+  DOCS -->|是| STATIC[内容 / 链接 / diff审阅 / 不运行产品CI]
+  STATIC --> DOCCOMMIT[仅文档提交 / skip ci标记 / push main]
+  DOCS -->|否| ENTRY{已有匹配任务范围的云端入口}
+  ENTRY -->|否| GAP[记录入口缺口 / 补充定向入口或请用户决定扩大范围]
+  GAP -->|入口补齐| ENTRY
+  GAP -->|需人工决策| WAIT[保留work / 报告阻塞和可执行下一步]
+  ENTRY -->|是| PUSH[仅提交本轮相关改动 / push origin main]
+  PUSH --> CLOUD[运行相关云端验证 / 记录真实SHA和run及attempt]
+  CLOUD --> RESULT[当前会话核对日志 / 必要产物 / 实际行为]
+  RESULT --> PASS{必要验证与目标都满足}
+  PASS -->|否且可修复| FIX[解释失败并追加相关修复 / 不回滚或掩盖失败]
+  FIX --> EDIT
+  PASS -->|阻塞| WAIT
+  PASS -->|是| DONE[更新长期日志 / 交付改动与真实验证及遗留项]
+  DOCCOMMIT --> DONE
+  DONE --> CLEAR[清空work当前任务正文 / 保留文件与空闲状态]
+  TRACK -.上下文压缩或恢复.-> READ
 ```
 
-## Agent X 主控循环
+## 完整产品链与独立证据核对
 
-人工要求单线程时，下图 A/B/C 表示同一会话顺序执行的职责阶段，不代表启动子智能体；设计、实现和云端取证仍逐项保留。
-
-读图说明：这张图描述人工用 `agentx:` 给出总目标后，Agent X 如何拆分轮次并调度 Agent A、Agent B、GitHub Actions 和 Agent C。Agent X 只做主控判断，不能跳过 Agent C 对最新 artifact 的验收；失败或阻塞时必须退回、暂停或停止，不能伪装成功继续下一轮。
+读图说明：这张图仅描述当前已接线的完整产品 workflow，不代表每个小任务都应执行。它在生产 push 后自动带出全部 UI/Release 矩阵；只需要定向验证时必须先有真正支持的入口。正式 review 仍在只读 Actions 中执行，不在本机运行 validator，也不要求另一个模型或角色接手。
 
 ```mermaid
 flowchart TD
-  H["人工输入 agentx 总目标 X<br/>范围、约束、验收标准"] --> X0["Agent X<br/>理解总目标和当前状态"]
-  X0 --> X1["拆分本轮小目标<br/>版本、边界、非目标、风险"]
-  X1 --> A["Agent A<br/>写 md/prompt 版本化提示词<br/>包含验证、CI、artifact、Agent C 要求"]
-  A --> B["Agent B<br/>按提示词实现<br/>静态审阅、commit、push origin/main"]
-  B --> CI["GitHub Actions<br/>ci-results.yml<br/>运行静态检查、verify_project、Mac/iOS build"]
-  CI --> ART["最新未加密 artifact<br/>manifest、artifact index、run context、JUnit、failure summary/错误摘录、日志、xcresult、快照 manifest、项目产物"]
-  ART --> REVIEW["独立Actions正式第四模式<br/>completed事件、只读token、源身份门禁<br/>下载前/最终main SHA与attempt复查<br/>包外API/ZIP与解包树隔离<br/>push success与登记dispatch failure分开"]
-  REVIEW --> C["Agent C本机仅gh取证及读码<br/>读取独立review原始证据、日志与结论<br/>不本地执行validator<br/>核对source/review两套身份与当前main"]
-  C --> X2["Agent X 读取 Agent C 结论<br/>只基于最新 origin/main artifact 判断"]
-  X2 --> D{"下一步判断"}
-  D -->|通过且总目标未完成| X1
-  D -->|不通过但可修复| B
-  D -->|需要人工决策<br/>权限/密钥/方向/冲突| P["暂停等待人工确认"]
-  D -->|达到停止条件| S["停止循环<br/>说明阻塞、证据和建议"]
-  D -->|总目标完成| DONE["宣布完成<br/>最后一轮 Agent C 已确认云端通过"]
+  PUSH[需要完整产品验证的main push] --> CI[ci-results / 固定静态检查与项目验证 / Mac和iOS构建]
+  CI --> PACKAGE[manifest / index / stage / JUnit / 日志 / xcresult / 正式快照]
+  PACKAGE --> FINAL{包阶段成功}
+  FINAL -->|是| UPLOAD[上传唯一未加密生产包 / 保留真实job结论]
+  FINAL -->|否| RECOVER{恢复一致fallback包成功}
+  RECOVER -->|是| UPLOAD
+  RECOVER -->|否| NOART[不上传陈旧目录 / 保留失败与原始日志]
+  UPLOAD --> EVENT[生产workflow completed]
+  EVENT --> REVIEW[只读独立review / checkout前核对来源和当前main]
+  REVIEW --> API[原始run与artifacts API / 全新目录 / 包外证据]
+  API --> ZIP[独占part下载 / size与摘要及安全ZIP校验 / 原子晋升]
+  ZIP --> EXTRACT[全新extracted / 不执行解包内容]
+  EXTRACT --> VALIDATE[仅Actions正式第四模式 / 完整archive与两份metadata / 目录绑定]
+  VALIDATE --> FRESH[最终复查main与源attempt / 漂移即stale]
+  FRESH --> EVIDENCE[独立review证据包 / source与review双身份 / 上传成功才接受]
+  EVENT --> SUCCESS{授权生产push成功}
+  SUCCESS -->|是| UI[当前固定完整矩阵 / Mac / ios-390 / ios-375 / Release]
+  UI --> UIART[相关原生与渲染证据 / 双身份与上传前后freshness]
+  EVIDENCE --> CHECK[当前会话核对真实结论 / 必要日志和截图 / 不用旧结果冒充]
+  UIART --> CHECK
+  CHECK --> OUT[产品通过 / 失败 / stale分别报告]
+  INJECT[仅相关安全链任务显式受控dispatch] --> CI
+  INJECT -.注入身份与真实日志复判.-> VALIDATE
+  OUT -->|受控失败| FAILURE[失败证据链通过不等于产品通过 / 不自动降级失败push]
 ```
