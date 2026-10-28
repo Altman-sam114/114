@@ -16,13 +16,14 @@ flowchart LR
   EDIT[编辑器保存] --> SAVED{Store返回保存对象}
   SAVED -->|成功| LOCATE[关闭并定位保存任务]
   SAVED -->|失败| DRAFT[保留草稿 / 说明计时保护 / 继续编辑]
-  REPEAT[完成循环任务 / 插入下一期] --> ID[按原任务ID返回 / 取消原提醒]
+  REPEAT[自然到点或手动完成 / 循环插入下一期] --> ID[Store成功完成 / 按原ID返回 / 取消原提醒]
   TREE[真实tests树 / 9个唯一Passed测试与设备耗时] --> EVIDENCE[关联summary与38具名场景]
   EVIDENCE --> C[最新main云端C验收 / Mac17图 / Release / 长文本与草稿]
   TREE --> DIAG[成功或失败的逐测试诊断 / 不替代验收]
   BUILD[10分钟构建与启动 / 二者并行] --> READY[双成功记录实际UDID]
   READY --> RUN[14分钟测试步骤 / 复核UDID / 总job35分钟]
-  RUN --> TREE
+  RUN --> COLLECT[独立always收集 / 5分钟 / 保留真实失败]
+  COLLECT --> TREE
 ```
 
 读图说明：v1.9把待办内容和动作分开，改变展示不改变任务或计时真源；云端启动和构建可重叠，运行测试前必须同时成功，结果再按真实场景绑定。

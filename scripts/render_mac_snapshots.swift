@@ -361,7 +361,7 @@ struct MacSnapshotRenderer {
 
         guard let scheduleLongTask = store.addTask(
             title: "整理跨团队产品体验评审中的问题，完成下一阶段的可访问性改进与正式发布前的界面检查",
-            category: "跨团队产品体验与设计系统无障碍发布协作及多语言界面质量检查",
+            category: "跨团队产品体验与设计系统无障碍发布协作及多语言界面质量检查与跨平台任务管理流程验收",
             dueDate: Date(), estimatedRounds: 3, accentHex: "#3DE8C5"
         ) else {
             throw SnapshotError("Could not create long schedule text fixture")
@@ -428,18 +428,24 @@ struct MacSnapshotRenderer {
         var longCategoryTask = shortTask
         longCategoryTask.category = task.category
         var heights = [Int]()
+        var measurements = [String: [String: Int]]()
         for (name, fixture) in [("schedule-short", shortTask), ("schedule-title-wrap", longTitleTask), ("schedule-category-wrap", longCategoryTask)] {
             let url = directory.appendingPathComponent(name + ".png")
             let row = MacTaskRowView(task: fixture, allowsTextWrapping: true)
                 .environmentObject(store)
                 .frame(width: 508)
+                .background(MacTheme.background)
             try render(row, to: url)
-            heights.append(try metadata(for: url).height)
+            let image = try metadata(for: url)
+            heights.append(image.height)
+            measurements[name] = ["width": image.width, "height": image.height]
         }
+        try JSONEncoder().encode(measurements).write(to: directory.appendingPathComponent("schedule-text-wrap-measurements.json"))
+        let diagnostic = "508pt row pixel heights: short=\(heights[0]), title=\(heights[1]), category=\(heights[2])"
         guard heights[1] > heights[0], heights[2] > heights[0] else {
-            throw SnapshotError("Schedule title and category must each grow the row instead of truncating")
+            throw SnapshotError("Schedule title and category must each grow the row instead of truncating; \(diagnostic)")
         }
-        print("Schedule title and category wrapping verified at 508pt: \(heights)")
+        print("Schedule title and category wrapping verified at 508pt: \(diagnostic)")
     }
 
     @MainActor

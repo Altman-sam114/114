@@ -126,7 +126,45 @@ class UISourceGateTests(unittest.TestCase):
         renderer = Path("scripts/render_mac_snapshots.swift").read_text()
         self.assertIn('capture("schedule-long-text-1100.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskSearchQuery: "正式发布前")), width: 1100, height: 1000', renderer)
         self.assertIn("try assertScheduleTextWrapping(for: scheduleLongTask, store: store, directory: checksDirectory)", renderer)
+        self.assertIn('directory.appendingPathComponent("schedule-text-wrap-measurements.json")', renderer)
+        self.assertIn('short=\\(heights[0]), title=\\(heights[1]), category=\\(heights[2])', renderer)
         self.assertIn("heights[1] > heights[0], heights[2] > heights[0]", renderer)
+        self.assertLess(renderer.index('directory.appendingPathComponent("schedule-text-wrap-measurements.json")'), renderer.index("guard heights[1] > heights[0]"))
+
+    def test_native_execution_collect_and_diagnostics_keep_separate_failure_paths(self):
+        def step(name):
+            return WORKFLOW.split("      - name: " + name + "\n", 1)[1].split("\n      - name:", 1)[0]
+
+        execution = step("Run native iOS UI tests")
+        collection = step("Collect native iOS UI results and attachments")
+        diagnostics = step("Summarize native UI test results including failures")
+        self.assertIn("timeout-minutes: 14", execution)
+        self.assertIn("bash scripts/run_ios_ui_tests.sh --test-only", execution)
+        self.assertNotIn("xcresulttool", execution)
+        self.assertIn("timeout-minutes: 5", collection)
+        self.assertIn("bash scripts/run_ios_ui_tests.sh --collect-only", collection)
+        for block in (collection, diagnostics):
+            self.assertIn("if: always() && startsWith(matrix.platform, 'ios-') && steps.gate.outputs.sha != ''", block)
+        self.assertIn("python3 scripts/verify_ios_ui_evidence.py --summary-only", diagnostics)
+        ordered_steps = ["Run native iOS UI tests", "Collect native iOS UI results and attachments",
+                         "Summarize native UI test results including failures", "Recheck source and bind visual manifest",
+                         "Upload independent UI evidence", "Final source freshness check"]
+        positions = [WORKFLOW.index("      - name: " + name + "\n") for name in ordered_steps]
+        self.assertEqual(positions, sorted(positions))
+        script = Path("scripts/run_ios_ui_tests.sh").read_text()
+        collector = script.split("collect_native_results() {\n", 1)[1].split("\n}\n", 1)[0]
+        for command in ("xcresulttool get test-results summary", "xcresulttool get test-results tests",
+                        "xcresulttool export attachments", "python3 scripts/verify_ios_ui_evidence.py"):
+            self.assertIn(command, collector)
+        self.assertNotIn("xcodebuild", collector)
+        self.assertNotIn("simctl", collector)
+        self.assertIn('if [[ ! -d "$UI_DIR/ios.xcresult" ]]; then', collector)
+        self.assertIn("return 1", collector)
+        self.assertLess(script.index('if [[ "$phase" == --collect-only ]]'), script.index("device_udid="))
+        self.assertIn('if [[ "$phase" == --test-only ]]; then\n  exit "$test_status"\nfi', script)
+        self.assertIn("collect_native_results || collection_status=$?", script)
+        self.assertIn('if [[ "$test_status" -ne 0 ]]; then\n  exit "$test_status"\nfi\nexit "$collection_status"', script)
+        self.assertEqual(script.count('"${test_command[@]}" 2>&1 | tee'), 1)
 
 
 if __name__ == "__main__":

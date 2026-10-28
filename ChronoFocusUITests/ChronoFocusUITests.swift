@@ -13,7 +13,7 @@ final class ChronoFocusUITests: XCTestCase {
         app?.terminate()
     }
 
-    func testFreeFocusLifecycle() {
+    func test00FreeFocusLifecycle() {
         launch(fixture: "empty")
         capture("timer-idle")
         let primary = app.buttons["timer.primary"]
@@ -98,6 +98,7 @@ final class ChronoFocusUITests: XCTestCase {
         let search = app.textFields["category.search"]
         reveal(search)
         search.tap()
+        dismissQuickPathIntroductionIfPresent()
         search.typeText("产品\n")
         let category = app.buttons["schedule.category.产品"]
         reveal(category)
@@ -112,6 +113,7 @@ final class ChronoFocusUITests: XCTestCase {
         capture("task-editor-prefilled")
         let title = app.textFields["task.editor.title"]
         title.tap()
+        dismissQuickPathIntroductionIfPresent()
         title.typeText("云端新增待办")
         app.buttons["task.editor.save"].tap()
         let saved = app.staticTexts["云端新增待办"].firstMatch
@@ -234,6 +236,7 @@ final class ChronoFocusUITests: XCTestCase {
         let newTitle = app.textFields["task.editor.title"]
         XCTAssertTrue(newTitle.waitForExistence(timeout: 5))
         newTitle.tap()
+        dismissQuickPathIntroductionIfPresent()
         newTitle.typeText("筛选后新增任务")
         app.buttons["task.editor.save"].tap()
         let created = app.staticTexts["筛选后新增任务"].firstMatch
@@ -284,6 +287,7 @@ final class ChronoFocusUITests: XCTestCase {
         launch(fixture: "editor-active")
         let title = app.textFields["task.editor.title"]
         title.tap()
+        dismissQuickPathIntroductionIfPresent()
         title.typeText("，保留草稿")
         XCTAssertTrue((title.value as? String)?.contains("保留草稿") == true)
         capture("editor-active-draft")
@@ -293,6 +297,7 @@ final class ChronoFocusUITests: XCTestCase {
         XCTAssertTrue(alert.staticTexts["该待办正在计时。草稿已保留，请先停止计时后再保存。"].exists)
         capture("editor-save-protected")
         alert.buttons["继续编辑"].tap()
+        dismissQuickPathIntroductionIfPresent()
         XCTAssertTrue(title.exists, "A rejected save must keep the editor open")
         XCTAssertTrue((title.value as? String)?.contains("保留草稿") == true, "A rejected save must preserve the draft")
         let cancel = app.buttons["task.editor.cancel"]
@@ -321,7 +326,17 @@ final class ChronoFocusUITests: XCTestCase {
         let field = app.textFields["schedule.task.search"]
         reveal(field)
         field.tap()
+        dismissQuickPathIntroductionIfPresent()
         field.typeText(query + "\n")
+    }
+
+    private func dismissQuickPathIntroductionIfPresent() {
+        let explanation = app.staticTexts["Speed up your typing by sliding your finger across the letters to compose a word."]
+        let proceed = app.buttons["Continue"]
+        guard explanation.exists, proceed.exists else { return }
+        XCTAssertTrue(proceed.isHittable)
+        proceed.tap()
+        waitForDisappearance(explanation)
     }
 
     private func requestDeletion(_ more: XCUIElement) {
@@ -348,15 +363,17 @@ final class ChronoFocusUITests: XCTestCase {
 
     private func revealInsideViewport(_ element: XCUIElement) {
         reveal(element)
+        let origin = app.coordinate(withNormalizedOffset: .zero)
         for _ in 0..<12 {
             let top = app.navigationBars.firstMatch.frame.maxY + 6
             let bottom = app.tabBars.firstMatch.frame.minY - 6
             let frame = element.frame
             if frame.minY >= top && frame.maxY <= bottom { break }
             let overflow = frame.minY < top ? frame.minY - top : frame.maxY - bottom
-            scrollVertically(by: overflow, maximumStep: 160)
+            scrollVertically(by: overflow, maximumStep: 160, viewport: (top, bottom), origin: origin)
         }
         let frame = element.frame
+        let appFrame = app.frame
         let top = app.navigationBars.firstMatch.frame.maxY + 6
         let bottom = app.tabBars.firstMatch.frame.minY - 6
         if frame.minY < top || frame.maxY > bottom {
@@ -364,8 +381,8 @@ final class ChronoFocusUITests: XCTestCase {
         }
         XCTAssertGreaterThanOrEqual(frame.minY, top)
         XCTAssertLessThanOrEqual(frame.maxY, bottom)
-        XCTAssertGreaterThanOrEqual(element.frame.minX, app.frame.minX)
-        XCTAssertLessThanOrEqual(element.frame.maxX, app.frame.maxX)
+        XCTAssertGreaterThanOrEqual(frame.minX, appFrame.minX)
+        XCTAssertLessThanOrEqual(frame.maxX, appFrame.maxX)
     }
 
     private func launch(fixture: String, largeType: Bool = false) {
@@ -397,29 +414,28 @@ final class ChronoFocusUITests: XCTestCase {
 
     private func reveal(_ element: XCUIElement) {
         XCTAssertTrue(element.waitForExistence(timeout: 5))
+        let origin = app.coordinate(withNormalizedOffset: .zero)
         for attempt in 0..<16 {
             if element.isHittable { return }
             let frame = element.frame
-            let isAboveViewport = !frame.isEmpty && frame.maxY < app.frame.midY
-            if isAboveViewport || (frame.isEmpty && attempt >= 8) {
-                scrollVertically(by: -240)
-            } else {
-                scrollVertically(by: 240)
-            }
+            let appFrame = app.frame
+            let top = app.navigationBars.firstMatch.frame.maxY + 6
+            let bottom = app.tabBars.firstMatch.frame.minY - 6
+            let isAboveViewport = !frame.isEmpty && frame.maxY < appFrame.midY
+            let distance: CGFloat = isAboveViewport || (frame.isEmpty && attempt >= 8) ? -240 : 240
+            scrollVertically(by: distance, viewport: (top, bottom), origin: origin)
         }
         capture("unreachable-control")
         XCTFail("Control could not be reached by scrolling: \(element.identifier)")
     }
 
-    private func scrollVertically(by overflow: CGFloat, maximumStep: CGFloat = 240) {
-        let top = app.navigationBars.firstMatch.frame.maxY + 6
-        let bottom = app.tabBars.firstMatch.frame.minY - 6
-        let limit = min(maximumStep, (bottom - top) * 0.6)
+    private func scrollVertically(by overflow: CGFloat, maximumStep: CGFloat = 240, viewport: (top: CGFloat, bottom: CGFloat), origin: XCUICoordinate) {
+        let limit = min(maximumStep, (viewport.bottom - viewport.top) * 0.6)
         let magnitude = min(limit, max(32, abs(overflow)))
         let distance = overflow < 0 ? -magnitude : magnitude
         // The outer gutter avoids nested pickers and horizontal category scrollers.
         // Tiny corrections must still cross the scroll recognizer's movement threshold.
-        let center = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 10, dy: (top + bottom) / 2))
+        let center = origin.withOffset(CGVector(dx: 10, dy: (viewport.top + viewport.bottom) / 2))
         center.withOffset(CGVector(dx: 0, dy: distance / 2)).press(forDuration: 0.1, thenDragTo: center.withOffset(CGVector(dx: 0, dy: -distance / 2)), withVelocity: .slow, thenHoldForDuration: 0.1)
     }
 

@@ -6,13 +6,15 @@
 
 当前v1.10门禁：两种iPhone各9 passed/0 failed/0 skipped、38个具名原生场景；旧35场景全部保留，新增编辑器打开后任务变活动的保存拒绝、草稿保留和取消。Mac独立17图，包含已完成任务检索与1100pt双列日程长标题/分类；生产正式五图不变。共享core覆盖状态/分类/多词查询组合、规范化、停用任务、恢复、空输入和顺序身份，并实际验证循环完成返回原任务、原提醒取消与自动开始幂等保护。`verify_ios_ui_evidence.py`核对原始tests树的精确9测试集合、逐项Passed、有限非负耗时和唯一设备，再关联summary与38场景附件。Static checks执行10项原生证据回归（包含测试树缺失/重复/错身份/跳过/失败/设备/耗时与失败诊断），保留8项隐私/图标回归；UI来源回归从实际workflow推导四平台fallback名，拒绝跨平台、attempt、run重名。失败后仍通过`python3 scripts/verify_ios_ui_evidence.py --summary-only`保存诊断到独立证据和Actions Summary；诊断不能替代验收或改变失败结论。仅Actions执行，等待本轮新SHA云端结果。
 
-本轮core成功日志应包含`Task list query behavior passed.`、`Recurring task completion identity behavior passed.`与`Scheduled automatic start behavior passed.`。循环回归覆盖三个完成入口、首项/非首项、已存在/新增下一期，以及实际过期计时恢复后的原提醒取消；自动调度覆盖到期启动、运行/暂停幂等、同日不重启和不合格候选。Mac renderer额外保存508pt短行、长标题和长分类三张对照图，分别要求后两者实际高度增加，并输出`Schedule title and category wrapping verified at 508pt`。这些是执行回归，不以源码包含关键字替代；UI来源/布局静态接线回归共7项。
+本轮core成功日志应包含`Task list query behavior passed.`、`Recurring task completion identity behavior passed.`、`Manual task completion reminder behavior passed.`与`Scheduled automatic start behavior passed.`。循环回归覆盖三个完成入口、首项/非首项、已存在/新增下一期，以及实际过期计时恢复后的原提醒取消；手动完成覆盖普通/循环、运行/暂停、重复调用和自由专注，核对只取消已完成原任务提醒并保留其他任务/计划身份；自动调度覆盖到期启动、运行/暂停幂等、同日不重启和不合格候选。Mac renderer额外保存508pt短行、长标题和长分类三张对照图，分别要求后两者实际高度增加，并输出`Schedule title and category wrapping verified at 508pt`；guard前保存实际像素宽高JSON，失败附原始高度，诊断图带主题背景以确保读字。731b180的原分类完整容纳单行，已按原始图加长分类fixture跨越换行边界，不降低宽度/增长门禁。这些是执行回归，不以源码包含关键字替代；UI来源/布局静态接线回归共7项。
 
 v1.9已在49433bb完成source40171435650/review40171840812/UI40171840835验收，148/0、两设备各6/0/0与25场景、Mac15图和Release通过；C读原生图确认32pt微小纠正有效。全部frame、可达性和尺寸边界保持严格，云端启动/构建并行、禁止失败重跑；Release仍须ICNS原生解码及Assets.car同名1024×1024编译图。本机不执行任何测试/解析/编译/validator。
 
 v1.10原生退回依据：da521e4/source40620760504/review40621307102通过，UI40621307173两设备均7/1/0；搜索/完成恢复通过，原生图显示confirmationDialog没有取消按钮。当前改原生alert并要求两个动作真实存在；同时把iOS导航收紧、任务搜索移入标题、分类查询按需展开，主题测试增加默认首条任务无需滚动的isHittable与TabBar边界。旧分类搜索测试先点击查找分类再执行原查询/预填/保存。新版35场景必须重新云端执行。
 
-真实日志的测试构建约6分钟、测试本体约8分钟；workflow把`run_ios_ui_tests.sh --build-only`与`--test-only`分成10/14分钟两步，分别定位构建与交互失败。构建和300秒bootstatus仍重叠，只有双成功才记录实际UDID；测试步骤必须复核该记录。总job35分钟与单测120/180秒上限不变，仍不自动重跑失败，不用增加超时掩盖交互错误。
+真实日志的测试构建约6分钟、测试本体约8分钟；workflow把`run_ios_ui_tests.sh --build-only`、`--test-only`与`--collect-only`分成10/14/5分钟三步。构建和300秒bootstatus仍重叠，只有双成功才记录实际UDID；测试复核该记录并返回真实退出码，独立always收集在失败/超时后导出原始summary/tests/attachments，随后始终生成诊断。缺失或无效结果保持失败，原始失败码在all模式优先保留。总job35分钟与单测120/180秒上限不变，不重跑失败。来源/布局/收集接线回归当前8项。
+
+731b180的390日志证明首次自动化约60秒与大字体滚动叠加，使旧首测132秒超出120秒，继发约62秒终止失败和runner重启；剩余8条通过不能代替失败总集。短生命周期真实测试改名test00FreeFocusLifecycle并同步SCENES身份，先承担冷启动，仍9测试/38场景；每轮滚动缓存实时几何、保留全部原步长/次数/边界。375新增草稿测试通过（32.6秒），图中QuickPath教程仅在精确说明与Continue同时存在时处理，避免遮住原生证据，不把该教程当作390首测失败原因。
 
 ### v1.9修复依据（历史）
 

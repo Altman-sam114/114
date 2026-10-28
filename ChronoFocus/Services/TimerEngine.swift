@@ -291,8 +291,10 @@ final class TimerEngine: ObservableObject {
                 completed: true
             )
         )
-        if snapshot.mode == .focus {
-            _ = store.finishActiveTask(snapshot.taskID)
+        if snapshot.mode == .focus,
+           let finishedTask = store.finishActiveTask(snapshot.taskID),
+           finishedTask.isDone {
+            notifications.cancelTaskReminder(taskID: finishedTask.id)
         }
         cancelNotification(for: snapshot)
         store.activeTimer = nil

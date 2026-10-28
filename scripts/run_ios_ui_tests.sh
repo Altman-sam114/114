@@ -6,9 +6,25 @@ test -n "${UI_DIR:-}"
 test "${UI_PLATFORM:-}" = ios-390 || test "${UI_PLATFORM:-}" = ios-375
 phase="${1:-all}"
 case "$phase" in
-  all|--build-only|--test-only) ;;
+  all|--build-only|--test-only|--collect-only) ;;
   *) printf 'Unknown native UI phase: %s\n' "$phase" >&2; exit 64 ;;
 esac
+
+collect_native_results() {
+  if [[ ! -d "$UI_DIR/ios.xcresult" ]]; then
+    printf 'Native xcresult is unavailable; inspect the build, simulator boot, and test logs. No native evidence was accepted.\n' >&2
+    return 1
+  fi
+  xcrun xcresulttool get test-results summary --path "$UI_DIR/ios.xcresult" > "$UI_DIR/ios-summary.json" || return $?
+  xcrun xcresulttool get test-results tests --path "$UI_DIR/ios.xcresult" > "$UI_DIR/ios-tests.json" || return $?
+  xcrun xcresulttool export attachments --path "$UI_DIR/ios.xcresult" --output-path "$UI_DIR/attachments" || return $?
+  python3 scripts/verify_ios_ui_evidence.py
+}
+
+if [[ "$phase" == --collect-only ]]; then
+  collect_native_results
+  exit 0
+fi
 
 device_udid="$(cat "$UI_DIR/simulator-udid.txt")"
 build_command=(
@@ -71,10 +87,12 @@ set +e
 test_status=${PIPESTATUS[0]}
 set -e
 
-if [[ -d "$UI_DIR/ios.xcresult" ]]; then
-  xcrun xcresulttool get test-results summary --path "$UI_DIR/ios.xcresult" > "$UI_DIR/ios-summary.json"
-  xcrun xcresulttool get test-results tests --path "$UI_DIR/ios.xcresult" > "$UI_DIR/ios-tests.json"
-  xcrun xcresulttool export attachments --path "$UI_DIR/ios.xcresult" --output-path "$UI_DIR/attachments"
+if [[ "$phase" == --test-only ]]; then
+  exit "$test_status"
 fi
-test "$test_status" -eq 0
-python3 scripts/verify_ios_ui_evidence.py
+collection_status=0
+collect_native_results || collection_status=$?
+if [[ "$test_status" -ne 0 ]]; then
+  exit "$test_status"
+fi
+exit "$collection_status"

@@ -166,6 +166,7 @@ struct MacCoreTests {
         runCategoryPresentationTests()
         runTaskListFilterTests()
         runRecurringTaskCompletionTests()
+        runManualTaskCompletionReminderTests()
         runScheduledAutoStartTests()
         await runStartableTaskTests(store: store)
         await runTimerEngineBoundaryTests(store: store)
@@ -312,6 +313,77 @@ struct MacCoreTests {
             assert(store.tasks.count == 3 && store.sessions.count == 1 && notifications.cancelledTaskReminderIDs == [original.id], "Refreshing a completed timer must not repeat recurrence, session or reminder effects")
         }
         print("Recurring task completion identity behavior passed.")
+    }
+
+    @MainActor
+    private static func runManualTaskCompletionReminderTests() {
+        let suiteName = "ChronoFocusManualCompletionTests-\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fail("Could not create isolated manual-completion UserDefaults suite")
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = FocusStore(defaults: defaults)
+        store.settings.autoGeneratePomodoroPlan = true
+        store.settings.autoStartFocus = false
+        store.settings.autoStartBreaks = false
+        store.settings.notificationsEnabled = true
+        store.settings.taskDueRemindersEnabled = true
+        store.settings.liveActivityEnabled = false
+        let dueDate = Date().addingTimeInterval(7200)
+
+        for recurrence in [TaskRecurrence.none, .daily] {
+            for finishWhilePaused in [false, true] {
+                store.sessions.removeAll()
+                let original = FocusTask(title: "Manual task completion", category: "Reminders", dueDate: dueDate, estimatedRounds: 2, completedRounds: 1, startMode: .openEnded, recurrence: recurrence)
+                let unrelated = FocusTask(title: "Keep this reminder", category: "Other", dueDate: dueDate.addingTimeInterval(3600), estimatedRounds: 1)
+                store.tasks = [original, unrelated]
+                let planBefore = store.generatePomodoroPlanFromSchedule()
+                let notifications = FakeTimerNotificationService()
+                let engine = TimerEngine(store: store, notifications: notifications, liveActivities: FakeTimerLiveActivityService())
+                engine.selectTask(original)
+                engine.start()
+                guard let started = store.activeTimer else { fail("Manual completion fixture must start a real task session") }
+                assert(started.taskID == original.id && engine.isCurrentTaskOpenEnded, "Manual completion must target the selected open-ended task")
+                if finishWhilePaused { engine.pause() }
+                assert(store.activeTimer?.sessionID == started.sessionID && engine.isPaused == finishWhilePaused, "Pausing before completion must preserve the active session")
+                assert(store.finishTask(original.id) == nil && store.toggleTaskDone(original) == nil, "Ordinary mutation APIs must still reject the active task before manual completion")
+                assert(store.task(for: original.id) == original && store.pomodoroPlan == planBefore, "Rejected active mutations must preserve task progress and plan identities")
+
+                engine.finishCurrentTask()
+                var expected = original
+                expected.completedRounds = 2
+                expected.isDone = true
+                assert(store.task(for: original.id) == expected, "Manual completion must finish the original task without changing its other metadata")
+                assert(notifications.cancelledTaskReminderIDs == [original.id], "Manual completion must cancel exactly the finished task's due reminder")
+                assert(store.task(for: unrelated.id) == unrelated, "Manual completion must preserve other tasks and their reminder metadata")
+                var expectedPlan = planBefore
+                for index in expectedPlan.indices where expectedPlan[index].taskID == original.id {
+                    expectedPlan[index].isCompleted = true
+                }
+                assert(store.pomodoroPlan == expectedPlan, "Manual completion must preserve existing plan identities and only complete the finished task's items")
+                assert(store.activeTimer == nil && !engine.isRunning && !engine.isPaused && engine.selectedTaskID == nil, "Manual completion must clear the snapshot and reconcile the completed selection")
+                assert(store.sessions.count == 1 && store.sessions.first?.taskID == original.id && store.sessions.first?.taskTitle == started.taskTitle && store.sessions.first?.startedAt == started.startedAt && store.sessions.first?.completed == true, "Manual completion must record exactly the original active task session")
+                let successors = store.tasks.filter { $0.id != original.id && $0.title == original.title }
+                assert(successors.count == (recurrence == .none ? 0 : 1), "Manual completion must retain normal recurrence creation")
+                assert(successors.allSatisfy { !$0.isDone && $0.completedRounds == 0 }, "Manual completion must leave the next recurrence independently pending")
+                let tasksAfter = store.tasks
+                engine.finishCurrentTask()
+                assert(store.tasks == tasksAfter && store.pomodoroPlan == expectedPlan && store.sessions.count == 1 && notifications.cancelledTaskReminderIDs == [original.id], "Repeating completion without an active snapshot must not repeat reminder, recurrence or session effects")
+            }
+        }
+
+        store.sessions.removeAll()
+        let unrelated = FocusTask(title: "Free focus must preserve this task", category: "Other", dueDate: dueDate, estimatedRounds: 1)
+        store.tasks = [unrelated]
+        let notifications = FakeTimerNotificationService()
+        let engine = TimerEngine(store: store, notifications: notifications, liveActivities: FakeTimerLiveActivityService())
+        engine.selectTask(nil)
+        engine.start()
+        assert(store.activeTimer?.taskID == nil, "Free focus fixture must not bind an unrelated task")
+        engine.finishCurrentTask()
+        assert(notifications.cancelledTaskReminderIDs.isEmpty && store.tasks == [unrelated], "Finishing free focus must not cancel any task reminder or finish another task")
+        assert(store.sessions.count == 1 && store.sessions.first?.taskID == nil && store.sessions.first?.completed == true && store.activeTimer == nil, "Finishing free focus must retain its existing session and snapshot semantics")
+        print("Manual task completion reminder behavior passed.")
     }
 
     @MainActor

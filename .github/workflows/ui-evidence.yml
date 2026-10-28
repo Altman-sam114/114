@@ -221,6 +221,17 @@ jobs:
           export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
           bash scripts/run_release_readiness.sh
 
+      - name: Collect native iOS UI results and attachments
+        if: always() && startsWith(matrix.platform, 'ios-') && steps.gate.outputs.sha != ''
+        timeout-minutes: 5
+        env:
+          UI_DIR: ${{ steps.gate.outputs.directory }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+          bash scripts/run_ios_ui_tests.sh --collect-only
+
       - name: Summarize native UI test results including failures
         if: always() && startsWith(matrix.platform, 'ios-') && steps.gate.outputs.sha != ''
         env:

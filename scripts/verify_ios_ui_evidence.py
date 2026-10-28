@@ -11,7 +11,7 @@ import sys
 
 
 SCENES = {
-    "testFreeFocusLifecycle": ("timer-idle", "timer-running", "timer-paused", "timer-resumed", "timer-stopped"),
+    "test00FreeFocusLifecycle": ("timer-idle", "timer-running", "timer-paused", "timer-resumed", "timer-stopped"),
     "testReminderDisclosure": ("reminders-expanded", "reminders-collapsed"),
     "testThemeSwitchAcrossTabs": ("timer-light", "schedule-light", "settings-notifications-light", "settings-privacy-light", "timer-dark-restored", "schedule-actions-dark"),
     "testScheduleCategoryPrefillAndSave": ("schedule-filtered", "task-editor-prefilled", "schedule-saved"),
