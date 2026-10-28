@@ -48,7 +48,9 @@ struct ChronoFocusApp: App {
             store.settings.autoStartFocus = false
             store.settings.autoStartBreaks = false
             store.settings.autoGeneratePomodoroPlan = false
-            if arguments.contains("--ui-fixture=management") {
+            if arguments.contains("--ui-fixture=editor-active") {
+                _ = store.addTask(title: "计时保护验收任务", category: "产品", dueDate: Date(), estimatedRounds: 2, accentHex: "#3DE8C5")
+            } else if arguments.contains("--ui-fixture=management") {
                 let dueDate = Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date())
                 _ = store.addTask(title: "准备发布检查", category: "产品", dueDate: dueDate, estimatedRounds: 2, accentHex: "#3DE8C5")
                 _ = store.addTask(title: "保留的日常安排", category: "生活", dueDate: dueDate, estimatedRounds: 1, accentHex: "#FF6B6B")
@@ -87,6 +89,9 @@ struct ChronoFocusApp: App {
     private var rootView: some View {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing"),
+           ProcessInfo.processInfo.arguments.contains("--ui-fixture=editor-active") {
+            EditingProtectionUITestView()
+        } else if ProcessInfo.processInfo.arguments.contains("--ui-testing"),
            ProcessInfo.processInfo.arguments.contains("--ui-large-type") {
             DashboardView().dynamicTypeSize(.accessibility5)
         } else {
@@ -97,3 +102,25 @@ struct ChronoFocusApp: App {
         #endif
     }
 }
+
+#if DEBUG
+private struct EditingProtectionUITestView: View {
+    @EnvironmentObject private var store: FocusStore
+    @EnvironmentObject private var engine: TimerEngine
+    @State private var showsEditor = true
+
+    var body: some View {
+        DashboardView()
+            .sheet(isPresented: $showsEditor) {
+                if let task = store.tasks.first {
+                    TaskEditorView(task: task, initialDueDate: task.dueDate ?? Date())
+                        .task {
+                            // Enter the protected state after the real editor is presented.
+                            engine.selectTask(task)
+                            engine.start()
+                        }
+                }
+            }
+    }
+}
+#endif

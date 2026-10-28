@@ -359,6 +359,17 @@ struct MacSnapshotRenderer {
         try capture("schedule-completed-search.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskCategory: "产品", initialTaskStatus: .completed, initialTaskSearchQuery: "发布")), width: 1100, height: 1100, state: "completed task search, restore action available")
         store.deleteTasks(ids: [completedTask.id])
 
+        guard let scheduleLongTask = store.addTask(
+            title: "整理跨团队产品体验评审中的问题，完成下一阶段的可访问性改进与正式发布前的界面检查",
+            category: "跨团队产品体验与设计系统无障碍发布协作及多语言界面质量检查",
+            dueDate: Date(), estimatedRounds: 3, accentHex: "#3DE8C5"
+        ) else {
+            throw SnapshotError("Could not create long schedule text fixture")
+        }
+        try assertScheduleTextWrapping(for: scheduleLongTask, store: store, directory: checksDirectory)
+        try capture("schedule-long-text-1100.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskSearchQuery: "正式发布前")), width: 1100, height: 1000, state: "long schedule title and category, narrow double columns, separate 44pt action row")
+        store.deleteTasks(ids: [scheduleLongTask.id])
+
         store.settings.appThemeMode = .light
         let miniLightURL = outputDirectory.appendingPathComponent("mini-light.png")
         let miniLight = MacMiniTimerView(openDetails: { _ in })
@@ -405,6 +416,30 @@ struct MacSnapshotRenderer {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(fixtures).write(to: outputDirectory.appendingPathComponent("fixtures.json"))
+    }
+
+    @MainActor
+    private static func assertScheduleTextWrapping(for task: FocusTask, store: FocusStore, directory: URL) throws {
+        var shortTask = task
+        shortTask.title = "发布检查"
+        shortTask.category = "产品"
+        var longTitleTask = shortTask
+        longTitleTask.title = task.title
+        var longCategoryTask = shortTask
+        longCategoryTask.category = task.category
+        var heights = [Int]()
+        for (name, fixture) in [("schedule-short", shortTask), ("schedule-title-wrap", longTitleTask), ("schedule-category-wrap", longCategoryTask)] {
+            let url = directory.appendingPathComponent(name + ".png")
+            let row = MacTaskRowView(task: fixture, allowsTextWrapping: true)
+                .environmentObject(store)
+                .frame(width: 508)
+            try render(row, to: url)
+            heights.append(try metadata(for: url).height)
+        }
+        guard heights[1] > heights[0], heights[2] > heights[0] else {
+            throw SnapshotError("Schedule title and category must each grow the row instead of truncating")
+        }
+        print("Schedule title and category wrapping verified at 508pt: \(heights)")
     }
 
     @MainActor

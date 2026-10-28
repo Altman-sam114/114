@@ -19,6 +19,7 @@ SCENES = {
     "testScheduleAccessibilityAndActions": ("schedule-large-calendar", "schedule-long-title", "schedule-long-category", "schedule-long-actions", "schedule-long-editor", "schedule-long-handoff"),
     "testTaskSearchAndCompletionFilters": ("tasks-pending", "tasks-search", "tasks-completed", "tasks-restored", "tasks-search-empty", "tasks-created-from-filter"),
     "testTaskDeletionRequiresConfirmation": ("deletion-confirmation", "deletion-cancelled", "deletion-protected", "deletion-completed"),
+    "testEditorRetainsDraftWhenTaskBecomesActive": ("editor-active-draft", "editor-save-protected", "editor-draft-retained"),
 }
 DEVICES = {
     "com.apple.CoreSimulator.SimDeviceType.iPhone-13": (390, 844, 3),

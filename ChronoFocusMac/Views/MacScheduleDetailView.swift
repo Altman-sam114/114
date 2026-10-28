@@ -1003,7 +1003,7 @@ private struct MacCalendarPanelView: View {
                     )
                 } else {
                     ForEach(displayedTasks) { task in
-                        MacTaskRowView(task: task)
+                        MacTaskRowView(task: task, allowsTextWrapping: true)
                     }
 
                     if visibleTasks.count > collapsedTaskLimit {
@@ -1582,91 +1582,9 @@ private struct MacTaskListPanelView: View {
                 }
 
                 ForEach(visibleTasks) { task in
-                    HStack(spacing: 12) {
-                        if isSnapshotRendering {
-                            MacStaticScheduleActionChipView(
-                                title: task.isDone ? "标记\(task.title)待办未完成，\(task.category)分类" : "完成\(task.title)待办，\(task.category)分类",
-                                symbolName: task.isDone ? "arrow.uturn.backward.circle" : "checkmark.circle",
-                                tint: MacTheme.secondaryText,
-                                isProminent: false,
-                                iconOnly: true
-                            )
-                        } else {
-                            Button(task.isDone ? "标记未完成" : "完成", systemImage: task.isDone ? "arrow.uturn.backward.circle" : "checkmark.circle") {
-                                toggleTask(task)
-                            }
-                            .labelStyle(.iconOnly)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                            .disabled(isActiveTask(task))
-                            .accessibilityLabel(task.isDone ? "标记\(task.title)待办未完成，\(task.category)分类" : "完成\(task.title)待办，\(task.category)分类")
-                            .accessibilityHint(taskMutationAccessibilityHint(for: task))
-                            .accessibilityInputLabels([
-                                Text(task.isDone ? "标记\(task.title)未完成" : "完成\(task.title)"),
-                                Text(task.isDone ? "\(task.title)未完成" : "\(task.title)完成"),
-                                Text(task.isDone ? "标记\(task.category)分类\(task.title)未完成" : "完成\(task.category)分类\(task.title)"),
-                                Text(task.isDone ? "\(task.category)分类\(task.title)未完成" : "\(task.category)分类\(task.title)完成"),
-                                Text(task.title)
-                            ])
-                        }
-
-                        MacTaskRowView(task: task)
-
-                        if isSnapshotRendering {
-                            MacStaticScheduleActionChipView(
-                                title: "将\(task.title)设为当前计时待办，\(task.category)分类",
-                                symbolName: "timer",
-                                tint: task.isEnabled && !task.isDone ? .cyan : MacTheme.secondaryText,
-                                isProminent: false,
-                                iconOnly: true
-                            )
-                            MacStaticTaskEnablePillView(isEnabled: task.isEnabled, taskTitle: task.title, taskCategory: task.category)
-                            MacStaticScheduleActionChipView(title: "删除\(task.title)待办，\(task.category)分类", symbolName: "trash", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
-                        } else {
-                            Button("设为计时待办", systemImage: "timer") {
-                                onTimerHandoff(task.category, task.id)
-                            }
-                            .labelStyle(.iconOnly)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                            .disabled(task.isDone || !task.isEnabled)
-                            .accessibilityLabel(timerHandoffLabel(for: task))
-                            .accessibilityHint(timerHandoffHint(for: task))
-                            .accessibilityInputLabels(timerHandoffInputLabels(for: task))
-
-                            Toggle("启用", isOn: Binding(
-                                get: { task.isEnabled },
-                                set: { setTask(task, enabled: $0) }
-                            ))
-                            .labelsHidden()
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                            .disabled(isActiveTask(task))
-                            .accessibilityLabel(task.isEnabled ? "停用\(task.title)待办，\(task.category)分类" : "启用\(task.title)待办，\(task.category)分类")
-                            .accessibilityHint(taskMutationAccessibilityHint(for: task))
-                            .accessibilityInputLabels([
-                                Text(task.isEnabled ? "停用\(task.title)" : "启用\(task.title)"),
-                                Text(task.isEnabled ? "\(task.title)停用" : "\(task.title)启用"),
-                                Text(task.isEnabled ? "停用\(task.category)分类\(task.title)" : "启用\(task.category)分类\(task.title)"),
-                                Text(task.isEnabled ? "\(task.category)分类\(task.title)停用" : "\(task.category)分类\(task.title)启用")
-                            ])
-
-                            Button("删除", systemImage: "trash") {
-                                pendingDeletion = task
-                            }
-                            .labelStyle(.iconOnly)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                            .disabled(isActiveTask(task))
-                            .accessibilityLabel("删除\(task.title)待办，\(task.category)分类")
-                            .accessibilityHint(taskMutationAccessibilityHint(for: task))
-                            .accessibilityInputLabels([
-                                Text("删除\(task.title)"),
-                                Text("\(task.title)删除"),
-                                Text("删除\(task.category)分类\(task.title)"),
-                                Text("\(task.category)分类\(task.title)删除")
-                            ])
-                        }
+                    VStack(alignment: .leading, spacing: 8) {
+                        MacTaskRowView(task: task, allowsTextWrapping: true)
+                        taskActions(for: task)
                     }
                 }
             }
@@ -1680,6 +1598,94 @@ private struct MacTaskListPanelView: View {
         } message: { task in
             Text("将删除「\(task.title)」和关联计划，已记录的专注统计会保留。")
         }
+    }
+
+    private func taskActions(for task: FocusTask) -> some View {
+        HStack(spacing: 12) {
+            if isSnapshotRendering {
+                MacStaticScheduleActionChipView(
+                    title: task.isDone ? "标记\(task.title)待办未完成，\(task.category)分类" : "完成\(task.title)待办，\(task.category)分类",
+                    symbolName: task.isDone ? "arrow.uturn.backward.circle" : "checkmark.circle",
+                    tint: MacTheme.secondaryText,
+                    isProminent: false,
+                    iconOnly: true
+                )
+            } else {
+                Button(task.isDone ? "标记未完成" : "完成", systemImage: task.isDone ? "arrow.uturn.backward.circle" : "checkmark.circle") {
+                    toggleTask(task)
+                }
+                .labelStyle(.iconOnly)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .disabled(isActiveTask(task))
+                .accessibilityLabel(task.isDone ? "标记\(task.title)待办未完成，\(task.category)分类" : "完成\(task.title)待办，\(task.category)分类")
+                .accessibilityHint(taskMutationAccessibilityHint(for: task))
+                .accessibilityInputLabels([
+                    Text(task.isDone ? "标记\(task.title)未完成" : "完成\(task.title)"),
+                    Text(task.isDone ? "\(task.title)未完成" : "\(task.title)完成"),
+                    Text(task.isDone ? "标记\(task.category)分类\(task.title)未完成" : "完成\(task.category)分类\(task.title)"),
+                    Text(task.isDone ? "\(task.category)分类\(task.title)未完成" : "\(task.category)分类\(task.title)完成"),
+                    Text(task.title)
+                ])
+            }
+
+            if isSnapshotRendering {
+                MacStaticScheduleActionChipView(
+                    title: "将\(task.title)设为当前计时待办，\(task.category)分类",
+                    symbolName: "timer",
+                    tint: task.isEnabled && !task.isDone ? .cyan : MacTheme.secondaryText,
+                    isProminent: false,
+                    iconOnly: true
+                )
+                MacStaticTaskEnablePillView(isEnabled: task.isEnabled, taskTitle: task.title, taskCategory: task.category)
+                MacStaticScheduleActionChipView(title: "删除\(task.title)待办，\(task.category)分类", symbolName: "trash", tint: MacTheme.secondaryText, isProminent: false, iconOnly: true)
+            } else {
+                Button("设为计时待办", systemImage: "timer") {
+                    onTimerHandoff(task.category, task.id)
+                }
+                .labelStyle(.iconOnly)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .disabled(task.isDone || !task.isEnabled)
+                .accessibilityLabel(timerHandoffLabel(for: task))
+                .accessibilityHint(timerHandoffHint(for: task))
+                .accessibilityInputLabels(timerHandoffInputLabels(for: task))
+
+                Toggle("启用", isOn: Binding(
+                    get: { task.isEnabled },
+                    set: { setTask(task, enabled: $0) }
+                ))
+                .labelsHidden()
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .disabled(isActiveTask(task))
+                .accessibilityLabel(task.isEnabled ? "停用\(task.title)待办，\(task.category)分类" : "启用\(task.title)待办，\(task.category)分类")
+                .accessibilityHint(taskMutationAccessibilityHint(for: task))
+                .accessibilityInputLabels([
+                    Text(task.isEnabled ? "停用\(task.title)" : "启用\(task.title)"),
+                    Text(task.isEnabled ? "\(task.title)停用" : "\(task.title)启用"),
+                    Text(task.isEnabled ? "停用\(task.category)分类\(task.title)" : "启用\(task.category)分类\(task.title)"),
+                    Text(task.isEnabled ? "\(task.category)分类\(task.title)停用" : "\(task.category)分类\(task.title)启用")
+                ])
+
+                Button("删除", systemImage: "trash") {
+                    pendingDeletion = task
+                }
+                .labelStyle(.iconOnly)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .disabled(isActiveTask(task))
+                .accessibilityLabel("删除\(task.title)待办，\(task.category)分类")
+                .accessibilityHint(taskMutationAccessibilityHint(for: task))
+                .accessibilityInputLabels([
+                    Text("删除\(task.title)"),
+                    Text("\(task.title)删除"),
+                    Text("删除\(task.category)分类\(task.title)"),
+                    Text("\(task.category)分类\(task.title)删除")
+                ])
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     private var taskListControls: some View {

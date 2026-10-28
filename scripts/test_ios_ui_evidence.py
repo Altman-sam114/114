@@ -55,11 +55,11 @@ class NativeEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, message):
             verify_evidence(self.root)
 
-    def test_current_eight_tests_and_thirty_five_bound_scenes(self):
+    def test_current_nine_tests_and_thirty_eight_bound_scenes(self):
         result = verify_evidence(self.root)
-        self.assertEqual(len(result["screenshots"]), 35)
-        self.assertEqual(len({item["scene"] for item in result["screenshots"]}), 35)
-        self.assertEqual(len(result["executedTests"]), 8)
+        self.assertEqual(len(result["screenshots"]), 38)
+        self.assertEqual(len({item["scene"] for item in result["screenshots"]}), 38)
+        self.assertEqual(len(result["executedTests"]), 9)
 
     def test_tree_missing_duplicate_wrong_identity_and_result_are_rejected(self):
         original = copy.deepcopy(self.tree)

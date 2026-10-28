@@ -1466,6 +1466,8 @@ struct TaskEditorView: View {
     @State private var startMode: TaskStartMode = .plannedRounds
     @State private var recurrence: TaskRecurrence = .none
     @State private var existingCategorySearch = ""
+    @State private var showsSaveError = false
+    @State private var saveErrorMessage = ""
 
     private let task: FocusTask?
     private let onSave: (FocusTask) -> Void
@@ -1687,14 +1689,20 @@ struct TaskEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        save()
-                        dismiss()
+                        if save() {
+                            dismiss()
+                        }
                     }
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("task.editor.save")
                     .accessibilityLabel(saveButtonAccessibilityLabel)
                     .accessibilityInputLabels(saveButtonInputLabels)
                 }
+            }
+            .alert("暂时无法保存", isPresented: $showsSaveError) {
+                Button("继续编辑", role: .cancel) { }
+            } message: {
+                Text(saveErrorMessage)
             }
         }
     }
@@ -1848,7 +1856,7 @@ struct TaskEditorView: View {
         accentHex = store.representativeAccentHex(for: option.name)
     }
 
-    private func save() {
+    private func save() -> Bool {
         let savedTask: FocusTask?
         let cleanRounds = startMode == .openEnded ? 1 : estimatedRounds
         if let task {
@@ -1878,10 +1886,18 @@ struct TaskEditorView: View {
             )
         }
 
-        if let savedTask {
-            syncTaskReminder(for: savedTask, store: store, notifications: notifications)
-            onSave(savedTask)
+        guard let savedTask else {
+            if let task, store.activeTimer?.taskID == task.id {
+                saveErrorMessage = "该待办正在计时。草稿已保留，请先停止计时后再保存。"
+            } else {
+                saveErrorMessage = "待办暂时无法保存。草稿已保留，请检查待办是否仍存在后重试。"
+            }
+            showsSaveError = true
+            return false
         }
+        syncTaskReminder(for: savedTask, store: store, notifications: notifications)
+        onSave(savedTask)
+        return true
     }
 }
 

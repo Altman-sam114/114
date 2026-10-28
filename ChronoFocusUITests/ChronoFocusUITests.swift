@@ -280,6 +280,32 @@ final class ChronoFocusUITests: XCTestCase {
         capture("deletion-completed")
     }
 
+    func testEditorRetainsDraftWhenTaskBecomesActive() {
+        launch(fixture: "editor-active")
+        let title = app.textFields["task.editor.title"]
+        title.tap()
+        title.typeText("，保留草稿")
+        XCTAssertTrue((title.value as? String)?.contains("保留草稿") == true)
+        capture("editor-active-draft")
+        app.buttons["task.editor.save"].tap()
+        let alert = app.alerts["暂时无法保存"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        XCTAssertTrue(alert.staticTexts["该待办正在计时。草稿已保留，请先停止计时后再保存。"].exists)
+        capture("editor-save-protected")
+        alert.buttons["继续编辑"].tap()
+        XCTAssertTrue(title.exists, "A rejected save must keep the editor open")
+        XCTAssertTrue((title.value as? String)?.contains("保留草稿") == true, "A rejected save must preserve the draft")
+        let cancel = app.buttons["task.editor.cancel"]
+        XCTAssertTrue(cancel.isHittable)
+        capture("editor-draft-retained")
+        cancel.tap()
+        waitForDisappearance(title)
+        let primary = app.buttons["timer.primary"]
+        XCTAssertTrue(primary.waitForExistence(timeout: 5))
+        waitForLabel(primary, prefix: "暂停")
+        XCTAssertEqual(app.staticTexts["timer.task-title"].label, "计时保护验收任务", "A rejected save must not change the running task")
+    }
+
     private func taskIdentifier(title: String) -> String {
         let element = app.staticTexts[title].firstMatch
         revealInsideViewport(element)
@@ -349,7 +375,8 @@ final class ChronoFocusUITests: XCTestCase {
             app.launchArguments += ["--ui-large-type"]
         }
         app.launch()
-        XCTAssertTrue(app.buttons["timer.primary"].waitForExistence(timeout: 10))
+        let initialControl = fixture == "editor-active" ? app.textFields["task.editor.title"] : app.buttons["timer.primary"]
+        XCTAssertTrue(initialControl.waitForExistence(timeout: 10))
         XCTAssertTrue([CGFloat(375), CGFloat(390)].contains(app.frame.width), "UI tests must run on the declared iPhone widths")
         let dimensions = XCTAttachment(string: "pointWidth=\(app.frame.width);pointHeight=\(app.frame.height);largeType=\(largeType)")
         dimensions.name = "fixture-dimensions"

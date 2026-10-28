@@ -165,6 +165,8 @@ struct MacCoreTests {
         runCategoryFilterSearchTests()
         runCategoryPresentationTests()
         runTaskListFilterTests()
+        runRecurringTaskCompletionTests()
+        runScheduledAutoStartTests()
         await runStartableTaskTests(store: store)
         await runTimerEngineBoundaryTests(store: store)
         runPrimaryTimerActionTests()
@@ -197,6 +199,177 @@ struct MacCoreTests {
         assert(TaskListFilter().apply(to: restored).map(\.id) == tasks.map(\.id), "Restored tasks must return to the pending list")
         assert(TaskListFilter(status: .all).apply(to: []).isEmpty, "Empty input must stay empty")
         print("Task list query behavior passed.")
+    }
+
+    @MainActor
+    private static func runRecurringTaskCompletionTests() {
+        let suiteName = "ChronoFocusRecurringCompletionTests-\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fail("Could not create isolated recurrence UserDefaults suite")
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = FocusStore(defaults: defaults)
+        store.settings.autoGeneratePomodoroPlan = true
+        store.settings.autoStartFocus = false
+        store.settings.autoStartBreaks = false
+        store.settings.liveActivityEnabled = false
+        let dueDate = Date().addingTimeInterval(7200)
+        guard let nextDate = Calendar.current.date(byAdding: .day, value: 1, to: dueDate) else {
+            fail("Could not create next recurrence date")
+        }
+
+        for operation in ["toggle", "finish", "round"] {
+            for targetIsFirst in [true, false] {
+                for nextAlreadyExists in [false, true] {
+                    store.activeTimer = nil
+                    store.pomodoroPlan.removeAll()
+                    var original = FocusTask(
+                        title: "Recurring completion identity",
+                        category: "Recurrence reminders",
+                        dueDate: dueDate,
+                        estimatedRounds: 2,
+                        completedRounds: 1,
+                        autoStartPomodoro: true,
+                        recurrence: .daily,
+                        externalCalendarIdentifier: "original-calendar-event",
+                        accentHex: "#54A0FF"
+                    )
+                    original.lastAutoStartedAt = dueDate.addingTimeInterval(-3600)
+                    let unrelated = FocusTask(title: "Unrelated task", category: "Other", dueDate: nil, estimatedRounds: 3, isEnabled: false)
+                    let existingNext = FocusTask(
+                        title: original.title,
+                        category: original.category,
+                        dueDate: nextDate,
+                        estimatedRounds: original.estimatedRounds,
+                        autoStartPomodoro: true,
+                        recurrence: .daily,
+                        accentHex: original.accentHex
+                    )
+                    store.tasks = targetIsFirst ? [original, unrelated] : [unrelated, original]
+                    if nextAlreadyExists { store.tasks.append(existingNext) }
+                    let initialTasks = store.tasks
+
+                    let result: FocusTask?
+                    switch operation {
+                    case "toggle": result = store.toggleTaskDone(original)
+                    case "finish": result = store.finishTask(original.id)
+                    default: result = store.incrementRound(for: original.id)
+                    }
+                    guard let result else { fail("Recurring \(operation) must return the completed task") }
+                    var expected = original
+                    expected.isDone = true
+                    if operation != "toggle" { expected.completedRounds = 2 }
+                    assert(result == expected, "Recurring \(operation) must return the original identity, completion, rounds and reminder metadata")
+                    assert(store.task(for: original.id) == expected, "Recurring completion must store the same original task it returns")
+                    assert(store.task(for: unrelated.id) == unrelated, "Prepending a recurrence must not change another task")
+
+                    let successors = store.tasks.filter { $0.id != original.id && $0.title == original.title }
+                    assert(successors.count == 1, "Completion must create or reuse exactly one next recurrence")
+                    guard let successor = successors.first else { fail("Missing next recurrence") }
+                    assert(successor.id != original.id && successor.dueDate == nextDate, "The next recurrence must have its own identity and next date")
+                    assert(!successor.isDone && successor.completedRounds == 0, "The next recurrence must start with independent completion progress")
+                    assert(successor.category == original.category && successor.estimatedRounds == 2 && successor.accentHex == original.accentHex, "The next recurrence must preserve task presentation and planned rounds")
+                    assert(successor.isEnabled && successor.autoStartPomodoro && successor.recurrence == .daily && successor.startMode == original.startMode, "The next recurrence must preserve scheduling and reminder settings")
+                    assert(successor.lastAutoStartedAt == nil && successor.externalCalendarIdentifier == nil, "The next recurrence must not inherit original-only system identities")
+                    if nextAlreadyExists {
+                        assert(successor == existingNext && store.tasks.map(\.id) == initialTasks.map(\.id), "An existing next recurrence must retain its identity and position")
+                    } else {
+                        assert(store.tasks.map(\.id) == [successor.id] + initialTasks.map(\.id), "A newly generated recurrence must prepend without reordering existing tasks")
+                    }
+
+                    guard let restored = store.toggleTaskDone(result) else { fail("Completed recurrence must remain restorable") }
+                    assert(restored.id == original.id && !restored.isDone && restored.completedRounds == expected.completedRounds, "Restoring must retain the existing completed-round semantics")
+                    let idsBeforeRecompletion = store.tasks.map(\.id)
+                    guard let recompleted = store.toggleTaskDone(restored) else { fail("Restored recurrence must remain completable") }
+                    assert(recompleted == expected, "Recompletion must return the original task with unchanged reminder metadata")
+                    assert(store.tasks.map(\.id) == idsBeforeRecompletion, "Restoring and recompleting must not duplicate the next recurrence")
+                }
+            }
+        }
+
+        for targetIsFirst in [true, false] {
+            store.activeTimer = nil
+            store.pomodoroPlan.removeAll()
+            store.sessions.removeAll()
+            let original = FocusTask(title: "Expired recurring timer", category: "Timer reminders", dueDate: dueDate, estimatedRounds: 1, recurrence: .daily)
+            let unrelated = FocusTask(title: "Other timer task", category: "Other", dueDate: nil, estimatedRounds: 1)
+            store.tasks = targetIsFirst ? [original, unrelated] : [unrelated, original]
+            let now = Date()
+            store.activeTimer = ActiveTimerSnapshot(
+                sessionID: UUID(), mode: .focus, taskID: original.id, taskTitle: original.title,
+                category: original.category, startedAt: now.addingTimeInterval(-1501),
+                endAt: now.addingTimeInterval(-1), plannedSeconds: 1500,
+                remainingWhenPaused: 1500, isPaused: false, roundIndex: 0, tintHex: original.accentHex
+            )
+            let notifications = FakeTimerNotificationService()
+            let engine = TimerEngine(store: store, notifications: notifications, liveActivities: FakeTimerLiveActivityService())
+            assert(notifications.cancelledTaskReminderIDs == [original.id], "Completing a recurring timer must cancel the original task's due reminder")
+            assert(store.task(for: original.id)?.isDone == true && store.task(for: original.id)?.completedRounds == 1, "Timer completion must finish the original recurring task")
+            assert(store.tasks.count == 3 && store.tasks.first?.id != original.id && store.tasks.first?.isDone == false, "Timer completion must create an independent pending next recurrence")
+            assert(store.sessions.count == 1 && store.sessions.first?.taskID == original.id && store.sessions.first?.completed == true, "Timer completion must record only the original task's session")
+            assert(store.activeTimer == nil && !engine.isRunning, "Expired recurrence completion must leave the timer idle")
+            engine.refreshFromClock()
+            assert(store.tasks.count == 3 && store.sessions.count == 1 && notifications.cancelledTaskReminderIDs == [original.id], "Refreshing a completed timer must not repeat recurrence, session or reminder effects")
+        }
+        print("Recurring task completion identity behavior passed.")
+    }
+
+    @MainActor
+    private static func runScheduledAutoStartTests() {
+        let suiteName = "ChronoFocusScheduledAutoStartTests-\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fail("Could not create isolated automatic-start UserDefaults suite")
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = FocusStore(defaults: defaults)
+        store.settings.autoStartFocus = false
+        store.settings.autoStartBreaks = false
+        store.settings.notificationsEnabled = false
+        store.settings.liveActivityEnabled = false
+        let now = Date()
+        let scheduled = FocusTask(title: "Due automatic task", category: "Scheduled", dueDate: now.addingTimeInterval(-60), estimatedRounds: 2, autoStartPomodoro: true)
+        store.tasks = [scheduled]
+        let engine = TimerEngine(store: store, notifications: FakeTimerNotificationService(), liveActivities: FakeTimerLiveActivityService())
+        assert(store.activeTimer == nil, "Creating the timer must not automatically start a due task before the scheduler checks it")
+        let checkedAt = Date()
+        engine.checkScheduledAutoStart()
+        guard let started = store.activeTimer, let lastAutoStartedAt = store.task(for: scheduled.id)?.lastAutoStartedAt else {
+            fail("A due enabled automatic task must start and record its automatic-start time")
+        }
+        assert(started.taskID == scheduled.id && started.taskTitle == scheduled.title && started.category == scheduled.category, "Scheduled automatic start must preserve the due task's identity and presentation")
+        assert(engine.isRunning && !engine.isPaused && engine.selectedTaskID == scheduled.id && engine.currentTaskTitle == scheduled.title, "Scheduled automatic start must use the timer engine's running state")
+        assert(lastAutoStartedAt >= checkedAt && lastAutoStartedAt <= Date(), "Scheduled automatic start must record the actual check time")
+
+        let competing = FocusTask(title: "Another due automatic task", category: "Scheduled", dueDate: now.addingTimeInterval(-120), estimatedRounds: 1, autoStartPomodoro: true)
+        store.tasks.insert(competing, at: 0)
+        engine.checkScheduledAutoStart()
+        assert(store.activeTimer == started && store.task(for: competing.id)?.lastAutoStartedAt == nil, "Repeated scheduler checks must not replace a running session with another due task")
+        assert(store.task(for: scheduled.id)?.lastAutoStartedAt == lastAutoStartedAt, "Repeated scheduler checks must not rewrite the original automatic-start time")
+        engine.pause()
+        guard let paused = store.activeTimer else { fail("Scheduled task must remain active while paused") }
+        engine.checkScheduledAutoStart()
+        assert(store.activeTimer == paused && paused.sessionID == started.sessionID && engine.isPaused, "Scheduler checks must preserve a paused session's identity and remaining time")
+        assert(store.task(for: competing.id)?.lastAutoStartedAt == nil, "A paused session must not consume another due task's automatic-start opportunity")
+        engine.stop(markIncomplete: false)
+        guard let stoppedTask = store.task(for: scheduled.id) else { fail("Stopping must preserve the scheduled task") }
+        store.tasks = [stoppedTask]
+        engine.checkScheduledAutoStart()
+        assert(store.activeTimer == nil && !engine.isRunning && store.task(for: scheduled.id)?.lastAutoStartedAt == lastAutoStartedAt, "A stopped automatic task must not restart on the same day")
+        assert(store.sessions.isEmpty, "Scheduler checks and an immediate stop must not fabricate completed sessions")
+
+        let ineligibleTasks = [
+            FocusTask(title: "Future automatic task", category: "Scheduled", dueDate: now.addingTimeInterval(3600), estimatedRounds: 1, autoStartPomodoro: true),
+            FocusTask(title: "Disabled automatic task", category: "Scheduled", dueDate: now.addingTimeInterval(-60), estimatedRounds: 1, isEnabled: false, autoStartPomodoro: true),
+            FocusTask(title: "Completed automatic task", category: "Scheduled", dueDate: now.addingTimeInterval(-60), estimatedRounds: 1, isDone: true, autoStartPomodoro: true),
+            FocusTask(title: "Manual due task", category: "Scheduled", dueDate: now.addingTimeInterval(-60), estimatedRounds: 1)
+        ]
+        for task in ineligibleTasks {
+            store.tasks = [task]
+            engine.selectTask(nil)
+            engine.checkScheduledAutoStart()
+            assert(store.activeTimer == nil && !engine.isRunning && store.tasks == [task], "Future, disabled, completed and manual tasks must not start or acquire an automatic-start timestamp")
+        }
+        print("Scheduled automatic start behavior passed.")
     }
 
     @MainActor
@@ -766,6 +939,8 @@ struct MacCoreTests {
 
 @MainActor
 private final class FakeTimerNotificationService: TimerNotificationServicing {
+    private(set) var cancelledTaskReminderIDs: [UUID] = []
+
     func scheduleCompletion(
         identifier: String,
         mode: TimerMode,
@@ -776,7 +951,9 @@ private final class FakeTimerNotificationService: TimerNotificationServicing {
     ) async {}
 
     func cancel(identifier: String?) {}
-    func cancelTaskReminder(taskID: UUID) {}
+    func cancelTaskReminder(taskID: UUID) {
+        cancelledTaskReminderIDs.append(taskID)
+    }
     func playCompletionAlert(soundVolume: Double, vibrationEnabled: Bool, completionSound: CompletionSound) {}
 }
 

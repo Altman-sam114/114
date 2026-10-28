@@ -1054,6 +1054,7 @@ struct MacTaskRowView: View {
     var isSelected = false
     var isTimerRunning = false
     var showsCategoryBadge = true
+    var allowsTextWrapping = false
 
     private var categoryPreset: TaskCategoryPreset? {
         TaskCategoryPreset.matching(task.category)
@@ -1098,25 +1099,17 @@ struct MacTaskRowView: View {
                 Text(task.title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(MacTheme.primaryText)
-                    .lineLimit(1)
-                HStack(spacing: 6) {
-                    if showsCategoryBadge {
-                        Label(task.category, systemImage: categorySymbolName)
-                            .font(.caption.bold())
-                            .foregroundStyle(MacTheme.readableTint(categoryTint))
-                            .lineLimit(1)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 2)
-                            .background(categoryTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                            .accessibilityLabel("\(task.category)分类")
-                            .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
+                    .lineLimit(allowsTextWrapping ? nil : 1)
+                    .fixedSize(horizontal: false, vertical: allowsTextWrapping)
+                if allowsTextWrapping {
+                    VStack(alignment: .leading, spacing: 6) {
+                        categoryBadge
+                        dueDateLabel
                     }
-
-                    if let dueDate = task.dueDate {
-                        Text(dueDate.scheduleTimeText)
-                            .font(.caption)
-                            .foregroundStyle(MacTheme.secondaryText)
-                            .lineLimit(1)
+                } else {
+                    HStack(spacing: 6) {
+                        categoryBadge
+                        dueDateLabel
                     }
                 }
             }
@@ -1131,6 +1124,32 @@ struct MacTaskRowView: View {
         .accessibilityHint(selectionHintText)
         .accessibilityInputLabels(selectionInputLabels)
         .accessibilityAddTraits(selectionAccessibilityTraits)
+    }
+
+    @ViewBuilder
+    private var categoryBadge: some View {
+        if showsCategoryBadge {
+            Label(task.category, systemImage: categorySymbolName)
+                .font(.caption.bold())
+                .foregroundStyle(MacTheme.readableTint(categoryTint))
+                .lineLimit(allowsTextWrapping ? nil : 1)
+                .fixedSize(horizontal: false, vertical: allowsTextWrapping)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 2)
+                .background(categoryTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .accessibilityLabel("\(task.category)分类")
+                .accessibilityInputLabels([Text(task.category), Text("\(task.category)分类")])
+        }
+    }
+
+    @ViewBuilder
+    private var dueDateLabel: some View {
+        if let dueDate = task.dueDate {
+            Text(dueDate.scheduleTimeText)
+                .font(.caption)
+                .foregroundStyle(MacTheme.secondaryText)
+                .lineLimit(1)
+        }
     }
 }
 

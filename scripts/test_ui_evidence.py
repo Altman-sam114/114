@@ -1,6 +1,7 @@
 """Actions-only checks of the exact checkout-before-gate code used for UI evidence."""
 import copy
 from pathlib import Path
+import re
 import textwrap
 import unittest
 
@@ -82,6 +83,50 @@ class UISourceGateTests(unittest.TestCase):
         self.assertEqual(production.count("uses: actions/upload-artifact@v6"), 1)
         self.assertIn("|| github.sha }}", production)
         self.assertNotIn("|| github.ref }}", production)
+
+    def test_unverified_matrix_artifacts_have_distinct_platform_and_attempt_names(self):
+        upload = WORKFLOW.split("      - name: Upload independent UI evidence\n", 1)[1].split("\n      - name:", 1)[0]
+        self.assertIn("if: always() && steps.gate.outputs.directory != ''", upload)
+        fallback = re.search(
+            r"^\s+name: \$\{\{ steps\.gate\.outputs\.artifact \|\| format\('([^']+)', ([^)]+)\) \}\}$",
+            upload, re.MULTILINE,
+        )
+        self.assertIsNotNone(fallback, "Missing fallback on the actual upload step")
+        arguments = [argument.strip() for argument in fallback.group(2).split(",")]
+        self.assertCountEqual(arguments, ("matrix.platform", "github.run_id", "github.run_attempt"))
+        matrix = re.search(r"^\s+platform: \[([^\]]+)\]$", WORKFLOW, re.MULTILINE)
+        self.assertIsNotNone(matrix)
+        platforms = [platform.strip() for platform in matrix.group(1).split(",")]
+        self.assertCountEqual(platforms, ("mac", "ios-390", "ios-375", "release"))
+        names = set()
+        for run_id, attempt in ((123, 1), (123, 2), (124, 1)):
+            for platform in platforms:
+                context = {"matrix.platform": platform, "github.run_id": run_id, "github.run_attempt": attempt}
+                name = fallback.group(1).format(*(context[argument] for argument in arguments))
+                self.assertTrue(name.startswith("chronofocus-ui-unverified-"))
+                self.assertIn(platform, name)
+                self.assertNotIn(name, names, "Failed matrix jobs must preserve separate evidence")
+                names.add(name)
+
+    def test_schedule_long_text_uses_the_real_wrapping_row_and_separate_actions(self):
+        schedule = Path("ChronoFocusMac/Views/MacScheduleDetailView.swift").read_text()
+        panel = schedule.split("private struct MacTaskListPanelView: View", 1)[1].split("private struct MacScheduleCategoryEmptyStateView", 1)[0]
+        loop = panel.split("ForEach(visibleTasks) { task in", 1)[1].split(".alert(", 1)[0]
+        self.assertRegex(loop, r"VStack\(alignment: \.leading, spacing: 8\)\s*\{\s*MacTaskRowView\(task: task, allowsTextWrapping: true\)\s*taskActions\(for: task\)")
+        actions = panel.split("private func taskActions(for task: FocusTask)", 1)[1].split("private var taskListControls", 1)[0]
+        self.assertNotIn("MacTaskRowView(", actions)
+        self.assertEqual(actions.count(".frame(width: 44, height: 44)"), 4)
+        for operation in ("toggleTask(task)", "onTimerHandoff(task.category, task.id)", "setTask(task, enabled: $0)", "pendingDeletion = task"):
+            self.assertIn(operation, actions)
+        row = Path("ChronoFocusMac/Views/MacTimerDetailView.swift").read_text().split("struct MacTaskRowView: View", 1)[1].split("struct MacPageHeaderView", 1)[0]
+        self.assertIn("var allowsTextWrapping = false", row)
+        self.assertEqual(row.count(".lineLimit(allowsTextWrapping ? nil : 1)"), 2)
+        self.assertEqual(row.count(".fixedSize(horizontal: false, vertical: allowsTextWrapping)"), 2)
+        self.assertRegex(row, r"if allowsTextWrapping\s*\{\s*VStack\(alignment: \.leading, spacing: 6\)")
+        renderer = Path("scripts/render_mac_snapshots.swift").read_text()
+        self.assertIn('capture("schedule-long-text-1100.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskSearchQuery: "正式发布前")), width: 1100, height: 1000', renderer)
+        self.assertIn("try assertScheduleTextWrapping(for: scheduleLongTask, store: store, directory: checksDirectory)", renderer)
+        self.assertIn("heights[1] > heights[0], heights[2] > heights[0]", renderer)
 
 
 if __name__ == "__main__":

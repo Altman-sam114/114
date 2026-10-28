@@ -157,7 +157,8 @@ final class FocusStore: ObservableObject {
             createNextRecurrenceIfNeeded(from: tasks[index])
         }
         regeneratePlanIfNeeded()
-        return tasks[index]
+        // Creating the next recurrence can prepend a task and shift the original index.
+        return self.task(for: task.id)
     }
 
     func deleteTasks(ids: [UUID]) {
@@ -245,7 +246,7 @@ final class FocusStore: ObservableObject {
         tasks[index].isDone = true
         setPlanCompletion(for: taskID, completed: true)
         createNextRecurrenceIfNeeded(from: tasks[index])
-        return tasks[index]
+        return task(for: taskID)
     }
 
     @discardableResult
@@ -269,7 +270,7 @@ final class FocusStore: ObservableObject {
             setPlanCompletion(for: taskID, completed: true)
             createNextRecurrenceIfNeeded(from: tasks[index])
         }
-        return tasks[index]
+        return task(for: taskID)
     }
 
     func recordSession(_ session: FocusSession) {
