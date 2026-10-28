@@ -476,21 +476,9 @@ struct ScheduleView: View {
         VStack(alignment: .leading, spacing: 10) {
             calendarHeaderLayout {
                 ForEach(TaskListStatus.allCases) { status in
-                    Button { taskStatus = status } label: {
-                        Text("\(status.title) \(statusCount(status))")
-                            .font(.caption.weight(.semibold))
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .background(taskStatus == status ? AppTheme.panelStrong : .clear, in: RoundedRectangle(cornerRadius: 10))
+                    ScheduleStatusFilterButton(status: status, count: statusCount(status), isSelected: taskStatus == status) {
+                        taskStatus = status
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(taskStatus == status ? AppTheme.primaryText : AppTheme.secondaryText)
-                    .accessibilityLabel("\(status.title)，\(statusCount(status))项")
-                    .accessibilityValue(taskStatus == status ? "已选中" : "未选中")
-                    .accessibilityHint("查看\(status.title)待办，保留日期和分类筛选")
-                    .accessibilityInputLabels([Text("\(status.title)待办"), Text("\(status.title)状态")])
-                    .accessibilityAddTraits(taskStatus == status ? .isSelected : [])
-                    .accessibilityIdentifier("schedule.status.\(status.rawValue)")
                 }
             }
             .padding(4)
@@ -664,6 +652,49 @@ struct ScheduleView: View {
         if selectedCategory != nil { selectedCategory = task.category }
         selectedDate = task.dueDate ?? task.createdAt
         if task.dueDate == nil { calendarMode = .day }
+    }
+}
+
+private struct ScheduleStatusFilterButton: View {
+    let status: TaskListStatus
+    let count: Int
+    let isSelected: Bool
+    let action: () -> Void
+
+    private var foreground: Color {
+        isSelected ? AppTheme.primaryText : AppTheme.secondaryText
+    }
+
+    private var fill: Color {
+        isSelected ? AppTheme.panelStrong : Color.clear
+    }
+
+    private var selectionTraits: AccessibilityTraits {
+        isSelected ? .isSelected : []
+    }
+
+    var body: some View {
+        styledButton
+            .accessibilityLabel("\(status.title)，\(count)项")
+            .accessibilityValue(isSelected ? "已选中" : "未选中")
+            .accessibilityHint("查看\(status.title)待办，保留日期和分类筛选")
+            .accessibilityInputLabels([Text("\(status.title)待办"), Text("\(status.title)状态")])
+            .accessibilityAddTraits(selectionTraits)
+            .accessibilityIdentifier("schedule.status.\(status.rawValue)")
+    }
+
+    private var styledButton: some View {
+        Button(action: action) { buttonLabel }
+            .buttonStyle(.plain)
+            .foregroundStyle(foreground)
+    }
+
+    private var buttonLabel: some View {
+        Text("\(status.title) \(count)")
+            .font(.caption.weight(.semibold))
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(fill, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 

@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-28 v1.10编译表达式C退回：25ee92a/source40625279817的Static checks、共享core与Mac构建通过，iOS在ScheduleView.swift:479状态按钮出现SwiftUI类型检查超时；review40625956001拒绝失败push，UI40625955930正确跳过。原始证据/private/tmp/chronofocus-c-review-40625279817-5gwf5f30，生产artifact12789725762（16361025 bytes，sha256:a059af3b3cc5abe5d2ac4b7eab2fb8d3d1598f82aac1b01bb3450d330ebf404f）。B把状态按钮拆为ScheduleStatusFilterButton，样式/标签/辅助功能链分段并显式颜色和traits类型，原状态/查询/44pt/VoiceOver和原生identifier不变。仅静态审阅，待追加提交全链云端验收，不通过增加编译等待或删功能绕过。
+
 - 2026-10-28 v1.10原生C退回与UI收口：da521e4的UI40621307173中两种iPhone均7/1/0；新搜索/完成恢复与旧6条全部通过，删除测试在取消入口失败。375pt原生deletion-confirmation图证明系统confirmationDialog变成只有删除动作的底部popover；改为两端原生alert，测试必须定位真实alert并同时确认取消/删除两按钮。浅色375pt首屏图还证明新增筛选挤走任务，现改紧凑导航、标题内任务搜索和按需展开分类搜索，并新增首屏任务可达/边界断言。375pt原始包12788262079（157403129 bytes，sha256:93051dee291a9d558b0be8e03f51809146f659ac687fc1d961bcd1b2001f4472）及390pt原始日志保留在同一C证据目录。真实日志显示测试构建约6分钟、8测试约8分钟；UI workflow分为10分钟构建/启动与14分钟原生测试阶段，共用同源产物和UDID就绪记录，总job35分钟与原单测120/180秒不变。连同成功保存可见性/35场景一起追加main提交，全部须新SHA复验；未运行本机测试/解析/编译/validator。
 
 - 2026-10-28 v1.10保存可见性补漏：da521e4的source40620760504/review40621307102成功、148/0、JUnit4/0/0，UI40621307173的Mac16图与Release通过，手机结果仍在取证。生产artifact12786469580（16361465 bytes，sha256:66c45e4ba2b8c1c5c7c2ead492c8a2aa57ce4fbbb1a362a39c6ebd0b53abadd2），review12786994003、Mac12788010085、Release12787716910，证据/private/tmp/chronofocus-c-review-40620760504-mb95hl3p。C静态发现旧查询/已完成状态会隐藏新任务，B增加仅成功保存时的回调：清除查询、切到保存后的状态并对齐分类/日期，取消不变；Mac新增成功也清除旧任务查询并回到未完成。原生保留原34场景，增加tasks-created-from-filter，总35，测试数仍8；当前源码/文档/证据门禁已同步，尚待追加main提交与最新完整云端验收。仅读码/gh/读图，无本机测试或解析。
