@@ -12,6 +12,10 @@
 
 ## 当前状态
 
+- 2026-10-28 v1.10原生C退回与UI收口：da521e4的UI40621307173中两种iPhone均7/1/0；新搜索/完成恢复与旧6条全部通过，删除测试在取消入口失败。375pt原生deletion-confirmation图证明系统confirmationDialog变成只有删除动作的底部popover；改为两端原生alert，测试必须定位真实alert并同时确认取消/删除两按钮。浅色375pt首屏图还证明新增筛选挤走任务，现改紧凑导航、标题内任务搜索和按需展开分类搜索，并新增首屏任务可达/边界断言。375pt原始包12788262079（157403129 bytes，sha256:93051dee291a9d558b0be8e03f51809146f659ac687fc1d961bcd1b2001f4472）及390pt原始日志保留在同一C证据目录。真实日志显示测试构建约6分钟、8测试约8分钟；UI workflow分为10分钟构建/启动与14分钟原生测试阶段，共用同源产物和UDID就绪记录，总job35分钟与原单测120/180秒不变。连同成功保存可见性/35场景一起追加main提交，全部须新SHA复验；未运行本机测试/解析/编译/validator。
+
+- 2026-10-28 v1.10保存可见性补漏：da521e4的source40620760504/review40621307102成功、148/0、JUnit4/0/0，UI40621307173的Mac16图与Release通过，手机结果仍在取证。生产artifact12786469580（16361465 bytes，sha256:66c45e4ba2b8c1c5c7c2ead492c8a2aa57ce4fbbb1a362a39c6ebd0b53abadd2），review12786994003、Mac12788010085、Release12787716910，证据/private/tmp/chronofocus-c-review-40620760504-mb95hl3p。C静态发现旧查询/已完成状态会隐藏新任务，B增加仅成功保存时的回调：清除查询、切到保存后的状态并对齐分类/日期，取消不变；Mac新增成功也清除旧任务查询并回到未完成。原生保留原34场景，增加tasks-created-from-filter，总35，测试数仍8；当前源码/文档/证据门禁已同步，尚待追加main提交与最新完整云端验收。仅读码/gh/读图，无本机测试或解析。
+
 - 2026-10-28 v1.10首轮C退回：97c433a的source40619890104失败，Static checks、共享core和Mac构建通过；iOS编译报告ScheduleView.swift:649调用private FocusStore.isActiveTask。review40620404944拒绝失败push，UI40620404911正确skipped。证据/private/tmp/chronofocus-c-review-40619890104-mjh61aqj，生产artifact12786543165（16360417 bytes，sha256:f14cb85220cfed59950ad7e0a1109ce49e2a9a7331c6f88b9c25ee82d5b604a0）。B将界面预检改读公开activeTimer.taskID，Store最终保护保持；不扩大私有接口、不放宽任何测试。本机仅读码/gh取证，待追加提交的完整云端复验。
 
 - 2026-10-28 v1.10实现待云端：共享TaskListStatus/TaskListFilter为非持久化状态、分类与规范化多词查询，两端提供未完成/已完成/全部计数、任务查找和完成恢复入口；iOS新增卡片更多菜单，两端删除先确认并复查活动身份，成功删除后才取消提醒，历史会话保留。原生新增搜索/完成恢复与删除确认/取消/活动保护两条测试，每设备8/0/0、34场景；证据核对真实tests树/设备/逐项结果与耗时，失败诊断单独保存并输出Actions Summary。Mac独立图增为16，新增已完成任务检索场景，生产五图/唯一包/第四模式不变。关键文件为AppModels、两端Schedule、App/UITests、core/renderer/原生证据脚本、UI workflow及A/README/test/flow/readiness。仅静态读码/diff，无本机测试、配置解析、编译、模拟器、浏览器或validator；等待本次main提交和全链C验收。发行身份、签名、商品/权限/真机实测仍待人工。

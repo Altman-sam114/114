@@ -188,16 +188,27 @@ jobs:
           export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
           bash scripts/prepare_ios_ui_simulator.sh
 
-      - name: Run native iOS UI tests
+      - name: Build native iOS UI tests and wait for simulator
         if: startsWith(matrix.platform, 'ios-')
-        timeout-minutes: 18
+        timeout-minutes: 10
         env:
           UI_DIR: ${{ steps.gate.outputs.directory }}
         shell: bash
         run: |
           set -euo pipefail
           export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-          bash scripts/run_ios_ui_tests.sh
+          bash scripts/run_ios_ui_tests.sh --build-only
+
+      - name: Run native iOS UI tests
+        if: startsWith(matrix.platform, 'ios-')
+        timeout-minutes: 14
+        env:
+          UI_DIR: ${{ steps.gate.outputs.directory }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+          bash scripts/run_ios_ui_tests.sh --test-only
 
       - name: Build and inspect unsigned Release products
         if: matrix.platform == 'release'

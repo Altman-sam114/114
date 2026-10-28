@@ -8,13 +8,17 @@ flowchart LR
   FILTER --> VIEW[计数与任务列表 / 未完成 / 已完成 / 全部]
   VIEW --> RESTORE[原Store完成或恢复入口]
   VIEW --> MORE[iOS更多 / Mac删除]
-  MORE --> CONFIRM{确认且当前非活动任务}
+  MORE --> ALERT[原生alert / 取消和删除都明确可见]
+  ALERT --> CONFIRM{确认且当前非活动任务}
   CONFIRM -->|是| DELETE[FocusStore删除任务与计划 / 保留会话]
   DELETE --> REMINDER[确认删除成功后取消提醒]
   CONFIRM -->|取消| KEEP[保持数据]
-  TREE[真实tests树 / 8个唯一Passed测试与设备耗时] --> EVIDENCE[关联summary与34具名场景]
-  EVIDENCE --> C[最新main云端C验收 / Mac16图 / Release]
+  TREE[真实tests树 / 8个唯一Passed测试与设备耗时] --> EVIDENCE[关联summary与35具名场景]
+  EVIDENCE --> C[最新main云端C验收 / Mac16图 / Release / 保存后定位]
   TREE --> DIAG[成功或失败的逐测试诊断 / 不替代验收]
+  BUILD[10分钟构建与启动 / 二者并行] --> READY[双成功记录实际UDID]
+  READY --> RUN[14分钟测试步骤 / 复核UDID / 总job35分钟]
+  RUN --> TREE
 ```
 
 读图说明：v1.9把待办内容和动作分开，改变展示不改变任务或计时真源；云端启动和构建可重叠，运行测试前必须同时成功，结果再按真实场景绑定。

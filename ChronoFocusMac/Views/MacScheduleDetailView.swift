@@ -278,6 +278,9 @@ struct MacScheduleDetailView: View {
             accentHex: accentHex
         )
         if let task {
+            taskStatus = .pending
+            taskSearchQuery = ""
+            if selectedCategory != nil { selectedCategory = task.category }
             syncMacTaskReminder(for: task, store: store, notifications: notifications)
             category = selectedCategory ?? task.category
             accentHex = store.representativeAccentHex(for: category, preferred: task.accentHex)
@@ -1668,10 +1671,10 @@ private struct MacTaskListPanelView: View {
                 }
             }
         }
-        .confirmationDialog("删除待办？", isPresented: Binding(
+        .alert("删除待办？", isPresented: Binding(
             get: { pendingDeletion != nil },
             set: { if !$0 { pendingDeletion = nil } }
-        ), titleVisibility: .visible, presenting: pendingDeletion) { task in
+        ), presenting: pendingDeletion) { task in
             Button("删除待办", role: .destructive) { deleteTask(task) }
             Button("取消", role: .cancel) {}
         } message: { task in
@@ -1696,6 +1699,9 @@ private struct MacTaskListPanelView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("\(status.title)，\(count)项")
+                            .accessibilityValue(taskStatus == status ? "已选中" : "未选中")
+                            .accessibilityHint("查看\(status.title)待办，保留分类筛选")
+                            .accessibilityInputLabels([Text("\(status.title)待办"), Text("\(status.title)状态")])
                             .accessibilityAddTraits(taskStatus == status ? .isSelected : [])
                         }
                     }

@@ -62,6 +62,9 @@ final class ChronoFocusUITests: XCTestCase {
         capture("timer-light")
         app.tabBars.buttons["日程"].tap()
         XCTAssertTrue(app.buttons["schedule.add"].waitForExistence(timeout: 5))
+        let firstTask = app.staticTexts["云端分类验收任务"].firstMatch
+        XCTAssertTrue(firstTask.isHittable, "The default schedule must show its first task without scrolling")
+        XCTAssertLessThanOrEqual(firstTask.frame.maxY, app.tabBars.firstMatch.frame.minY)
         capture("schedule-light")
         app.tabBars.buttons["设置"].tap()
         revealNotificationAction()
@@ -89,6 +92,9 @@ final class ChronoFocusUITests: XCTestCase {
     func testScheduleCategoryPrefillAndSave() {
         launch(fixture: "tasks")
         app.tabBars.buttons["日程"].tap()
+        let openCategorySearch = app.buttons["schedule.category.search.open"]
+        revealInsideViewport(openCategorySearch)
+        openCategorySearch.tap()
         let search = app.textFields["category.search"]
         reveal(search)
         search.tap()
@@ -221,6 +227,20 @@ final class ChronoFocusUITests: XCTestCase {
         revealInsideViewport(empty)
         XCTAssertFalse(restoredTitle.exists)
         capture("tasks-search-empty")
+
+        revealInsideViewport(completed)
+        completed.tap()
+        app.buttons["schedule.add"].tap()
+        let newTitle = app.textFields["task.editor.title"]
+        XCTAssertTrue(newTitle.waitForExistence(timeout: 5))
+        newTitle.tap()
+        newTitle.typeText("筛选后新增任务")
+        app.buttons["task.editor.save"].tap()
+        let created = app.staticTexts["筛选后新增任务"].firstMatch
+        revealInsideViewport(created)
+        XCTAssertEqual(pending.value as? String, "已选中")
+        XCTAssertFalse(app.textFields["schedule.task.search"].exists, "A saved task must not remain hidden behind an old query")
+        capture("tasks-created-from-filter")
     }
 
     func testTaskDeletionRequiresConfirmation() {
@@ -230,7 +250,7 @@ final class ChronoFocusUITests: XCTestCase {
         let more = app.buttons["schedule.task.more.\(identifier)"]
         requestDeletion(more)
         capture("deletion-confirmation")
-        app.buttons["取消"].tap()
+        app.alerts.buttons["取消"].tap()
         let title = app.staticTexts["准备发布检查"].firstMatch
         revealInsideViewport(title)
         capture("deletion-cancelled")
@@ -253,7 +273,7 @@ final class ChronoFocusUITests: XCTestCase {
         waitForLabel(primary, prefix: "开始")
         app.tabBars.buttons["日程"].tap()
         requestDeletion(more)
-        app.buttons["删除待办"].tap()
+        app.alerts.buttons["删除待办"].tap()
         waitForDisappearance(title)
         let survivor = app.staticTexts["保留的日常安排"].firstMatch
         revealInsideViewport(survivor)
@@ -285,7 +305,10 @@ final class ChronoFocusUITests: XCTestCase {
         let menuAction = app.buttons["删除准备发布检查待办，产品分类"]
         XCTAssertTrue(menuAction.waitForExistence(timeout: 5))
         menuAction.tap()
-        XCTAssertTrue(app.buttons["删除待办"].waitForExistence(timeout: 5))
+        let confirmation = app.alerts.firstMatch
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirmation.buttons["取消"].exists)
+        XCTAssertTrue(confirmation.buttons["删除待办"].exists)
     }
 
     private func waitForDisappearance(_ element: XCUIElement) {

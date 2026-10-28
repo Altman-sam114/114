@@ -4,9 +4,13 @@
 
 ## 默认验证策略
 
-当前v1.10门禁：两种iPhone各8 passed/0 failed/0 skipped、34个具名原生场景；旧25场景全部保留，新增任务搜索/空结果/完成找回/恢复，以及删除确认/取消/活动保护/成功删除。Mac独立16图，包含已完成任务检索；生产正式五图不变。共享core实际执行`Task list query behavior passed.`，覆盖状态/分类/多词查询组合、规范化、停用任务、恢复、空输入和顺序身份。`verify_ios_ui_evidence.py`核对原始tests树的精确8测试集合、逐项Passed、有限非负耗时和唯一设备，再关联summary与34场景附件。Static checks执行10项原生证据回归（包含测试树缺失/重复/错身份/跳过/失败/设备/耗时与失败诊断），保留8项隐私/图标回归。失败后仍通过`python3 scripts/verify_ios_ui_evidence.py --summary-only`保存诊断到独立证据和Actions Summary；诊断不能替代验收或改变失败结论。仅Actions执行，等待本轮新SHA云端结果。
+当前v1.10门禁：两种iPhone各8 passed/0 failed/0 skipped、35个具名原生场景；旧25场景全部保留，新增任务搜索/空结果/完成找回/恢复、筛选后新增可见，以及删除确认/取消/活动保护/成功删除。Mac独立16图，包含已完成任务检索；生产正式五图不变。共享core实际执行`Task list query behavior passed.`，覆盖状态/分类/多词查询组合、规范化、停用任务、恢复、空输入和顺序身份。`verify_ios_ui_evidence.py`核对原始tests树的精确8测试集合、逐项Passed、有限非负耗时和唯一设备，再关联summary与35场景附件。Static checks执行10项原生证据回归（包含测试树缺失/重复/错身份/跳过/失败/设备/耗时与失败诊断），保留8项隐私/图标回归。失败后仍通过`python3 scripts/verify_ios_ui_evidence.py --summary-only`保存诊断到独立证据和Actions Summary；诊断不能替代验收或改变失败结论。仅Actions执行，等待本轮新SHA云端结果。
 
 v1.9已在49433bb完成source40171435650/review40171840812/UI40171840835验收，148/0、两设备各6/0/0与25场景、Mac15图和Release通过；C读原生图确认32pt微小纠正有效。全部frame、可达性和尺寸边界保持严格，云端启动/构建并行、禁止失败重跑；Release仍须ICNS原生解码及Assets.car同名1024×1024编译图。本机不执行任何测试/解析/编译/validator。
+
+v1.10原生退回依据：da521e4/source40620760504/review40621307102通过，UI40621307173两设备均7/1/0；搜索/完成恢复通过，原生图显示confirmationDialog没有取消按钮。当前改原生alert并要求两个动作真实存在；同时把iOS导航收紧、任务搜索移入标题、分类查询按需展开，主题测试增加默认首条任务无需滚动的isHittable与TabBar边界。旧分类搜索测试先点击查找分类再执行原查询/预填/保存。新版35场景必须重新云端执行。
+
+真实日志的测试构建约6分钟、测试本体约8分钟；workflow把`run_ios_ui_tests.sh --build-only`与`--test-only`分成10/14分钟两步，分别定位构建与交互失败。构建和300秒bootstatus仍重叠，只有双成功才记录实际UDID；测试步骤必须复核该记录。总job35分钟与单测120/180秒上限不变，仍不自动重跑失败，不用增加超时掩盖交互错误。
 
 ### v1.9修复依据（历史）
 

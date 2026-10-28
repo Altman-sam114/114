@@ -17,7 +17,7 @@ SCENES = {
     "testScheduleCategoryPrefillAndSave": ("schedule-filtered", "task-editor-prefilled", "schedule-saved"),
     "testAccessibilityTextWithLongTask": ("large-text-idle", "large-text-running", "large-text-notifications"),
     "testScheduleAccessibilityAndActions": ("schedule-large-calendar", "schedule-long-title", "schedule-long-category", "schedule-long-actions", "schedule-long-editor", "schedule-long-handoff"),
-    "testTaskSearchAndCompletionFilters": ("tasks-pending", "tasks-search", "tasks-completed", "tasks-restored", "tasks-search-empty"),
+    "testTaskSearchAndCompletionFilters": ("tasks-pending", "tasks-search", "tasks-completed", "tasks-restored", "tasks-search-empty", "tasks-created-from-filter"),
     "testTaskDeletionRequiresConfirmation": ("deletion-confirmation", "deletion-cancelled", "deletion-protected", "deletion-completed"),
 }
 DEVICES = {

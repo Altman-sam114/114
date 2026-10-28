@@ -112,6 +112,7 @@ struct ScheduleView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("日程")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -127,21 +128,21 @@ struct ScheduleView: View {
                 }
             }
             .sheet(isPresented: $showingEditor) {
-                TaskEditorView(initialDueDate: defaultNewTaskDate, initialCategory: selectedCategory)
+                TaskEditorView(initialDueDate: defaultNewTaskDate, initialCategory: selectedCategory, onSave: revealSavedTask)
                     .environmentObject(store)
                     .environmentObject(notifications)
                     .presentationDetents([.medium, .large])
             }
             .sheet(item: $editingTask) { task in
-                TaskEditorView(task: task, initialDueDate: selectedDate)
+                TaskEditorView(task: task, initialDueDate: selectedDate, onSave: revealSavedTask)
                     .environmentObject(store)
                     .environmentObject(notifications)
                     .presentationDetents([.medium, .large])
             }
-            .confirmationDialog("删除待办？", isPresented: Binding(
+            .alert("删除待办？", isPresented: Binding(
                 get: { pendingDeletion != nil },
                 set: { if !$0 { pendingDeletion = nil } }
-            ), titleVisibility: .visible, presenting: pendingDeletion) { task in
+            ), presenting: pendingDeletion) { task in
                 Button("删除待办", role: .destructive) { deleteTask(task) }
                 Button("取消", role: .cancel) {}
             } message: { task in
@@ -339,11 +340,22 @@ struct ScheduleView: View {
                     Label("待办事项", systemImage: "checklist")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Text(taskListCountText)
                         .font(.caption)
                         .foregroundStyle(AppTheme.secondaryText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
+                    if !isTaskSearchPresented {
+                        Button { isTaskSearchPresented = true } label: {
+                            Image(systemName: "magnifyingglass")
+                                .frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(AppTheme.readableTint(.cyan))
+                        .accessibilityLabel("查找待办")
+                        .accessibilityIdentifier("schedule.task.search.open")
+                    }
                 }
 
                 taskListControls
@@ -474,6 +486,9 @@ struct ScheduleView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(taskStatus == status ? AppTheme.primaryText : AppTheme.secondaryText)
                     .accessibilityLabel("\(status.title)，\(statusCount(status))项")
+                    .accessibilityValue(taskStatus == status ? "已选中" : "未选中")
+                    .accessibilityHint("查看\(status.title)待办，保留日期和分类筛选")
+                    .accessibilityInputLabels([Text("\(status.title)待办"), Text("\(status.title)状态")])
                     .accessibilityAddTraits(taskStatus == status ? .isSelected : [])
                     .accessibilityIdentifier("schedule.status.\(status.rawValue)")
                 }
@@ -506,16 +521,6 @@ struct ScheduleView: View {
                 .foregroundStyle(AppTheme.primaryText)
                 .padding(.leading, 12)
                 .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 12))
-            } else {
-                Button { isTaskSearchPresented = true } label: {
-                    Label("查找待办", systemImage: "magnifyingglass")
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(AppTheme.readableTint(.cyan))
-                .accessibilityIdentifier("schedule.task.search.open")
             }
         }
     }
@@ -650,6 +655,15 @@ struct ScheduleView: View {
         store.deleteTasks(ids: [task.id])
         guard store.task(for: task.id) == nil else { return }
         notifications.cancelTaskReminder(taskID: task.id)
+    }
+
+    private func revealSavedTask(_ task: FocusTask) {
+        taskStatus = task.isDone ? .completed : .pending
+        taskSearchQuery = ""
+        isTaskSearchPresented = false
+        if selectedCategory != nil { selectedCategory = task.category }
+        selectedDate = task.dueDate ?? task.createdAt
+        if task.dueDate == nil { calendarMode = .day }
     }
 }
 
@@ -946,6 +960,7 @@ private struct CalendarDayButton: View {
 private struct TaskCategoryFilterBar: View {
     @EnvironmentObject private var store: FocusStore
     @State private var searchQuery = ""
+    @State private var isSearchPresented = false
 
     let categories: [String]
     @Binding var selectedCategory: String?
@@ -966,7 +981,27 @@ private struct TaskCategoryFilterBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if searchResult.showsSearch {
-                CategoryFilterSearchField(query: $searchQuery, matchedCount: searchResult.matches.count, totalCount: searchResult.totalCount)
+                HStack {
+                    Text("分类 · \(searchResult.totalCount) 个")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.secondaryText)
+                    Spacer()
+                    Button {
+                        isSearchPresented.toggle()
+                        if !isSearchPresented { searchQuery = "" }
+                    } label: {
+                        Image(systemName: isSearchPresented ? "xmark" : "magnifyingglass")
+                            .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(AppTheme.readableTint(.cyan))
+                    .accessibilityLabel(isSearchPresented ? "收起并清除分类搜索" : "查找分类")
+                    .accessibilityValue(isSearchPresented ? "已展开" : "已收起")
+                    .accessibilityIdentifier("schedule.category.search.open")
+                }
+                if isSearchPresented {
+                    CategoryFilterSearchField(query: $searchQuery, matchedCount: searchResult.matches.count, totalCount: searchResult.totalCount)
+                }
             }
             categoryStrip
             if let option = searchResult.pinnedSelection {
@@ -1402,6 +1437,7 @@ struct TaskEditorView: View {
     @State private var existingCategorySearch = ""
 
     private let task: FocusTask?
+    private let onSave: (FocusTask) -> Void
     private let colors = ["#3DE8C5", "#A78BFA", "#FFB84D", "#FF6B6B", "#54A0FF"]
     private let categoryComparisonLocale = Locale(identifier: "en_US_POSIX")
     private let existingCategorySearchThreshold = TaskCategoryPreset.searchThreshold
@@ -1524,8 +1560,9 @@ struct TaskEditorView: View {
         ]
     }
 
-    init(task: FocusTask? = nil, initialDueDate: Date, initialCategory: String? = nil) {
+    init(task: FocusTask? = nil, initialDueDate: Date, initialCategory: String? = nil, onSave: @escaping (FocusTask) -> Void = { _ in }) {
         self.task = task
+        self.onSave = onSave
         let startingCategory = task?.category ?? initialCategory ?? "工作"
         _title = State(initialValue: task?.title ?? "")
         _category = State(initialValue: startingCategory)
@@ -1812,6 +1849,7 @@ struct TaskEditorView: View {
 
         if let savedTask {
             syncTaskReminder(for: savedTask, store: store, notifications: notifications)
+            onSave(savedTask)
         }
     }
 }
