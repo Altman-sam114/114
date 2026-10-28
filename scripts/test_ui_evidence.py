@@ -123,6 +123,16 @@ class UISourceGateTests(unittest.TestCase):
         self.assertEqual(row.count(".lineLimit(allowsTextWrapping ? nil : 1)"), 2)
         self.assertEqual(row.count(".fixedSize(horizontal: false, vertical: allowsTextWrapping)"), 2)
         self.assertRegex(row, r"if allowsTextWrapping\s*\{\s*VStack\(alignment: \.leading, spacing: 6\)")
+        filter_chip = schedule.split("private struct MacCategoryFilterChip: View", 1)[1].split("@MainActor", 1)[0]
+        filter_title = filter_chip.split("Text(title)", 1)[1].split('Text("\\(count)")', 1)[0]
+        for modifier in (".lineLimit(2)", ".truncationMode(.tail)", ".fixedSize(horizontal: false, vertical: true)"):
+            self.assertIn(modifier, filter_title)
+        self.assertIn(".frame(minHeight: 44)", filter_chip)
+        self.assertIn(".help(title)", filter_chip)
+        self.assertIn('.accessibilityLabel("\\(title)分类，\\(count)项\\(accessibilityStateText)")', filter_chip)
+        existing_chip = schedule.split("private struct MacExistingCategoryChipContent: View", 1)[1].split("private struct MacStaticScheduleActionChipView", 1)[0]
+        self.assertIn(".lineLimit(2)", existing_chip)
+        self.assertIn(".help(option.displayName)", existing_chip)
         renderer = Path("scripts/render_mac_snapshots.swift").read_text()
         self.assertIn('capture("schedule-long-text-1100.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskSearchQuery: "正式发布前")), width: 1100, height: 1000', renderer)
         self.assertIn("try assertScheduleTextWrapping(for: scheduleLongTask, store: store, directory: checksDirectory)", renderer)

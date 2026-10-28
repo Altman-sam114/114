@@ -712,6 +712,7 @@ private struct MacExistingCategoryChipContent: View {
             Capsule()
                 .stroke(tint.opacity(isSelected ? 0.9 : 0.42), lineWidth: isSelected ? 1.5 : 1)
         }
+        .help(option.displayName)
     }
 }
 
@@ -2326,6 +2327,9 @@ private struct MacCategoryFilterChip: View {
             HStack(spacing: 6) {
                 Image(systemName: symbolName)
                 Text(title)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("\(count)")
                     .font(.caption.bold())
                     .monospacedDigit()
@@ -2346,6 +2350,7 @@ private struct MacCategoryFilterChip: View {
             }
         }
         .buttonStyle(.plain)
+        .help(title)
         .accessibilityLabel("\(title)分类，\(count)项\(accessibilityStateText)")
         .accessibilityHint(accessibilityHintText)
         .accessibilityAddTraits(accessibilityTraits)

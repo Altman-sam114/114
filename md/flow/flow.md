@@ -14,6 +14,8 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 
 v1.10待办管理：两端View持有TaskListStatus、查询与删除确认瞬态；共享TaskListFilter先按完成状态和可选分类筛选，再用固定POSIX规范化的多个词匹配标题/分类，保留输入身份和顺序，不写Store。iOS先取当前日期范围，Mac待办面板取全部任务；分类计数反映当前状态和任务查询，日历格仍仅按原日期/分类统计。完成/恢复仍调用toggleTaskDone；iOS卡片更多与两端确认最终调用Store删除，确认时复查活动身份，删除实际成功后才取消提醒，不删除FocusSession。
 
+Mac分类筛选网格把长名称限制为两行并尾部截断，完整名称仍由help、辅助功能label和原搜索提供；已有分类表单维持两行并补help。此高度边界只作用于选择控件，任务正文和日历任务仍完整换行，不改变分类身份、计数、筛选或持久化。
+
 iOS日程使用inline导航，任务搜索从待办标题旁展开，分类查询独立按需展开，收起分类查询只清除查询而保留选择。两端删除采用原生alert，提供明确取消与删除动作。原生构建/启动、测试、原始结果收集分别作为10/14/5分钟云端步骤，构建与boot并行，双成功记录UDID，测试复核同一UDID并保留真实状态；独立always收集导出summary/tests/attachments和执行verifier，失败摘要随后生成。短生命周期实际测试先承担冷自动化启动，不重跑失败；总job35分钟及单测限制保持。
 
 TimerEngine自然到点经incrementActiveTaskRound、手动结束经finishActiveTask完成原任务；只有Store成功返回已完成任务时才取消其到期提醒。循环生成后的返回对象按原ID查找，不能用已漂移的数组index。自由专注没有任务ID，不取消其他任务提醒；计时完成通知仍由原cancelNotification处理。
@@ -24,7 +26,7 @@ TimerEngine自然到点经incrementActiveTaskRound、手动结束经finishActive
 
 v1.9展示与证据：iOS日程待办的标题/分类/时间和动作分层，标题与分类完整换行，三个带文字动作在较大字体下纵排，仍由原闭包调用Store或发出一次性handoff；不增加状态机或持久化。设置按时间、后台提醒、自动化、声音、Pro、隐私排序。原生实心按钮从实际主题填色调用共享对比色算法，分类原始色和已有badge规则保留。
 
-原生云端准备创建指定测试设备并发起boot；测试脚本并行等待有界bootstatus与build-for-testing，两者均成功才test-without-building。六个实际测试的summary与附件manifest按测试身份、25个场景、UDID和完整像素尺寸绑定，不接受只靠总数的证明。完整测试树及构建/启动/测试日志独立保留。生产checkout固定触发github.sha；Release实际读取Mac ICNS与编译图标资源，独立证据结构与来源门禁保持。
+原生云端准备创建指定测试设备并发起boot；测试脚本并行等待有界bootstatus与build-for-testing，两者均成功才test-without-building。当前九个实际测试的tests树、summary与附件manifest按测试身份、38个场景、UDID和完整像素尺寸绑定，不接受只靠总数的证明。完整测试树及构建/启动/测试日志独立保留。生产checkout固定触发github.sha；Release实际读取Mac ICNS与编译图标资源，独立证据结构与来源门禁保持。
 
 v1.8平台边界：两日历服务先拒绝并发同步，再经共享`CalendarReadAccessGate`读取真实授权。fullAccess允许读取，notDetermined/writeOnly请求完整访问后同时核对返回值和刷新状态，denied/restricted/unknown拒绝；异常也刷新平台状态。只有允许后才查询EventKit并通过既有Store导入。Live Activity锁屏/灵动岛共用`ActivityCountdownText`，暂停显示非负快照值，运行中只对未来日期构造`futureCountdownRange`，到点/过期显示00:00而不创建倒置区间。
 
