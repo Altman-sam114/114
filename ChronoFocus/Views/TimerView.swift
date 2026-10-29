@@ -428,15 +428,7 @@ struct TimerView: View {
     private var taskPicker: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Label("当前日程", systemImage: "target")
-                        .font(.headline)
-                        .foregroundStyle(AppTheme.primaryText)
-                    Spacer()
-                    Text(taskPickerCountText)
-                        .font(.caption)
-                        .foregroundStyle(AppTheme.secondaryText)
-                }
+                TimerQueueHeader(countText: taskPickerCountText)
 
                 if !upcomingTasks.isEmpty {
                     TimerTaskCategoryFilterBar(

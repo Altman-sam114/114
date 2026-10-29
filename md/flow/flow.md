@@ -8,7 +8,7 @@ ChronoFocus 的主链路是：用户在 iOS App 或 macOS 状态栏 App 操作�
 
 ## 1. 当前核心数据流
 
-iOS主题和基础面板位于`AppTheme.swift`，计时上下文与倒计时位于`TimerPresentation.swift`。展示组件只接收Engine/Store派生的值，不拥有计时或持久化状态；TimerView继续发起所有计时动作。Dashboard与Debug编辑保护容器仅接收同一Engine引用发出生命周期命令，不订阅其每秒输出；真正计时页面继续通过环境对象观察Engine。两端面板按系统减少透明度/增强对比度环境渲染，计时数字、Mac小窗和按钮动画尊重减少动态效果。iOS队列标题/分类/时间完整换行，进度和轮次独立显示，Mac详情队列启用已有完整换行行组件。iOS统计大字号改为单列，编辑器仅通过FocusState管理键盘，提交前收起输入焦点，保存保护和草稿保留逻辑不变。
+iOS主题和基础面板位于`AppTheme.swift`，计时上下文、队列标题与倒计时位于`TimerPresentation.swift`。展示组件只接收Engine/Store派生的值，不拥有计时或持久化状态；TimerView继续发起所有计时动作。Dashboard与Debug编辑保护容器仅接收同一Engine引用发出生命周期命令，不订阅其每秒输出；真正计时页面继续通过环境对象观察Engine。两端面板按系统减少透明度/增强对比度环境渲染，计时数字、Mac小窗和按钮动画尊重减少动态效果。iOS队列标题/分类/时间完整换行，进度和轮次独立显示；辅助大字号下队列节标题与数量纵排，避免逐字竖排。Mac详情队列启用已有完整换行行组件。iOS统计大字号改为单列，编辑器仅通过FocusState管理键盘，提交前收起输入焦点，保存保护和草稿保留逻辑不变。
 
 v1.10待办管理：两端View持有TaskListStatus、查询与删除确认瞬态；共享TaskListFilter先按完成状态和可选分类筛选，再用固定POSIX规范化的多个词匹配标题/分类，保留输入身份和顺序，不写Store。iOS先取当前日期范围，Mac待办面板取全部任务；分类计数反映当前状态和任务查询，日历格仍仅按原日期/分类统计。完成/恢复仍调用toggleTaskDone；iOS卡片更多与两端确认最终调用Store删除，确认时复查活动身份，删除实际成功后才取消提醒，不删除FocusSession。
 

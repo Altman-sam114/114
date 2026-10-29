@@ -138,6 +138,13 @@ final class ChronoFocusUITests: XCTestCase {
         primary.tap()
         waitForLabel(primary, prefix: "暂停")
         capture("large-text-running")
+        let queueHeading = app.descendants(matching: .any)["timer.queue.heading"].firstMatch
+        revealInsideViewport(queueHeading)
+        XCTAssertEqual(queueHeading.label, "当前日程")
+        XCTAssertLessThan(queueHeading.frame.height, 110, "The queue heading must not collapse into a column of individual characters")
+        let queueCount = app.staticTexts["timer.queue.count"]
+        XCTAssertTrue(queueCount.exists)
+        XCTAssertGreaterThanOrEqual(queueCount.frame.minY, queueHeading.frame.maxY, "Accessibility queue counts must sit below the heading")
         let queueTask = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "timer.queue.task.")).firstMatch
         // AX5 cards may exceed the viewport; their content still scrolls and their hit area must be reachable.
         reveal(queueTask)

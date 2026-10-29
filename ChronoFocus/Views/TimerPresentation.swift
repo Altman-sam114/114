@@ -1,5 +1,34 @@
 import SwiftUI
 
+struct TimerQueueHeader: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    let countText: String
+
+    var body: some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 12))
+        layout {
+            Label("当前日程", systemImage: "target")
+                .font(.headline)
+                .foregroundStyle(AppTheme.primaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("当前日程")
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("timer.queue.heading")
+
+            Text(countText)
+                .font(.caption)
+                .foregroundStyle(AppTheme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing)
+                .accessibilityIdentifier("timer.queue.count")
+        }
+    }
+}
+
 struct TimerContextHeader: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 

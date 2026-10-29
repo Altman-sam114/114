@@ -65,4 +65,13 @@
 - 通知权限状态/授权入口拆成纯展示组件并前置到“后台与提醒”节标题之后、四个开关之前；保留原NotificationService动作和44pt/全宽按钮，减少大字号用户寻找授权入口的滚动成本，也收窄Settings的ViewBuilder复杂度。
 - 新增编辑：`ChronoFocusApp.swift`、`DashboardView.swift`、`SettingsView.swift`、UITests、两个原生证据脚本、UI workflow（仅10测试门禁）、README/flow/readiness/work/update_log。其余用户文件保留。
 - 新SHA前静态diff发现workflow嵌入Python的一行缩进错误，立即修复，未执行本机YAML/配置校验；云端继续承担真正解析/fixture验证。
-- 下一步：审查并提交此最小优化，跟进新SHA的10测试/40场景完整云端链。不重跑80fac05，不提前收口；保留所有成功/失败证据。
+- 上述优化已提交/推送 `bc3a0d3a39d16f6fd6cd8c11ac6e1b01e08e5d47`，生产 `40709909360/1` 已success（6m8s）：静态/项目验证（含10测试/40场景fixture）、双端Debug与完整结果包成功；artifact `12826855381`，16292506 bytes，sha256:080ce317f912a7ac3e91d65140c35554bd445dcb7482f55cc9a59e0f95d8b5d7。独立review `40710942732/1` success，UI/Release `40710942641/1` queued。静态 `git diff --check`通过。账号/分支/remote及仅本轮12文件范围已核对。没有本机编译、项目测试或配置校验。
+- 2026-10-29接续：重新读取工作台/规则并核对Git，`git fetch origin`、`git pull --ff-only origin main`成功，仍为`bc3a0d3`且远端一致，授权账号仍为`Altman-sam114`；仅有已登记用户文件与本轮work改动。
+- 最新云端API确认：生产`40709909360/1`、独立review`40710942732/1`、UI/Release`40710942641/1`全部success；UI四个job均实际完成，375/390原生测试与结果收集均success。尚须读取精确新SHA原始summary、review结论、Release报告和受影响原PNG，不能只凭绿色状态收口。
+- 新证据目录`/tmp/chronofocus-final-bc3a0d3-DVqkAfaG`保存原始source/review/UI/artifacts/main/workflow API；已读取正式review原文`review-result.json`（148/0、exit0、product acceptance passed）、JUnit4/0/0、Mac同源manifest/17图清单及新Release原报告（工程true、signed=false、distributionReady=false，Mac双架构与iOS/appex arm64，Debug入口缺失）。review artifact`12825044379`、Mac`12826387515`、Release`12826128185`；手机375/390为`12828360199`/`12826914966`。
+- 原始artifact Range仅读首轮手机取证发生网络连接超时，review/Mac/Release读取成功；保留残留和错误，在全新目录缩减请求次数并有界重试必要metadata/原图。这不是重跑产品测试，也不把部分Range下载声称为本机完整ZIP验收；完整包第四模式仍使用Actions真实结论。本机未编译、运行、执行测试/validator或配置校验，`git diff --check`再次通过。
+- 已读取两设备真实summary/tests：各10/0/0、40具名场景；375总695.037s、390总617.778s。长任务与运行中通知分段均在原120秒内完成；共享core真实日志包含开始/暂停/恢复/完成、查询/循环身份/提醒/持久化/权限/倒计时回归通过。
+- 实际读新SHA原图：375默认首屏主操作完整、亮暗通知授权文字和44pt按钮清楚、AX5统计单列；390亮色和运行/通知待补读；Mac亮色双列、暗色920单列、长文本与小窗快捷面板清楚。
+- 视觉退回：375的`large-text-queue`原PNG（`ios375-images/selected/attachments/5C3F27CF-021E-414D-92A5-D7E611551BBE.png`）证明“当前日程”标题被数量HStack挤成四行逐字竖排，当前自动化虽全绿但不能放行。新增最小步骤：抽取纯展示队列标题，大字号纵排标题/数量，正常字号保持横排；在原长字号用例增加标题高度与数量纵向几何断言，保留10测试/40场景与所有旧断言/时限。不更改Engine/Store或安全链。
+- 该最小补丁已实现：`TimerPresentation.swift`/`TimerView.swift`/UITests与README/flow/update_log/work共7文件；静态检查未发现合同中对旧标题源码位置的依赖，`git diff --check`通过。本轮发布导向双平台重构仍按已登记完整入口验证，新补丁直接关注iOS375/390的队列标题/数量几何和原图，不新增测试超时或CI开关。提交前再次核对账号/分支/remote与文件范围，用户3个文件未动。
+- 下一步：实现标题最小补丁、静态审查并追加main提交；跟进新SHA必要云端链与原PNG，不重跑旧run或以bc3a0d3绿色结果替代新修改。
