@@ -12,6 +12,8 @@
 
 ## 当前状态
 
+- 2026-10-29 / 发布导向UI重构工程收口：产品源码`8100b1db20e19c25e7c6cd1a66d6d35380c470da`的生产`40800210911/1`、独立review`40800858927/1`和UI/Release`40800858828/1`全部success；第四模式148/0、JUnit4/0/0、两iPhone各10/0/0及40场景、Mac17图与未签名Release工程检查通过。已实际读取同源亮暗/窄窗/小屏/大字号原图，两设备队列标题不再逐字竖排，375pt主操作、通知授权和统计单列正常。工程阶段完成，不等于正式发行；签名、正式身份/商品/渠道、公开隐私/支持资料及系统服务/真机实测仍待，`distributionReady=false`。完整改造范围和证据见下方同名历史记录。
+
 - 2026-10-29 / 云端全绿后的实际视觉退回：`bc3a0d3a39d16f6fd6cd8c11ac6e1b01e08e5d47`生产`40709909360/1`、review`40710942732/1`、UI/Release`40710942641/1`均success，第四模式148/0、JUnit4/0/0、两设备各10/0/0与40场景、Mac17图和未签名Release工程检查通过。实际读375pt最大辅助字号队列原图发现“当前日程”被同排数量挤成四行逐字竖排，不能只凭自动化放行；抽取纯值输入`TimerQueueHeader`，大字号标题/数量纵排，正常横排，在原长字号测试增加真实标题高度与数量纵向位置断言，10测试/40场景及所有旧门禁/时限保持。关键文件TimerPresentation/TimerView/UITests、README/flow/work；本机仅静态、Git/gh和原始证据阅读，无产品测试/编译/配置校验。新补丁须新SHA复验，正式身份/签名/商品和真机/系统服务仍待。
 
 - 2026-10-28 / 根导航刷新收敛与原生用例分段：`80fac05`生产`40700336601/1`与review`40701821636/1`成功（148/0）；UI`40701821565/1`的Mac17图、Release与375pt9/0/0及40场景通过，390pt仅大字号综合用例在已完成长任务/队列后寻找通知授权按钮时耗尽120秒，其余8条通过。保留原始AX快照、spindump和失败日志，未将XCTest查询栈解释为已证实的App死锁。将同一长任务运行中的通知验收拆为独立启动用例，所有40场景和边界检查保留，严格合同改为10实际测试；不增加任何超时。Dashboard与Debug保护容器改接收App原Engine引用，避免不展示倒计时的根导航订阅1Hz广播，计时页面仍观察原环境对象，业务/持久化不变。通知权限组件前置到该节四个开关之前，降低大字号找授权的滚动成本；仍走原服务。关键文件App/Dashboard/Settings/UITests、原生证据脚本/UI workflow与flow/readiness；仅静态审查，待追加提交云端复验，不使用旧绿色结果替代。
@@ -148,6 +150,27 @@
 - 部分 SwiftUI View 文件较长，后续可在功能稳定后按职责拆分，不应在功能任务中顺手大重构。
 
 ## 历史记录
+
+### 2026-10-29 / 发布导向 UI 与展示层重构收口
+
+- 范围：接续2026-10-28的双平台UI优化，基线`88f2ea7`，产品最终提交`8100b1db20e19c25e7c6cd1a66d6d35380c470da`，沿`main`直推；未新建分支、PR、worktree或子智能体。产品版本仍为1.0/build1，没有把开发迭代号当作发行版本。
+- 视觉与结构：iOS抽出`AppTheme.swift`和纯值输入`TimerPresentation.swift`，统一面板/按钮圆角、计时层级和青绿背景，去除重复blur与计时光晕；队列标题、任务、分类、时间和轮次分层完整换行，Mac详情队列复用完整换行行组件。辅助字号使用线性计时和单列统计，队列节标题与数量纵排；小屏首屏主操作保留。
+- 交互与可访问性：两端面板适配减少透明度/增强对比度，计时和小窗按钮尊重减少动态效果，停用态明确反馈；通知权限状态/授权入口前置，按实际填色选择文字颜色。编辑器通过FocusState管理输入和提交收起键盘，保存保护和被拒草稿不变。
+- 刷新边界：Dashboard和Debug编辑保护容器只持有App创建的同一Engine引用发出生命周期命令，不再订阅无展示需要的每秒广播；计时页面继续观察原Engine。不新增状态机、持久化或依赖，未改模型/Store/Engine业务规则；没有宣称测得CPU/FPS或内存提升。
+- 关键文件：`ChronoFocus/ChronoFocusApp.swift`、`ChronoFocus/Views/{AppTheme,TimerPresentation,DashboardView,TimerView,ScheduleView,AnalyticsView,SettingsView}.swift`、`ChronoFocusMac/Views/{MacTheme,MacGlassPanel,MacMiniTimerView,MacTimerDetailView}.swift`、工程接线和`ChronoFocusUITests/ChronoFocusUITests.swift`；原生证据脚本/UI workflow仅同步新增场景和10测试门禁，README/flow/readiness同步真实行为。
+- 原生验收改进：保留所有旧接受条件与120/180秒时限，把长任务/队列和运行中通知分为独立真实启动用例；每设备10测试/40具名场景。增加队列完整标签/展开高度/横向边界、统计单列几何和标题高度/数量纵向位置检查，没有以增加超时或自动重跑掩盖失败。先前失败和自动化全绿后的视觉退回仍保留在上述历史记录中。
+
+实际验证：
+
+- 本机仅静态阅读、Git/gh远端操作、原始证据阅读和`git diff --check`补丁空白审阅；没有运行本机编译、Simulator、产品测试、validator或配置校验。
+- [生产40800210911](https://github.com/Altman-sam114/114/actions/runs/40800210911)，attempt1、授权push/main、SHA`8100b1d`：`bash scripts/verify_project.sh`的结构/fixture/共享core和正式五图通过，iOS/macOS Debug generic build成功，JUnit4/0/0。实际core日志包含任务查询、循环完成身份、提醒、自动开始、计时主动作、空持久化、日历读取策略和Live Activity倒计时边界成功。
+- [独立review40800858927](https://github.com/Altman-sam114/114/actions/runs/40800858927)，attempt1：原始`review-result.json`为`validator_exit=0`、148 pass / 0 fail、`success: product acceptance passed`。正式第四模式在Actions核对完整ZIP/API/目录；生产包`12865289786`，16309433 bytes，`sha256:0e65213f62694499afde6404aa5f30524d47aad290a622792c84dd86cadf368a`，review包`12865299900`。
+- [UI/Release40800858828](https://github.com/Altman-sam114/114/actions/runs/40800858828)，attempt1：四个jobs实际成功，无必要步骤跳过。两iPhone原始summary/测试树各10 passed、0 failed、0 skipped，40具名场景；375pt总646.152秒、390pt总620.481秒，长任务/队列用例65.87/65.55秒，运行中通知47.90/40.59秒。Mac同源manifest含17布局图；375/390/Mac/Release包分别`12867196495`/`12866228980`/`12865534363`/`12866196562`。
+- Release实际命令为`bash scripts/run_release_readiness.sh`内的两端Release generic build，`CODE_SIGNING_ALLOWED=NO`，Mac arm64+x86_64、iOS主App和Live Activity arm64；真实bundle版本/架构、隐私资源、编译图标和Debug入口缺失检查通过。原始报告明确`engineeringChecksPassed=true`、`signed=false`、`distributionReady=false`。
+- 实际读图：新SHA的两设备`large-text-queue`标题恢复完整横排，数量独立在下；375pt亮色默认首屏开始/停止/跳过完整，运行中大字号倒计时/暂停、通知授权和单列统计可读；Mac亮色双列及920pt暗色单列主操作和面板清楚。原始API/报告与PNG保存在`/tmp/chronofocus-final-8100b1d-d8obblIe`和`/tmp/chronofocus-final-audit-8100b1d-us6w4ydl`；手机大包只按精确artifact读取必要原始条目，保留206响应/目录/原文件，不宣称本机完整ZIP复验。
+- 接受证据时再次核对main、源attempt、固定workflow、授权actor/triggering_actor与实际checkout均一致。工程收口提交仅更新Markdown记录并在工作台保留未完成的发行资料/实测待办，使用`[skip ci]`，不改变已验收产品源码，不额外重跑产品链；用户原有一个修改文件和两个未跟踪文档未编辑、未暂存。
+
+发行剩余项：Apple Team、正式Bundle ID/Pro商品、iOS与Mac分发渠道、公开隐私政策/支持URL仍未提供；购买/恢复/撤销、真实系统权限、锁屏/灵动岛/后台与真机恢复、签名安装/升级以及商店审核或Mac公证仍需对应资料和真实环境。本轮只交付工程验收通过的重构，不宣称可直接上架。
 
 ### 2026-10-28 / 自主迭代流程简化
 
