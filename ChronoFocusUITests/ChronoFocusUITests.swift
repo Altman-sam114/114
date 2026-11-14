@@ -67,6 +67,14 @@ final class ChronoFocusUITests: XCTestCase {
         XCTAssertLessThanOrEqual(firstTask.frame.maxY, app.tabBars.firstMatch.frame.minY)
         capture("schedule-light")
         app.tabBars.buttons["设置"].tap()
+        let duration = app.buttons["settings.duration"]
+        revealInsideViewport(duration)
+        duration.tap()
+        let focusDuration = app.steppers["专注"]
+        XCTAssertTrue(focusDuration.waitForExistence(timeout: 5), "Expanding duration settings must expose the actual controls")
+        XCTAssertEqual(focusDuration.value as? String, "25 分钟")
+        revealInsideViewport(duration)
+        duration.tap()
         revealNotificationAction()
         capture("settings-notifications-light")
         let privacy = app.descendants(matching: .any)["settings.privacy"].firstMatch
@@ -417,13 +425,12 @@ final class ChronoFocusUITests: XCTestCase {
     private func revealInsideViewport(_ element: XCUIElement) {
         reveal(element)
         let origin = app.coordinate(withNormalizedOffset: .zero)
+        let viewport = (top: app.navigationBars.firstMatch.frame.maxY + 6, bottom: app.tabBars.firstMatch.frame.minY - 6)
         for _ in 0..<12 {
-            let top = app.navigationBars.firstMatch.frame.maxY + 6
-            let bottom = app.tabBars.firstMatch.frame.minY - 6
             let frame = element.frame
-            if frame.minY >= top && frame.maxY <= bottom { break }
-            let overflow = frame.minY < top ? frame.minY - top : frame.maxY - bottom
-            scrollVertically(by: overflow, maximumStep: 160, viewport: (top, bottom), origin: origin)
+            if frame.minY >= viewport.top && frame.maxY <= viewport.bottom { break }
+            let overflow = frame.minY < viewport.top ? frame.minY - viewport.top : frame.maxY - viewport.bottom
+            scrollVertically(by: overflow, maximumStep: 160, viewport: viewport, origin: origin)
         }
         let frame = element.frame
         let appFrame = app.frame
@@ -490,15 +497,14 @@ final class ChronoFocusUITests: XCTestCase {
     private func reveal(_ element: XCUIElement) {
         XCTAssertTrue(element.waitForExistence(timeout: 5))
         let origin = app.coordinate(withNormalizedOffset: .zero)
+        let appFrame = app.frame
+        let viewport = (top: app.navigationBars.firstMatch.frame.maxY + 6, bottom: app.tabBars.firstMatch.frame.minY - 6)
         for attempt in 0..<16 {
             if element.isHittable { return }
             let frame = element.frame
-            let appFrame = app.frame
-            let top = app.navigationBars.firstMatch.frame.maxY + 6
-            let bottom = app.tabBars.firstMatch.frame.minY - 6
             let isAboveViewport = !frame.isEmpty && frame.maxY < appFrame.midY
             let distance: CGFloat = isAboveViewport || (frame.isEmpty && attempt >= 8) ? -240 : 240
-            scrollVertically(by: distance, viewport: (top, bottom), origin: origin)
+            scrollVertically(by: distance, viewport: viewport, origin: origin)
         }
         capture("unreachable-control")
         XCTFail("Control could not be reached by scrolling: \(element.identifier)")

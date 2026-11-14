@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject private var notifications: NotificationService
     @EnvironmentObject private var premium: PremiumAccessService
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var isDurationExpanded = false
 
     private var adaptiveLayout: AnyLayout {
         dynamicTypeSize.isAccessibilitySize
@@ -67,17 +68,43 @@ struct SettingsView: View {
 
     private var durationPanel: some View {
         GlassPanel {
-            VStack(alignment: .leading, spacing: 16) {
-                Label("每轮时间", systemImage: "dial.medium")
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.primaryText)
-                    .accessibilityAddTraits(.isHeader)
+            VStack(alignment: .leading, spacing: 14) {
+                Button {
+                    isDurationExpanded.toggle()
+                } label: {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Label("每轮时间", systemImage: "dial.medium")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.primaryText)
+                            Text("专注 \(store.settings.focusMinutes) 分钟 · 休息 \(store.settings.shortBreakMinutes)/\(store.settings.longBreakMinutes) 分钟")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Image(systemName: isDurationExpanded ? "chevron.up" : "chevron.down")
+                            .foregroundStyle(AppTheme.readableTint(.cyan))
+                            .accessibilityHidden(true)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("每轮时间")
+                .accessibilityValue(isDurationExpanded ? "已展开" : "已收起")
+                .accessibilityHint("展开或收起专注、休息、长休间隔和每日目标设置")
+                .accessibilityIdentifier("settings.duration")
 
-                DurationStepper(title: "专注", value: $store.settings.focusMinutes, range: 1...180, tint: .cyan)
-                DurationStepper(title: "短休", value: $store.settings.shortBreakMinutes, range: 1...60, tint: .orange)
-                DurationStepper(title: "长休", value: $store.settings.longBreakMinutes, range: 1...90, tint: .purple)
-                DurationStepper(title: "长休间隔", value: $store.settings.roundsBeforeLongBreak, range: 2...12, suffix: "轮", tint: .mint)
-                DurationStepper(title: "每日目标", value: $store.settings.dailyGoalMinutes, range: 15...720, tint: .blue)
+                if isDurationExpanded {
+                    VStack(spacing: 16) {
+                        DurationStepper(title: "专注", value: $store.settings.focusMinutes, range: 1...180, tint: .cyan)
+                        DurationStepper(title: "短休", value: $store.settings.shortBreakMinutes, range: 1...60, tint: .orange)
+                        DurationStepper(title: "长休", value: $store.settings.longBreakMinutes, range: 1...90, tint: .purple)
+                        DurationStepper(title: "长休间隔", value: $store.settings.roundsBeforeLongBreak, range: 2...12, suffix: "轮", tint: .mint)
+                        DurationStepper(title: "每日目标", value: $store.settings.dailyGoalMinutes, range: 15...720, tint: .blue)
+                    }
+                }
             }
         }
     }

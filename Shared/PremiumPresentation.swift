@@ -17,7 +17,7 @@ struct PremiumFeatureList: View {
     private func feature(_ title: String, detail: String, symbol: String, identifier: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: symbol)
-                .font(.body.weight(.semibold))
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 28, height: 28)
                 .accessibilityHidden(true)
