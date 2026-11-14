@@ -9,6 +9,8 @@ xcrun --sdk macosx swiftc \
   ChronoFocus/Services/TimerEngine.swift \
   ChronoFocus/Services/TimerPlatformServices.swift \
   Shared/SharedExtensions.swift \
+  Shared/PremiumPresentation.swift \
+  Shared/FocusHistoryChart.swift \
   Shared/CalendarReadAccess.swift \
   ChronoFocusMac/Services/MacNotificationService.swift \
   ChronoFocusMac/Services/MacLiveActivityService.swift \

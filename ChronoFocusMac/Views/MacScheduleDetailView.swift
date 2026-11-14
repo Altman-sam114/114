@@ -1325,29 +1325,7 @@ private struct MacCalendarSyncPanelView: View {
                         .font(.caption)
                         .foregroundStyle(MacTheme.secondaryText)
                 } else {
-                    HStack {
-                        if isSnapshotRendering {
-                            MacStaticScheduleActionChipView(title: "解锁 Pro 同步日历", symbolName: "lock.fill", tint: .cyan, isProminent: true, prominentForeground: Color(hex: TaskCategoryPreset.contrastTextHex(on: "#00C7FF")))
-                            MacStaticScheduleActionChipView(title: "恢复购买", symbolName: "arrow.clockwise", tint: MacTheme.secondaryText, isProminent: false)
-                        } else {
-                            Button("解锁 Pro 同步日历", systemImage: "lock.fill") {
-                                Task { await premium.purchasePro() }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.cyan)
-                            .disabled(premium.isLoading)
-
-                            Button("恢复购买", systemImage: "arrow.clockwise") {
-                                Task { await premium.restorePurchases() }
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(premium.isLoading)
-                        }
-                    }
-
-                    Text(premium.statusText)
-                        .font(.caption)
-                        .foregroundStyle(MacTheme.secondaryText)
+                    MacPremiumControlsView(identifier: "schedule.pro", purchaseTitle: "解锁 Pro 同步日历")
                 }
             }
         }

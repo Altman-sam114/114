@@ -35,6 +35,17 @@ enum MacTheme {
         })
     }
 
+    static func textOnReadableTint(_ tint: Color) -> Color {
+        let original = NSColor(tint)
+        return Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let fill = isDark ? original : (original.blended(withFraction: 0.58, of: .black) ?? original)
+            guard let rgb = fill.usingColorSpace(.sRGB) else { return .labelColor }
+            let hex = String(format: "#%02X%02X%02X", Int((rgb.redComponent * 255).rounded()), Int((rgb.greenComponent * 255).rounded()), Int((rgb.blueComponent * 255).rounded()))
+            return NSColor(Color(hex: TaskCategoryPreset.contrastTextHex(on: hex)))
+        })
+    }
+
     private static func adaptive(dark: NSColor, light: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light

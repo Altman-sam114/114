@@ -12,10 +12,6 @@ struct AnalyticsView: View {
         store.workloadAnalysis()
     }
 
-    private var maxDailySeconds: Int {
-        max(store.weekBuckets().map(\.focusSeconds).max() ?? 1, 1)
-    }
-
     private var dailyGoalProgress: Double {
         min(1, Double(store.todayFocusSeconds) / Double(max(store.settings.dailyGoalSeconds, 1)))
     }
@@ -53,8 +49,10 @@ struct AnalyticsView: View {
         }
     }
 
-    private var maxReportSeconds: Int {
-        max(reportBuckets.map(\.seconds).max() ?? 1, 1)
+    private var panelHeaderLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 12))
     }
 
     var body: some View {
@@ -77,9 +75,12 @@ struct AnalyticsView: View {
                 }
                 .padding(18)
                 .padding(.bottom, 26)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
             .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("统计分析")
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 await premium.refreshEntitlements()
             }
@@ -99,7 +100,7 @@ struct AnalyticsView: View {
     private var dailyGoalPanel: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
+                panelHeaderLayout {
                     Label("今日目标", systemImage: "target")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
@@ -113,8 +114,10 @@ struct AnalyticsView: View {
                 ProgressView(value: dailyGoalProgress)
                     .tint(.cyan)
                     .scaleEffect(x: 1, y: 1.7, anchor: .center)
+                    .accessibilityLabel("今日目标进度")
+                    .accessibilityValue("\(Int(dailyGoalProgress * 100))%")
 
-                HStack {
+                panelHeaderLayout {
                     Text(store.todayFocusSeconds.hourMinuteText)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppTheme.primaryText)
@@ -129,64 +132,21 @@ struct AnalyticsView: View {
 
     private var proPreviewPanel: some View {
         GlassPanel {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
+            VStack(alignment: .leading, spacing: 20) {
+                panelHeaderLayout {
                     Label("Pro 工作分析", systemImage: "sparkles")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Text(premium.priceText)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(AppTheme.readableTint(.cyan))
                 }
 
-                VStack(spacing: 10) {
-                    LockedInsightRow(title: "待安排轮次", value: "\(analysis.remainingRounds)", symbol: "square.stack.3d.up.fill", tint: .cyan)
-                    LockedInsightRow(title: "今日到期", value: "\(analysis.dueTodayTasks)", symbol: "calendar.badge.exclamationmark", tint: .orange)
-                    LockedInsightRow(title: "计划覆盖", value: "\(Int(analysis.planCoverage * 100))%", symbol: "chart.bar.xaxis", tint: .mint)
-                }
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(.black.opacity(0.24))
-                    VStack(spacing: 8) {
-                        Image(systemName: "lock.fill")
-                            .font(.title2)
-                            .foregroundStyle(AppTheme.readableTint(.cyan))
-                        Text("解锁 Pro 查看完整统计、工作压力和任务安排建议")
-                            .font(.caption.weight(.semibold))
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(AppTheme.primaryText)
-                            .padding(.horizontal, 18)
-                    }
-                }
-
-                HStack(spacing: 10) {
-                    Button {
-                        Task { await premium.purchasePro() }
-                    } label: {
-                        Label("解锁 Pro", systemImage: "sparkles")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.readableTint(.cyan))
-                    .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
-                    .disabled(premium.isLoading)
-
-                    Button {
-                        Task { await premium.restorePurchases() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .frame(width: 44, height: 34)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(AppTheme.readableTint(.mint))
-                    .disabled(premium.isLoading)
-                    .accessibilityLabel("恢复购买")
-                }
-
-                Text(premium.statusText)
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.secondaryText)
+                PremiumFeatureList(primaryText: AppTheme.primaryText, secondaryText: AppTheme.secondaryText, tint: AppTheme.readableTint(.cyan))
+                Divider().overlay(AppTheme.border)
+                PremiumControlsView(identifier: "analytics.pro")
             }
         }
     }
@@ -194,7 +154,7 @@ struct AnalyticsView: View {
     private var workloadPanel: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
+                panelHeaderLayout {
                     Label("工作任务安排", systemImage: "brain.head.profile")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
@@ -207,14 +167,14 @@ struct AnalyticsView: View {
                         .background(pressureTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
 
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2), spacing: 10) {
                     AnalysisTile(title: "待办任务", value: "\(analysis.pendingTasks)", symbol: "checklist.unchecked", tint: .cyan)
                     AnalysisTile(title: "剩余轮次", value: "\(analysis.remainingRounds)", symbol: "timer", tint: .mint)
                     AnalysisTile(title: "今日到期", value: "\(analysis.dueTodayTasks)", symbol: "calendar.badge.clock", tint: .orange)
                     AnalysisTile(title: "已逾期", value: "\(analysis.overdueTasks)", symbol: "exclamationmark.triangle.fill", tint: .red)
                 }
 
-                HStack {
+                panelHeaderLayout {
                     Text("预估专注")
                         .font(.caption)
                         .foregroundStyle(AppTheme.secondaryText)
@@ -235,7 +195,7 @@ struct AnalyticsView: View {
     private var reportPanel: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 16) {
-                HStack {
+                panelHeaderLayout {
                     VStack(alignment: .leading, spacing: 5) {
                         Label("工作复盘报表", systemImage: "chart.xyaxis.line")
                             .font(.headline)
@@ -251,31 +211,14 @@ struct AnalyticsView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 150)
+                    .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 150)
                 }
 
-                HStack(alignment: .bottom, spacing: 10) {
-                    ForEach(reportBuckets) { bucket in
-                        VStack(spacing: 8) {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.cyan, .blue],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                                .frame(height: max(10, CGFloat(bucket.seconds) / CGFloat(maxReportSeconds) * 136))
-                            Text(bucket.label)
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(AppTheme.secondaryText)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-                .frame(minHeight: 168, alignment: .bottom)
+                FocusHistoryChart(
+                    points: reportBuckets.map { FocusHistoryPoint(id: $0.id, label: $0.label, seconds: $0.seconds) },
+                    tint: AppTheme.readableTint(.cyan), primaryText: AppTheme.primaryText,
+                    secondaryText: AppTheme.secondaryText, track: AppTheme.border
+                )
 
                 VStack(alignment: .leading, spacing: 10) {
                     Label("日程计划回顾", systemImage: "list.bullet.rectangle.portrait")
@@ -329,7 +272,7 @@ struct AnalyticsView: View {
     private var planCoveragePanel: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
+                panelHeaderLayout {
                     Label("番茄钟计划覆盖", systemImage: "chart.bar.doc.horizontal")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
@@ -342,8 +285,10 @@ struct AnalyticsView: View {
                 ProgressView(value: analysis.planCoverage)
                     .tint(.mint)
                     .scaleEffect(x: 1, y: 1.7, anchor: .center)
+                    .accessibilityLabel("番茄钟计划覆盖")
+                    .accessibilityValue("\(Int(analysis.planCoverage * 100))%")
 
-                HStack {
+                panelHeaderLayout {
                     Text("已计划 \(analysis.plannedRounds) 轮")
                     Spacer()
                     Text("计划专注 \(analysis.plannedFocusSeconds.hourMinuteText)")
@@ -361,38 +306,11 @@ struct AnalyticsView: View {
                     .font(.headline)
                     .foregroundStyle(AppTheme.primaryText)
 
-                HStack(alignment: .bottom, spacing: 10) {
-                    ForEach(store.weekBuckets()) { bucket in
-                        VStack(spacing: 8) {
-                            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.cyan, .mint],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                                .frame(height: max(8, CGFloat(bucket.focusSeconds) / CGFloat(maxDailySeconds) * 130))
-                                .overlay(alignment: .top) {
-                                    if bucket.focusSeconds > 0 {
-                                        Text(bucket.focusSeconds.hourMinuteText)
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundStyle(.black.opacity(0.75))
-                                            .padding(.top, 4)
-                                            .minimumScaleFactor(0.65)
-                                    }
-                                }
-
-                            Text(bucket.weekdayLabel)
-                                .font(.caption2)
-                                .foregroundStyle(AppTheme.secondaryText)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-                .frame(minHeight: 170, alignment: .bottom)
+                FocusHistoryChart(
+                    points: store.weekBuckets().map { FocusHistoryPoint(id: $0.date.ISO8601Format(), label: $0.weekdayLabel, seconds: $0.focusSeconds) },
+                    tint: AppTheme.readableTint(.cyan), primaryText: AppTheme.primaryText,
+                    secondaryText: AppTheme.secondaryText, track: AppTheme.border
+                )
             }
         }
     }
@@ -427,7 +345,7 @@ struct AnalyticsView: View {
                     ForEach(Array(store.categoryBreakdown().enumerated()), id: \.element.id) { index, item in
                         let rank = index + 1
                         VStack(alignment: .leading, spacing: 7) {
-                            HStack {
+                            panelHeaderLayout {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Label(item.category, systemImage: "circle.fill")
                                         .foregroundStyle(AppTheme.readableTint(Color(hex: store.representativeAccentHex(for: item.category))))
@@ -527,20 +445,20 @@ struct AnalyticsView: View {
                         .foregroundStyle(AppTheme.secondaryText)
                 } else {
                     ForEach(store.sessions.prefix(8)) { session in
-                        HStack {
+                        HStack(alignment: .top) {
                             Image(systemName: session.completed ? "checkmark.seal.fill" : "exclamationmark.circle")
                                 .foregroundStyle(AppTheme.readableTint(session.completed ? .mint : .orange))
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(session.taskTitle)
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(AppTheme.primaryText)
-                                    .lineLimit(1)
-                                HStack(spacing: 6) {
+                                    .fixedSize(horizontal: false, vertical: true)
+                                panelHeaderLayout {
                                     RecentSessionCategoryBadge(category: session.category)
                                     Text("\(session.mode.title) · \(session.startedAt.scheduleTimeText)")
                                         .font(.caption)
                                         .foregroundStyle(AppTheme.secondaryText)
-                                        .lineLimit(1)
+                                        .fixedSize(horizontal: false, vertical: true)
                                 }
                             }
                             Spacer()
@@ -657,42 +575,17 @@ private struct AnalysisTile: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .font(.system(.title3, design: .rounded).bold())
                     .foregroundStyle(AppTheme.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(title)
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(AppTheme.secondaryText)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
         .padding(10)
-        .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-    }
-}
-
-private struct LockedInsightRow: View {
-    let title: String
-    let value: String
-    let symbol: String
-    let tint: Color
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: symbol)
-                .foregroundStyle(AppTheme.readableTint(tint))
-                .frame(width: 28, height: 28)
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppTheme.primaryText)
-            Spacer()
-            Text(value)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(AppTheme.readableTint(tint))
-        }
-        .padding(12)
         .background(AppTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }

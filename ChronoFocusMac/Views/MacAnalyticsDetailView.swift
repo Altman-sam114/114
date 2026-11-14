@@ -15,10 +15,6 @@ struct MacAnalyticsDetailView: View {
         min(1, Double(store.todayFocusSeconds) / Double(max(store.settings.dailyGoalSeconds, 1)))
     }
 
-    private var maxDailySeconds: Int {
-        max(store.weekBuckets().map(\.focusSeconds).max() ?? 1, 1)
-    }
-
     private var reportBuckets: [MacReportBucket] {
         let now = Date()
         switch reportRange {
@@ -52,10 +48,6 @@ struct MacAnalyticsDetailView: View {
         }
     }
 
-    private var maxReportSeconds: Int {
-        max(reportBuckets.map(\.seconds).max() ?? 1, 1)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             MacPageHeaderView(
@@ -70,20 +62,19 @@ struct MacAnalyticsDetailView: View {
             if premium.isProUnlocked {
                 MacReportPanelView(
                     reportRange: $reportRange,
-                    reportBuckets: reportBuckets,
-                    maxReportSeconds: maxReportSeconds
+                    reportBuckets: reportBuckets
                 )
-                HStack(alignment: .top, spacing: 18) {
+                MacAdaptiveColumns {
                     MacWorkloadPanelView(analysis: analysis)
                     MacPlanCoveragePanelView(analysis: analysis)
                 }
-                HStack(alignment: .top, spacing: 18) {
-                    MacWeeklyChartPanelView(maxDailySeconds: maxDailySeconds)
+                MacAdaptiveColumns {
+                    MacWeeklyChartPanelView()
                     MacCategoryChartPanelView()
                 }
                 MacRecentSessionsPanelView()
             } else {
-                MacProPreviewPanelView(analysis: analysis)
+                MacProPreviewPanelView()
             }
         }
         .padding(24)
@@ -150,88 +141,26 @@ private struct MacDailyGoalPanelView: View {
 
 private struct MacProPreviewPanelView: View {
     @EnvironmentObject private var premium: MacPremiumAccessService
-    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
-
-    let analysis: WorkloadAnalysis
 
     var body: some View {
         MacGlassPanel {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 20) {
                 HStack {
                     Label("Pro 工作分析", systemImage: "sparkles")
                         .font(.headline)
                         .foregroundStyle(MacTheme.primaryText)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Text(premium.priceText)
                         .font(.caption.bold())
                         .foregroundStyle(MacTheme.readableTint(.cyan))
                 }
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
-                    MacLockedInsightView(title: "待安排轮次", value: "\(analysis.remainingRounds)", symbol: "square.stack.3d.up.fill", tint: .cyan)
-                    MacLockedInsightView(title: "今日到期", value: "\(analysis.dueTodayTasks)", symbol: "calendar.badge.exclamationmark", tint: .orange)
-                    MacLockedInsightView(title: "计划覆盖", value: "\(Int(analysis.planCoverage * 100))%", symbol: "chart.bar.xaxis", tint: .mint)
-                }
-
-                HStack(spacing: 10) {
-                    if isSnapshotRendering {
-                        MacStaticAnalyticsActionChipView(
-                            title: "解锁 Pro",
-                            symbolName: "sparkles",
-                            tint: .cyan,
-                            isProminent: true,
-                            prominentForeground: Color(hex: TaskCategoryPreset.contrastTextHex(on: "#00C7FF"))
-                        )
-                        MacStaticAnalyticsActionChipView(
-                            title: "恢复购买",
-                            symbolName: "arrow.clockwise",
-                            tint: MacTheme.secondaryText,
-                            isProminent: false,
-                            prominentForeground: MacTheme.primaryText
-                        )
-                    } else {
-                        Button("解锁 Pro", systemImage: "sparkles") {
-                            Task { await premium.purchasePro() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.cyan)
-                        .disabled(premium.isLoading)
-
-                        Button("恢复购买", systemImage: "arrow.clockwise") {
-                            Task { await premium.restorePurchases() }
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(premium.isLoading)
-                    }
-                }
-
-                Text(premium.statusText)
-                    .font(.caption)
-                    .foregroundStyle(MacTheme.secondaryText)
+                PremiumFeatureList(primaryText: MacTheme.primaryText, secondaryText: MacTheme.secondaryText, tint: MacTheme.readableTint(.cyan))
+                Divider().overlay(MacTheme.border)
+                MacPremiumControlsView(identifier: "analytics.pro")
             }
         }
-    }
-}
-
-private struct MacStaticAnalyticsActionChipView: View {
-    let title: String
-    let symbolName: String
-    let tint: Color
-    let isProminent: Bool
-    let prominentForeground: Color
-
-    var body: some View {
-        Label(title, systemImage: symbolName)
-            .font(.subheadline.bold())
-            .foregroundStyle(isProminent ? prominentForeground : MacTheme.readableTint(tint))
-            .frame(minHeight: 44)
-            .padding(.horizontal, 10)
-            .background(isProminent ? tint : MacTheme.inset, in: Capsule())
-            .overlay {
-                Capsule()
-                    .stroke(isProminent ? tint.opacity(0.9) : MacTheme.border, lineWidth: 1)
-            }
-            .accessibilityLabel(title)
     }
 }
 
@@ -240,7 +169,6 @@ private struct MacReportPanelView: View {
 
     @Binding var reportRange: ReportRange
     let reportBuckets: [MacReportBucket]
-    let maxReportSeconds: Int
 
     var body: some View {
         MacGlassPanel {
@@ -272,23 +200,11 @@ private struct MacReportPanelView: View {
                     }
                 }
 
-                HStack(alignment: .bottom, spacing: 10) {
-                    ForEach(reportBuckets) { bucket in
-                        VStack(spacing: 8) {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(LinearGradient(colors: [.cyan, .blue], startPoint: .top, endPoint: .bottom))
-                                .frame(height: max(10, CGFloat(bucket.seconds) / CGFloat(maxReportSeconds) * 150))
-                            Text(bucket.label)
-                                .font(.caption)
-                                .foregroundStyle(MacTheme.secondaryText)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-                .frame(minHeight: 188)
+                FocusHistoryChart(
+                    points: reportBuckets.map { FocusHistoryPoint(id: $0.id, label: $0.label, seconds: $0.seconds) },
+                    tint: MacTheme.readableTint(.cyan), primaryText: MacTheme.primaryText,
+                    secondaryText: MacTheme.secondaryText, track: MacTheme.track
+                )
             }
         }
     }
@@ -371,14 +287,11 @@ private struct MacPlanCoveragePanelView: View {
                 .foregroundStyle(MacTheme.secondaryText)
             }
         }
-        .frame(maxWidth: 360)
     }
 }
 
 private struct MacWeeklyChartPanelView: View {
     @EnvironmentObject private var store: FocusStore
-
-    let maxDailySeconds: Int
 
     var body: some View {
         MacGlassPanel {
@@ -387,33 +300,11 @@ private struct MacWeeklyChartPanelView: View {
                     .font(.headline)
                     .foregroundStyle(MacTheme.primaryText)
 
-                HStack(alignment: .bottom, spacing: 10) {
-                    ForEach(store.weekBuckets()) { bucket in
-                        VStack(spacing: 8) {
-                            RoundedRectangle(cornerRadius: 5)
-                                .fill(LinearGradient(colors: [.cyan, .mint], startPoint: .top, endPoint: .bottom))
-                                .frame(height: max(8, CGFloat(bucket.focusSeconds) / CGFloat(maxDailySeconds) * 140))
-                                .overlay(alignment: .top) {
-                                    if bucket.focusSeconds > 0 {
-                                        Text(bucket.focusSeconds.hourMinuteText)
-                                            .font(.caption2.bold())
-                                            .foregroundStyle(Color(hex: TaskCategoryPreset.contrastTextHex(on: "#00C7FF")))
-                                            .padding(.top, 4)
-                                            .minimumScaleFactor(0.65)
-                                    }
-                                }
-
-                            Text(bucket.weekdayLabel)
-                                .font(.caption)
-                                .foregroundStyle(MacTheme.secondaryText)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-                .frame(minHeight: 178)
+                FocusHistoryChart(
+                    points: store.weekBuckets().map { FocusHistoryPoint(id: $0.date.ISO8601Format(), label: $0.weekdayLabel, seconds: $0.focusSeconds) },
+                    tint: MacTheme.readableTint(.cyan), primaryText: MacTheme.primaryText,
+                    secondaryText: MacTheme.secondaryText, track: MacTheme.track
+                )
             }
         }
     }
@@ -498,7 +389,6 @@ private struct MacCategoryChartPanelView: View {
                 }
             }
         }
-        .frame(maxWidth: 360)
     }
 
     private func categorySharePercent(for seconds: Int) -> Int {
@@ -662,30 +552,6 @@ private struct MacAnalysisTileView: View {
             Spacer(minLength: 0)
         }
         .padding(10)
-        .background(MacTheme.panel, in: RoundedRectangle(cornerRadius: 8))
-    }
-}
-
-private struct MacLockedInsightView: View {
-    let title: String
-    let value: String
-    let symbol: String
-    let tint: Color
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: symbol)
-                .foregroundStyle(MacTheme.readableTint(tint))
-                .frame(width: 28, height: 28)
-            Text(title)
-                .font(.subheadline.bold())
-                .foregroundStyle(MacTheme.primaryText)
-            Spacer()
-            Text(value)
-                .font(.caption.bold())
-                .foregroundStyle(MacTheme.readableTint(tint))
-        }
-        .padding(12)
         .background(MacTheme.panel, in: RoundedRectangle(cornerRadius: 8))
     }
 }

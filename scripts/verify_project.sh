@@ -2145,7 +2145,7 @@ grep -q "MacAnalyticsDetailView" ChronoFocusMac/Views/MacAnalyticsDetailView.swi
 grep -q "MacStaticTimerActionRowView" ChronoFocusMac/Views/MacTimerDetailView.swift
 grep -q "MacStaticScheduleActionChipView" ChronoFocusMac/Views/MacScheduleDetailView.swift
 grep -q "MacStaticTaskEnablePillView" ChronoFocusMac/Views/MacScheduleDetailView.swift
-grep -q "MacStaticAnalyticsActionChipView" ChronoFocusMac/Views/MacAnalyticsDetailView.swift
+grep -q 'MacPremiumControlsView(identifier: "analytics.pro")' ChronoFocusMac/Views/MacAnalyticsDetailView.swift
 grep -q "MacStaticSettingsActionChipView" ChronoFocusMac/Views/MacSettingsDetailView.swift
 grep -q "SelectedCategorySummaryView" ChronoFocus/Views/ScheduleView.swift
 grep -q "MacSelectedCategorySummaryView" ChronoFocusMac/Views/MacScheduleDetailView.swift
@@ -6669,6 +6669,8 @@ xcrun --sdk macosx swiftc \
   ChronoFocus/Services/FocusStore.swift \
   ChronoFocus/Services/TimerEngine.swift \
   ChronoFocus/Services/TimerPlatformServices.swift \
+  ChronoFocus/Services/PremiumAccessService.swift \
+  ChronoFocusMac/Services/MacPremiumAccessService.swift \
   Shared/SharedExtensions.swift \
   Shared/CalendarReadAccess.swift \
   scripts/test_mac_core.swift \

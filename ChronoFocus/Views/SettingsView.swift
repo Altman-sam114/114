@@ -5,11 +5,19 @@ struct SettingsView: View {
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var notifications: NotificationService
     @EnvironmentObject private var premium: PremiumAccessService
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var adaptiveLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(spacing: 10))
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
+                    appearancePanel
                     durationPanel
                     systemPanel
                     automationPanel
@@ -19,9 +27,12 @@ struct SettingsView: View {
                 }
                 .padding(18)
                 .padding(.bottom, 26)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
             .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("设置")
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 await notifications.refreshAuthorizationStatus()
                 await premium.refreshEntitlements()
@@ -32,6 +43,24 @@ struct SettingsView: View {
             }
             .onChange(of: store.settings.completionSound) { _, _ in
                 enforceCompletionSoundAccess()
+            }
+        }
+    }
+
+    private var appearancePanel: some View {
+        GlassPanel {
+            VStack(alignment: .leading, spacing: 14) {
+                Label("外观", systemImage: "circle.lefthalf.filled")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.primaryText)
+                    .accessibilityAddTraits(.isHeader)
+                Picker("主题", selection: $store.settings.appThemeMode) {
+                    ForEach(AppThemeMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("settings.appearance")
             }
         }
     }
@@ -134,7 +163,7 @@ struct SettingsView: View {
     private var soundPanel: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
+                adaptiveLayout {
                     Label("铃声与音色", systemImage: "music.note")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
@@ -143,57 +172,43 @@ struct SettingsView: View {
                     Text(premium.isProUnlocked ? "已解锁" : "Pro")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(AppTheme.readableTint(premium.isProUnlocked ? .mint : .cyan))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background((premium.isProUnlocked ? Color.mint : Color.cyan).opacity(0.12), in: Capsule())
                 }
 
-                Picker("音色", selection: $store.settings.completionSound) {
-                    ForEach(CompletionSound.allCases) { sound in
-                        Text(sound.title).tag(sound)
-                    }
+                if dynamicTypeSize.isAccessibilitySize {
+                    soundPicker.pickerStyle(.menu)
+                } else {
+                    soundPicker.pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
-                .disabled(!premium.isProUnlocked)
 
-                Text(premium.isProUnlocked ? "到点提示和试听会使用当前音色。" : "默认音色可直接使用，更多音色随 Pro 解锁。")
+                Text(premium.isProUnlocked ? "到点提示和试听会使用当前音色。" : "默认音色可直接使用，更多音色可在下方 Pro 统计中解锁。")
                     .font(.caption)
                     .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                HStack(spacing: 10) {
-                    Button {
-                        previewCompletionSound()
-                    } label: {
-                        Label("试听", systemImage: "speaker.wave.2.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(AppTheme.readableTint(.cyan))
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .disabled(!premium.isProUnlocked && store.settings.completionSound.isPro)
-
-                    if !premium.isProUnlocked {
-                        Button {
-                            Task { await premium.purchasePro() }
-                        } label: {
-                            Label("解锁 Pro", systemImage: "sparkles")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.readableTint(.cyan))
-                        .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
+                Button(action: previewCompletionSound) {
+                    Label("试听", systemImage: "speaker.wave.2.fill")
                         .frame(maxWidth: .infinity, minHeight: 44)
-                        .disabled(premium.isLoading)
-                    }
                 }
+                .buttonStyle(.bordered)
+                .tint(AppTheme.readableTint(.cyan))
+                .disabled(!premium.isProUnlocked && store.settings.completionSound.isPro)
             }
         }
+    }
+
+    private var soundPicker: some View {
+        Picker("音色", selection: $store.settings.completionSound) {
+            ForEach(CompletionSound.allCases) { sound in
+                Text(sound.title).tag(sound)
+            }
+        }
+        .disabled(!premium.isProUnlocked)
     }
 
     private var premiumPanel: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
+                adaptiveLayout {
                     Label("Pro 统计", systemImage: premium.isProUnlocked ? "checkmark.seal.fill" : "lock.fill")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
@@ -204,36 +219,13 @@ struct SettingsView: View {
                         .foregroundStyle(AppTheme.readableTint(premium.isProUnlocked ? .mint : .cyan))
                 }
 
-                Text(premium.statusText)
+                Text("完整报表、分类投入、系统日历同步和更多音色。")
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                HStack(spacing: 10) {
-                    Button {
-                        Task { await premium.purchasePro() }
-                    } label: {
-                        Label(premium.isProUnlocked ? "已解锁" : "解锁", systemImage: "sparkles")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.readableTint(.cyan))
-                    .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .disabled(premium.isLoading || premium.isProUnlocked)
-
-                    Button {
-                        Task { await premium.restorePurchases() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .frame(width: 44, height: 34)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(AppTheme.readableTint(.mint))
-                    .disabled(premium.isLoading)
-                    .frame(width: 44, height: 44)
-                    .accessibilityLabel("恢复购买")
-                }
+                PremiumControlsView(identifier: "settings.pro")
             }
         }
     }
@@ -331,6 +323,7 @@ private struct NotificationAuthorizationCard: View {
 }
 
 private struct DurationStepper: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
     @Binding var value: Int
     let range: ClosedRange<Int>
@@ -338,7 +331,10 @@ private struct DurationStepper: View {
     let tint: Color
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 12))
+        layout {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))

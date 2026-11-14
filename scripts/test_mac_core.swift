@@ -1,4 +1,5 @@
 import Foundation
+import StoreKit
 
 @main
 struct MacCoreTests {
@@ -8,6 +9,14 @@ struct MacCoreTests {
 
     @MainActor
     private static func runCoreTests() async {
+        await verifyPremiumOperationSerialization { probe in
+            PremiumAccessService(loadProductsOnInit: false, productLoader: probe.load)
+        }
+        await verifyPremiumOperationSerialization { probe in
+            MacPremiumAccessService(loadProductsOnInit: false, productLoader: probe.load)
+        }
+        print("Premium operations serialized across product loading, purchase preparation and retry on both platforms.")
+
         let suiteName = "ChronoFocusMacCoreTests-\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: suiteName) else {
             fail("Could not create isolated UserDefaults suite")
@@ -990,6 +999,42 @@ struct MacCoreTests {
     }
 
     @MainActor
+    private static func verifyPremiumOperationSerialization<Service: PremiumOperationTesting>(
+        makeService: (PremiumProductProbe) -> Service
+    ) async {
+        let probe = PremiumProductProbe()
+        let service = makeService(probe)
+        let loading = Task { await service.loadProducts() }
+        await waitForCondition("Product loading did not start") { probe.callCount == 1 }
+        assert(service.isLoading && service.activityText != nil, "Product loading must publish one busy state")
+        let activity = service.activityText
+        await service.purchasePro()
+        await service.restorePurchases()
+        await service.loadProducts()
+        assert(probe.callCount == 1 && service.activityText == activity, "Concurrent actions must not clear or replace an in-flight operation")
+        probe.complete(.success([]))
+        await loading.value
+        assert(!service.isLoading && service.activityText == nil, "Product loading must release the operation")
+        assert(!service.isProUnlocked, "Missing products must not grant an entitlement")
+
+        let purchase = Task { await service.purchasePro() }
+        await waitForCondition("Purchase preparation did not retry loading") { probe.callCount == 2 }
+        await service.purchasePro()
+        await service.restorePurchases()
+        await service.loadProducts()
+        assert(probe.callCount == 2 && service.isLoading, "Purchase preparation must retain exclusive ownership while awaiting products")
+        probe.complete(.failure(PremiumProbeError.unavailable))
+        await purchase.value
+        assert(!service.isLoading && !service.isProUnlocked, "A failed preparation must reset busy state without unlocking")
+
+        let retry = Task { await service.loadProducts() }
+        await waitForCondition("Loading should be retryable after failure") { probe.callCount == 3 }
+        probe.complete(.success([]))
+        await retry.value
+        assert(!service.isLoading && !service.statusText.isEmpty, "Retry must finish with readable feedback")
+    }
+
+    @MainActor
     private static func waitForCondition(_ message: String, condition: () -> Bool) async {
         // Let queued store observers run; never drive reconciliation from the test.
         for _ in 0..<100 {
@@ -1006,6 +1051,39 @@ struct MacCoreTests {
     private static func fail(_ message: String) -> Never {
         fputs("Test failed: \(message)\n", stderr)
         Foundation.exit(1)
+    }
+}
+
+@MainActor
+private protocol PremiumOperationTesting: AnyObject {
+    var isLoading: Bool { get }
+    var activityText: String? { get }
+    var statusText: String { get }
+    var isProUnlocked: Bool { get }
+    func loadProducts() async
+    func purchasePro() async
+    func restorePurchases() async
+}
+
+extension PremiumAccessService: PremiumOperationTesting {}
+extension MacPremiumAccessService: PremiumOperationTesting {}
+
+private enum PremiumProbeError: Error { case unavailable }
+
+@MainActor
+private final class PremiumProductProbe {
+    private(set) var callCount = 0
+    private var continuation: CheckedContinuation<[Product], Error>?
+
+    func load() async throws -> [Product] {
+        callCount += 1
+        return try await withCheckedThrowingContinuation { continuation = $0 }
+    }
+
+    func complete(_ result: Result<[Product], Error>) {
+        let pending = continuation
+        continuation = nil
+        pending?.resume(with: result)
     }
 }
 

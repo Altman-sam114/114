@@ -1,45 +1,43 @@
 # 当前任务
 
-## 目标与当前状态
+## 目标、范围和当前状态
 
-- 2026-10-29：接续“继续全面重构优化，特别是UI，云端编译，做到发布级”的同一目标；本轮UI与工程阶段已验收，长期改造/失败诊断/最终证据已移入`update_log.md`的“发布导向 UI 与展示层重构收口”。
-- 当前：工程阶段完成，正式发行仍缺资料和真实环境；同一发行资料阻塞已连续确认3个goal回合，`update_goal(status=blocked)`已成功，完整发布目标未标记完成。保留工作台，待用户补充资料，不继续空转或写“当前无进行中的任务”。
-- 验收边界：工程通过不等于签名安装、真实购买、系统权限、真机后台或正式上架通过；不能擅选Apple Team、商品或发行渠道。
-- 继续遵守：Engine为唯一计时入口，Store为唯一仓库，不新增依赖/散落持久化；不启动子智能体，不运行本机编译/测试/validator/配置校验。删除默认trash。
+- 2026-11-14：用户重新启动“继续全面重构优化，特别是 UI，云端编译，快速做到发布级”。接续同一目标，上一轮工程验收见 update_log.md；旧产品 SHA 8100b1d 的结果仅作历史。本轮正在实现新的可独立验收的 UI 和交互改进。
+- 重点：统一两端 Pro 的购买/恢复/状态反馈；移除 iOS 统计预览遮罩，改为清晰的功能介绍；修复统计/设置/日程相关大字号与窄窗布局；改进统计图的零值和可访问表达；收窄与本轮直接相关的复杂视图结构。
+- 非目标：不改变 TimerEngine/FocusStore 所有权、不新增持久化和第三方依赖，不替用户选择正式身份或发行渠道，不启动子智能体，不运行任何本机编译/测试/validator/配置校验。
+- 验收：本轮精确源码 SHA 的云端两端 Debug、共享 core、独立正式第四模式 review、两设备原生相关场景、Mac 新旧布局和 Release 工程检查均通过；实际读取受影响原图，不能只凭 build 或元素存在。
 
-## Git与已有改动边界
+## Git 和改动边界
 
-- 分支`main`，原始基线`88f2ea7`，已推送产品提交`6a4181c`、`3f3bc56`、`80fac05`、`bc3a0d3`、最终`8100b1db20e19c25e7c6cd1a66d6d35380c470da`。
-- 已再次执行`git fetch origin`、`git pull --ff-only origin main`，接受工程证据前main/实际checkout均为`8100b1d`，本地远端0/0；`gh api user --jq .login`为授权账号`Altman-sam114`，远端`https://github.com/Altman-sam114/114.git`。
-- 用户已有修改`md/prompt/v1（持续优化）/v1.10（待办检索与安全管理）.md`；未跟踪`md/1.md`、`md/通用云端迭代升级提示词.md`。均未编辑、未暂存，后续继续保留。
-- 当前工程记录只编辑`update_log.md`和`work.md`，按纯Markdown提交`[skip ci]`推送，实际提交/同步状态以Git和远端为准；不改变产品/测试/配置，不为补写文档SHA重跑产品链。
-- 工程记录已提交并推送`fad1c1fc56e9681c4d74d491bbaabfa9eb55ee48`；本次仅将第2/3回合的阻塞审计写入work，以纯Markdown`[skip ci]`保存最终阻塞接续，不改产品、不重跑CI，不为文档自身提交号再造提交。
+- main，基线 c99d2c0；已 git fetch origin、git pull --ff-only origin main，0/0，授权账号 Altman-sam114，origin https://github.com/Altman-sam114/114.git。
+- 用户已有修改 md/prompt/v1（持续优化）/v1.10（待办检索与安全管理）.md；未跟踪 md/1.md、md/通用云端迭代升级提示词.md。全部保留，不编辑、不暂存。
+- 本轮编辑记录：work.md、Shared/PremiumPresentation.swift、Shared/FocusHistoryChart.swift、project.pbxproj；已修改 iOS AppTheme/Analytics/Settings/Schedule、对应 Mac Analytics/Settings/Schedule/基础展示组件，以及与新场景直接相关的 UITests、renderer、证据合同和受影响文档。两端 PremiumAccessService 已修复嵌套加载提前释放忙碌状态，注入 productLoader 用于实际两端服务的并发/失败重试回归；scripts/test_mac_core.swift 与 verify_project.sh 加入该回归。
+- 未提交、未推送本轮改动；不新建分支、PR 或 worktree。
 
-## 计划
+## 分步计划
 
-1. [完成] 两端主题/面板/计时展示组件重构、长文本/辅助字号/小屏主操作适配。
-2. [完成] 收窄根导航Engine订阅、通知入口前置和键盘焦点改进，保持业务状态机/持久化边界。
-3. [完成] 修复真实云端失败和读图退回，完成精确最终SHA的生产、独立review、UI与Release工程检查。
-4. [完成] 读取375/390原始summary/测试树/同源manifest及关键原PNG，确认标题修复、默认主操作、通知和统计；Mac亮暗/窄窗原图复核。
-5. [阻塞] 工程结论已整理，保留发行待办并向用户明确剩余资料；得到资料/环境后才能恢复目标并继续正式发行验收。
+1. [完成] 核对基线、既有改动、源码和云端入口；识别重复购买入口、iOS 预览遮罩、统计窄列/大字号拥挤和零值柱形问题。
+2. [完成] 实现可复用购买反馈与介绍组件，修复对应布局与统计表达，保持业务与快照语义一致。
+3. [进行中] 补直接 UI 证据和原有场景回归；同步受影响 README/flow/test/readiness，静态检查本轮 diff 与提交范围。
+4. [待办] main 提交推送，跟进同源生产/review/UI/Release；若失败先读真实日志追加修复，不自动重跑掩盖。
+5. [待办] 读取原始结果与关键原图，记录实际证据和发行边界，提交文档收口。
 
-## 验证选择与已完成证据
+## 验证选择
 
-- baseline：本轮diff、路径/架构静态审阅和`git diff --check`通过（仅空白检查）；云端共享core、iOS/macOS Debug generic build与生产结果包通过。
-- direct：开始/暂停/继续/停止、375/390pt主操作、长任务/分类、亮暗/辅助字号、通知授权、队列标题和统计单列；两设备各10 passed / 0 failed / 0 skipped、40具名场景。Mac同源17布局图，实际读亮色双列和920pt暗色单列。
-- optional：本轮双平台发布导向目标采用现有完整入口，未臆造裁剪开关。Release两端构建及真实资源检查通过；未做失败注入或本机复跑。
-- 产品SHA：`8100b1db20e19c25e7c6cd1a66d6d35380c470da`；生产`40800210911/1`success（6m24s），独立review`40800858927/1`success（正式第四模式148/0、exit0、product acceptance passed，JUnit4/0/0），UI/Release`40800858828/1`四个jobs success且必要步骤未跳过。
-- 实际云端命令：`bash scripts/verify_project.sh`、两个Debug generic `xcodebuild`、原生UI分阶段脚本、`bash scripts/run_release_readiness.sh`；完整命令/原始报告见artifact与更新日志，不在本机运行。
-- 生产artifact`12865289786`，16309433 bytes，`sha256:0e65213f62694499afde6404aa5f30524d47aad290a622792c84dd86cadf368a`；review`12865299900`；375/390/Mac/Release为`12867196495`/`12866228980`/`12865534363`/`12866196562`。
-- 两手机原生总耗时375为646.152秒、390为620.481秒；长任务/标题65.87/65.55秒、通知47.90/40.59秒，原120/180秒时限未增加，失败未自动重跑。
-- Release报告`engineeringChecksPassed=true`、`signed=false`、`distributionReady=false`；Mac arm64+x86_64，iOS/Live Activity arm64；真实bundle身份/版本/隐私/编译图标及Debug入口缺失检查通过。
-- 原始证据目录：`/tmp/chronofocus-final-8100b1d-d8obblIe`（review、Release、Mac原图）；`/tmp/chronofocus-final-audit-8100b1d-us6w4ydl`（新鲜来源API、两设备summary/tests/manifest和各5张关键原PNG）。仅读精确artifact必要原始条目，保留206响应/目录/原文件，不将部分读取冒充本机完整ZIP验收；完整包正式第四模式由Actions完成。
-- 接受前main/源attempt/固定workflow/授权actor与triggering_actor/实际checkout已复核同源。后续若改产品或配置，必须以新SHA重新选择/执行相关云端验证，不能沿用本次结果。
+- baseline：静态阅读、路径/架构/diff 审阅、git diff --check（仅空白检查）；云端两端 Debug 与共享 core，保持正式包的独立第四模式安全链。
+- direct：两端 Pro 未解锁的功能介绍、购买/恢复文字和状态可读性；iPhone 375/390pt 与 accessibility5 下按钮至少44pt、布局/边界/可达性；Mac 920pt窄窗与亮暗预览/统计；已有计时和任务行为必要回归。
+- optional：用户明确要求全面发布导向优化且本轮涉及两端公共面板、统计/设置/日程，因此采用仓库现有固定完整入口，包含 Release。没有臆造 profile/场景参数；不做无关失败注入或本机复跑。
+- 入口：main push 触发 ci-results.yml，成功后 ci-artifact-review.yml 和 ui-evidence.yml；云端实际命令/新 SHA/run/attempt/artifact 待执行后记录。
 
-## 阻塞、未执行项和下一步
+## 风险、未执行与下一步
 
-- 接续审计（2026-10-29，第2回合）：上一回合完成新SHA原图取证及记录提交/推送，分类为progress；本回合重新读取工程配置、两端Pro服务和原始Release报告，确认所有产品Team仍为空、Bundle/商品仍为`com.example`、`signed=false`且`distributionReady=false`。`git fetch origin`和`git pull --ff-only origin main`无更新，授权账号仍正确；`gh run view 40800858828`明确completed/success，没有正在运行的云端任务可等待。当前缺失与上一回合相同，尚无用户补充资料；这次复核不算新的产品进展，不能以再跑CI或修改占位身份绕过发行阻塞。
-- 阻塞审计（2026-10-29，第3回合）：上一回合分类为no progress而不是verified wait；本回合重新读取当前工程身份、原始Release结论，并fetch/pull和查询精确云端run。main仍为`fad1c1f`且0/0，产品树相对`8100b1d`无变化，UI/Release run仍completed/success；Team/正式标识/商品/渠道/公开URL及真实环境没有补充，缺口与前两回合相同。没有可等待的运行中job，也无法在不代替用户选择发行身份/渠道的情况下完成签名与真实验收，故已将goal标为blocked而非complete；不再重复同一检查。
-- 正式发行缺少Apple Team、正式iOS/Live Activity/Mac Bundle ID与Pro商品、iOS及Mac发行渠道、公开隐私政策与支持URL。不能代填占位资料或选择签名身份，也不在仓库提交凭证。
-- 真实StoreKit购买/取消/待处理/恢复/撤销、系统通知/日历权限、真机锁屏/灵动岛/后台与重启恢复、签名安装/升级以及商店审核或Mac公证仍未执行；云端未签名构建和模拟器不能替代。
-- 下一步需用户提供/确认上述发行资料和渠道，再在相应真实/沙盒环境继续。资料未到前不反复跑已通过CI、不擅配付费账号、不扩大无关重构，也不宣称整体发布目标完成。
+- 正式发行仍需 Apple Team、正式 Bundle/商品身份、渠道、公开隐私/支持 URL，以及真实购买/系统权限/真机与签名安装实测；本轮可继续完成工程优化，不能宣称正式上架通过。
+- 新布局须保留快照与真实控件同一内容/状态，不能只修截图路径。原生截图集合若扩展，需同时更新真实测试和证据绑定合同。
+- 下一步：实现上述组件与适配，再进行静态 diff 审阅并推送云端。
+
+## 实现进度
+
+- 两端统计/设置/日历共用 Pro 操作组件，静态快照与真实按钮共用同一 surface；恢复为文字按钮，activityText 唯一忙碌状态，不修改真实 StoreKit 权益来源。
+- 两端报表与周图共用展示组件，去掉零值假柱形/柱内微小文字，辅助字号逐行显示；iOS统计/设置/日程适配、Mac统计自适应列；设置补主题入口。
+- 新增一个实际原生测试并扩展两个既有测试，合计11条/45个具名场景；Mac增加4张为21张，6张亮色。证据集合和对应缺图负例已同步；未增加时限或放宽原断言。
+- 尚未运行产品验证；下一步静态审查剩余 diff、git diff --check、核对用户变更边界，main提交推送后跟进完整链。

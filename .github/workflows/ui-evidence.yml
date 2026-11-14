@@ -135,8 +135,8 @@ jobs:
                   if phase == "before-upload":
                       if os.environ["UI_PLATFORM"] == "mac":
                           result["fixtures"] = load(ROOT / "images" / "fixtures.json")
-                          require(len(result["fixtures"]) == 17, "Missing UI fixtures")
-                          require(sum(item["theme"] == "light" for item in result["fixtures"]) == 5, "Missing light theme fixtures")
+                          require(len(result["fixtures"]) == 21, "Missing UI fixtures")
+                          require(sum(item["theme"] == "light" for item in result["fixtures"]) == 6, "Missing light theme fixtures")
                           require(any(item["categoriesExpanded"] for item in result["fixtures"]), "Missing expanded categories fixture")
                       elif os.environ["UI_PLATFORM"] == "release":
                           result["releaseEvidence"] = load(ROOT / "release-evidence.json")
@@ -144,7 +144,7 @@ jobs:
                           require(result["releaseEvidence"]["commitSha"] == run["head_sha"], "Release products are from a different source")
                       else:
                           result["nativeUIEvidence"] = load(ROOT / "ios-evidence.json")
-                          require(result["nativeUIEvidence"]["summary"]["passedTests"] == 10, "Missing native UI test results")
+                          require(result["nativeUIEvidence"]["summary"]["passedTests"] == 11, "Missing native UI test results")
                       with (ROOT / "ui-manifest.json").open("x") as output:
                           json.dump(result, output, indent=2)
               with (ROOT / (phase + "-gate-result.json")).open("x") as output:

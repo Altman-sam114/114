@@ -121,3 +121,36 @@ struct MacWrappingLayout: Layout {
         return frames
     }
 }
+
+struct MacPremiumControlsView: View {
+    @EnvironmentObject private var premium: MacPremiumAccessService
+    @Environment(\.macSnapshotRendering) private var isSnapshotRendering
+
+    let identifier: String
+    var purchaseTitle = "解锁 Pro"
+
+    var body: some View {
+        PremiumAccessActions(
+            identifier: identifier,
+            isUnlocked: premium.isProUnlocked,
+            activityText: premium.activityText,
+            status: premium.statusText,
+            tint: MacTheme.readableTint(.cyan),
+            textOnTint: MacTheme.textOnReadableTint(.cyan),
+            secondaryText: MacTheme.secondaryText,
+            border: MacTheme.border,
+            purchaseTitle: purchaseTitle,
+            rendersStaticControls: isSnapshotRendering,
+            onPurchase: purchase,
+            onRestore: restore
+        )
+    }
+
+    private func purchase() {
+        Task { await premium.purchasePro() }
+    }
+
+    private func restore() {
+        Task { await premium.restorePurchases() }
+    }
+}

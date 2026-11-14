@@ -55,11 +55,11 @@ class NativeEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, message):
             verify_evidence(self.root)
 
-    def test_current_ten_tests_and_forty_bound_scenes(self):
+    def test_current_eleven_tests_and_forty_five_bound_scenes(self):
         result = verify_evidence(self.root)
-        self.assertEqual(len(result["screenshots"]), 40)
-        self.assertEqual(len({item["scene"] for item in result["screenshots"]}), 40)
-        self.assertEqual(len(result["executedTests"]), 10)
+        self.assertEqual(len(result["screenshots"]), 45)
+        self.assertEqual(len({item["scene"] for item in result["screenshots"]}), 45)
+        self.assertEqual(len(result["executedTests"]), 11)
 
     def test_tree_missing_duplicate_wrong_identity_and_result_are_rejected(self):
         original = copy.deepcopy(self.tree)
@@ -111,7 +111,7 @@ class NativeEvidenceTests(unittest.TestCase):
 
     def test_accessibility_queue_and_metrics_scenes_are_required(self):
         original = copy.deepcopy(self.manifest)
-        for scene in ("large-text-queue", "analytics-large-summary"):
+        for scene in ("large-text-queue", "analytics-large-summary", "premium-large-features", "premium-large-actions", "premium-calendar-large", "premium-settings-large", "premium-light"):
             self.manifest = copy.deepcopy(original)
             group = next(group for group in self.manifest if any(
                 item["suggestedHumanReadableName"].startswith(scene + "_") for item in group["attachments"]

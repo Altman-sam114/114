@@ -135,33 +135,7 @@ struct MacSettingsDetailView: View {
                             .multilineTextAlignment(.trailing)
                     }
 
-                    HStack {
-                        if isSnapshotRendering {
-                            MacStaticSettingsActionChipView(
-                                title: premium.isProUnlocked ? "已解锁" : "解锁 Pro",
-                                symbolName: "sparkles",
-                                tint: .cyan,
-                                isProminent: true
-                            )
-                            MacStaticSettingsActionChipView(title: "恢复购买", symbolName: "arrow.clockwise", tint: MacTheme.secondaryText, isProminent: false)
-                        } else {
-                            Button(premium.isProUnlocked ? "已解锁" : "解锁 Pro", systemImage: "sparkles") {
-                                Task { await premium.purchasePro() }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.cyan)
-                            .disabled(premium.isLoading || premium.isProUnlocked)
-
-                            Button("恢复购买", systemImage: "arrow.clockwise") {
-                                Task { await premium.restorePurchases() }
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(premium.isLoading)
-                        }
-                    }
-                    Text(premium.statusText)
-                        .font(.caption)
-                        .foregroundStyle(MacTheme.secondaryText)
+                    MacPremiumControlsView(identifier: "settings.pro")
                 }
             }
 
@@ -316,7 +290,9 @@ private struct MacCompletionSoundPickerView: View {
                 if isSnapshotRendering {
                     MacStaticSettingsActionChipView(title: "试听", symbolName: "speaker.wave.2.fill", tint: MacTheme.secondaryText, isProminent: false)
                     if !premium.isProUnlocked {
-                        MacStaticSettingsActionChipView(title: "解锁 Pro", symbolName: "sparkles", tint: .cyan, isProminent: true)
+                        Text("更多音色可在下方高级功能中解锁。")
+                            .font(.caption)
+                            .foregroundStyle(MacTheme.secondaryText)
                     }
                 } else {
                     Button("试听", systemImage: "speaker.wave.2.fill", action: previewSound)
@@ -324,12 +300,9 @@ private struct MacCompletionSoundPickerView: View {
                         .disabled(!premium.isProUnlocked && store.settings.completionSound.isPro)
 
                     if !premium.isProUnlocked {
-                        Button("解锁 Pro", systemImage: "sparkles") {
-                            Task { await premium.purchasePro() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.cyan)
-                        .disabled(premium.isLoading)
+                        Text("更多音色可在下方高级功能中解锁。")
+                            .font(.caption)
+                            .foregroundStyle(MacTheme.secondaryText)
                     }
                 }
             }

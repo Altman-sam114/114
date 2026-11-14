@@ -312,13 +312,14 @@ struct MacSnapshotRenderer {
         @MainActor
         func capture(_ name: String, section: SnapshotDetailSection, content: AnyView, width: CGFloat,
                      height: CGFloat = 720, state: String, largeType: Bool = false,
-                     theme: AppThemeMode = .dark, categoriesExpanded: Bool = false) throws {
+                     theme: AppThemeMode = .dark, categoriesExpanded: Bool = false,
+                     premiumAccess: MacPremiumAccessService? = nil) throws {
             store.settings.appThemeMode = theme
             let view = SnapshotDetailView(selectedSection: section, content: content, contentHeight: height, windowWidth: width)
                 .environmentObject(store)
                 .environmentObject(engine)
                 .environmentObject(notifications)
-                .environmentObject(premium)
+                .environmentObject(premiumAccess ?? premium)
                 .environmentObject(calendarSync)
                 .environment(\.macSnapshotRendering, true)
                 .environment(\.macSnapshotCategoriesExpanded, categoriesExpanded)
@@ -351,6 +352,10 @@ struct MacSnapshotRenderer {
         try capture("schedule-light.png", section: .schedule, content: AnyView(MacScheduleDetailView(initialTaskCategory: "产品")), width: 1100, height: 1000, state: "light schedule, collapsed categories", theme: .light)
         try capture("analytics-light.png", section: .analytics, content: AnyView(MacAnalyticsDetailView()), width: 1100, height: 1400, state: "light analytics", theme: .light)
         try capture("settings-light.png", section: .settings, content: AnyView(MacSettingsDetailView()), width: 1100, height: 1100, state: "light settings, theme control", theme: .light)
+        let lockedPremium = MacPremiumAccessService(loadProductsOnInit: false)
+        try capture("analytics-pro-light.png", section: .analytics, content: AnyView(MacAnalyticsDetailView()), width: 920, height: 1400, state: "locked Pro features and shared purchase controls", theme: .light, premiumAccess: lockedPremium)
+        try capture("analytics-pro-dark.png", section: .analytics, content: AnyView(MacAnalyticsDetailView()), width: 920, height: 1400, state: "locked Pro features and shared purchase controls", premiumAccess: lockedPremium)
+        try capture("analytics-920-full.png", section: .analytics, content: AnyView(MacAnalyticsDetailView()), width: 920, height: 2200, state: "compact analytics, vertically stacked panels and readable chart values")
 
         guard let completedTask = store.addTask(title: "完成发布资料整理", category: "产品", dueDate: Date(), estimatedRounds: 1, accentHex: "#3DE8C5") else {
             throw SnapshotError("Could not create completed task fixture")
@@ -413,6 +418,8 @@ struct MacSnapshotRenderer {
         store.tasks.removeAll()
         store.pomodoroPlan.removeAll()
         try capture("timer-empty.png", section: .timer, content: AnyView(MacTimerDetailView()), width: 1100, state: "empty queue, free focus available")
+        store.sessions.removeAll()
+        try capture("analytics-empty.png", section: .analytics, content: AnyView(MacAnalyticsDetailView()), width: 920, height: 1800, state: "empty statistics, explicit history and category empty states")
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try encoder.encode(fixtures).write(to: outputDirectory.appendingPathComponent("fixtures.json"))

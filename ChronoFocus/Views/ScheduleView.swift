@@ -108,6 +108,8 @@ struct ScheduleView: View {
                 }
                 .padding(18)
                 .padding(.bottom, 26)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
             .background(AppTheme.background.ignoresSafeArea())
@@ -181,8 +183,9 @@ struct ScheduleView: View {
                         moveSelection(by: -1)
                     } label: {
                         Image(systemName: "chevron.left")
+                            .frame(minWidth: 44, minHeight: 44)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
                     .accessibilityLabel("上一段")
 
                     Spacer()
@@ -204,8 +207,9 @@ struct ScheduleView: View {
                         moveSelection(by: 1)
                     } label: {
                         Image(systemName: "chevron.right")
+                            .frame(minWidth: 44, minHeight: 44)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
                     .accessibilityLabel("下一段")
                 }
 
@@ -227,7 +231,7 @@ struct ScheduleView: View {
     private var calendarSyncPanel: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
+                calendarHeaderLayout {
                     Label("iPhone 日历同步", systemImage: "calendar.badge.plus")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
@@ -246,7 +250,7 @@ struct ScheduleView: View {
                         Task { await calendarSync.syncUpcomingEvents(into: store) }
                     } label: {
                         Label(calendarSync.isSyncing ? "同步中" : "同步近期日程", systemImage: "arrow.triangle.2.circlepath")
-                            .frame(maxWidth: .infinity)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.readableTint(.cyan))
@@ -257,15 +261,7 @@ struct ScheduleView: View {
                         .font(.caption)
                         .foregroundStyle(AppTheme.secondaryText)
                 } else {
-                    Button {
-                        Task { await premium.purchasePro() }
-                    } label: {
-                        Label("解锁 Pro 同步日历", systemImage: "lock.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.readableTint(.cyan))
-                    .foregroundStyle(AppTheme.textOnReadableTint(.cyan))
+                    PremiumControlsView(identifier: "schedule.pro", purchaseTitle: "解锁 Pro 同步日历")
                 }
             }
         }
@@ -274,7 +270,7 @@ struct ScheduleView: View {
     private var pomodoroPlanPanel: some View {
         GlassPanel {
             VStack(alignment: .leading, spacing: 14) {
-                HStack {
+                calendarHeaderLayout {
                     Label("自动番茄钟计划", systemImage: "calendar.badge.plus")
                         .font(.headline)
                         .foregroundStyle(AppTheme.primaryText)
@@ -284,7 +280,7 @@ struct ScheduleView: View {
                         .foregroundStyle(AppTheme.readableTint(.cyan))
                 }
 
-                HStack(spacing: 10) {
+                calendarHeaderLayout {
                     Button {
                         store.generatePomodoroPlanFromSchedule()
                     } label: {

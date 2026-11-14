@@ -13,10 +13,11 @@ import sys
 SCENES = {
     "test00FreeFocusLifecycle": ("timer-idle", "timer-running", "timer-paused", "timer-resumed", "timer-stopped"),
     "testReminderDisclosure": ("reminders-expanded", "reminders-collapsed"),
-    "testThemeSwitchAcrossTabs": ("timer-light", "schedule-light", "settings-notifications-light", "settings-privacy-light", "timer-dark-restored", "schedule-actions-dark"),
+    "testThemeSwitchAcrossTabs": ("timer-light", "schedule-light", "settings-notifications-light", "settings-privacy-light", "premium-light", "timer-dark-restored", "schedule-actions-dark"),
     "testScheduleCategoryPrefillAndSave": ("schedule-filtered", "task-editor-prefilled", "schedule-saved"),
     "testAccessibilityTextWithLongTask": ("large-text-idle", "large-text-running", "large-text-queue"),
-    "testNotificationAccessibilityWhileRunning": ("large-text-notifications",),
+    "testNotificationAccessibilityWhileRunning": ("large-text-notifications", "premium-settings-large"),
+    "testPremiumOfferAccessibility": ("premium-large-features", "premium-large-actions", "premium-calendar-large"),
     "testScheduleAccessibilityAndActions": ("schedule-large-calendar", "schedule-long-title", "schedule-long-category", "schedule-long-actions", "schedule-long-editor", "schedule-long-handoff", "analytics-large-summary"),
     "testTaskSearchAndCompletionFilters": ("tasks-pending", "tasks-search", "tasks-completed", "tasks-restored", "tasks-search-empty", "tasks-created-from-filter"),
     "testTaskDeletionRequiresConfirmation": ("deletion-confirmation", "deletion-cancelled", "deletion-protected", "deletion-completed"),

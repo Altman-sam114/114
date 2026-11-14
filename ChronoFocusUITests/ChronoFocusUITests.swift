@@ -78,6 +78,9 @@ final class ChronoFocusUITests: XCTestCase {
         XCTAssertLessThanOrEqual(notice.frame.maxX, app.frame.maxX)
         XCTAssertLessThanOrEqual(notice.frame.maxY, app.tabBars.firstMatch.frame.minY, "Data notice must remain above the tab bar")
         capture("settings-privacy-light")
+        app.tabBars.buttons["分析"].tap()
+        assertPremiumActions(identifier: "analytics.pro", vertical: false)
+        capture("premium-light")
         app.tabBars.buttons["计时"].tap()
         XCTAssertEqual(theme.value as? String, "亮色", "Theme must survive switching tabs")
         theme.tap()
@@ -164,6 +167,24 @@ final class ChronoFocusUITests: XCTestCase {
         app.tabBars.buttons["设置"].tap()
         revealNotificationAction()
         capture("large-text-notifications")
+        assertPremiumActions(identifier: "settings.pro", vertical: true)
+        capture("premium-settings-large")
+    }
+
+    func testPremiumOfferAccessibility() {
+        launch(fixture: "empty", largeType: true)
+        app.tabBars.buttons["分析"].tap()
+        let feature = app.descendants(matching: .any)["premium.feature.reports"].firstMatch
+        revealInsideViewport(feature)
+        XCTAssertTrue(feature.label.contains("复盘与分类统计"))
+        XCTAssertGreaterThan(feature.frame.height, 80, "Feature descriptions must expand with accessibility text")
+        capture("premium-large-features")
+        assertPremiumActions(identifier: "analytics.pro", vertical: true)
+        capture("premium-large-actions")
+
+        app.tabBars.buttons["日程"].tap()
+        assertPremiumActions(identifier: "schedule.pro", vertical: true)
+        capture("premium-calendar-large")
     }
 
     func testScheduleAccessibilityAndActions() {
@@ -442,6 +463,28 @@ final class ChronoFocusUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(action.frame.height, 44)
         XCTAssertLessThanOrEqual(action.frame.maxX, app.frame.maxX)
         XCTAssertLessThanOrEqual(action.frame.maxY, app.tabBars.firstMatch.frame.minY)
+    }
+
+    private func assertPremiumActions(identifier: String, vertical: Bool) {
+        let purchase = app.buttons["\(identifier).purchase"]
+        let restore = app.buttons["\(identifier).restore"]
+        revealInsideViewport(purchase)
+        XCTAssertTrue(purchase.label.contains("解锁 Pro"))
+        XCTAssertGreaterThanOrEqual(purchase.frame.height, 44)
+        revealInsideViewport(restore)
+        XCTAssertEqual(restore.label, "恢复购买", "Restore must have a visible text label")
+        XCTAssertTrue(restore.isHittable)
+        XCTAssertGreaterThanOrEqual(restore.frame.height, 44)
+        XCTAssertGreaterThanOrEqual(restore.frame.width, 100)
+        if vertical {
+            XCTAssertGreaterThanOrEqual(restore.frame.minY, purchase.frame.maxY, "Large-text purchase actions must form separate rows")
+            XCTAssertEqual(purchase.frame.minX, restore.frame.minX, accuracy: 1)
+            XCTAssertGreaterThan(restore.frame.width, app.frame.width - 100)
+        } else {
+            XCTAssertGreaterThan(restore.frame.minX, purchase.frame.minX)
+        }
+        let status = app.staticTexts["\(identifier).status"]
+        XCTAssertTrue(status.exists, "Each entry must expose its operation result")
     }
 
     private func reveal(_ element: XCUIElement) {

@@ -117,3 +117,34 @@ struct MetricTile: View {
         .accessibilityIdentifier(identifier)
     }
 }
+
+struct PremiumControlsView: View {
+    @EnvironmentObject private var premium: PremiumAccessService
+
+    let identifier: String
+    var purchaseTitle = "解锁 Pro"
+
+    var body: some View {
+        PremiumAccessActions(
+            identifier: identifier,
+            isUnlocked: premium.isProUnlocked,
+            activityText: premium.activityText,
+            status: premium.statusText,
+            tint: AppTheme.readableTint(.cyan),
+            textOnTint: AppTheme.textOnReadableTint(.cyan),
+            secondaryText: AppTheme.secondaryText,
+            border: AppTheme.border,
+            purchaseTitle: purchaseTitle,
+            onPurchase: purchase,
+            onRestore: restore
+        )
+    }
+
+    private func purchase() {
+        Task { await premium.purchasePro() }
+    }
+
+    private func restore() {
+        Task { await premium.restorePurchases() }
+    }
+}
