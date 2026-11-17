@@ -229,6 +229,7 @@ final class ChronoFocusUITests: XCTestCase {
         let edit = taskAction("edit")
         revealInsideViewport(edit)
         edit.tap()
+        XCTAssertTrue(app.buttons["task.editor.cancel"].waitForExistence(timeout: 5), "Editing must present the task editor after one tap")
         let field = app.textFields["task.editor.category"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         XCTAssertEqual(field.value as? String, "跨团队产品体验与可访问性改进")

@@ -400,7 +400,7 @@ grep -q "dailyGoalMinutes" ChronoFocus/Models/AppModels.swift
 grep -q "dailyGoalPanel" ChronoFocus/Views/AnalyticsView.swift
 grep -q "TaskEditorView" ChronoFocus/Views/ScheduleView.swift
 grep -q "updateTask" ChronoFocus/Services/FocusStore.swift
-grep -q "editingTask" ChronoFocus/Views/ScheduleView.swift
+grep -Fq 'sheet(item: $editorDestination)' ChronoFocus/Views/ScheduleView.swift
 grep -q "TaskCategoryPreset" ChronoFocus/Models/AppModels.swift
 grep -q "TaskCategoryFilterOption" ChronoFocus/Models/AppModels.swift
 grep -q "prioritizedFilterOptions" ChronoFocus/Models/AppModels.swift
@@ -518,7 +518,7 @@ schedule_category_context_source = source_slice(
   "Schedule category summary context missing"
 )
 raise "Schedule category summary must require a selected category and nonempty visible tasks" unless schedule_category_context_source.match?(/if\s+let\s+selectedCategoryName\s*=\s*selectedCategory\s*,\s*!visibleTasks\.isEmpty\s*\{[\s\S]*?SelectedCategorySummaryView\(/)
-raise "Schedule category summary must wire add and clear actions" unless schedule_category_context_source.match?(/SelectedCategorySummaryView\([\s\S]*?onAddTask:\s*\{\s*showingEditor = true\s*\}[\s\S]*?onClear:\s*\{\s*selectedCategory = nil\s*\}/)
+raise "Schedule category summary must wire add and clear actions" unless schedule_category_context_source.match?(/SelectedCategorySummaryView\([\s\S]*?onAddTask:\s*\{\s*editorDestination = \.create\s*\}[\s\S]*?onClear:\s*\{\s*selectedCategory = nil\s*\}/)
 
 schedule_summary_source = source_slice(
   "ChronoFocus/Views/ScheduleView.swift",
@@ -600,7 +600,7 @@ schedule_task_list_empty_source = source_slice(
   "Schedule task empty branch source missing"
 )
 raise "Schedule category empty state must render only with selected category" unless schedule_task_list_empty_source.include?("if let selectedCategory") && schedule_task_list_empty_source.include?("ScheduleCategoryEmptyStateView(")
-raise "Schedule category empty state must wire category and actions" unless schedule_task_list_empty_source.include?("category: selectedCategory") && schedule_task_list_empty_source.include?("showingEditor = true") && schedule_task_list_empty_source.include?("self.selectedCategory = nil")
+raise "Schedule category empty state must wire category and actions" unless schedule_task_list_empty_source.include?("category: selectedCategory") && schedule_task_list_empty_source.include?("editorDestination = .create") && schedule_task_list_empty_source.include?("self.selectedCategory = nil")
 puts "Schedule category empty state action contracts verified."
 
 mac_schedule_empty_source = source_slice(

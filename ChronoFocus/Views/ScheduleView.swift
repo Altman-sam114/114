@@ -1,6 +1,25 @@
 import SwiftUI
 
 struct ScheduleView: View {
+    private enum EditorDestination: Identifiable {
+        case create
+        case edit(FocusTask)
+
+        var id: String {
+            switch self {
+            case .create: return "new-task"
+            case .edit(let task): return task.id.uuidString
+            }
+        }
+
+        var task: FocusTask? {
+            switch self {
+            case .create: return nil
+            case .edit(let task): return task
+            }
+        }
+    }
+
     @EnvironmentObject private var store: FocusStore
     @EnvironmentObject private var engine: TimerEngine
     @EnvironmentObject private var notifications: NotificationService
@@ -10,8 +29,7 @@ struct ScheduleView: View {
     @State private var selectedDate = Date()
     @State private var calendarMode: CalendarDisplayMode = .week
     @State private var selectedCategory: String?
-    @State private var showingEditor = false
-    @State private var editingTask: FocusTask?
+    @State private var editorDestination: EditorDestination?
     @State private var pendingDeletion: FocusTask?
     @State private var taskStatus: TaskListStatus = .pending
     @State private var taskSearchQuery = ""
@@ -118,7 +136,7 @@ struct ScheduleView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showingEditor = true
+                        editorDestination = .create
                     } label: {
                         Label("新增", systemImage: "plus")
                             .frame(minHeight: 44)
@@ -129,18 +147,6 @@ struct ScheduleView: View {
                     .accessibilityInputLabels(addTaskInputLabels)
                 }
             }
-            .sheet(isPresented: $showingEditor) {
-                TaskEditorView(initialDueDate: defaultNewTaskDate, initialCategory: selectedCategory, onSave: revealSavedTask)
-                    .environmentObject(store)
-                    .environmentObject(notifications)
-                    .presentationDetents([.medium, .large])
-            }
-            .sheet(item: $editingTask) { task in
-                TaskEditorView(task: task, initialDueDate: selectedDate, onSave: revealSavedTask)
-                    .environmentObject(store)
-                    .environmentObject(notifications)
-                    .presentationDetents([.medium, .large])
-            }
             .alert("删除待办？", isPresented: Binding(
                 get: { pendingDeletion != nil },
                 set: { if !$0 { pendingDeletion = nil } }
@@ -150,6 +156,17 @@ struct ScheduleView: View {
             } message: { task in
                 Text("将删除「\(task.title)」和关联计划，已记录的专注统计会保留。")
             }
+        }
+        .sheet(item: $editorDestination) { destination in
+            TaskEditorView(
+                task: destination.task,
+                initialDueDate: destination.task == nil ? defaultNewTaskDate : selectedDate,
+                initialCategory: selectedCategory,
+                onSave: revealSavedTask
+            )
+            .environmentObject(store)
+            .environmentObject(notifications)
+            .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
         }
     }
 
@@ -368,7 +385,7 @@ struct ScheduleView: View {
                         count: taskCount(in: selectedCategoryName),
                         isTimerRunning: engine.isRunning,
                         onAddTask: {
-                            showingEditor = true
+                            editorDestination = .create
                         },
                         onTimerHandoff: {
                             onTimerHandoff(TimerHandoffRequest(category: selectedCategoryName))
@@ -398,7 +415,7 @@ struct ScheduleView: View {
                         ScheduleCategoryEmptyStateView(
                             category: selectedCategory,
                             onAddTask: {
-                                showingEditor = true
+                                editorDestination = .create
                             },
                             onClear: {
                                 self.selectedCategory = nil
@@ -421,7 +438,7 @@ struct ScheduleView: View {
                             } onEnable: {
                                 setTask(task, enabled: !task.isEnabled)
                             } onEdit: {
-                                editingTask = task
+                                editorDestination = .edit(task)
                             } onTimerHandoff: {
                                 guard task.isEnabled, !task.isDone else { return }
                                 onTimerHandoff(
@@ -435,7 +452,7 @@ struct ScheduleView: View {
                             }
                             .swipeActions {
                                 Button {
-                                    editingTask = task
+                                    editorDestination = .edit(task)
                                 } label: {
                                     Label("编辑", systemImage: "pencil")
                                 }

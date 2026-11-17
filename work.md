@@ -78,3 +78,24 @@
 - 真实UI43560129932/1最终failure：375的Pro综合用例触及120秒，随后App启动失败，整体14分钟被截断且xcresult未封口；390前10条passed，最终主题用例被14分钟截断。原始日志保留/tmp/chronofocus-resume-20261117/ui-failed.log；未重跑旧run。
 - 修复：同一Pro日历场景独立启动，12条测试仍绑定全部45场景与原断言；单条120/180秒保持，总步骤14改20分钟（11条实际串行加启动已超14分钟），总job35分钟保持。同步fixture与flow/readiness，未删场景或放宽视觉/身份验收。
 - 本轮新增编辑范围：UITests、ui-evidence workflow、verify_ios_ui_evidence和两fixture、flow/flowchart/readiness/update_log/work。下一步静态审阅、提交推送并等待精确SHA全链。
+
+- 已提交并推送ff574846d9c08f65d7a304ff5ebb1dda27ad9763，生产44074461660/1正在Project verification；git diff --check与暂存差异审阅通过（仅静态）。工作区仅剩用户原有3处文档改动。本机不运行任何产品测试或配置校验。
+
+## ff57484 云端验证
+
+- 生产44074461660/1 success，原始日志已读：静态fixture21/8/11/8全通过、两端Premium互斥/失败重试和Mac core passed、两端Debug BUILD SUCCEEDED。
+- 独立review44076184813/1 success；已读取review-result、validator-command与JUnit，正式完整第四模式148/0、exit0、product acceptance passed、JUnit4/0/0。生产artifact14325585783，16285736bytes，sha256:9f279573a4f6ef5ee40bb6e130f0f4cb1b11cdf6dd292e1f6127c137b3ae39ff。
+- review artifact14324014972（32616429bytes，sha256:b8fc34d8c9f0e2a373fc06e4e33bb882048db6e8dfc6eaea9debbc43254f88cc）已按原始API下载并核对size/digest/CRC/路径，证据/tmp/chronofocus-resume-20261117/44076184813-chronofocus-review-qro30avw；未在本机运行validator。
+- UI/Release44076184820/1进行中，仍待两机12/0/0、45场景、Mac21图、Release工程报告与本轮原图。正式发行资料已异步询问，不阻碍工程验收。
+
+- 用户确认先完成工程验收，正式发行资料稍后提供；本轮以工程级验收收口，仍保留distributionReady=false边界。
+- UI44076184820/1：Mac与Release已success，两iPhone进入原生测试。Mac artifact14325466878（79815076bytes，sha256:606f0f24d4c0a41d76dc9f2f81d1ebd42d85eeed8f1097faba83d87e3ca49e90），Release14325876106（273094bytes，sha256:eacd5baf4463722eaff9699bda4ba5c91ecfc3fac5730f9755d413098973d74d），均已核对API/ZIP完整性。
+- 已读同源Mac manifest21图与原始Pro亮暗、920pt统计全页、空态、设置五图；图标/按钮/数值/换行正常，未发现新增遮挡。
+- 已读Release原始manifest和真实命令：同源ff57484，Mac arm64+x86_64、iOS及扩展arm64，engineeringChecksPassed=true、signed=false、distributionReady=false；资源/隐私/Debug入口检查通过。原始证据在/tmp/chronofocus-resume-20261117对应run平台独立目录。
+
+## ff57484 手机验收退回与修复
+
+- UI44076184820/1最终failure：375为12/0/0、45场景通过；390为11/1/0，testScheduleAccessibilityAndActions在点击编辑后分类输入框不存在，非超时。失败录屏与AX层级确认仍停留日程，无TaskEditor，不将其归因为已证实系统/布局根因。
+- 390失败artifact14326446793（317329675bytes，sha256:1fbc7696111093aebedc99e4e2688288244b6d2d661e7434f56014b8a75f977a）已核对API摘要/大小/CRC，证据44076184820-ios-390-50lxw6ay；录屏65–72秒和原AX已读取。375 artifact14327175012（72984728bytes，sha256:e57996b78ead1fa463bebc998ecf4f618852a49ab025b369593d05c4ec0a3463）同样已核对。
+- 修复日程新增/编辑的双sheet状态，使用EditorDestination携带任务与根NavigationStack单一sheet；辅助字号大面板、普通字号保留中/大。不改变任务保存/取消/计时保护。原用例增加点击后编辑器取消按钮断言，保留分类值、截图和后续接力全部断言，12条/45场景和所有时限不变。同步verify_project原动作接线合同及README/flow。
+- 新增本轮文件：ScheduleView、scripts/verify_project.sh、README；下一步静态diff审核、追加提交main并跟进全链，不自动重跑旧run。
