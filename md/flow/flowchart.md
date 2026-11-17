@@ -23,7 +23,7 @@ flowchart LR
   EVIDENCE --> REVIEW[执行相关云端验证时核对同源证据 / 长文本与草稿]
   TREE --> DIAG[成功或失败的逐测试诊断 / 不替代验收]
   BUILD[10分钟构建与启动 / 二者并行] --> READY[双成功记录实际UDID]
-  READY --> RUN[14分钟测试步骤 / 复核UDID / 总job35分钟]
+  READY --> RUN[20分钟测试步骤 / 复核UDID / 总job35分钟]
   RUN --> COLLECT[独立always收集 / 5分钟 / 保留真实失败]
   COLLECT --> TREE
 ```

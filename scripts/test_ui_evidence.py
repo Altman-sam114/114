@@ -148,7 +148,7 @@ class UISourceGateTests(unittest.TestCase):
         execution = step("Run native iOS UI tests")
         collection = step("Collect native iOS UI results and attachments")
         diagnostics = step("Summarize native UI test results including failures")
-        self.assertIn("timeout-minutes: 14", execution)
+        self.assertIn("timeout-minutes: 20", execution)
         self.assertIn("bash scripts/run_ios_ui_tests.sh --test-only", execution)
         self.assertNotIn("xcresulttool", execution)
         self.assertIn("timeout-minutes: 5", collection)

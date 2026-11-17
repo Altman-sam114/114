@@ -60,3 +60,21 @@
 - 实读Mac Pro暗色、920pt统计全页；新布局和零值基线、可读数值正常。已取回Pro浅色/空态/设置图及375五张新图，但新修复后需新SHA复验，旧图不替代最终证据。
 - 追加改进：时长设置默认摘要，点开真实Stepper，给提醒与授权入口留出空间；主题用例新增真实展开/数值断言后收起，原测试集合/45场景与14分钟/120/180秒时限不变。滚动助手减少重复导航/TabBar查询，最终仍读取真实坐标做原有边界断言。
 - 本轮追加编辑：Shared/PremiumPresentation.swift、SettingsView.swift、UITests、README、flow、update_log、work；仅静态审阅后追加提交，不运行本机验证。下一步新SHA重新执行完整相关云端链。
+
+- 追加产品提交4ce58b427cd7867a948eebe33d24e471fdd4530c已原样发布origin/main（Git API tree/commit均与本地相同，force=false，原始请求响应/var/folders/l1/d94q360s65q4lqwzvk97px9w0000gn/T/chronofocus-git-api-2vhrvhe1）。新生产43559368529/1运行中；新证据目录/tmp/chronofocus-4ce58b4-evidence-3w0c3hd7。最终结论仅接受新SHA，旧8bdc05b的UI失败已保留。
+
+## 新 SHA 验证进展
+
+- 4ce58b4：生产43559368529/1 success（总8m52s，Project verification5m04s、Mac Debug2m07s、iOS Debug1m09s）；生产artifact14099389601，16325932 bytes，sha256:4392ac862ee493f64e958f7b5539cb62f159fb9d4b82ccc0621388cd1d774ea1。
+- 独立review43560130081/1 success，artifact14100255141；已读review-result、完整第四模式命令、JUnit及core原文：148/0、exit0、product acceptance passed、JUnit4/0/0，实际两端商品加载/购买准备互斥和失败重试回归与core通过。
+- UI/Release43560129932/1：Mac21图和Release成功；Mac artifact14100058552（79885305 bytes），Release14099714529。已读新的Release报告与同源manifest：精确4ce58b4/43559368529/1，actualCheckout相同；engineeringChecksPassed=true、signed=false、distributionReady=false，三个产品架构/隐私/资源/Debug入口检查通过。
+- 两台iPhone已进入原生测试（375于05:16:34Z，390于05:17:45Z）；等待完整11/0/0、45场景及关键原PNG，不提前接受或收口。新Mac关键PNG正在按原始ZIP条目读取。
+
+- 新Mac同源manifest/fixtures已读取，21图/6亮色，actualCheckout=4ce58b4；已实际查看新Pro亮/暗、920pt统计全页和空统计四张原PNG，图标/按钮/数值/空态可读，窄窗面板纵排，无本轮新增的覆盖问题。仍待两台iPhone完整原生证据。
+
+## 2026-11-17 接续与失败定位
+
+- 已核对main与origin/main均为4ce58b4，fetch/pull成功，授权账号Altman-sam114；用户原有3处文档改动继续保留。接续工作区已有的本任务UI测试拆分和合同修改，不纳入用户历史prompt。
+- 真实UI43560129932/1最终failure：375的Pro综合用例触及120秒，随后App启动失败，整体14分钟被截断且xcresult未封口；390前10条passed，最终主题用例被14分钟截断。原始日志保留/tmp/chronofocus-resume-20261117/ui-failed.log；未重跑旧run。
+- 修复：同一Pro日历场景独立启动，12条测试仍绑定全部45场景与原断言；单条120/180秒保持，总步骤14改20分钟（11条实际串行加启动已超14分钟），总job35分钟保持。同步fixture与flow/readiness，未删场景或放宽视觉/身份验收。
+- 本轮新增编辑范围：UITests、ui-evidence workflow、verify_ios_ui_evidence和两fixture、flow/flowchart/readiness/update_log/work。下一步静态审阅、提交推送并等待精确SHA全链。

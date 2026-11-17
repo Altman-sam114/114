@@ -189,7 +189,10 @@ final class ChronoFocusUITests: XCTestCase {
         capture("premium-large-features")
         assertPremiumActions(identifier: "analytics.pro", vertical: true)
         capture("premium-large-actions")
+    }
 
+    func testPremiumCalendarAccessibility() {
+        launch(fixture: "empty", largeType: true)
         app.tabBars.buttons["日程"].tap()
         assertPremiumActions(identifier: "schedule.pro", vertical: true)
         capture("premium-calendar-large")
